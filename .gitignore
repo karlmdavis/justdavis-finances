@@ -1,9 +1,7 @@
 # Sensitive financial data
 ynab-data/
 amazon/data/
-
-# Generated analysis outputs
-analysis/
+analysis/*/results/
 
 # Python environment
 .venv/
