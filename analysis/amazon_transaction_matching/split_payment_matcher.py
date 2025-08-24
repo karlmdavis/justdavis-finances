@@ -18,20 +18,24 @@ class SplitPaymentMatcher:
     """
     Manages split payment matching across multiple YNAB transactions.
     Maintains state about which order items have already been matched.
+    
+    By default uses in-memory storage. Optionally can persist to file cache.
     """
     
-    def __init__(self, cache_file: str = None):
+    def __init__(self, cache_file: Optional[str] = None):
         """
         Initialize the matcher with optional persistent cache.
         
         Args:
-            cache_file: Optional path to cache file for persistent matching state
+            cache_file: Optional path to cache file for persistent matching state.
+                       If None (default), uses in-memory storage only.
         """
         self.cache_file = cache_file
         self.matched_items = defaultdict(set)  # {order_id: set of matched item indices}
         self.transaction_matches = {}  # {transaction_id: match_details}
         
-        if cache_file and os.path.exists(cache_file):
+        # Only load cache if file is specified AND exists
+        if self.cache_file and os.path.exists(self.cache_file):
             self.load_cache()
     
     def load_cache(self):
@@ -52,9 +56,9 @@ class SplitPaymentMatcher:
             print(f"Warning: Could not load cache: {e}")
     
     def save_cache(self):
-        """Save current matching state to cache file."""
+        """Save current matching state to cache file (only if cache file specified)."""
         if not self.cache_file:
-            return
+            return  # In-memory mode, no saving needed
             
         try:
             data = {

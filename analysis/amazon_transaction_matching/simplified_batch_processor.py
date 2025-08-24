@@ -11,7 +11,7 @@ import json
 import os
 import time
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import sys
 
 # Add current directory to path for imports
@@ -60,6 +60,7 @@ def load_ynab_transactions(start_date: str, end_date: str, ynab_data_path: str =
 def process_batch(transactions: List[Dict[str, Any]], 
                  accounts_data: Dict[str, Any], 
                  enable_split: bool = True,
+                 cache_file: Optional[str] = None,
                  verbose: bool = False) -> List[Dict[str, Any]]:
     """Process all transactions using simplified matching engine."""
     results = []
@@ -68,13 +69,13 @@ def process_batch(transactions: List[Dict[str, Any]],
     # Initialize split payment matcher if enabled
     split_matcher = None
     if enable_split:
-        cache_dir = os.path.join(os.path.dirname(__file__), 'cache')
-        os.makedirs(cache_dir, exist_ok=True)
-        cache_file = os.path.join(cache_dir, 'split_payment_cache.json')
         split_matcher = SplitPaymentMatcher(cache_file)
         
         if verbose:
-            print(f"Split payment matching enabled with cache at {cache_file}")
+            if cache_file:
+                print(f"Split payment matching enabled with file cache at {cache_file}")
+            else:
+                print(f"Split payment matching enabled with in-memory cache")
     
     # Initialize simplified matcher
     matcher = SimplifiedMatcher(split_matcher)
@@ -250,6 +251,7 @@ def main():
     parser.add_argument('--output', default=default_output_dir, help=f'Output directory (default: {default_output_dir})')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging')
     parser.add_argument('--disable-split', action='store_true', help='Disable split payment matching')
+    parser.add_argument('--cache-file', help='Optional file path for persistent split payment cache (default: in-memory)')
     parser.add_argument('--ynab-data-path', default='ynab-data', help='Path to YNAB data directory')
     parser.add_argument('--amazon-data-path', default='amazon/data', help='Path to Amazon data directory')
     parser.add_argument('--accounts', nargs='*', help='Specific accounts to search (default: all)')
@@ -299,7 +301,7 @@ def main():
         # Process batch
         if args.verbose:
             print("Processing transactions...")
-        results = process_batch(transactions, accounts_data, not args.disable_split, args.verbose)
+        results = process_batch(transactions, accounts_data, not args.disable_split, args.cache_file, args.verbose)
         
         # Generate summary
         summary = generate_summary(results)

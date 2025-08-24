@@ -144,14 +144,11 @@ def process_batch_with_splits(transactions: List[Dict[str, Any]],
     # Initialize split payment matcher if enabled
     split_matcher = None
     if enable_split:
-        # Use a cache file to persist split payment state
-        cache_dir = os.path.join(os.path.dirname(__file__), 'cache')
-        os.makedirs(cache_dir, exist_ok=True)
-        cache_file = os.path.join(cache_dir, 'split_payment_cache.json')
-        split_matcher = SplitPaymentMatcher(cache_file)
+        # Use in-memory cache by default (can be changed to file cache if needed)
+        split_matcher = SplitPaymentMatcher()
         
         if verbose:
-            print(f"Split payment matching enabled with cache at {cache_file}")
+            print(f"Split payment matching enabled with in-memory cache")
     
     for i, tx in enumerate(transactions):
         if verbose:
