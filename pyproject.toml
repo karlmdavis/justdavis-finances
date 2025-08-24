@@ -1,0 +1,16 @@
+[project]
+name = "finances"
+version = "0.1.0"
+description = "Personal finance analysis tools for YNAB data"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "scipy>=1.11.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ipython>=8.0.0",
+]
