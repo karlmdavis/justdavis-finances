@@ -146,6 +146,8 @@ When developing automation or tools for this repository, prioritize:
 5. **Timestamps**: Use format `YYYY-MM-DD_HH-MM-SS_filename` for all generated files
 6. **Path handling**: Use paths relative to script location, not working directory
 7. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/` naming
+8. **Working directory**: Stay in the personal/finances/ directory as much as possible, and run commands/scripts below it using their relative path. If you get a file or directory not found error, run `pwd` and try to navigate back to `personal/finances/` before retrying.
+9. **Python execution**: Use `uv run python3 -c ...` instead of just `python3 -c ...` when trying to run ad-hoc Python.
 
 ## Security Considerations
 - Never commit sensitive financial data, account numbers, or API credentials
