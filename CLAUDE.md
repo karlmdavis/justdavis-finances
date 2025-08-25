@@ -46,14 +46,22 @@ This is a personal finance management repository for the Davis family. The prima
 
 #### 4. Amazon Transaction Matching System (`analysis/amazon_transaction_matching/`)
 - **Primary purpose**: Automatically match YNAB transactions to Amazon orders
+- **Architecture**: Simplified 3-strategy system for clean, maintainable code
 - **Key scripts**:
-  - `match_single_transaction.py` - Process individual transactions
-  - `match_transactions_batch.py` - Batch process date ranges
+  - `match_single_transaction.py` - Process individual transactions using SimplifiedMatcher
+  - `match_transactions_batch.py` - Batch process date ranges with 3-strategy architecture
+- **Supporting modules**:
+  - `order_grouper.py` - Unified order grouping (complete orders, shipments, daily shipments)
+  - `match_scorer.py` - Confidence scoring and match result creation
+  - `split_payment_matcher.py` - Split payment handling for partial order matches
 - **Multi-account support**: Automatically discovers and searches all Amazon accounts
 - **Precision handling**: Uses integer cents arithmetic to avoid floating-point errors
-- **Match strategies**: 5 different algorithms (exact amount, shipment groups, date windows, etc.)
+- **Match strategies**: 3 clean strategies replacing complex 5-strategy system:
+  1. **Complete Match** - Exact order/shipment matches (high confidence)
+  2. **Split Payment** - Partial order matches with item tracking
+  3. **Fuzzy Match** - Approximate matches with flexible tolerances
 - **Output**: Timestamped JSON files in `analysis/amazon_transaction_matching/results/`
-- **Current performance**: 94.7% match rate on July 2024 data
+- **Current performance**: 94.7% match rate maintained with simplified architecture
 - **Multi-day orders**: Handles orders that ship across multiple days
 - **Usage patterns**:
   ```bash
@@ -64,6 +72,10 @@ This is a personal finance management repository for the Davis family. The prima
   # Process specific accounts only
   uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
     --start 2024-07-01 --end 2024-07-31 --accounts karl erica
+    
+  # Disable split payment matching if needed
+  uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
+    --start 2024-07-01 --end 2024-07-31 --disable-split
   ```
 
 #### 5. CSV Analysis Tools (`analysis/csv-tools/`)
@@ -146,11 +158,16 @@ When developing automation or tools for this repository, prioritize:
 
 ## Recent Major Improvements
 
-### Amazon Transaction Matching System (August 2024)
+### Amazon Transaction Matching System Overhaul (August 2024)
+- **Architecture simplification**: Replaced complex 5-strategy system with clean 3-strategy architecture
+- **Code maintainability**: Modular design with separate files for grouping, scoring, and split payments
 - **Precision fixes**: Eliminated floating-point currency errors using integer cents
 - **Multi-day order support**: Now handles orders that ship across multiple days  
-- **Performance improvement**: Increased match rate from 84.2% to 94.7%
+- **Performance improvement**: Maintained 94.7% match rate with simplified, more reliable code
 - **Multi-account architecture**: Supports household with multiple Amazon accounts
-- **Algorithm enhancements**: 5 different matching strategies with confidence scoring
+- **Split payment enhancement**: Improved partial order matching with persistent item tracking
 
-Key technical breakthrough: Fixed critical bug where exact amount matches failed due to single-day shipping restriction. Now supports complete multi-day orders using earliest ship date for matching.
+Key technical breakthroughs:
+1. **Simplified Architecture**: 3 focused strategies (Complete Match, Split Payment, Fuzzy Match) replace complex 5-strategy system
+2. **Modular Design**: Clean separation of concerns with `order_grouper.py`, `match_scorer.py`, and `split_payment_matcher.py`
+3. **Multi-day Orders**: Fixed critical bug where exact amount matches failed due to single-day shipping restriction

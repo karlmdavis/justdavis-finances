@@ -1,18 +1,9 @@
 #!/usr/bin/env python3
 """
-Amazon Transaction Matching System - Batch Processor
+Simplified Amazon Transaction Matching Batch Processor
 
-Process multiple YNAB transactions in a date range and find all Amazon matches.
-
-Usage:
-    # Process a month of transactions
-    python match_transactions_batch.py --start 2024-07-01 --end 2024-07-31
-
-    # Process with custom output location
-    python match_transactions_batch.py --start 2024-07-01 --end 2024-07-31 --output results/
-
-    # Process with verbose logging
-    python match_transactions_batch.py --start 2024-07-01 --end 2024-07-31 --verbose
+Uses the new 3-strategy architecture for clean, maintainable code.
+Replaces both match_transactions_batch.py and match_transactions_batch_v2.py
 """
 
 import argparse
@@ -20,26 +11,18 @@ import json
 import os
 import time
 from datetime import datetime
-from typing import Dict, List, Any
-import subprocess
+from typing import Dict, List, Any, Optional
 import sys
 
-from match_single_transaction import load_all_accounts_data, find_matching_orders, is_amazon_transaction, milliunits_to_cents, cents_to_dollars_str, convert_match_result_for_json
+# Add current directory to path for imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from match_single_transaction import load_all_accounts_data, is_amazon_transaction, milliunits_to_cents, cents_to_dollars_str, convert_match_result_for_json, SimplifiedMatcher
+from split_payment_matcher import SplitPaymentMatcher
 
 
 def load_ynab_transactions(start_date: str, end_date: str, ynab_data_path: str = "ynab-data") -> List[Dict[str, Any]]:
-    """
-    Load YNAB transactions from cache within date range.
-    Filter to Amazon-related transactions only.
-    
-    Args:
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
-        ynab_data_path: Path to YNAB data directory
-        
-    Returns:
-        List of Amazon-related YNAB transactions
-    """
+    """Load YNAB transactions from cache within date range."""
     transactions_file = os.path.join(ynab_data_path, "transactions.json")
     
     if not os.path.exists(transactions_file):
@@ -73,34 +56,49 @@ def load_ynab_transactions(start_date: str, end_date: str, ynab_data_path: str =
     return amazon_transactions
 
 
-def process_batch(transactions: List[Dict[str, Any]], accounts_data: Dict[str, Any], verbose: bool = False) -> List[Dict[str, Any]]:
-    """
-    Process all transactions through single matcher.
-    Track statistics and timing.
-    
-    Args:
-        transactions: List of YNAB transactions to process
-        accounts_data: Dictionary of {account_name: (retail_df, digital_df)}
-        verbose: Enable verbose logging
-        
-    Returns:
-        List of match results
-    """
+def process_batch(transactions: List[Dict[str, Any]], 
+                 accounts_data: Dict[str, Any], 
+                 enable_split: bool = True,
+                 cache_file: Optional[str] = None,
+                 verbose: bool = False) -> List[Dict[str, Any]]:
+    """Process all transactions using simplified matching engine."""
     results = []
     total_transactions = len(transactions)
+    
+    # Initialize split payment matcher if enabled
+    split_matcher = None
+    if enable_split:
+        split_matcher = SplitPaymentMatcher(cache_file)
+        
+        if verbose:
+            if cache_file:
+                print(f"Split payment matching enabled with file cache at {cache_file}")
+            else:
+                print(f"Split payment matching enabled with in-memory cache")
+    
+    # Initialize simplified matcher
+    matcher = SimplifiedMatcher(split_matcher)
     
     for i, tx in enumerate(transactions):
         if verbose:
             print(f"Processing transaction {i+1}/{total_transactions}: {tx['payee_name']} - ${cents_to_dollars_str(milliunits_to_cents(tx['amount']))}")
         
         try:
-            # Process through single matcher
-            result = find_matching_orders(tx, accounts_data)
+            # Process through simplified matcher
+            result = matcher.find_matches(tx, accounts_data)
+            
+            # Record split payment matches if applicable
+            if enable_split and result.get('matches'):
+                best_match = result['matches'][0]
+                if best_match.get('match_method') == 'split_payment':
+                    matcher.record_split_payment_match(tx['id'], best_match)
+            
             results.append(result)
             
             if verbose and result.get('matches'):
                 best = result['best_match']
-                print(f"  -> Matched with {best['account']} (confidence {best['confidence']:.2f})")
+                method = result['matches'][0]['match_method']
+                print(f"  -> Matched with {best['account']} using {method} (confidence {best['confidence']:.2f})")
             elif verbose:
                 print(f"  -> No match found")
                 
@@ -127,15 +125,7 @@ def process_batch(transactions: List[Dict[str, Any]], accounts_data: Dict[str, A
 
 
 def generate_summary(results: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Calculate summary statistics from match results.
-    
-    Args:
-        results: List of match results
-        
-    Returns:
-        Summary statistics dictionary
-    """
+    """Calculate summary statistics from match results."""
     total_transactions = len(results)
     
     if total_transactions == 0:
@@ -147,7 +137,8 @@ def generate_summary(results: List[Dict[str, Any]]) -> Dict[str, Any]:
             'match_rate': 0.0,
             'average_confidence': 0.0,
             'total_amount_matched': 0.0,
-            'total_amount_unmatched': 0.0
+            'total_amount_unmatched': 0.0,
+            'strategies_used': {}
         }
     
     matched_count = 0
@@ -157,13 +148,18 @@ def generate_summary(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     total_amount_matched = 0.0
     total_amount_unmatched = 0.0
     
-    # Count matches by account
+    # Count matches by account and strategy
     matches_by_account = {}
+    strategies_used = {}
     
     for result in results:
         if result.get('matches'):
-            # Has matches
-            best_match = result.get('matches', [{}])[0]  # Get first/best match
+            best_match = result.get('matches', [{}])[0]
+            
+            # Count strategy usage
+            method = best_match.get('match_method', 'unknown')
+            strategies_used[method] = strategies_used.get(method, 0) + 1
+            
             if best_match.get('unmatched_amount', 0) > 0.01:  # Has unmatched portion
                 partial_count += 1
             else:
@@ -201,32 +197,21 @@ def generate_summary(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         'average_confidence': round(average_confidence, 2),
         'total_amount_matched': round(total_amount_matched, 2),
         'total_amount_unmatched': round(total_amount_unmatched, 2),
-        'matches_by_account': matches_by_account
+        'matches_by_account': matches_by_account,
+        'strategies_used': strategies_used
     }
 
 
 def save_results(results: List[Dict[str, Any]], summary: Dict[str, Any], date_range: Dict[str, str], 
                 output_dir: str = "results", amazon_data_date: str = None) -> str:
-    """
-    Save results to timestamped JSON file.
-    
-    Args:
-        results: Match results
-        summary: Summary statistics
-        date_range: Date range processed
-        output_dir: Output directory
-        amazon_data_date: Date of Amazon data used
-        
-    Returns:
-        Path to output file
-    """
+    """Save results to timestamped JSON file."""
     # Create output directory if it doesn't exist
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
     # Generate timestamped filename
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"{timestamp}_amazon_matching_results.json"
+    filename = f"{timestamp}_simplified_matching_results.json"
     filepath = os.path.join(output_dir, filename)
     
     # Convert results to JSON-safe format with string amounts
@@ -241,7 +226,9 @@ def save_results(results: List[Dict[str, Any]], summary: Dict[str, Any], date_ra
             'timestamp': datetime.now().isoformat(),
             'amazon_data_date': amazon_data_date,
             'ynab_data_date': datetime.now().isoformat(),
-            'processing_time_seconds': None  # Will be set by caller
+            'processing_time_seconds': None,  # Will be set by caller
+            'architecture': 'simplified_3_strategy',
+            'strategies': ['complete_match', 'split_payment', 'fuzzy_match']
         }
     }
     
@@ -253,18 +240,17 @@ def save_results(results: List[Dict[str, Any]], summary: Dict[str, Any], date_ra
 
 
 def main():
-    """
-    Command-line entry point with argument parsing.
-    """
-    # Get the directory where this script is located
+    """Command-line entry point."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     default_output_dir = os.path.join(script_dir, 'results')
     
-    parser = argparse.ArgumentParser(description='Batch process YNAB transactions for Amazon matches')
+    parser = argparse.ArgumentParser(description='Simplified Amazon Transaction Matching Batch Processor')
     parser.add_argument('--start', required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', required=True, help='End date (YYYY-MM-DD)')
     parser.add_argument('--output', default=default_output_dir, help=f'Output directory (default: {default_output_dir})')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging')
+    parser.add_argument('--disable-split', action='store_true', help='Disable split payment matching')
+    parser.add_argument('--cache-file', help='Optional file path for persistent split payment cache (default: in-memory)')
     parser.add_argument('--ynab-data-path', default='ynab-data', help='Path to YNAB data directory')
     parser.add_argument('--amazon-data-path', default='amazon/data', help='Path to Amazon data directory')
     parser.add_argument('--accounts', nargs='*', help='Specific accounts to search (default: all)')
@@ -275,7 +261,10 @@ def main():
     
     try:
         if args.verbose:
-            print(f"Starting batch processing for date range: {args.start} to {args.end}")
+            print(f"Starting simplified batch processing for date range: {args.start} to {args.end}")
+            print(f"Architecture: 3-strategy simplified system")
+            if not args.disable_split:
+                print("Split payment matching is ENABLED")
         
         # Load YNAB transactions
         if args.verbose:
@@ -296,7 +285,7 @@ def main():
         if args.verbose:
             print(f"Loaded data for accounts: {', '.join(accounts_data.keys())}")
         
-        # Extract Amazon data date from directory name
+        # Extract Amazon data date
         amazon_data_date = None
         try:
             import glob
@@ -304,14 +293,14 @@ def main():
             if data_dirs:
                 latest_dir = max(data_dirs, key=os.path.getmtime)
                 dir_name = os.path.basename(latest_dir)
-                amazon_data_date = dir_name.split('_')[0]  # Extract date part
+                amazon_data_date = dir_name.split('_')[0]
         except:
             amazon_data_date = "unknown"
         
         # Process batch
         if args.verbose:
             print("Processing transactions...")
-        results = process_batch(transactions, accounts_data, args.verbose)
+        results = process_batch(transactions, accounts_data, not args.disable_split, args.cache_file, args.verbose)
         
         # Generate summary
         summary = generate_summary(results)
@@ -331,7 +320,7 @@ def main():
             json.dump(output_data, f, indent=2, default=str)
         
         # Print summary
-        print(f"\nBatch processing completed in {processing_time:.2f} seconds")
+        print(f"\nSimplified batch processing completed in {processing_time:.2f} seconds")
         print(f"Results saved to: {output_file}")
         print(f"\nSummary:")
         print(f"  Total transactions: {summary['total_transactions']}")
@@ -342,10 +331,16 @@ def main():
         print(f"  Average confidence: {summary['average_confidence']:.2f}")
         print(f"  Amount matched: ${cents_to_dollars_str(summary['total_amount_matched'])}")
         print(f"  Amount unmatched: ${cents_to_dollars_str(summary['total_amount_unmatched'])}")
+        
         if summary.get('matches_by_account'):
             print(f"\n  Matches by Account:")
             for account, count in summary['matches_by_account'].items():
                 print(f"    {account}: {count} matches")
+        
+        if summary.get('strategies_used'):
+            print(f"\n  Strategies Used:")
+            for strategy, count in summary['strategies_used'].items():
+                print(f"    {strategy}: {count} matches")
         
         return 0
         
