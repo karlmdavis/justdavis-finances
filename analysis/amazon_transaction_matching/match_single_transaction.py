@@ -194,26 +194,38 @@ def load_single_account_data(data_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame]
 
 def is_amazon_transaction(payee_name: str) -> bool:
     """
-    Check if payee name matches Amazon patterns.
+    Check if payee name matches Amazon patterns, excluding AWS infrastructure services.
     
     Args:
         payee_name: The payee name from YNAB transaction
         
     Returns:
-        True if this appears to be an Amazon transaction
+        True if this appears to be an Amazon transaction that should be matched
     """
     if not payee_name:
         return False
     
-    patterns = [
+    payee_lower = payee_name.lower()
+    
+    # Exclude AWS infrastructure services - these don't have corresponding order data
+    aws_exclusions = [
+        r"amazon web services",
+        r"aws",
+        r"amazon.*web.*service"
+    ]
+    
+    if any(re.search(pattern, payee_lower) for pattern in aws_exclusions):
+        return False
+    
+    # Include all other Amazon services (retail, Kindle, Prime Video, Prime membership)
+    amazon_patterns = [
         r"amazon",
         r"amzn",
         r"AMAZON",
         r"AMZN"
     ]
     
-    payee_lower = payee_name.lower()
-    return any(re.search(pattern.lower(), payee_lower) for pattern in patterns)
+    return any(re.search(pattern.lower(), payee_lower) for pattern in amazon_patterns)
 
 
 def group_orders_by_id(orders_df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
@@ -335,9 +347,9 @@ def group_by_ship_date_only(orders_df: pd.DataFrame) -> List[Dict[str, Any]]:
     if orders_df.empty:
         return []
     
-    # Add a date-only column for grouping
+    # Add a date-only column for grouping, handling NaT values
     orders_df = orders_df.copy()
-    orders_df['Ship Date Only'] = orders_df['Ship Date'].dt.date
+    orders_df['Ship Date Only'] = orders_df['Ship Date'].apply(lambda x: x.date() if pd.notna(x) else None)
     
     shipment_groups = []
     
@@ -473,10 +485,17 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
         date_window_end = ynab_date + timedelta(days=7)
         
         # Create mask that handles NaT values - include rows with missing ship dates
-        ship_date_mask = (
-            (retail_orders['Ship Date'].dt.date >= date_window_start) &
-            (retail_orders['Ship Date'].dt.date <= date_window_end)
-        ) | retail_orders['Ship Date'].isna()
+        # First check for non-null dates, then apply date operations only to valid dates
+        valid_dates_mask = retail_orders['Ship Date'].notna()
+        date_range_mask = (
+            (retail_orders.loc[valid_dates_mask, 'Ship Date'].dt.date >= date_window_start) &
+            (retail_orders.loc[valid_dates_mask, 'Ship Date'].dt.date <= date_window_end)
+        )
+        
+        # Combine masks: include orders with valid dates in range OR orders with missing ship dates
+        ship_date_mask = pd.Series(False, index=retail_orders.index)
+        ship_date_mask.loc[valid_dates_mask] = date_range_mask
+        ship_date_mask |= retail_orders['Ship Date'].isna()
         
         relevant_orders = retail_orders[ship_date_mask].copy()
         
@@ -489,6 +508,8 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
             for group in daily_shipment_groups:
                 amount_diff = abs(ynab_amount - group['total'])
                 if amount_diff <= 1:  # Essentially exact match (allow for floating point precision)
+                    if group['ship_date'] is None:
+                        continue  # Skip groups with no ship date
                     ship_date = group['ship_date'] if isinstance(group['ship_date'], date) else group['ship_date'].date()
                     date_diff = abs((ynab_date - ship_date).days)
                     # For exact matches, allow wider date window with good confidence
@@ -523,7 +544,11 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
                     # Support both single-day and multi-day orders for exact amounts
                     if len(order_data['ship_dates']) >= 1:
                         # For multi-day orders, use the earliest ship date for date_diff calculation
-                        earliest_ship_date = min(order_data['ship_dates']).date()
+                        # Filter out any NaT values before finding minimum
+                        valid_ship_dates = [d for d in order_data['ship_dates'] if pd.notna(d)]
+                        if not valid_ship_dates:
+                            continue  # Skip if no valid ship dates
+                        earliest_ship_date = min(valid_ship_dates).date()
                         date_diff = abs((ynab_date - earliest_ship_date).days)
                         
                         # For exact amounts, be more lenient with date windows (up to 7 days)
@@ -551,6 +576,8 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
             for group in shipment_groups:
                 amount_diff = abs(ynab_amount - group['total'])
                 if amount_diff <= 1:  # Essentially exact match
+                    if group['ship_date'] is None:
+                        continue  # Skip groups with no ship date
                     ship_date = group['ship_date'].date()
                     date_diff = abs((ynab_date - ship_date).days)
                     confidence = calculate_match_confidence(ynab_amount, group['total'], date_diff)
@@ -577,6 +604,8 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
             # Group all shipments by ship date (ignoring existing matches from Strategy 0)
             shipments_by_date = {}
             for group in shipment_groups:
+                if group['ship_date'] is None:
+                    continue  # Skip groups with no ship date
                 ship_date = group['ship_date'].date()
                 if ship_date not in shipments_by_date:
                     shipments_by_date[ship_date] = []
@@ -584,6 +613,8 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
             
             # Also include daily groups from Strategy 0 that weren't exact matches
             for group in daily_shipment_groups:
+                if group['ship_date'] is None:
+                    continue  # Skip groups with no ship date
                 ship_date = group['ship_date'] if isinstance(group['ship_date'], date) else group['ship_date'].date()
                 amount_diff = abs(ynab_amount - group['total'])
                 # Only include if not already caught by Strategy 0
@@ -633,6 +664,8 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
             # Strategy 4: Date Window Match (Enhanced for Exact Matches)
             # Look for approximate matches with flexible date windows
             for group in shipment_groups:
+                if group['ship_date'] is None:
+                    continue  # Skip groups with no ship date
                 ship_date = group['ship_date'].date()
                 date_diff = abs((ynab_date - ship_date).days)
                 amount_diff = abs(ynab_amount - group['total'])
@@ -676,16 +709,84 @@ def find_matching_orders_single_account(ynab_tx: Dict[str, Any], retail_orders: 
                                 'date_diff': date_diff
                             })
     
-    # Process digital orders (similar logic but different date handling)
-    # Digital orders are charged immediately on order date, not ship date
+    # Process digital orders (digital items charged on order date, not ship date)
     if not digital_orders.empty:
-        # Filter digital orders within date window
+        # Filter digital orders within date window (±3 days for digital purchases)
         date_window_start = ynab_date - timedelta(days=3)
         date_window_end = ynab_date + timedelta(days=3)
         
-        # Note: Digital orders structure may be different - adapt as needed
-        # This is a placeholder for digital order matching logic
-        pass
+        # Parse OrderDate and filter by date range
+        digital_orders_copy = digital_orders.copy()
+        digital_orders_copy['OrderDate'] = pd.to_datetime(digital_orders_copy['OrderDate'], format='ISO8601', errors='coerce')
+        
+        # Filter orders within date window
+        valid_dates_mask = digital_orders_copy['OrderDate'].notna()
+        date_range_mask = (
+            (digital_orders_copy.loc[valid_dates_mask, 'OrderDate'].dt.date >= date_window_start) &
+            (digital_orders_copy.loc[valid_dates_mask, 'OrderDate'].dt.date <= date_window_end)
+        )
+        
+        digital_date_mask = pd.Series(False, index=digital_orders_copy.index)
+        digital_date_mask.loc[valid_dates_mask] = date_range_mask
+        relevant_digital = digital_orders_copy[digital_date_mask].copy()
+        
+        if not relevant_digital.empty:
+            # Group by OrderId and sum prices
+            digital_groups = {}
+            for order_id, group in relevant_digital.groupby('OrderId'):
+                # Calculate total price for this order
+                total_price_cents = sum(dollars_to_cents(str(price)) for price in group['OurPrice'] if pd.notna(price))
+                
+                if total_price_cents > 0:  # Only consider orders with actual charges
+                    order_date = group['OrderDate'].iloc[0].date()
+                    date_diff = abs((ynab_date - order_date).days)
+                    amount_diff = abs(ynab_amount - total_price_cents)
+                    
+                    # Calculate confidence for digital match
+                    confidence = 0.5  # Base confidence for digital orders
+                    if amount_diff <= 1:  # Exact match
+                        confidence = 1.0
+                    elif amount_diff <= 5:  # Within 5 cents
+                        confidence = 0.9
+                    elif amount_diff <= 10:  # Within 10 cents
+                        confidence = 0.8
+                    
+                    # Date proximity bonus
+                    if date_diff == 0:
+                        confidence += 0.1
+                    elif date_diff <= 1:
+                        confidence += 0.05
+                    
+                    confidence = min(confidence, 1.0)  # Cap at 1.0
+                    
+                    # Create order data structure
+                    order_items = []
+                    for _, item in group.iterrows():
+                        item_price = dollars_to_cents(str(item['OurPrice'])) if pd.notna(item['OurPrice']) else 0
+                        if item_price > 0:  # Only include charged items
+                            order_items.append({
+                                'name': item.get('ProductName', 'Unknown Digital Item'),
+                                'amount': item_price,
+                                'order_date': order_date.strftime('%Y-%m-%d'),
+                                'type': 'digital'
+                            })
+                    
+                    if order_items:  # Only add if we have chargeable items
+                        order_data = {
+                            'order_id': order_id,
+                            'total': total_price_cents,
+                            'items': order_items,
+                            'order_date': order_date.strftime('%Y-%m-%d'),
+                            'type': 'digital'
+                        }
+                        
+                        all_matches.append({
+                            'orders': [order_data],
+                            'total': total_price_cents,
+                            'method': 'digital_order_match',
+                            'confidence': confidence,
+                            'date_diff': date_diff
+                        })
     
     # Select the best match for this account
     if all_matches:
