@@ -59,11 +59,14 @@ def _group_by_order_id(orders_df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         }
         
         for _, row in group.iterrows():
-            # Calculate item amount from unit price * quantity + tax
-            unit_price = int(row.get('Unit Price', 0))
+            # Use Total Owed directly instead of calculating from unit price
+            total_owed = float(str(row.get('Total Owed', 0)).replace('$', '').replace(',', ''))
+            item_amount = int(total_owed * 100)  # Convert to cents
+            
+            # Still extract unit price for metadata (but convert properly)
+            unit_price_str = str(row.get('Unit Price', 0)).replace('$', '').replace(',', '')
+            unit_price = int(float(unit_price_str) * 100) if unit_price_str not in ['0', 'nan', ''] else 0
             quantity = int(row.get('Quantity', 1))
-            unit_tax = int(row.get('Unit Price Tax', 0))
-            item_amount = (unit_price + unit_tax) * quantity
             
             item = {
                 'name': row.get('Product Name', ''),
@@ -106,11 +109,14 @@ def _group_by_shipment(orders_df: pd.DataFrame) -> List[Dict[str, Any]]:
             }
             
             for _, row in shipment_group.iterrows():
-                # Calculate item amount from unit price * quantity + tax
-                unit_price = int(row.get('Unit Price', 0))
+                # Use Total Owed directly instead of calculating from unit price
+                total_owed = float(str(row.get('Total Owed', 0)).replace('$', '').replace(',', ''))
+                item_amount = int(total_owed * 100)  # Convert to cents
+                
+                # Still extract unit price for metadata (but convert properly)
+                unit_price_str = str(row.get('Unit Price', 0)).replace('$', '').replace(',', '')
+                unit_price = int(float(unit_price_str) * 100) if unit_price_str not in ['0', 'nan', ''] else 0
                 quantity = int(row.get('Quantity', 1))
-                unit_tax = int(row.get('Unit Price Tax', 0))
-                item_amount = (unit_price + unit_tax) * quantity
                 
                 item = {
                     'name': row.get('Product Name', ''),
@@ -148,11 +154,14 @@ def _group_by_daily_shipment(orders_df: pd.DataFrame) -> List[Dict[str, Any]]:
             }
             
             for _, row in daily_group.iterrows():
-                # Calculate item amount from unit price * quantity + tax
-                unit_price = int(row.get('Unit Price', 0))
+                # Use Total Owed directly instead of calculating from unit price
+                total_owed = float(str(row.get('Total Owed', 0)).replace('$', '').replace(',', ''))
+                item_amount = int(total_owed * 100)  # Convert to cents
+                
+                # Still extract unit price for metadata (but convert properly)
+                unit_price_str = str(row.get('Unit Price', 0)).replace('$', '').replace(',', '')
+                unit_price = int(float(unit_price_str) * 100) if unit_price_str not in ['0', 'nan', ''] else 0
                 quantity = int(row.get('Quantity', 1))
-                unit_tax = int(row.get('Unit Price Tax', 0))
-                item_amount = (unit_price + unit_tax) * quantity
                 
                 item = {
                     'name': row.get('Product Name', ''),
