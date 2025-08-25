@@ -100,14 +100,14 @@ class SplitPaymentMatcher:
         
         return unmatched_items, total_amount
     
-    def find_item_combinations(self, items: List[Dict], target_amount: int, tolerance: int = 100) -> List[List[int]]:
+    def find_item_combinations(self, items: List[Dict], target_amount: int, tolerance: int = 0) -> List[List[int]]:
         """
         Find combinations of items that sum to approximately the target amount.
         
         Args:
             items: List of items with 'amount' and 'index' fields
             target_amount: Target amount in cents
-            tolerance: Acceptable difference in cents (default 100 = $1.00)
+            tolerance: Acceptable difference in cents (default 0 = exact match)
             
         Returns:
             List of item index combinations that match the target
@@ -211,7 +211,7 @@ class SplitPaymentMatcher:
         
         if not item_combinations:
             # No exact match - try matching if transaction amount equals remaining total
-            if abs(unmatched_total - ynab_amount) <= 100:  # Within $1.00
+            if abs(unmatched_total - ynab_amount) <= 0:  # Exact match only
                 # This transaction might cover all remaining items
                 item_combination = [item['index'] for item in unmatched_items]
                 item_combinations = [item_combination]
