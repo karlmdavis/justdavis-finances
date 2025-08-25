@@ -34,6 +34,149 @@ def milliunits_to_cents(milliunits: int) -> int:
     return abs(milliunits // 10)
 
 
+def cents_to_dollars_str(cents: int) -> str:
+    """Convert 953 cents to '9.53' string"""
+    return f"{cents / 100:.2f}"
+
+
+def convert_match_result_for_json(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert match result with cent amounts to JSON-safe format with string amounts"""
+    import copy
+    json_result = copy.deepcopy(result)
+    
+    # Convert YNAB transaction amount
+    if 'ynab_transaction' in json_result and 'amount' in json_result['ynab_transaction']:
+        amount_cents = json_result['ynab_transaction']['amount']
+        json_result['ynab_transaction']['amount'] = cents_to_dollars_str(abs(amount_cents))
+    
+    # Convert match amounts
+    if 'matches' in json_result:
+        for match in json_result['matches']:
+            if 'total_match_amount' in match:
+                match['total_match_amount'] = cents_to_dollars_str(match['total_match_amount'])
+            if 'unmatched_amount' in match:
+                match['unmatched_amount'] = cents_to_dollars_str(match['unmatched_amount'])
+            if 'orders' in match:
+                for order in match['orders']:
+                    if 'total' in order:
+                        order['total'] = cents_to_dollars_str(order['total'])
+                    if 'items' in order:
+                        for item in order['items']:
+                            if 'amount' in item:
+                                item['amount'] = cents_to_dollars_str(item['amount'])
+                            if 'unit_price' in item:
+                                item['unit_price'] = cents_to_dollars_str(item['unit_price'])
+    
+    # Convert best_match amounts
+    if 'best_match' in json_result and json_result['best_match']:
+        best_match = json_result['best_match']
+        if 'total_match_amount' in best_match:
+            best_match['total_match_amount'] = cents_to_dollars_str(best_match['total_match_amount'])
+        if 'unmatched_amount' in best_match:
+            best_match['unmatched_amount'] = cents_to_dollars_str(best_match['unmatched_amount'])
+    
+    return json_result
+
+
+def load_all_accounts_data(base_path: str = "amazon/data", accounts: Optional[List[str]] = None) -> Dict[str, Tuple[pd.DataFrame, pd.DataFrame]]:
+    """
+    Load Amazon data for all accounts or specified accounts.
+    
+    Args:
+        base_path: Base path to Amazon data directory
+        accounts: Optional list of account names to load (default: all)
+        
+    Returns:
+        Dictionary of {account_name: (retail_df, digital_df)}
+    """
+    import glob
+    import os
+    
+    # Find all Amazon data directories
+    data_dirs = glob.glob(os.path.join(base_path, "*_amazon_data"))
+    if not data_dirs:
+        raise FileNotFoundError(f"No Amazon data directories found in {base_path}")
+    
+    account_data = {}
+    
+    for data_dir in data_dirs:
+        # Extract account name from directory name (format: YYYY-MM-DD_accountname_amazon_data)
+        dir_name = os.path.basename(data_dir)
+        parts = dir_name.split('_')
+        if len(parts) >= 3 and parts[-2] == 'amazon' and parts[-1] == 'data':
+            # Account name is everything between date and _amazon_data
+            account_name = '_'.join(parts[1:-2])
+        else:
+            # Fallback: use directory name as-is
+            account_name = dir_name
+        
+        # Skip if specific accounts requested and this isn't one of them
+        if accounts and account_name not in accounts:
+            continue
+        
+        print(f"Loading Amazon data for {account_name} from: {data_dir}")
+        retail_df, digital_df = load_single_account_data(data_dir)
+        account_data[account_name] = (retail_df, digital_df)
+    
+    if not account_data:
+        if accounts:
+            raise FileNotFoundError(f"No data found for accounts: {accounts}")
+        else:
+            raise FileNotFoundError(f"No Amazon data found in {base_path}")
+    
+    return account_data
+
+
+def load_single_account_data(data_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Load Amazon data from a single account directory.
+    Returns retail and digital order DataFrames.
+    """
+    import os
+    import csv
+    
+    # Find retail order history files
+    retail_dir = os.path.join(data_dir, "Retail.OrderHistory.1")
+    retail_files = []
+    if os.path.exists(retail_dir):
+        for file in os.listdir(retail_dir):
+            if file.endswith('.csv'):
+                retail_files.append(os.path.join(retail_dir, file))
+    
+    # Load retail data
+    retail_df = pd.DataFrame()
+    if retail_files:
+        retail_dfs = []
+        for file in retail_files:
+            try:
+                df = pd.read_csv(file)
+                retail_dfs.append(df)
+            except Exception as e:
+                print(f"Warning: Could not read {file}: {e}")
+        
+        if retail_dfs:
+            retail_df = pd.concat(retail_dfs, ignore_index=True)
+            
+            # Parse dates
+            if 'Ship Date' in retail_df.columns:
+                retail_df['Ship Date'] = pd.to_datetime(retail_df['Ship Date'], format='ISO8601', errors='coerce')
+            if 'Order Date' in retail_df.columns:
+                retail_df['Order Date'] = pd.to_datetime(retail_df['Order Date'], format='ISO8601', errors='coerce')
+    
+    # Find digital order files
+    digital_dir = os.path.join(data_dir, "Digital-Ordering.1")
+    digital_df = pd.DataFrame()
+    if os.path.exists(digital_dir):
+        items_file = os.path.join(digital_dir, "Digital Items.csv")
+        if os.path.exists(items_file):
+            try:
+                digital_df = pd.read_csv(items_file)
+            except Exception as e:
+                print(f"Warning: Could not read {items_file}: {e}")
+    
+    return retail_df, digital_df
+
+
 class CompleteMatchStrategy:
     """Strategy 1: Complete Match - handles exact order/shipment matches"""
     
