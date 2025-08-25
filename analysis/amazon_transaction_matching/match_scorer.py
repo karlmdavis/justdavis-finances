@@ -202,13 +202,3 @@ class ConfidenceThresholds:
         }
         
         return confidence >= thresholds.get(match_type, 0.60)
-    
-    @staticmethod
-    def get_confidence_level(confidence: float) -> str:
-        """Get confidence level description"""
-        if confidence >= ConfidenceThresholds.HIGH_CONFIDENCE:
-            return "high"
-        elif confidence >= ConfidenceThresholds.MEDIUM_CONFIDENCE:
-            return "medium"
-        else:
-            return "low"
