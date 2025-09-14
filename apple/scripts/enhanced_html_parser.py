@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Apple Receipt Parser - HTML-Only Version
+Enhanced HTML Parser for Apple Receipts
 
-Parses Apple App Store, iTunes, and subscription receipts from HTML email content.
-Optimized for 100% HTML coverage using enhanced extraction techniques.
+Completely rewritten parser based on comprehensive HTML format analysis.
+Handles both legacy (aapl-*) and modern (custom-*) HTML formats with
+robust extraction and proper financial data handling.
 """
 
 import json
@@ -20,32 +21,22 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class ParsedReceipt:
-    """Represents a parsed Apple receipt with standardized data structure."""
+    """Represents a parsed Apple receipt with standardized data."""
     
     def __init__(self):
-        # Core metadata
         self.format_detected: Optional[str] = None
         self.apple_id: Optional[str] = None
         self.receipt_date: Optional[str] = None
         self.order_id: Optional[str] = None
         self.document_number: Optional[str] = None
-        
-        # Financial data
         self.subtotal: Optional[float] = None
         self.tax: Optional[float] = None
         self.total: Optional[float] = None
         self.currency: str = "USD"
-        
-        # Billing information
         self.payment_method: Optional[str] = None
         self.billed_to: Optional[Dict[str, str]] = None
-        
-        # Purchase items
         self.items: List[Dict[str, Any]] = []
-        
-        # Parsing metadata
         self.parsing_metadata: Dict[str, Any] = {}
-        self.base_name: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -65,56 +56,16 @@ class ParsedReceipt:
             "parsing_metadata": self.parsing_metadata
         }
 
-class BaseReceiptParser:
-    """Base class for all receipt parsers."""
+class EnhancedHTMLParser:
+    """Enhanced HTML parser for Apple receipts with robust extraction."""
     
     def __init__(self):
-        self.format_name: str = "base"
-    
-    def can_parse(self, base_name: str, content_dir: Path) -> bool:
-        """Check if this parser can handle the given receipt."""
-        raise NotImplementedError
-    
-    def parse(self, base_name: str, content_dir: Path) -> ParsedReceipt:
-        """Parse the receipt and return structured data."""
-        raise NotImplementedError
-    
-    def _clean_amount(self, amount_str: str) -> Optional[float]:
-        """Clean and convert amount string to float."""
-        if not amount_str:
-            return None
-        try:
-            # Remove currency symbols and commas
-            cleaned = re.sub(r'[$,]', '', amount_str.strip())
-            return float(cleaned) if cleaned else None
-        except (ValueError, AttributeError):
-            return None
-    
-    def _validate_financial_data(self, receipt: ParsedReceipt):
-        """Validate financial data integrity."""
-        if receipt.subtotal is not None and receipt.tax is not None and receipt.total is not None:
-            expected_total = receipt.subtotal + receipt.tax
-            if abs(expected_total - receipt.total) > 0.01:  # Allow 1 cent difference for rounding
-                logger.warning(f"Financial discrepancy: {receipt.subtotal} + {receipt.tax} != {receipt.total}")
-
-class EnhancedHTMLParser(BaseReceiptParser):
-    """Enhanced HTML parser that handles both legacy and modern formats."""
-    
-    def __init__(self):
-        super().__init__()
-        self.format_name = "enhanced_html"
         self.selectors_tried = []
         self.selectors_successful = []
-    
-    def can_parse(self, base_name: str, content_dir: Path) -> bool:
-        """Check if HTML file exists."""
-        html_path = content_dir / f"{base_name}-formatted-simple.html"
-        return html_path.exists()
     
     def parse(self, base_name: str, content_dir: Path) -> ParsedReceipt:
         """Parse HTML receipt with enhanced extraction."""
         receipt = ParsedReceipt()
-        receipt.base_name = base_name
         
         html_path = content_dir / f"{base_name}-formatted-simple.html"
         if not html_path.exists():
@@ -138,9 +89,6 @@ class EnhancedHTMLParser(BaseReceiptParser):
             self._extract_metadata(receipt, soup)
             self._extract_items(receipt, soup)
             self._extract_billing_info(receipt, soup)
-            
-            # Validate financial integrity
-            self._validate_financial_data(receipt)
             
             # Store parsing metadata
             receipt.parsing_metadata = {
@@ -543,82 +491,66 @@ class EnhancedHTMLParser(BaseReceiptParser):
                         if 'apple pay' in line.lower() or 'visa' in line.lower() or 'card' in line.lower():
                             receipt.payment_method = line
                             break
+    
+    def _clean_amount(self, amount_str: str) -> Optional[float]:
+        """Clean and convert amount string to float."""
+        if not amount_str:
+            return None
+        try:
+            # Remove currency symbols and commas
+            cleaned = re.sub(r'[$,]', '', amount_str.strip())
+            return float(cleaned) if cleaned else None
+        except (ValueError, AttributeError):
+            return None
 
-class AppleReceiptParser:
-    """Main receipt parser using HTML-only approach."""
+# Test function
+def test_enhanced_parser():
+    """Test the enhanced parser on sample receipts."""
     
-    def __init__(self):
-        # HTML-only parsing with enhanced parser - covers all 327 receipts (100% HTML coverage)
-        self.parsers = [
-            EnhancedHTMLParser()   # Handles all HTML formats: legacy (94.2%) + modern (5.8%) = 100%
-        ]
-    
-    def detect_format(self, base_name: str, content_dir: Path) -> str:
-        """Detect the appropriate parser for this receipt."""
-        for parser in self.parsers:
-            if parser.can_parse(base_name, content_dir):
-                return parser.format_name
-        return 'unknown'
-    
-    def parse_receipt(self, base_name: str, content_dir: Path) -> ParsedReceipt:
-        """Parse a receipt using the appropriate format parser."""
-        for parser in self.parsers:
-            if parser.can_parse(base_name, content_dir):
-                logger.info(f"Using {parser.format_name} parser for {base_name}")
-                return parser.parse(base_name, content_dir)
+    try:
+        from pathlib import Path
         
-        # No parser could handle this format
-        receipt = ParsedReceipt()
-        receipt.format_detected = 'unknown'
-        receipt.base_name = base_name
-        receipt.parsing_metadata = {
-            'errors': ['No suitable parser found'],
-            'parsers_attempted': [p.format_name for p in self.parsers]
-        }
-        logger.error(f"No parser could handle receipt: {base_name}")
+        script_dir = Path(__file__).parent
+        data_dir = script_dir.parent / "data"
         
-        return receipt
-
-def get_extracted_content_dir() -> Path:
-    """Get the extracted content directory."""
-    script_dir = Path(__file__).parent
-    data_dir = script_dir.parent / "data"
-    
-    # Find the most recent email data directory
-    email_dirs = [d for d in data_dir.glob("*_apple_emails") if d.is_dir()]
-    if not email_dirs:
-        raise FileNotFoundError("No Apple email data directories found")
-    
-    # Return the most recent one with extracted_content
-    email_dir = max(email_dirs)
-    return email_dir / "extracted_content"
-
-def main():
-    """Main function for testing the parser."""
-    if len(sys.argv) != 2:
-        print("Usage: python receipt_parser.py <base_name>")
-        sys.exit(1)
-    
-    base_name = sys.argv[1]
-    
-    # Find content directory
-    script_dir = Path(__file__).parent
-    data_dir = script_dir.parent / "data"
-    
-    email_dirs = [d for d in data_dir.glob("*_apple_emails") if d.is_dir()]
-    if not email_dirs:
-        print("No Apple email data directories found")
-        sys.exit(1)
-    
-    latest_dir = max(email_dirs, key=lambda d: d.name)
-    content_dir = latest_dir / "extracted_content"
-    
-    # Parse receipt
-    parser = AppleReceiptParser()
-    receipt = parser.parse_receipt(base_name, content_dir)
-    
-    # Output results
-    print(json.dumps(receipt.to_dict(), indent=2, default=str))
+        # Find the most recent email data directory
+        email_dirs = [d for d in data_dir.glob("*_apple_emails") if d.is_dir()]
+        if not email_dirs:
+            print("No Apple email data directories found")
+            return
+        
+        latest_dir = max(email_dirs, key=lambda d: d.name)
+        content_dir = latest_dir / "extracted_content"
+        
+        # Test on a few sample receipts
+        html_files = list(content_dir.glob("*Your receipt from Apple*-formatted-simple.html"))[:5]
+        
+        parser = EnhancedHTMLParser()
+        
+        print("Testing Enhanced HTML Parser:")
+        print("="*50)
+        
+        for html_file in html_files:
+            base_name = html_file.name.replace('-formatted-simple.html', '')
+            
+            print(f"\\nTesting: {base_name}")
+            
+            result = parser.parse(base_name, content_dir)
+            
+            print(f"  Format: {result.format_detected}")
+            print(f"  Apple ID: {result.apple_id}")
+            print(f"  Date: {result.receipt_date}")
+            print(f"  Order ID: {result.order_id}")
+            print(f"  Subtotal: ${result.subtotal}")
+            print(f"  Tax: ${result.tax}")
+            print(f"  Total: ${result.total}")
+            print(f"  Items: {len(result.items)}")
+            print(f"  Successful selectors: {result.parsing_metadata.get('selectors_successful', [])}")
+            
+    except Exception as e:
+        print(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    main()
+    test_enhanced_parser()
