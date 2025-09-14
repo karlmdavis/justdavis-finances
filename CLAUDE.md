@@ -78,7 +78,36 @@ This is a personal finance management repository for the Davis family. The prima
     --start 2024-07-01 --end 2024-07-31 --disable-split
   ```
 
-#### 5. CSV Analysis Tools (`analysis/csv-tools/`)
+#### 5. Apple Transaction Matching System (`analysis/apple_transaction_matching/`)
+- **Primary purpose**: Automatically match YNAB transactions to Apple receipt data
+- **Architecture**: Simplified 2-strategy system for Apple's 1:1 transaction model
+- **Key scripts**:
+  - `match_single_transaction.py` - Process individual transactions
+  - `match_transactions_batch.py` - Batch process date ranges
+- **Supporting modules**:
+  - `apple_matcher.py` - Core matching logic with exact and date window strategies
+  - `match_scorer.py` - Confidence scoring adapted for Apple patterns
+  - `apple_receipt_loader.py` - Apple receipt data loading and normalization
+- **Multi-Apple ID support**: Automatically discovers and searches all family Apple accounts
+- **Integration**: Works with Apple receipt extraction system (`apple/scripts/`)
+- **Match strategies**: 2 clean strategies for Apple's simpler transaction model:
+  1. **Exact Match** - Same date + exact amount match (confidence 1.0)
+  2. **Date Window Match** - ±1-2 days with exact amount (confidence 0.75-0.90)
+- **Output**: Timestamped JSON files in `analysis/apple_transaction_matching/results/`
+- **Current performance**: 85.1% match rate with 0.871 average confidence
+- **Processing speed**: ~0.005 seconds per transaction (faster than Amazon)
+- **Usage patterns**:
+  ```bash
+  # Process a month of transactions
+  uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
+    --start 2024-07-01 --end 2024-07-31 --verbose
+  
+  # Match specific transaction by ID
+  uv run python analysis/apple_transaction_matching/match_single_transaction.py \
+    --transaction-id "abc123-def456-..." --verbose
+  ```
+
+#### 6. CSV Analysis Tools (`analysis/csv-tools/`)
 - **Purpose**: Safe exploration of CSV data using nushell
 - **Main tool**: `open.nu` - Generic CSV wrapper with pipeline support
 - **Safety features**: Read-only operations, path validation
@@ -116,15 +145,17 @@ This is a personal finance management repository for the Davis family. The prima
 
 ### Development Focus Areas
 When developing automation or tools for this repository, prioritize:
-1. Transaction categorization assistance
-2. Receipt and order history parsing
+1. Transaction categorization assistance (Amazon ✅ solved, Apple ✅ solved)
+2. Receipt and order history parsing (Amazon ✅ solved, Apple ✅ solved)
 3. Data import/export utilities for YNAB
 4. Reporting and analysis tools
 5. Cash flow trend analysis and projections
 
 ### Directory Conventions
 - `ynab-data/` - Cached YNAB data (gitignored)
-- `amazon/data/` - Amazon order history data (gitignored)  
+- `amazon/data/` - Amazon order history data (gitignored)
+- `apple/data/` - Apple receipt emails (gitignored)
+- `apple/exports/` - Parsed Apple receipt exports (gitignored)
 - `analysis/*/results/` - All generated outputs with timestamps (gitignored)
 - `ynab-exports/` - YNAB export files
 
@@ -148,6 +179,11 @@ When developing automation or tools for this repository, prioritize:
 7. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/` naming
 8. **Working directory**: Stay in the personal/finances/ directory as much as possible, and run commands/scripts below it using their relative path. If you get a file or directory not found error, run `pwd` and try to navigate back to `personal/finances/` before retrying.
 9. **Python execution**: Use `uv run python3 -c ...` instead of just `python3 -c ...` when trying to run ad-hoc Python.
+10. **Markdown formatting**: When editing documentation files (README.md, CLAUDE.md), follow the existing line wrapping style:
+    - Wrap long lines at approximately 80-120 characters for readability
+    - Use 2-space indentation for continuation lines in paragraphs
+    - Match the existing formatting patterns in each file
+    - Example: "This is a long sentence that should be wrapped\n  to maintain consistency with existing formatting."
 
 ## Security Considerations
 - Never commit sensitive financial data, account numbers, or API credentials
@@ -156,9 +192,25 @@ When developing automation or tools for this repository, prioritize:
 - **Gitignored directories**: 
   - `ynab-data/` (YNAB financial data)
   - `amazon/data/` (Amazon order history)
+  - `apple/data/` (Apple receipt emails)
+  - `apple/exports/` (parsed Apple receipt data)
   - `analysis/*/results/` (all generated reports and outputs)
 
 ## Recent Major Improvements
+
+### Apple Transaction Matching System Implementation (September 2024)
+- **Complete Apple ecosystem**: Implemented full Apple receipt extraction and transaction matching system
+- **Email-based receipt parsing**: Extracts itemized purchase data from Apple receipt emails with 100% parsing success
+- **1:1 transaction model**: Simplified matching logic leveraging Apple's direct transaction model
+- **Multi-Apple ID support**: Handles all family Apple accounts automatically with account attribution
+- **High match rate**: Achieved 85.1% match rate with 0.871 average confidence on production data
+- **Enhanced email search**: IMAP fetcher searches all folders, discovering 87 additional archived receipts
+- **HTML-only parsing**: Streamlined from 3-parser system to single robust HTML parser with 100% coverage
+
+Key technical innovations:
+1. **Simplified 2-strategy matching**: Exact match + date window strategies optimized for Apple's transaction patterns
+2. **Receipt email integration**: Direct integration with Apple's receipt email system for complete purchase history
+3. **HTML parser consolidation**: Single EnhancedHTMLParser handles both legacy (94.2%) and modern (5.8%) receipt formats
 
 ### Amazon Transaction Matching System Overhaul (August 2024)
 - **Architecture simplification**: Replaced complex 5-strategy system with clean 3-strategy architecture

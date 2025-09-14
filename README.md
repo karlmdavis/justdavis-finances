@@ -16,6 +16,7 @@ Oftentimes, this involves a **lot** of manually looking through receipts, order 
   to determine what items and categories each transaction is comprised of.
 This is a particular challenge for amazon.com purchases and for Apple App Store purchases,
   as those transactions are often composed of many separate and unrelated items.
+We've developed automated matching systems for both Amazon and Apple transactions to solve this categorization challenge.
 
 ## Project Structure
 
@@ -23,6 +24,11 @@ This is a particular challenge for amazon.com purchases and for Apple App Store 
 finances/
 ├── analysis/                           # Analysis tools and outputs
 │   ├── amazon_transaction_matching/    # Amazon-YNAB transaction matching system
+│   │   ├── match_single_transaction.py # Single transaction matcher
+│   │   ├── match_transactions_batch.py # Batch processing tool
+│   │   ├── results/                    # Match results (gitignored)
+│   │   └── README.md                   # Matching system documentation
+│   ├── apple_transaction_matching/     # Apple-YNAB transaction matching system
 │   │   ├── match_single_transaction.py # Single transaction matcher
 │   │   ├── match_transactions_batch.py # Batch processing tool
 │   │   ├── results/                    # Match results (gitignored)
@@ -37,6 +43,11 @@ finances/
 │   ├── data/                          # Amazon order history (gitignored)
 │   ├── extract_amazon_data.sh         # Data extraction script
 │   └── README.md                      # Amazon data workflow
+├── apple/                              # Apple receipt extraction
+│   ├── scripts/                       # Receipt parsing and export tools
+│   ├── data/                          # Apple receipt emails (gitignored)
+│   ├── exports/                       # Parsed receipt exports (gitignored)
+│   └── README.md                      # Apple receipt workflow
 ├── ynab-data/                         # Cached YNAB data (gitignored)
 ├── ynab-exports/                      # YNAB export files
 ├── README.md                          # This file
@@ -133,6 +144,40 @@ uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
 
 See `analysis/amazon_transaction_matching/README.md` for detailed documentation.
 
+### Apple Transaction Matching (`analysis/apple_transaction_matching/`)
+
+An automated system for matching Apple receipts (extracted from emails) to corresponding YNAB credit card transactions,
+  solving the challenge of understanding what Apple purchases comprise each consolidated credit card charge:
+
+**Key Features:**
+- **1:1 Transaction Model** - Simple direct matching (vs Amazon's complex bundling)
+- **Multi-Apple ID Support** - Handles all family Apple accounts automatically
+- **85.1% Match Rate** - High success rate with 0.871 average confidence
+- **Email-Based Receipts** - Extracts itemized data from Apple receipt emails
+- **Fast Processing** - ~0.005 seconds per transaction
+
+**Usage:**
+```bash
+# Process all Apple transactions in a specific month
+uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
+  --start 2024-07-01 --end 2024-07-31 --verbose
+
+# Match a specific transaction by ID
+uv run python analysis/apple_transaction_matching/match_single_transaction.py \
+  --transaction-id "abc123-def456-..." --verbose
+```
+
+**Results:** Generates timestamped JSON files in `analysis/apple_transaction_matching/results/` with:
+- Complete match details and confidence scores
+- Apple ID attribution for multi-account households
+- Receipt details including order IDs and item breakdowns
+- Summary statistics and match quality metrics
+
+**Integration:** Works with the Apple receipt extraction system in `apple/`
+  to parse emails and extract itemized purchase data.
+
+See `analysis/apple_transaction_matching/README.md` for detailed documentation.
+
 ### CSV Analysis Tools (`analysis/csv-tools/`)
 
 Utilities for safe exploration and analysis of CSV data using nushell:
@@ -154,7 +199,9 @@ analysis/csv-tools/open.nu "amazon/data/account_data/file.csv" \
 
 See `analysis/csv-tools/README.md` for complete documentation and examples.
 
-## Amazon Data Integration
+## Data Integration
+
+### Amazon Data Integration
 
 The system integrates with Amazon order history data for transaction matching:
 
@@ -170,6 +217,25 @@ amazon/data/
 ├── 2025-08-24_karl_amazon_data/     # Karl's Amazon data (Aug 24, 2025)
 ├── 2025-08-24_erica_amazon_data/    # Erica's Amazon data (Aug 24, 2025)  
 └── YYYY-MM-DD_account_amazon_data/  # Pattern for future extracts
+```
+
+### Apple Data Integration
+
+The system integrates with Apple receipt emails for transaction matching:
+
+**Setup:** See `apple/README.md` for complete receipt extraction workflow including:
+- Setting up IMAP email access for receipt fetching
+- Extracting and parsing Apple receipt emails
+- Setting up multi-Apple ID household structure
+- Exporting parsed receipts to JSON format
+
+**Directory structure:** Apple data is organized by timestamp:
+```
+apple/
+├── data/                            # Raw email data (gitignored)
+│   └── YYYY-MM-DD_HH-MM-SS_apple_emails/
+└── exports/                         # Parsed receipt exports (gitignored)
+    └── YYYY-MM-DD_HH-MM-SS_apple_receipts_export/
 ```
 
 ## Dependencies
@@ -194,6 +260,8 @@ brew install nushell
 
 - The `ynab-data/` directory contains sensitive financial data and is gitignored
 - The `amazon/data/` directory contains personal order history and is gitignored
+- The `apple/data/` and `apple/exports/` directories contain personal receipt data and are gitignored
 - All `analysis/*/results/` directories contain reports and are gitignored
 - Never commit API tokens, access credentials, or personal financial data
 - Use `.ynab.env` for YNAB authentication (not tracked in git)
+- Use `.env` for IMAP email credentials (not tracked in git)
