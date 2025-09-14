@@ -1,6 +1,8 @@
 # Sensitive financial data
 ynab-data/
 amazon/data/
+apple/data/
+apple/exports/
 analysis/*/results/
 
 # Python environment
@@ -22,8 +24,9 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# YNAB authentication
+# Authentication and credentials
 .ynab.env
+.env
 
 # Temporary files
 *.tmp

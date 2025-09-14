@@ -1,0 +1,692 @@
+Return-Path: <no_reply@email.apple.com>
+Delivered-To: ***REMOVED***
+Received: from eddings.***REMOVED***
+	by eddings.***REMOVED*** with LMTP
+	id K0dGMGlY9WDyYSoAx2oLjQ
+	(envelope-from <no_reply@email.apple.com>)
+	for <***REMOVED***>; Mon, 19 Jul 2021 10:48:09 +0000
+Received: from localhost (localhost [127.0.0.1])
+	by eddings.***REMOVED*** (Postfix) with ESMTP id BFEDC1BBEAA
+	for <***REMOVED***>; Mon, 19 Jul 2021 10:48:09 +0000 (UTC)
+Authentication-Results: eddings.***REMOVED***;
+	dkim=pass (2048-bit key;
+ unprotected) header.d=email.apple.com header.i=@email.apple.com
+ header.a=rsa-sha256 header.s=email0517 header.b=k/g60M4H;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at ***REMOVED***
+X-Spam-Flag: NO
+X-Spam-Score: -21.256
+X-Spam-Level: 
+X-Spam-Status: No, score=-21.256 tagged_above=-9999 required=5
+	tests=[BAYES_00=-1.9, DKIMWL_WL_HIGH=-1.469, DKIM_SIGNED=0.1,
+	DKIM_VALID=-0.1, DKIM_VALID_AU=-0.1, ENV_AND_HDR_SPF_MATCH=-0.5,
+	HTML_MESSAGE=0.001, RCVD_IN_DNSWL_MED=-2.3, RCVD_IN_MSPIKE_H3=0.001,
+	RCVD_IN_MSPIKE_WL=0.001, SPF_HELO_NONE=0.001, SPF_PASS=-0.001,
+	T_REMOTE_IMAGE=0.01, USER_IN_DEF_DKIM_WL=-7.5,
+	USER_IN_DEF_SPF_WL=-7.5] autolearn=ham autolearn_force=no
+Received: from eddings.***REMOVED*** ([127.0.0.1])
+	by localhost (eddings.***REMOVED*** [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id NAZTcyC0pd4v for <***REMOVED***>;
+	Mon, 19 Jul 2021 10:48:05 +0000 (UTC)
+Received-SPF: Pass (mailfrom) identity=mailfrom; client-ip=17.111.110.47;
+ helo=rn2-txn-msbadger01107.apple.com; envelope-from=no_reply@email.apple.com;
+ receiver=<UNKNOWN> 
+Received: from rn2-txn-msbadger01107.apple.com
+ (rn2-txn-msbadger01107.apple.com [17.111.110.47])
+	by eddings.***REMOVED*** (Postfix) with ESMTPS id CCE111BBE99
+	for <***REMOVED***>; Mon, 19 Jul 2021 10:48:04 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=email.apple.com;
+	s=email0517; t=1626691683;
+	bh=I5KOR6+UVHuxC2pJILOg3Z7HRqGJ2XNNjA/RocfAdIw=;
+	h=Date:From:To:Message-ID:Subject:Content-Type;
+	b=k/g60M4HEuviBrdwyNqT3xOZ3ggjsbxcMacTOUWzHvOFICuKD4eA/pYkpMZigNfM1
+	 RcYdJUKJj/PBVsEwJ3Uf1NNsBwrm9kjnJRbkMI40W9w5DQAcDVvslZlRnfco/tCRvl
+	 pqc/hSrdPFB32TRLcxaH9E1I6v0jSEJbnJ/8RSWBTiZMQmG3uGtLnA/940p9EtQ77Q
+	 QbgNkk7ncOjXLDqNer4cUNNnYcrFEtdvtq1sdqw/LCRrEAc4oGeK2/gQKXSvK0eubH
+	 K6qsIH4j1DA5mVHow38yqd6J5hDbXbRF++IpsZXqXLOii5ujyZAdSYNAkYzsXiRVb0
+	 h8VCTXSPUFoEg==
+Date: Mon, 19 Jul 2021 10:48:03 +0000 (GMT)
+From: Apple <no_reply@email.apple.com>
+To: ***REMOVED***
+Message-ID: <23181902.178980835.1626691683463@email.apple.com>
+Subject: Your receipt from Apple.
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_Part_178980833_2120278063.1626691683463"
+X-Attach-Flag: N
+X-COMMS-C: N
+X-Sent-To: 
+ ***REMOVED***,2,mkfdfaBRzAfsLoshtbHrR7Gzp3qZhJOWA5GJiqvt0P1kyXJUnAIbeIpFUZKopOOYnLpsWUqbQ4%2BK9IixjwUR8t6qyxavvttktcQZjpw9%2B0eXHgzICWPSCISrfBZfVfpIMEkNwPVQCtIKWqtb72FgDIb3S9VPZO4K598lhrqaVUUPhlQV6SzQmDY4xmSLeYEm5%2FGTj78iflj6EQk%2F5Li7h2ht3PQ6S6tJ9HV6CtE72kMS3sqXqtv8518plt7ZAkniia4f1lMB3y9QJW5mi6EiInC9Qu2noOGJbJN2ey%2BKg0roJGZL5EHP6SS3VxJnEmUe5h8oEutntTXru%2BggkwBRJryJNASBbuaAqM2rvJ33%2FrzX7GloyroH0DjY6tRk2RmmLvfqKR0u7%2Fi%2BSom%2FCKpIhSy6LUmK%2FxtUvEuJzgrElxFSrg1UaFz2MjRx4dI6GNenkulT7JmSSS5ObusGrDbjUA%3D%3D
+X-TXN_ID: d8f0c60c-73cc-4647-a710-a6b3d4761e1e
+X-DKIM_SIGN_REQUIRED: YES
+X-EmailType-Id: 10631
+X-Business-Group: iTunes
+X-Country: US
+
+------=_Part_178980833_2120278063.1626691683463
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+Content-Disposition: inline
+
+Apple Receipt
+-----------------------------------------------------------
+
+APPLE ID
+***REMOVED***
+
+BILLED TO
+Visa .... 9579 (Apple=A0Pay)
+Karl  Davis
+715 Longview Ave
+Westminster ,  MD  21157
+USA
+
+ORDER ID:              MQ5GFF6S3F
+DOCUMENT NO.:        201454403129
+DATE:                Jul 18, 2021
+TOTAL:                      $7.41
+
+
+App Store                                     =20
+---------------------------------------------------------------------------=
+-----
+
+Minecraft                                                                  =
+$6.99
+Mojang                       =20
+iOS App                      =20
+iPad                         =20
+
+---------------------------------------------------------------------------=
+-----
+                                                              Subtotal     =
+$6.99
+                                                                   Tax     =
+$0.42
+---------------------------------------------------------------------------=
+-----
+
+                                                                 TOTAL     =
+$7.41
+
+Get help with subscriptions and purchases. Visit Apple Support.
+Learn how to manage your password preferences for iTunes, Apple Books, and =
+App Store purchases.
+
+
+
+
+Apple respects your privacy.
+Information regarding your personal information can be viewed at https://ww=
+w.apple.com/legal/privacy/.
+
+
+Terms of Sale: https://www.apple.com/legal/itunes/us/sales.html
+Apple ID Summary: https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/=
+accountSummary?mt=3D8
+------=_Part_178980833_2120278063.1626691683463
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+Content-Disposition: inline
+
+<html lang=3D"en-US" false >
+<head>
+  <title></title>
+  <meta name=3D"viewport" content=3D"width=3Ddevice-width">
+  <meta name=3D"format-detection" content=3D"telephone=3Dno">
+  </head>
+<body media-query-fix=3D"fix" bgcolor=3D"#ffffff" link=3D"#3366cc" vlink=3D=
+"#3366cc" alink=3D"#3366cc" leftmargin=3D"0" marginheight=3D"0" marginwidth=
+=3D"0" topmargin=3D"0" style=3D"margin:0;padding:0;">
+    <style type=3D"text/css">
+   =20
+    a, a:link, a:visited, a:active {color:#007eff;text-decoration:none;}
+    a:hover {text-decoration:underline}
+    * {text-rendering:optimizelegibility;-webkit-font-smoothing:antialiased=
+;}
+    img {-ms-interpolation-mode: bicubic;}
+    table {border-collapse: collapse; border-spacing: 0;}
+    sup {font-weight: 300;}
+    @media (max-width: 480px) {
+      div[class=3Daapl-mobile-div] {display: block !important;-webkit-text-=
+size-adjust:none;height:100% !important;important;overflow:visible !importa=
+nt;max-height:none !important;min-height:none !important;line-height:normal=
+ !important;}
+      div[class=3Daapl-desktop-div] {display: none !important;height:0;over=
+flow:hidden !important;max-height:0;min-height:0;line-height:0}
+    }
+    @media only screen and (min-width: 768px) and (max-width: 1024px) {
+      a {color:inherit}
+    }
+        </style>
+  <br><br>
+  <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"center" =
+style=3D"border-collapse:collapse;border-spacing:0;">
+    <tr>
+      <td valign=3D"top">
+              <div class=3D"aapl-desktop-div" style=3D"display:block;paddin=
+g:0;margin:0;height:100%;max-height:none;min-height:none;line-height:normal=
+;overflow:visible;">
+<table class=3D"aapl-desktop-tbl" border=3D"0" cellpadding=3D"0" cellspacin=
+g=3D"0" align=3D"center" style=3D"border-collapse:collapse;border-spacing:0=
+;width:742px;">
+  <tr>
+    <td class=3D"left-gutter" style=3D"width:50px;"></td>
+    <td><img width=3D"42" height=3D"42" alt=3D"Apple" src=3D"https://s.mzst=
+atic.com/email/images_shared/logo_apple_d-2x.png" border=3D"0" style=3D"bor=
+der:none;padding:0;margin:0;-ms-interpolation-mode:bicubic;"></td>
+    <td en-US false  align=3D"right" style=3D"font-size:32px; font-weight:3=
+00; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: rgb=
+(136,136,136)">Receipt</td>
+    <td class=3D"right-gutter" style=3D"width:50px;"></td>
+  </tr>
+  <tr height=3D"20"><td colspan=3D"4">=C2=A0</td><tr>
+  <tr>
+    <td colspan=3D"4" align=3D"center">
+<table class=3D"aapl-desktop-tbl" border=3D"0" cellspacing=3D"0" cellpaddin=
+g=3D"0" width=3D"660" style=3D"border-collapse:collapse;border-spacing:0;">
+    <tr>
+    <td>
+      <table class=3D"aapl-desktop-tbl" border=3D"0" bordercolor=3D"#ffffff=
+" cellpadding=3D"0" cellspacing=3D"0" style=3D"border-collapse:collapse;bor=
+der-spacing:0;color:rgb(51,51,51);background-color: rgb(250,250,250);border=
+-radius:3px;font-size:12px;font-family:'Helvetica Neue',Helvetica,Arial,san=
+s-serif;">
+        <tr height=3D"46">
+          <td  width=3D"320" colspan=3D"2" style=3D"padding-left:20px;borde=
+r-style: solid;border-color: white;border-left-width:0;border-right-width:1=
+px;border-bottom-width: 1px;border-top-width: 0px;"><span style=3D"color:rg=
+b(102,102,102);font-size:10px;">APPLE ID</span><br>archer.william.davis@icl=
+oud.com</td>
+                    <td width=3D"340" rowspan=3D"3" style=3D"padding-left:2=
+0px;border-style:solid;border-color:white;border-left-width:0px;border-righ=
+t-width:0px;border-top-width:0px; border-bottom-width:0px;">
+                      <span style=3D"color:rgb(102,102,102);font-size:10px;=
+">BILLED TO</span><br>
+            Visa .... 9579 (Apple=C2=A0Pay)<br>            Karl  Davis<br>
+            715 Longview Ave<br>Westminster ,  MD  21157<br>USA            =
+                                            </td>
+        </tr>
+                <tr height=3D"46">
+          <td  colspan=3D"2" style=3D"padding-left:20px;border-style:solid;=
+ border-color:white;border-left-width:0;border-right-width:1px;border-botto=
+m-width:1px;border-top-width:0px;"><span style=3D"color:rgb(102,102,102);fo=
+nt-size:10px;">DATE</span><br>Jul 18, 2021</td>
+                  </tr>
+        <tr height=3D"46">
+          <td style=3D"padding-left:20px;border-style:solid;border-color:wh=
+ite;border-left-width:0;border-right-width:1px;border-bottom-width:0px;bord=
+er-top-width:0px;"><span style=3D"color:rgb(102,102,102);font-size:10px;">O=
+RDER ID</span><br><span style=3D"color:#0070c9;"><a href=3D"https://xp.appl=
+e.com/report/2/its_mail_sf?responseType=3Dredirect&emailType=3Dinvoice&lang=
+=3Den_us&eventType=3DlinkClick&redirectUrl=3Dhttps%3A%2F%2Fsupport.apple.co=
+m%2Fkb%2FHT204088%3Fcid%3Demail_receipt_itunes_article_HT204088" target=3D"=
+_blank" rel=3D"nofollow noopener">MQ5GFF6S3F</a></span></td>
+          <td style=3D"padding-left:20px;border-style:solid;border-color:wh=
+ite;border-left-width:0;border-right-width:1px;border-bottom-width:0px;bord=
+er-top-width:0px;"><span style=3D"color:rgb(102,102,102);font-size:10px;">D=
+OCUMENT NO.</span><br>201454403129</td>
+                  </tr>
+                      </table>
+    </td>
+  </tr>
+
+  <tr height=3D"30"><td></td></tr>
+  <tr>
+    <td>
+            <table class=3D"aapl-desktop-tbl" width=3D"660" border=3D"0" ce=
+llpadding=3D"0" cellspacing=3D"0" style=3D"border-collapse:collapse;border-=
+spacing:0;width:660px;color:rgb(51,51,51);font-size:12px;font-family:'Helve=
+tica Neue',Helvetica,Arial,sans-serif;">
+        <tr height=3D"24" style=3D"background-color: rgb(250,250,250);" cla=
+ss=3D"section-header">
+          <td colspan=3D"3" width=3D"350" style=3D"width:350px;padding-left=
+:10px;border-top-left-radius:3px;border-bottom-left-radius:3px;"><span styl=
+e=3D"font-size:14px;font-weight:500;">App Store</span></td>
+        </tr>
+                <tr height=3D"15"><td colspan=3D"3"></td></tr>
+  <tr style=3D"max-height:114px;">
+                                                <td width=3D"64" class=3D"a=
+rtwork-cell" align=3D"center" valign=3D"top" style=3D"padding: 0 0 0 20px;m=
+argin:0;width:64px;">
+      <img src=3D"https://is3-ssl.mzstatic.com/image/thumb/Purple115/v4/81/=
+2c/a1/812ca1c4-d056-f4dd-c3be-ef95e402bfea/AppIcon-0-0-1x_U007emarketing-0-=
+0-0-9-0-0-sRGB-0-0-0-GLES2_U002c0-512MB-85-220-0-0.png/128x128bb-80.jpg" wi=
+dth=3D"64" height=3D"64" border=3D"0" alt=3D"" style=3D"padding:0;margin:0;=
+-ms-interpolation-mode: bicubic;border-radius:14px;border:1px solid rgba(12=
+8,128,128,0.2);">
+    </td>
+        <td style=3D"padding: 0 0 0 20px;line-height:15px;" class=3D"item-c=
+ell">
+      <span class=3D"title" style=3D"font-weight:600;">
+                  Minecraft
+                        </span><br>
+                                          <span class=3D"artist" style=3D"c=
+olor:rgb(102,102,102);">Mojang</span><br>              <span class=3D"type"=
+ style=3D"color:rgb(102,102,102);">
+          iOS App        </span><br>
+                                            <span class=3D"device" style=3D=
+"color:rgb(102,102,102);">iPad</span><br>                              <a c=
+lass=3D"item-links" style=3D"font-size:10px;">
+      <a href=3D"https://userpub.itunes.apple.com/WebObjects/MZUserPublishi=
+ng.woa/wa/addUserReview?cc=3Dus&id=3D479516143&mt=3D8&o=3Di&type=3DiOS%20Ap=
+p" style=3D"color:#0070c9;">Write a Review</a>=C2=A0|=C2=A0      <a href=3D=
+"https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/reportAProblem?a=
+=3D479516143&cc=3Dus&d=3D20197950575&o=3Di&p=3D72059934876905&pli=3D7208205=
+0085223&s=3D1" style=3D"color:#0070c9;">Report a Problem</a>              <=
+/span>
+    </td>
+    <td width=3D"100" class=3D"price-cell" align=3D"right" valign=3D"top" s=
+tyle=3D"padding:0 20px 0 0;width:100px;">
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"bord=
+er-collapse:collapse;border-spacing:0;font-size:12px;font-family:inherit;">
+              <tr><td align=3D"right" colspan=3D"3"><span style=3D"font-wei=
+ght:600;white-space:nowrap;">$6.99</span></td></tr>
+                  </table>
+    </td>
+  </tr>
+            </table>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <table class=3D"aapl-desktop-tbl" width=3D"660" border=3D"0" cellpadd=
+ing=3D"0" cellspacing=3D"0" style=3D"border-collapse:collapse;border-spacin=
+g:0;width:660px;color:rgb(51,51,51);font-family:'Helvetica Neue',Helvetica,=
+Arial,sans-serif;">
+        <tr height=3D"15"><td colspan=3D"3"></td></tr>
+        <tr>
+          <td colspan=3D"3" align=3D"right" style=3D"padding:0 20px 0 0;whi=
+te-space:nowrap;">
+            <table align=3D"right" border=3D"0" cellpadding=3D"0" cellspaci=
+ng=3D"0" style=3D"border-collapse:collapse;border-spacing:0;color:rgb(51,51=
+,51);font-size:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif=
+;">
+                          <tr>
+                <td align=3D"right"><span style=3D"color:rgb(102,102,102);w=
+hite-space:nowrap">Subtotal</span></td>
+                <td width=3D"10">=C2=A0</td>
+                <td align=3D"right">
+                                      <span style=3D"font-weight:600;white-=
+space:nowrap;">$6.99</span>
+                                  </td>
+              </tr>
+              <tr><td colspan=3D"3" height=3D"4">=C2=A0</td></tr>
+                                                      <tr>
+                  <td align=3D"right"><span style=3D"color:rgb(102,102,102)=
+;white-space:nowrap;">Tax</span></td>
+                  <td width=3D"10">=C2=A0</td>
+                  <td align=3D"right" style=3D"min-width:45px;"><span style=
+=3D"white-space:nowrap;font-weight:600;">$0.42</span></td>
+                </tr>
+                                                                          <=
+/table>
+          </td>
+        </tr>
+        <tr height=3D"15"><td colspan=3D"3"></td></tr>
+        <tr height=3D"1"><td height=3D"1" colspan=3D"3" style=3D"padding:0 =
+10px 0 10px;"><div style=3D"line-height:1px;height:1px;background-color:rgb=
+(238,238,238);"></div></td></tr>
+        <tr height=3D"48">
+          <td align=3D"right" style=3D"color:rgb(102,102,102);font-size:10p=
+x;font-weight:600;padding: 0 30px 0 0;border-width:1px;border-color:rgb(238=
+,238,238);">TOTAL</td>
+          <td width=3D"1" style=3D"background-color:rgb(238,238,238);width:=
+1px;"></td>
+          <td width=3D"90" align=3D"right" style=3D"width:120px;padding:0 2=
+0px 0 0;font-size:16px;font-weight:600;white-space:nowrap;">
+                          $7.41
+                      </td>
+        </tr>
+        <tr height=3D"1"><td height=3D"1" colspan=3D"3" style=3D"padding:0 =
+10px 0 10px;"><div style=3D"line-height:1px;height:1px;background-color:rgb=
+(238,238,238);"></div></td></tr>
+      </table>
+    </td>
+  </tr>
+    </table>
+  </td>
+</tr>
+<tr class=3D"footer-notice-spacer" style=3D"height:20px"><td colspan=3D"4">=
+=C2=A0</td></tr>
+<tr>
+  <td></td>
+  <td colspan=3D"2" align=3D"center" class=3D"footer-notices" style=3D"font=
+-size:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:rg=
+b(102,102,102)">
+            Get help with subscriptions and purchases. <a href=3D"https://s=
+upport.apple.com/billing?cid=3Demail_receipt">Visit Apple Support</a>.</br>=
+</br>                    Learn how to <a href=3D"https://support.apple.com/=
+kb/HT204030?cid=3Demail_receipt_itunes_article_HT204030">manage your passwo=
+rd preferences</a> for iTunes, Apple Books, and App Store purchases.<br><br=
+>              </td>
+  <td></td>
+</tr>
+<tr class=3D"footer-spacer" style=3D"height:40px"><td colspan=3D"4">=C2=A0<=
+/td></tr><tr>
+  <td></td>
+  <td class=3D"" colspan=3D"2" align=3D"center" style=3D"font-size:12px; fo=
+nt-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; color: rgb(102,102,=
+102)">
+    <img class=3D"large-footer-logo" width=3D"26" height=3D"26" border=3D"0=
+" alt=3D"Apple" src=3D"https://s.mzstatic.com/email/images_shared/logo_appl=
+e_small_d-2x.png" style=3D"border:none;padding:0;margin:0;-ms-interpolation=
+-mode: bicubic;">
+    <img class=3D"small-footer-logo" width=3D"14" height=3D"14" border=3D"0=
+" alt=3D"Apple" src=3D"https://s.mzstatic.com/email/images_shared/logo_appl=
+e_small_m-3x.png" style=3D"display:none;border:none;padding:0;margin:0;-ms-=
+interpolation-mode: bicubic;">
+  </td>
+  <td></td>
+</tr>
+<tr height=3D"8"><td colspan=3D"4">=C2=A0</td></tr>
+<tr>
+  <td></td>
+  <td colspan=3D"2" align=3D"center" style=3D"font-size:12px; font-family: =
+'Helvetica Neue',Helvetica,Arial,sans-serif; color: rgb(102,102,102)">
+    <a href=3D"https://xp.apple.com/report/2/its_mail_sf?responseType=3Dred=
+irect&emailType=3Dinvoice&lang=3Den_us&eventType=3DlinkClick&redirectUrl=3D=
+https%3A%2F%2Fbuy.itunes.apple.com%2FWebObjects%2FMZFinance.woa%2Fwa%2Facco=
+untSummary%3Fmt%3D8" style=3D"color:#0073ff;">Apple ID Summary</a>=C2=A0=E2=
+=80=A2=C2=A0<a href=3D"https://xp.apple.com/report/2/its_mail_sf?responseTy=
+pe=3Dredirect&emailType=3Dinvoice&lang=3Den_us&eventType=3DlinkClick&redire=
+ctUrl=3Dhttps%3A%2F%2Fwww.apple.com%2Flegal%2Fitunes%2Fus%2Fsales.html" sty=
+le=3D"color:#0073ff;">Terms of Sale</a>=C2=A0=E2=80=A2=C2=A0<a href=3D"http=
+s://xp.apple.com/report/2/its_mail_sf?responseType=3Dredirect&emailType=3Di=
+nvoice&lang=3Den_us&eventType=3DlinkClick&redirectUrl=3Dhttps%3A%2F%2Fwww.a=
+pple.com%2Flegal%2Fprivacy%2F" style=3D"color:#0073ff;">Privacy Policy</a>
+  </td>
+  <td></td>
+</tr>
+<tr height=3D"25"><td colspan=3D"4">=C2=A0</td></tr>
+<tr>
+  <td></td>
+  <td colspan=3D"2" align=3D"center" style=3D"font-size:12px;font-family:'H=
+elvetica Neue',Helvetica,Arial,sans-serif;color:rgb(102,102,102)">
+                Copyright =C2=A9 2021 Apple Inc.<br><a href=3D"https://xp.a=
+pple.com/report/2/its_mail_sf?responseType=3Dredirect&emailType=3Dinvoice&l=
+ang=3Den_us&eventType=3DlinkClick&redirectUrl=3Dhttps%3A%2F%2Fwww.apple.com=
+%2Flegal%2F" style=3D"color:#1187FF">All rights reserved</a>
+          </td>
+  <td></td>
+</tr>
+<tr height=3D"25"><td colspan=3D"4" height=3D"30">=C2=A0</td></tr>
+</table>
+</div>
+
+             =20
+       =20
+              <div class=3D"aapl-mobile-div" style=3D"display:none;padding:=
+0;margin:0;height:0;max-height:0;min-height:none;line-height:0;overflow:hid=
+den;">
+<table class=3D"aapl-mobile-tbl" border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0" width=3D"480" align=3D"center" style=3D"border-collapse:collapse;bor=
+der-spacing:0;">
+  <tr>
+    <td class=3D"aapl-mobile-cell" width=3D"15" style=3D""></td>
+    <td class=3D"aapl-mobile-cell"><img width=3D"22" height=3D"22" alt=3D"A=
+pple" src=3D"https://s.mzstatic.com/email/images_shared/logo_apple_m-3x.png=
+" border=3D"0" style=3D"border:none;padding:0;margin:0;"></td>
+    <td class=3D"aapl-mobile-cell"en-US false  align=3D"right" style=3D"fon=
+t-size:32px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; c=
+olor: rgb(136,136,136);">Receipt</td>
+    <td class=3D"aapl-mobile-cell" width=3D"15" style=3D""></td>
+  </tr>
+  <tr height=3D"15"><td class=3D"aapl-mobile-cell" colspan=3D"4" style=3D""=
+>=C2=A0</td><tr>
+  <tr>
+    <td class=3D"aapl-mobile-cell" colspan=3D"4" align=3D"center" style=3D"=
+">
+<table class=3D"aapl-mobile-tbl" border=3D"0" cellspacing=3D"0" cellpadding=
+=3D"0" width=3D"450" style=3D"border-collapse:collapse;border-spacing:0;">
+    <tr>
+    <td class=3D"aapl-mobile-cell" style=3D"">
+      <table class=3D"aapl-mobile-tbl" border=3D"0" bordercolor=3D"#ffffff"=
+ cellpadding=3D"0" cellspacing=3D"0" style=3D"border-collapse:collapse;bord=
+er-spacing:0;color:rgb(51,51,51);background-color: rgb(250,250,250);border-=
+radius:3px;font-size:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans=
+-serif;border-color:#ffffff;border-style:solid;border-top-color:#ffffff;bor=
+der-bottom-color:#ffffff;">
+        <tr height=3D"44">
+          <td  colspan=3D"2" class=3D"aapl-mobile-cell" style=3D"padding-le=
+ft:15px;border-style:solid;border-color:#ffffff;border-top-width:0px; borde=
+r-left-width:0;border-right-width:0 border-bottom-width:1px;">
+          <span style=3D"color:rgb(102,102,102);font-size:10px;font-weight:=
+600;">APPLE ID</span><br><span style=3D"color:#0073ff;">archer.william.davi=
+s@icloud.com</span>
+          </td>
+                  </tr>
+        <tr height=3D"44">
+                  <td class=3D"aapl-mobile-cell" width=3D"225" style=3D"pad=
+ding-left:15px;border-style:solid;border-color:#ffffff;border-top-width:0px=
+;border-left-width:0;border-right-width:1px;border-bottom-width:1px;">
+            <span style=3D"color:rgb(102,102,102);font-size:10px;font-weigh=
+t:600;">ORDER ID</span><br><span style=3D"color:#0070c9;">MQ5GFF6S3F</span>=
+          </td>
+          <td class=3D"aapl-mobile-cell" width=3D"225" style=3D"padding-lef=
+t:15px;border-style:solid;border-color:#ffffff;border-top-width:0px;border-=
+left-width:0;border-right-width:0;border-bottom-width:1px;">
+            <span style=3D"color:rgb(102,102,102);font-size:10px;font-weigh=
+t:600;">
+                              DOCUMENT NO.</span><br>201454403129
+                        </td>
+                </tr>
+                      <tr height=3D"44">
+          <td colspan=3D"2" class=3D"aapl-mobile-cell" style=3D"padding-lef=
+t:15px;border-style:solid;border-color:#ffffff;border-top-width:0px;border-=
+left-width:0;border-right-width:1px;border-bottom-width:1px;">
+            <span style=3D"color:rgb(102,102,102);font-size:10px;font-weigh=
+t:600;">DATE</span><br>Jul 18, 2021          </td>
+                 </tr>
+
+                <tr height=3D"90">
+          <td class=3D"aapl-mobile-cell" colspan=3D"2" style=3D"padding-lef=
+t:15px;padding-right:15px;border-style:solid;border-color:#ffffff;border-to=
+p-width:0px;border-left-width:0;border-right-width:0;border-bottom-width:0p=
+x;padding-top:8px;padding-bottom:8px;">
+            <span style=3D"color:rgb(102,102,102);font-size:10px;font-weigh=
+t:600;">BILLED TO</span><br>
+            Visa .... 9579 (Apple=C2=A0Pay)<br>            Karl  Davis<br>
+            715 Longview Ave<br>Westminster ,  MD  21157<br>USA            =
+                                  </td>
+        </tr>
+            </table>
+    </td>
+  </tr>
+
+    <tr height=3D"20"><td class=3D"aapl-mobile-cell" style=3D""></td></tr>
+  <tr>
+    <td width=3D"450" class=3D"aapl-mobile-cell" style=3D"">
+            <table class=3D"aapl-mobile-tbl" border=3D"0" cellpadding=3D"0"=
+ cellspacing=3D"0" style=3D"border-collapse:collapse;border-spacing:0;width=
+:100%;color:rgb(51,51,51);font-size:12px;font-family:'Helvetica Neue',Helve=
+tica,Arial,sans-serif;">
+        <tr height=3D"24" style=3D"background-color:rgb(250,250,250);" clas=
+s=3D"section-header">
+          <td class=3D"aapl-mobile-cell" colspan=3D"2" style=3D"padding-lef=
+t:15px;"><span style=3D"font-size:11px;font-weight:600;">App Store</span></=
+td>
+        </tr>
+                <tr height=3D"15"><td colspan=3D"2"></td></tr>
+  <tr style=3D"max-height:114px;">
+                                                <td width=3D"75" class=3D"a=
+rtwork-cell aapl-mobile-cell" align=3D"center" valign=3D"top" style=3D"padd=
+ing: 0 0 0 15px;margin:0;width:64px;">
+      <img src=3D"https://is3-ssl.mzstatic.com/image/thumb/Purple115/v4/81/=
+2c/a1/812ca1c4-d056-f4dd-c3be-ef95e402bfea/AppIcon-0-0-1x_U007emarketing-0-=
+0-0-9-0-0-sRGB-0-0-0-GLES2_U002c0-512MB-85-220-0-0.png/128x128bb-80.jpg" wi=
+dth=3D"64" height=3D"64" border=3D"0" alt=3D"" style=3D"padding:0;margin:0;=
+-ms-interpolation-mode: bicubic;border-radius:14px;border:1px solid rgba(12=
+8,128,128,0.2);">
+    </td>
+        <td style=3D"padding: 0 0 0 15px;line-height:15px;" class=3D"item-c=
+ell aapl-mobile-cell">
+      <span class=3D"title" style=3D"font-weight:600;">
+                  Minecraft
+                        </span><br>
+                                          <span class=3D"artist" style=3D"c=
+olor:rgb(102,102,102);">Mojang</span><br>              <span class=3D"type"=
+ style=3D"color:rgb(102,102,102); font-size:10px;">
+          iOS App        </span><br>
+                                            <span class=3D"device" style=3D=
+"color:rgb(102,102,102); font-size:10px;">iPad</span><br>                  =
+            <a class=3D"item-links" style=3D"font-size:10px;">
+      <a href=3D"https://userpub.itunes.apple.com/WebObjects/MZUserPublishi=
+ng.woa/wa/addUserReview?cc=3Dus&id=3D479516143&mt=3D8&o=3Di&type=3DiOS%20Ap=
+p" style=3D"color:#0070c9;">Write a Review</a>=C2=A0|=C2=A0      <a href=3D=
+"https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/reportAProblem?a=
+=3D479516143&cc=3Dus&d=3D20197950575&o=3Di&p=3D72059934876905&pli=3D7208205=
+0085223&s=3D1" style=3D"color:#0070c9;">Report a Problem</a>              <=
+/span>
+    </td>
+  </tr>
+  <tr>
+    <td width=3D"100" class=3D"price-cell aapl-mobile-cell" align=3D"right"=
+ valign=3D"top" style=3D"padding-right:15px;width:100px;" colspan=3D"2">
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"bord=
+er-collapse:collapse;border-spacing:0;font-size:12px;font-family:inherit;">
+              <tr><td align=3D"right" colspan=3D"3"><span style=3D"font-wei=
+ght:600;white-space:nowrap;">$6.99</span></td></tr>
+                  </table>
+    </td>
+  </tr>
+            </table>
+    </td>
+  </tr>
+  <tr>
+    <td class=3D"aapl-mobile-cell" style=3D"">
+      <table class=3D"aapl-mobile-tbl" width=3D"450" border=3D"0" cellpaddi=
+ng=3D"0" cellspacing=3D"0" style=3D"width:450px;color:rgb(51,51,51);font-fa=
+mily:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr height=3D"15"><td class=3D"aapl-mobile-cell" colspan=3D"2" st=
+yle=3D""></td></tr>
+        <tr>
+          <td class=3D"aapl-mobile-cell" colspan=3D"2" align=3D"right" styl=
+e=3D"padding-right:15px;white-space:nowrap;">
+            <table align=3D"right" border=3D"0" cellpadding=3D"0" cellspaci=
+ng=3D"0" style=3D"border-collapse:collapse;border-spacing:0;color:rgb(51,51=
+,51);font-size:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif=
+;">
+                          <tr>
+                <td align=3D"right"><span style=3D"color:rgb(102,102,102);w=
+hite-space:nowrap">Subtotal</span></td>
+                <td width=3D"10">=C2=A0</td>
+                <td align=3D"right">
+                                      <span style=3D"font-weight:600;white-=
+space:no-wrap;">$6.99</span>
+                                  </td>
+              </tr>
+              <tr><td colspan=3D"3" height=3D"4"></td></tr>
+                                                      <tr>
+                  <td align=3D"right"><span style=3D"color:rgb(102,102,102)=
+;white-space:nowrap;">Tax</span></td>
+                  <td width=3D"10">=C2=A0</td>
+                  <td align=3D"right" style=3D"min-width:45px;"><span style=
+=3D"white-space:nowrap;font-weight:600;">$0.42</span></td>
+                </tr>
+                                                                          <=
+/table>
+          </td>
+        </tr>
+        <tr height=3D"15"><td class=3D"aapl-mobile-cell" colspan=3D"2" styl=
+e=3D""></td></tr>
+          <tr height=3D"1"><td class=3D"aapl-mobile-cell" height=3D"1" cols=
+pan=3D"2" style=3D"padding:0 10px 0 10px;"><div style=3D"line-height:1px;he=
+ight:1px;background-color:rgb(238,238,238);"></div></td></tr>
+        <tr height=3D"48">
+          <td class=3D"aapl-mobile-cell" style=3D"padding-left:15px;color:r=
+gb(102,102,102);font-size:10px;font-weight:600;">TOTAL</td>
+          <td class=3D"aapl-mobile-cell" width=3D"120" align=3D"right" styl=
+e=3D"width:120px;padding-right:15px;font-size:16px;font-weight:600;white-sp=
+ace:nowrap;">
+                          $7.41
+                      </td>
+        </tr>
+        <tr height=3D"1"><td class=3D"aapl-mobile-cell" height=3D"1" colspa=
+n=3D"2" style=3D"padding:0 10px 0 10px;"><div style=3D"line-height:1px;heig=
+ht:1px;background-color:rgb(238,238,238);"></div></td></tr>
+      </table>
+    </td>
+  </tr>
+    </table>
+  </td>
+</tr>
+<tr height=3D"15"><td colspan=3D"4" class=3D"aapl-mobile-cell" style=3D"">=
+=C2=A0</td></tr>
+<tr>
+  <td class=3D"aapl-mobile-cell" style=3D""></td>
+  <td class=3D"aapl-mobile-cell" colspan=3D"2" align=3D"center" style=3D"fo=
+nt-size:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:=
+rgb(102,102,102);">
+            Get help with subscriptions and purchases. <a href=3D"https://s=
+upport.apple.com/billing?cid=3Demail_receipt">Visit Apple Support</a>.</br>=
+</br>                    Learn how to <a href=3D"https://support.apple.com/=
+kb/HT204030?cid=3Demail_receipt_itunes_article_HT204030">manage your passwo=
+rd preferences</a> for iTunes, Apple Books, and App Store purchases.<br><br=
+>              </td>
+  <td class=3D"aapl-mobile-cell" style=3D"display:none;max-height:0;line-he=
+ight:0;mso-hide:all;"></td>
+</tr>
+<tr height=3D"25"><td colspan=3D"4" class=3D"aapl-mobile-cell" style=3D"">=
+=C2=A0</td></tr>
+<tr>
+  <td class=3D"aapl-mobile-cell" style=3D""></td>
+  <td class=3D"aapl-mobile-cell" colspan=3D"2" align=3D"center" style=3D"fo=
+nt-size:12px; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; col=
+or: rgb(102,102,102);">
+    <img width=3D"14" height=3D"14" border=3D"0" alt=3D"" src=3D"https://s.=
+mzstatic.com/email/images_shared/logo_apple_small_m-3x.png" style=3D"border=
+:none;padding:0;margin:0;-ms-interpolation-mode: bicubic;">
+  </td>
+  <td class=3D"aapl-mobile-cell" style=3D""></td>
+</tr>
+<tr height=3D"8"><td class=3D"aapl-mobile-cell" colspan=3D"4" style=3D"">=
+=C2=A0</td></tr>
+<tr>
+  <td class=3D"aapl-mobile-cell" style=3D""></td>
+  <td class=3D"aapl-mobile-cell" colspan=3D"2" align=3D"center" style=3D"fo=
+nt-size:12px; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; col=
+or: rgb(102,102,102);">
+    <a href=3D"https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/acc=
+ountSummary?mt=3D8" style=3D"color:#0073ff;">Apple ID Summary</a>=C2=A0=E2=
+=80=A2=C2=A0<a href=3D"https://xp.apple.com/report/2/its_mail_sf?responseTy=
+pe=3Dredirect&emailType=3Dinvoice&lang=3Den_us&eventType=3DlinkClick&redire=
+ctUrl=3Dhttps%3A%2F%2Fwww.apple.com%2Flegal%2Fitunes%2Fus%2Fsales.html" sty=
+le=3D"color:#0073ff;">Terms of Sale</a>=C2=A0=E2=80=A2=C2=A0<a href=3D"http=
+s://xp.apple.com/report/2/its_mail_sf?responseType=3Dredirect&emailType=3Di=
+nvoice&lang=3Den_us&eventType=3DlinkClick&redirectUrl=3Dhttps%3A%2F%2Fwww.a=
+pple.com%2Flegal%2Fprivacy%2F" style=3D"color:#0073ff;">Privacy Policy</a>
+  </td>
+  <td class=3D"aapl-mobile-cell" style=3D""></td>
+</tr>
+<tr height=3D"25"><td colspan=3D"4" class=3D"aapl-mobile-cell" style=3D"">=
+=C2=A0</td></tr>
+<tr>
+  <td class=3D"aapl-mobile-cell" style=3D""></td>
+  <td class=3D"aapl-mobile-cell" colspan=3D"2" align=3D"center" style=3D"fo=
+nt-size:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:=
+rgb(102,102,102);">
+                Copyright =C2=A9 2021 Apple Inc.<br><a href=3D"https://xp.a=
+pple.com/report/2/its_mail_sf?responseType=3Dredirect&emailType=3Dinvoice&l=
+ang=3Den_us&eventType=3DlinkClick&redirectUrl=3Dhttps%3A%2F%2Fwww.apple.com=
+%2Flegal%2F" style=3D"color:#0073ff">All rights reserved</a>
+          </td>
+  <td class=3D"aapl-mobile-cell" style=3D""></td>
+</tr>
+<tr height=3D"25"><td colspan=3D"4" height=3D"30" class=3D"aapl-mobile-cell=
+" style=3D"">=C2=A0</td></tr>
+</table>
+</div>
+
+
+             =20
+      </td>
+    </tr>
+  </table>
+  <img border=3D"0" alt=3D"" width=3D"1" height=3D"1" src=3D"https://xp.app=
+le.com/report/2/its_mail_sf?responseType=3Dimage&emailType=3Dinvoice&lang=
+=3Den_us&eventType=3Dopen" style=3D"border:none;display:none;" />  <br><br>
+</body>
+
+</html>
+------=_Part_178980833_2120278063.1626691683463--
