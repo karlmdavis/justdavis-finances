@@ -410,12 +410,12 @@ class EnhancedHTMLParser(BaseReceiptParser):
     
     def _extract_items(self, receipt: ParsedReceipt, soup: BeautifulSoup):
         """Extract purchased items."""
-        
+
         items = []
-        
+
         if receipt.format_detected == 'modern_html':
-            # Modern format item extraction
-            item_containers = soup.select('[class*="custom-"] table tr, [class*="custom-"] div')
+            # Modern format item extraction - specifically for subscription lockup tables
+            item_containers = soup.select('table.subscription-lockup__container tr.subscription-lockup')
             for container in item_containers:
                 item = self._extract_modern_item(container)
                 if item:
@@ -424,15 +424,21 @@ class EnhancedHTMLParser(BaseReceiptParser):
             # Legacy format item extraction - focus on desktop to avoid duplication
             desktop_div = soup.select_one('div.aapl-desktop-div')
             search_root = desktop_div if desktop_div else soup
-            
-            # Look for item cells or title elements
-            item_elements = search_root.select('.item-cell, .title, [class*="title"]')
+
+            # Look for item cells only (not title spans to avoid duplicates)
+            # Exclude mobile cells which have the aapl-mobile-cell class
+            item_elements = search_root.select('td.item-cell:not(.aapl-mobile-cell)')
             for elem in item_elements:
                 item = self._extract_legacy_item(elem)
                 if item:
                     items.append(item)
         
         receipt.items = items
+
+        # Validate that subscription items have cost data
+        for item in items:
+            if item.get('type') == 'subscription' and not item.get('cost'):
+                logger.warning(f"Subscription item '{item.get('title')}' missing cost data - this may indicate a parsing error")
     
     def _extract_legacy_item(self, elem) -> Optional[Dict[str, Any]]:
         """Extract item from legacy HTML element."""
@@ -446,13 +452,16 @@ class EnhancedHTMLParser(BaseReceiptParser):
         if not title or len(title) < 2:
             return None
         
-        # Find price - look in nearby price cells
+        # Find price - look in sibling price-cell TD (not child)
         price = None
-        price_elem = elem.find(class_='price-cell')
-        if price_elem:
-            price_text = price_elem.get_text().strip()
-            if price_text.startswith('$'):
-                price = self._clean_amount(price_text)
+        if elem.name == 'td':
+            parent_tr = elem.find_parent('tr')
+            if parent_tr:
+                price_elem = parent_tr.find('td', class_='price-cell')
+                if price_elem:
+                    price_text = price_elem.get_text().strip()
+                    if '$' in price_text:
+                        price = self._clean_amount(price_text)
         
         # Additional metadata
         item_data = {

@@ -397,6 +397,12 @@ class EnhancedHTMLParser:
         # Find price - look in nearby price cells
         price = None
         price_elem = elem.find(class_='price-cell')
+        if not price_elem and elem.parent:
+            # Look for price cell as sibling in the same table row
+            row = elem.parent if elem.parent.name == 'tr' else elem.find_parent('tr')
+            if row:
+                price_elem = row.find(class_='price-cell')
+
         if price_elem:
             price_text = price_elem.get_text().strip()
             if price_text.startswith('$'):
