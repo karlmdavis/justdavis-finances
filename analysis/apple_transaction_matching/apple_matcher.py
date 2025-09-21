@@ -33,16 +33,14 @@ class MatchResult:
 class AppleMatcher:
     """Core Apple receipt to YNAB transaction matcher"""
     
-    def __init__(self, date_window_days: int = 2, amount_tolerance: float = 0.01):
+    def __init__(self, date_window_days: int = 2):
         """
         Initialize the matcher.
-        
+
         Args:
             date_window_days: Number of days to search before/after transaction date
-            amount_tolerance: Maximum amount difference for considering a match (dollars)
         """
         self.date_window_days = date_window_days
-        self.amount_tolerance = amount_tolerance
     
     def match_single_transaction(self, 
                                 ynab_transaction: Dict[str, Any], 
@@ -126,7 +124,7 @@ class AppleMatcher:
             
         # Find exact amount matches
         for _, receipt in same_date_receipts.iterrows():
-            if abs(receipt['total'] - tx_amount) <= self.amount_tolerance:
+            if receipt['total'] == tx_amount:
                 print(f"  Found exact match: Receipt {receipt['order_id']} for ${receipt['total']:.2f}")
                 return receipt.to_dict()
         
@@ -166,7 +164,7 @@ class AppleMatcher:
         best_date_diff = float('inf')
         
         for _, receipt in window_receipts.iterrows():
-            if abs(receipt['total'] - tx_amount) <= self.amount_tolerance:
+            if receipt['total'] == tx_amount:
                 date_diff = abs((receipt['receipt_date'] - tx_date).days)
                 if date_diff < best_date_diff:
                     best_match = receipt.to_dict()
@@ -195,17 +193,9 @@ class AppleMatcher:
         """
         confidence = 1.0
         
-        # Amount matching penalty
+        # Amount matching penalty (now only exact matches are allowed)
         amount_diff = abs(ynab_amount - apple_amount)
-        if amount_diff == 0:
-            amount_penalty = 0
-        elif amount_diff <= 0.01:  # Rounding error
-            amount_penalty = 0.05
-        elif amount_diff <= 0.10:  # Small discrepancy
-            amount_penalty = 0.15
-        else:
-            # Proportional penalty for larger differences
-            amount_penalty = min(0.5, amount_diff / ynab_amount)
+        amount_penalty = 0 if amount_diff == 0 else 1.0  # No tolerance for amount differences
         
         # Date matching penalty
         date_penalty = min(0.3, date_diff_days * 0.15)

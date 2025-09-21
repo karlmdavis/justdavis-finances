@@ -182,8 +182,6 @@ Examples:
     # Matching parameters
     parser.add_argument("--date-window", type=int, default=2,
                        help="Date window in days for matching (default: 2)")
-    parser.add_argument("--amount-tolerance", type=float, default=0.01,
-                       help="Amount tolerance in dollars (default: 0.01)")
     
     args = parser.parse_args()
     
@@ -217,8 +215,7 @@ Examples:
         
         # Create matcher and perform matching
         matcher = AppleMatcher(
-            date_window_days=args.date_window,
-            amount_tolerance=args.amount_tolerance
+            date_window_days=args.date_window
         )
         
         if args.verbose:
@@ -234,8 +231,7 @@ Examples:
             "timestamp": datetime.now().isoformat(),
             "apple_receipts_available": len(apple_receipts_df),
             "matcher_config": {
-                "date_window_days": args.date_window,
-                "amount_tolerance": args.amount_tolerance
+                "date_window_days": args.date_window
             }
         }
         

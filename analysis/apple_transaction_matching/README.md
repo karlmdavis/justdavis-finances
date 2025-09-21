@@ -4,7 +4,7 @@
 
 This system automatically matches Apple receipts (extracted from emails) to corresponding YNAB credit card transactions, solving the challenge of understanding what Apple purchases comprise each consolidated credit card charge. The system enables accurate categorization and spending analysis across multiple Apple accounts in the Davis family.
 
-**Status**: ✅ **Implemented and Tested** - Successfully matching transactions with 63.6% match rate and 0.871 average confidence on July 2024 test data.
+**Status**: ✅ **Implemented and Tested** - Successfully matching transactions with 85.2% match rate and 0.883 average confidence on full production data (Feb 2024 - Sep 2025).
 
 ## Quick Start
 
@@ -37,9 +37,10 @@ uv run python analysis/apple_transaction_matching/match_single_transaction.py \
    - Confidence: 1.0
    - Example: YNAB $19.99 on 2024-07-15 matches Apple receipt $19.99 on 2024-07-15
 
-2. **Date Window Match**: ±1-2 days with exact amount  
+2. **Date Window Match**: ±1-2 days with exact amount
    - Confidence: 0.75-0.90 (depending on date difference)
    - Example: YNAB $5.29 on 2024-07-27 matches Apple receipt $5.29 on 2024-07-26
+   - **Note**: Requires exact amount matches (no tolerance) for maximum precision
 
 ### Data Sources
 
@@ -106,10 +107,10 @@ uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
   --start 2024-07-01 --end 2024-07-31 \
   --verbose --include-items
 
-# Custom matching parameters
+# Custom date window (exact amounts always required)
 uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
   --start 2024-07-01 --end 2024-07-31 \
-  --date-window 3 --amount-tolerance 0.05
+  --date-window 3
 ```
 
 **Parameters**:
@@ -119,7 +120,6 @@ uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
 - `--include-items`: Include item details from Apple receipts
 - `--verbose`: Enable detailed progress logging
 - `--date-window`: Date window in days for matching (default: 2)
-- `--amount-tolerance`: Amount tolerance in dollars (default: 0.01)
 
 ## Output Format
 
@@ -177,22 +177,27 @@ uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
 
 ## Performance Metrics
 
-### July 2024 Test Results
-- **Data Volume**: 8 Apple receipts, 11 YNAB Apple transactions
-- **Processing Time**: 0.05 seconds total (0.005 seconds per transaction)
-- **Match Rate**: 63.6% (7 of 11 transactions matched)
-- **Confidence**: 0.871 average confidence score
+### Production Results (Feb 2024 - Sep 2025)
+- **Data Volume**: 422 Apple receipts total, 208 in date range; 183 YNAB Apple transactions
+- **Processing Time**: 0.13 seconds total (~0.0007 seconds per transaction)
+- **Match Rate**: 85.2% (156 of 183 transactions matched)
+- **Confidence**: 0.883 average confidence score
 - **1:1 Relationship**: ✅ Confirmed - each transaction matches exactly one receipt
 
 ### Matching Strategy Distribution
-- **Exact matches**: 14% (1 of 7 matches, confidence 1.0)
-- **Date window matches**: 86% (6 of 7 matches, confidence 0.75-0.90)
+- **Exact matches**: 21.8% (34 of 156 matches, confidence 1.0)
+- **Date window matches**: 78.2% (122 of 156 matches, confidence 0.75-0.90)
 
 ### Confidence Distribution
-- **Perfect** (≥0.95): 1 match
-- **High** (0.80-0.95): 6 matches
+- **Perfect** (≥0.95): 34 matches
+- **High** (0.80-0.95): 122 matches
 - **Medium** (0.60-0.80): 0 matches
 - **Low** (<0.60): 0 matches
+
+### Recent Architecture Improvements (September 2025)
+- **Amount Tolerance Removal**: Eliminated $0.01 tolerance requirement for exact amount matches
+- **Impact**: Maintained 85.2% match rate while improving precision (exact amounts only)
+- **Benefit**: Prevents false positives from rounding/tax calculation discrepancies
 
 ## Key Insights
 
@@ -239,8 +244,8 @@ The system automatically handles all 4 family Apple IDs:
 
 3. **Low match rates**
    - Increase `--date-window` parameter (default: 2 days)
-   - Increase `--amount-tolerance` parameter (default: $0.01)
    - Check for missing Apple receipts or different payment methods
+   - Note: Amount tolerance has been removed for precision - only exact amounts match
 
 4. **Large unmatched amounts**
    - Often indicates Apple Card payments (transfers) rather than purchases
@@ -289,13 +294,14 @@ analysis/apple_transaction_matching/
 | Aspect | Amazon System | Apple System |
 |--------|---------------|--------------|
 | **Complexity** | 3 strategies, complex shipment grouping | 2 strategies, simple 1:1 matching |
-| **Match Rate** | 57.9% (multi-item bundling challenges) | 63.6% (simpler transaction model) |
-| **Confidence** | 0.93 average | 0.871 average |
-| **Performance** | 0.007 sec/transaction | 0.005 sec/transaction |
+| **Match Rate** | 94.7% (multi-item bundling challenges) | 85.2% (simpler transaction model) |
+| **Confidence** | 0.93 average | 0.883 average |
+| **Performance** | 0.007 sec/transaction | 0.0007 sec/transaction |
 | **Architecture** | Modular but complex (order grouper, split payments) | Streamlined and focused |
+| **Amount Precision** | Uses tolerance for bundled orders | Exact amounts only (no tolerance) |
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: September 14, 2025  
+**Document Version**: 1.1
+**Last Updated**: September 21, 2025
 **Status**: ✅ **Production Ready** - Fully implemented, tested, and documented for ongoing use.

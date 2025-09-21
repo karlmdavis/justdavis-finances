@@ -117,12 +117,10 @@ Examples:
     --output results/october_matches \
     --verbose
     
-  # Include item details and use custom matching parameters
+  # Use custom date window (items included by default)
   python match_transactions_batch.py \
     --start 2024-11-01 --end 2024-11-30 \
-    --include-items \
-    --date-window 3 \
-    --amount-tolerance 0.05
+    --date-window 3
         """
     )
     
@@ -141,16 +139,16 @@ Examples:
     # Output options
     parser.add_argument("--output", default="analysis/apple_transaction_matching/results",
                        help="Output directory (default: analysis/apple_transaction_matching/results)")
-    parser.add_argument("--include-items", action="store_true",
-                       help="Include item details from Apple receipts")
+    parser.add_argument("--include-items", action="store_true", default=True,
+                       help="Include item details from Apple receipts (default: True)")
+    parser.add_argument("--no-include-items", action="store_false", dest="include_items",
+                       help="Disable including item details from Apple receipts")
     parser.add_argument("--verbose", action="store_true",
                        help="Enable verbose progress output")
     
     # Matching parameters
     parser.add_argument("--date-window", type=int, default=2,
                        help="Date window in days for matching (default: 2)")
-    parser.add_argument("--amount-tolerance", type=float, default=0.01,
-                       help="Amount tolerance in dollars (default: 0.01)")
     
     args = parser.parse_args()
     
@@ -197,8 +195,7 @@ Examples:
             print(f"Matching {len(ynab_filtered_df)} transactions to {len(apple_filtered_df)} receipts...")
         
         matcher = AppleMatcher(
-            date_window_days=args.date_window,
-            amount_tolerance=args.amount_tolerance
+            date_window_days=args.date_window
         )
         
         results = batch_match_transactions(ynab_filtered_df, apple_filtered_df, matcher)
@@ -241,8 +238,7 @@ Examples:
                 "apple_transactions_total": len(apple_transactions),
                 "apple_transactions_in_range": len(ynab_filtered_df),
                 "matcher_config": {
-                    "date_window_days": args.date_window,
-                    "amount_tolerance": args.amount_tolerance
+                    "date_window_days": args.date_window
                 }
             }
         }
