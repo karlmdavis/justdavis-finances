@@ -15,7 +15,6 @@ class MatchType(Enum):
     """Types of matches for scoring"""
     COMPLETE_ORDER = "complete_order"
     SPLIT_PAYMENT = "split_payment"
-    FUZZY_MATCH = "fuzzy_match"
 
 
 class MatchScorer:
@@ -63,24 +62,12 @@ class MatchScorer:
     
     @staticmethod
     def _score_amount_accuracy(amount_diff: int, ynab_amount: int, match_type: MatchType) -> float:
-        """Score based on amount accuracy"""
+        """Score based on amount accuracy - exact matches only"""
         if amount_diff == 0:
             return 1.0
-        elif amount_diff <= 100:  # Within $1.00
-            return 0.98
-        elif amount_diff * 100 <= ynab_amount:  # Within 1%
-            return 0.95
-        elif amount_diff * 50 <= ynab_amount:  # Within 2%
-            return 0.90
-        elif amount_diff * 20 <= ynab_amount:  # Within 5%
-            return 0.85
-        elif amount_diff * 10 <= ynab_amount:  # Within 10%
-            return 0.75
         else:
-            # Proportional penalty for larger differences
-            # Use integer arithmetic: penalty = min(50%, amount_diff/ynab_amount * 100%)
-            penalty_percent = min(50, (amount_diff * 100) // ynab_amount)
-            return max(0.5, 1.0 - (penalty_percent / 100.0))
+            # No match allowed for any non-zero amount difference
+            return 0.0
     
     @staticmethod
     def _get_min_date_diff(ynab_date: date, amazon_ship_dates: list) -> int:
@@ -143,10 +130,6 @@ class MatchScorer:
             # Split payments get slight penalty for being more complex
             return 0.95
         
-        elif match_type == MatchType.FUZZY_MATCH:
-            # Fuzzy matches get penalty for being approximate
-            return 0.90
-        
         else:
             return 1.0
     
@@ -189,7 +172,6 @@ class ConfidenceThresholds:
     # Minimum confidence required for each match type
     COMPLETE_MATCH_MIN = 0.75
     SPLIT_PAYMENT_MIN = 0.65
-    FUZZY_MATCH_MIN = 0.60
     
     # High confidence thresholds
     HIGH_CONFIDENCE = 0.90
@@ -200,8 +182,7 @@ class ConfidenceThresholds:
         """Check if confidence meets minimum threshold for match type"""
         thresholds = {
             MatchType.COMPLETE_ORDER: ConfidenceThresholds.COMPLETE_MATCH_MIN,
-            MatchType.SPLIT_PAYMENT: ConfidenceThresholds.SPLIT_PAYMENT_MIN,
-            MatchType.FUZZY_MATCH: ConfidenceThresholds.FUZZY_MATCH_MIN
+            MatchType.SPLIT_PAYMENT: ConfidenceThresholds.SPLIT_PAYMENT_MIN
         }
         
         return confidence >= thresholds.get(match_type, 0.60)

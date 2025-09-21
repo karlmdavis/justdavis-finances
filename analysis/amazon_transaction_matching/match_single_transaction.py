@@ -2,12 +2,12 @@
 """
 Simplified Amazon Transaction Matching Engine
 
-Implements the recommended 3-strategy architecture:
-1. Complete Match - handles exact order/shipment matches
-2. Split Payment - handles partial orders (keep existing logic)  
-3. Fuzzy Match - handles approximate matches
+Implements the recommended 2-strategy architecture:
+1. Complete Match - handles exact order/shipment matches (penny-perfect only)
+2. Split Payment - handles partial orders with exact item matches
 
 Replaces the complex 5-strategy system with cleaner, maintainable code.
+All matches must be penny-perfect - no tolerance for amount differences.
 """
 
 import pandas as pd
@@ -212,8 +212,8 @@ class CompleteMatchStrategy:
         if relevant_orders.empty:
             return matches
         
-        # Get candidates from all grouping levels
-        candidates = get_order_candidates(relevant_orders, ynab_amount, ynab_date, tolerance=100)
+        # Get candidates from all grouping levels - exact matches only (0 tolerance)
+        candidates = get_order_candidates(relevant_orders, ynab_amount, ynab_date, tolerance=0)
         
         # Process complete order candidates
         for order in candidates['complete_orders']:
@@ -303,91 +303,6 @@ class CompleteMatchStrategy:
         return matches
 
 
-class FuzzyMatchStrategy:
-    """Strategy 3: Fuzzy Match - handles approximate matches with tolerance"""
-    
-    @staticmethod
-    def find_matches(ynab_tx: Dict[str, Any],
-                    retail_orders: pd.DataFrame,
-                    account_name: str) -> List[Dict[str, Any]]:
-        """
-        Find approximate matches with flexible tolerances.
-        
-        This consolidates the logic from:
-        - date_window_match
-        - exact_amount_date_window (when not exact)
-        """
-        matches = []
-        ynab_amount = milliunits_to_cents(ynab_tx['amount'])
-        ynab_date = datetime.strptime(ynab_tx['date'], '%Y-%m-%d').date()
-        
-        # Use wider date window for fuzzy matching
-        date_window_start = ynab_date - timedelta(days=10)
-        date_window_end = ynab_date + timedelta(days=10)
-        
-        # Create mask that handles NaT values
-        ship_date_mask = (
-            (retail_orders['Ship Date'].dt.date >= date_window_start) &
-            (retail_orders['Ship Date'].dt.date <= date_window_end)
-        ) | retail_orders['Ship Date'].isna()
-        
-        relevant_orders = retail_orders[ship_date_mask].copy()
-        
-        if relevant_orders.empty:
-            return matches
-        
-        # Use more generous tolerance for fuzzy matching
-        # Use integer arithmetic: max($5, 15% of amount)
-        fifteen_percent = (ynab_amount * 15) // 100  # 15% using integer division
-        fuzzy_tolerance = max(500, fifteen_percent)  # At least $5 or 15% of amount
-        
-        # Get candidates with fuzzy tolerance
-        candidates = get_order_candidates(relevant_orders, ynab_amount, ynab_date, tolerance=fuzzy_tolerance)
-        
-        # Process all candidate types with fuzzy scoring
-        all_candidates = []
-        all_candidates.extend(candidates['complete_orders'])
-        all_candidates.extend(candidates['shipments'])  
-        all_candidates.extend(candidates['daily_shipments'])
-        
-        for candidate in all_candidates:
-            ship_dates = candidate.get('ship_dates', [candidate.get('ship_date')])
-            if candidate.get('ship_times'):  # Daily shipments
-                ship_dates = candidate['ship_times']
-            
-            confidence = MatchScorer.calculate_confidence(
-                ynab_amount=ynab_amount,
-                amazon_total=candidate['total'],
-                ynab_date=ynab_date,
-                amazon_ship_dates=ship_dates,
-                match_type=MatchType.FUZZY_MATCH
-            )
-            
-            if ConfidenceThresholds.meets_threshold(confidence, MatchType.FUZZY_MATCH):
-                # Determine if this is a multi-order combination or single order
-                if candidate.get('grouping_level') == 'order':
-                    method = 'fuzzy_order_match'
-                else:
-                    method = 'fuzzy_shipment_match'
-                
-                match = MatchScorer.create_match_result(
-                    ynab_tx=ynab_tx,
-                    amazon_orders=[{
-                        'order_id': candidate['order_id'],
-                        'items': candidate['items'],
-                        'total': candidate['total'],
-                        'ship_dates': ship_dates,
-                        'order_date': candidate['order_date']
-                    }],
-                    match_method=method,
-                    confidence=confidence,
-                    account=account_name,
-                    unmatched_amount=abs(ynab_amount - candidate['total'])
-                )
-                matches.append(match)
-        
-        return matches
-
 
 class SimplifiedMatcher:
     """Main simplified matching engine"""
@@ -401,7 +316,6 @@ class SimplifiedMatcher:
         """
         self.split_matcher = split_matcher
         self.complete_strategy = CompleteMatchStrategy()
-        self.fuzzy_strategy = FuzzyMatchStrategy()
     
     def find_matches(self, ynab_tx: Dict[str, Any],
                     accounts_data: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]]) -> Dict[str, Any]:
@@ -450,10 +364,6 @@ class SimplifiedMatcher:
                 split_matches = self._find_split_payment_matches(ynab_tx, retail_df, account_name)
                 all_matches.extend(split_matches)
             
-            # Strategy 3: Fuzzy Match (only if no high-confidence matches found)
-            if not any(match['confidence'] >= 0.90 for match in all_matches):
-                fuzzy_matches = self.fuzzy_strategy.find_matches(ynab_tx, retail_df, account_name)
-                all_matches.extend(fuzzy_matches)
         
         # Sort matches by confidence (descending)
         all_matches.sort(key=lambda x: x['confidence'], reverse=True)

@@ -2,7 +2,8 @@
 """
 Simplified Amazon Transaction Matching Batch Processor
 
-Uses the new 3-strategy architecture for clean, maintainable code.
+Uses the new 2-strategy architecture for clean, maintainable code.
+All matches must be penny-perfect - no tolerance for amount differences.
 Replaces both match_transactions_batch.py and match_transactions_batch_v2.py
 """
 
@@ -227,8 +228,8 @@ def save_results(results: List[Dict[str, Any]], summary: Dict[str, Any], date_ra
             'amazon_data_date': amazon_data_date,
             'ynab_data_date': datetime.now().isoformat(),
             'processing_time_seconds': None,  # Will be set by caller
-            'architecture': 'simplified_3_strategy',
-            'strategies': ['complete_match', 'split_payment', 'fuzzy_match']
+            'architecture': 'simplified_2_strategy_exact_only',
+            'strategies': ['complete_match', 'split_payment']
         }
     }
     
