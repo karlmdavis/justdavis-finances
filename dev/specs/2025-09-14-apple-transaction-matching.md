@@ -123,6 +123,7 @@ The Apple Receipt Transaction Matching System creates automated linkage between 
 - **Date Range Processing**: Batch process all Apple transactions in a time period
 - **Account Filtering**: Process specific Apple IDs only
 - **Output Control**: JSON files, summary reports, verbose logging
+- **Item Details**: Include item-level details by default (required for YNAB transaction splitting integration)
 
 ## Non-Functional Requirements
 
@@ -148,6 +149,7 @@ The Apple Receipt Transaction Matching System creates automated linkage between 
 - **YNAB Data Workflow**: Use existing transaction cache structure
 - **Amazon Matching System**: Follow similar architectural patterns for consistency
 - **Analysis Tools**: Support integration with broader financial analysis workflows
+- **YNAB Transaction Splitter**: Provide item-level details required for automated transaction splitting
 
 ### Data Dependencies
 - **Apple Receipt Availability**: Requires successful Apple email extraction and parsing
@@ -184,8 +186,11 @@ The Apple Receipt Transaction Matching System creates automated linkage between 
 
 ---
 
-**Document Version**: 1.0  
-**Created**: September 14, 2025  
-**Last Updated**: September 14, 2025  
-**Owner**: Karl Davis  
+**Document Version**: 1.1
+**Created**: September 14, 2025
+**Last Updated**: September 20, 2025
+**Owner**: Karl Davis
 **Status**: Specification Complete
+
+### Changelog
+- **v1.1 (2025-09-20)**: Updated default behavior to include item details by default for YNAB transaction splitter integration
