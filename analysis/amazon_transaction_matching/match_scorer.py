@@ -111,9 +111,10 @@ class MatchScorer:
             return 0.80 if is_exact_amount else 0.65
         else:
             # Steep penalty for dates too far apart
-            # Use integer arithmetic: 0.8 - (date_diff - 7) * 0.1
-            penalty_basis = 80 - (date_diff - 7) * 10  # Scale by 100
-            return max(0.3, penalty_basis / 100.0)
+            # Use integer arithmetic to avoid floating point: 0.8 - (date_diff - 7) * 0.1
+            penalty_basis = 80 - (date_diff - 7) * 10  # Scale by 100 to avoid decimals
+            penalty_result = max(30, penalty_basis)  # 30 = 0.3 * 100
+            return penalty_result / 100  # Convert back for compatibility
     
     @staticmethod
     def _apply_match_type_adjustments(match_type: MatchType, **kwargs) -> float:

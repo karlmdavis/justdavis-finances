@@ -200,7 +200,10 @@ class MutationReviewer:
             print(f"  Account: {order.get('account', 'N/A')}")
             order_total = order.get('total', 0)
             if order_total > 0:
-                print(f"  Order Total: ${order_total/100:.2f}")
+                # Use pure integer arithmetic for display
+                dollars = order_total // 100
+                remainder = abs(order_total % 100)
+                print(f"  Order Total: ${dollars}.{remainder:02d}")
 
             # Show item breakdown with shipping/tax details
             items = mutation.get('item_breakdown', [])
@@ -219,10 +222,20 @@ class MutationReviewer:
                     display_name = name[:60] + "..." if len(name) > 60 else name
 
                     print(f"    • {display_name}")
-                    print(f"      Base: ${unit_price/100:.2f} x {quantity} = ${(unit_price * quantity)/100:.2f}")
+                    # Use pure integer arithmetic for all currency display
+                    up_dollars = unit_price // 100
+                    up_remainder = abs(unit_price % 100)
+                    base_total = unit_price * quantity
+                    bt_dollars = base_total // 100
+                    bt_remainder = abs(base_total % 100)
+                    print(f"      Base: ${up_dollars}.{up_remainder:02d} x {quantity} = ${bt_dollars}.{bt_remainder:02d}")
                     if shipping_tax > 0:
-                        print(f"      +Shipping/Tax: ${shipping_tax/100:.2f}")
-                    print(f"      Total: ${total_amount/100:.2f}")
+                        st_dollars = shipping_tax // 100
+                        st_remainder = abs(shipping_tax % 100)
+                        print(f"      +Shipping/Tax: ${st_dollars}.{st_remainder:02d}")
+                    ta_dollars = total_amount // 100
+                    ta_remainder = abs(total_amount % 100)
+                    print(f"      Total: ${ta_dollars}.{ta_remainder:02d}")
 
         elif source == 'apple':
             receipt = mutation.get('matched_receipt', {})
@@ -374,15 +387,24 @@ class MutationReviewer:
             if delta_cents == 0:
                 return "Perfect match"
             else:
-                # Convert to dollars only for display
-                delta_dollars = delta_cents / 100.0
-                ynab_dollars = ynab_cents / 100.0
-                delta_percent = (delta_cents / ynab_cents) * 100 if ynab_cents > 0 else 0
-                # Use appropriate precision for small percentages
-                if delta_percent < 0.1:
-                    return f"${delta_dollars:.2f} ({delta_percent:.2f}%)"
+                # Use pure integer arithmetic for display
+                delta_dollars = delta_cents // 100
+                delta_remainder = delta_cents % 100
+                # Calculate percentage using integer arithmetic (basis points)
+                delta_basis_points = (delta_cents * 10000) // ynab_cents if ynab_cents > 0 else 0
+                # Convert basis points to percentage for display
+                percent_whole = delta_basis_points // 100
+                percent_fraction = delta_basis_points % 100
+
+                # Format based on percentage magnitude
+                if delta_basis_points < 10:  # Less than 0.1%
+                    return f"${delta_dollars}.{delta_remainder:02d} ({percent_whole}.{percent_fraction:02d}%)"
                 else:
-                    return f"${delta_dollars:.2f} ({delta_percent:.1f}%)"
+                    # For larger percentages, show only one decimal
+                    percent_tenths = delta_basis_points // 10
+                    percent_int = percent_tenths // 10
+                    percent_decimal = percent_tenths % 10
+                    return f"${delta_dollars}.{delta_remainder:02d} ({percent_int}.{percent_decimal}%)"
 
         except Exception as e:
             return f"Amount calculation error: {str(e)}"

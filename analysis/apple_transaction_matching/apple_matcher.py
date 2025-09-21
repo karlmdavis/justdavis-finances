@@ -161,7 +161,7 @@ class AppleMatcher:
             
         # Find amount matches, prioritizing closer dates
         best_match = None
-        best_date_diff = float('inf')
+        best_date_diff = 999999  # Large integer instead of float('inf')
         
         for _, receipt in window_receipts.iterrows():
             if receipt['total'] == tx_amount:

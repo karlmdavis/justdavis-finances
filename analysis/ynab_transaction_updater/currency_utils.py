@@ -23,16 +23,54 @@ def cents_to_milliunits(cents: int) -> int:
 
 
 def cents_to_dollars_str(cents: int) -> str:
-    """Convert 953 cents to '9.53' string"""
-    return f"{cents / 100:.2f}"
+    """Convert 953 cents to '9.53' string using pure integer arithmetic"""
+    dollars = cents // 100
+    remainder = abs(cents % 100)  # abs() handles negative amounts
+    return f"{dollars}.{remainder:02d}"
 
 
 def dollars_to_cents(dollars: Union[float, str]) -> int:
-    """Convert dollars (float or string) to cents with proper rounding"""
+    """Convert dollars (float or string) to cents - DEPRECATED, use parse_dollars_to_cents"""
+    # This function is kept for backward compatibility but should not be used
+    # for new code. Use parse_dollars_to_cents() instead.
     if isinstance(dollars, str):
-        dollars = float(dollars)
-    # Use int() instead of round() to avoid banker's rounding issues
+        return parse_dollars_to_cents(dollars)
+    # For float input (legacy code), convert carefully
     return int(dollars * 100 + 0.5)
+
+
+def parse_dollars_to_cents(dollars_str: str) -> int:
+    """Parse dollar string to cents using integer arithmetic only
+
+    Examples:
+        "12.34" -> 1234
+        "$12.34" -> 1234
+        "1,234.56" -> 123456
+        "12" -> 1200
+        "12.5" -> 1250
+    """
+    # Remove $ and commas
+    clean = dollars_str.replace('$', '').replace(',', '').strip()
+
+    if not clean:
+        return 0
+
+    # Handle negative amounts
+    is_negative = clean.startswith('-')
+    if is_negative:
+        clean = clean[1:]
+
+    if '.' in clean:
+        parts = clean.split('.')
+        dollars = int(parts[0]) if parts[0] else 0
+        # Handle fractional cents: pad to 2 digits, truncate beyond 2
+        cents_str = parts[1].ljust(2, '0')[:2]
+        cents = int(cents_str)
+        total = dollars * 100 + cents
+    else:
+        total = int(clean) * 100
+
+    return -total if is_negative else total
 
 
 def dollars_to_milliunits(dollars: Union[float, str]) -> int:

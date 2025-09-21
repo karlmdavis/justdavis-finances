@@ -166,11 +166,30 @@ When developing automation or tools for this repository, prioritize:
 - External dependency: `nushell` (install via Homebrew)
 
 ### Important Implementation Notes
-1. **Currency handling**: 
+
+#### Critical: Currency Handling - ZERO Floating Point Tolerance
+**NEVER use floating point math for currency** - not even for display formatting. This repository
+maintains strict integer-only arithmetic for all financial calculations to ensure precision.
+
+**Required patterns:**
+- **ALL calculations**: Use integer arithmetic only (cents or milliunits)
+- **Display formatting**: Use integer division and modulo: `f"{cents//100}.{cents%100:02d}"`
+- **Currency parsing**: Parse directly to integer cents without float intermediate
+  - Example: "$12.34" → 1234 cents (parse as `int(dollars)*100 + int(cents_part)`)
+- **Confidence scores**: Use integer basis points (0-10000) instead of floats (0.0-1.0)
+- **NO float() calls**: Never use `float()` for currency amounts, even temporarily
+- **NO division for display**: Never use `cents / 100` even with `.2f` formatting
+
+**Safe patterns already in codebase:**
+- `order_grouper.py`: Uses Decimal for parsing, then converts to integer cents
+- `currency_utils.py`: Provides integer-based conversion functions
+- Most calculations already use integer arithmetic
+
+1. **Currency handling**:
    - YNAB amounts are in milliunits (1000 milliunits = $1.00)
-   - Amazon matching system uses integer cents internally (avoid floating-point precision errors)
+   - Amazon matching system uses integer cents internally (no floating-point allowed)
    - Convert: `milliunits_to_cents(amount) = abs(milliunits // 10)`
-   - Display: `cents_to_dollars_str(cents) = f"{cents / 100:.2f}"`
+   - Display: `cents_to_dollars_str(cents) = f"{cents//100}.{cents%100:02d}"`
 2. **Date handling**: Transaction dates before May 2024 may have incomplete data
 3. **JSON structures**: Use proper jq paths for nested structures (e.g., `.accounts[0]` not `.[0]`)
 4. **Output organization**: Always create output directories if they don't exist

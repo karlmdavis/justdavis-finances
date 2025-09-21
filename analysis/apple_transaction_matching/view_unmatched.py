@@ -194,7 +194,7 @@ def show_amount_analysis(unmatched: List[Dict[str, Any]]) -> None:
         (10, 50, "$10 - $50"),
         (50, 100, "$50 - $100"),
         (100, 500, "$100 - $500"),
-        (500, float('inf'), "Over $500")
+        (500, 999999, "Over $500")
     ]
     
     print(f"{'Range':<15} | {'Count':<5} | {'Total Amount'}")

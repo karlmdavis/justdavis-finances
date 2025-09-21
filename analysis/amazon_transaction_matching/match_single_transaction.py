@@ -35,8 +35,10 @@ def milliunits_to_cents(milliunits: int) -> int:
 
 
 def cents_to_dollars_str(cents: int) -> str:
-    """Convert 953 cents to '9.53' string"""
-    return f"{cents / 100:.2f}"
+    """Convert 953 cents to '9.53' string using pure integer arithmetic"""
+    dollars = cents // 100
+    remainder = abs(cents % 100)
+    return f"{dollars}.{remainder:02d}"
 
 
 def convert_match_result_for_json(result: Dict[str, Any]) -> Dict[str, Any]:

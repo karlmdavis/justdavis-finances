@@ -111,7 +111,7 @@ def normalize_apple_receipt_data(receipts: List[Dict[str, Any]]) -> pd.DataFrame
                 'receipt_date_str': receipt_date_str,
                 'order_id': receipt.get('order_id', ''),
                 'document_number': receipt.get('document_number', ''),
-                'total': float(total),
+                'total': total,  # Already parsed as integer cents
                 'currency': receipt.get('currency', 'USD'),
                 'subtotal': receipt.get('subtotal'),
                 'tax': receipt.get('tax'),

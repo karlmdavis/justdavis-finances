@@ -277,7 +277,10 @@ class SplitPaymentMatcher:
         else:
             # Use integer arithmetic for penalty calculation
             penalty_percent = min(30, (amount_diff * 100) // ynab_amount)  # Max 30% penalty
-            confidence *= max(0.7, 1.0 - (penalty_percent / 100.0))
+            # Convert penalty to basis points to avoid floating point
+            penalty_basis_points = penalty_percent * 100  # 30% = 3000 basis points
+            confidence_basis_points = max(7000, 10000 - penalty_basis_points)  # 70% minimum
+            confidence *= confidence_basis_points / 10000  # Convert back for compatibility
         
         # Date alignment penalty
         if min_date_diff == 0:

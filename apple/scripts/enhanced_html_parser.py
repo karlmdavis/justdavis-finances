@@ -294,8 +294,17 @@ class EnhancedHTMLParser:
                 amounts = []
                 for amount_str in dollar_amounts:
                     try:
-                        amount = float(amount_str.replace(',', ''))
-                        amounts.append(amount)
+                        # Parse to integer cents
+                        clean = amount_str.replace(',', '').strip()
+                        if '.' in clean:
+                            parts = clean.split('.')
+                            dollars = int(parts[0]) if parts[0] else 0
+                            cents_str = parts[1].ljust(2, '0')[:2]
+                            cents = int(cents_str)
+                            amount_cents = dollars * 100 + cents
+                        else:
+                            amount_cents = int(clean) * 100
+                        amounts.append(amount_cents)
                     except ValueError:
                         continue
                 if amounts:
@@ -498,14 +507,24 @@ class EnhancedHTMLParser:
                             receipt.payment_method = line
                             break
     
-    def _clean_amount(self, amount_str: str) -> Optional[float]:
-        """Clean and convert amount string to float."""
+    def _clean_amount(self, amount_str: str) -> Optional[int]:
+        """Clean and convert amount string to integer cents."""
         if not amount_str:
             return None
         try:
             # Remove currency symbols and commas
             cleaned = re.sub(r'[$,]', '', amount_str.strip())
-            return float(cleaned) if cleaned else None
+            if not cleaned:
+                return None
+            # Parse to integer cents instead of float
+            if '.' in cleaned:
+                parts = cleaned.split('.')
+                dollars = int(parts[0]) if parts[0] else 0
+                cents_str = parts[1].ljust(2, '0')[:2]
+                cents = int(cents_str)
+                return dollars * 100 + cents
+            else:
+                return int(cleaned) * 100
         except (ValueError, AttributeError):
             return None
 

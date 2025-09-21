@@ -232,7 +232,10 @@ def _format_amazon_item_memo(item: Dict[str, Any]) -> str:
     quantity = item.get('quantity', 1)
     # Use 'amount' (includes shipping/tax) instead of 'unit_price' (base price only)
     total_cents = item.get('amount', item.get('unit_price', 0))
-    total_str = f"${total_cents / 100:.2f}"
+    # Use pure integer arithmetic for display
+    dollars = total_cents // 100
+    remainder = abs(total_cents % 100)
+    total_str = f"${dollars}.{remainder:02d}"
 
     return f"{name} ({quantity}x @ {total_str})"
 

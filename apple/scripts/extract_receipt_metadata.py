@@ -21,6 +21,32 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
+def parse_dollars_to_cents(amount_str: str) -> int:
+    """Parse dollar amount string to integer cents.
+
+    Examples:
+        "12.34" -> 1234
+        "$12.34" -> 1234
+        "1,234.56" -> 123456
+    """
+    # Remove $ and commas
+    clean = amount_str.replace('$', '').replace(',', '').strip()
+
+    if not clean:
+        return 0
+
+    if '.' in clean:
+        parts = clean.split('.')
+        dollars = int(parts[0]) if parts[0] else 0
+        # Handle fractional cents: pad to 2 digits, truncate beyond 2
+        cents_str = parts[1].ljust(2, '0')[:2]
+        cents = int(cents_str)
+        return dollars * 100 + cents
+    else:
+        return int(clean) * 100
+
+
 def get_script_dir() -> Path:
     """Get the directory containing this script."""
     return Path(__file__).parent
@@ -91,16 +117,16 @@ def parse_plain_text_receipt(content: str) -> Dict[str, Any]:
         # Amounts
         total_match = re.match(r'TOTAL:\s+\$([0-9,.]+)', line)
         if total_match:
-            metadata['total_amount'] = float(total_match.group(1).replace(',', ''))
+            metadata['total_amount_cents'] = parse_dollars_to_cents(total_match.group(1))
         
         subtotal_match = re.search(r'Subtotal\s+\$([0-9,.]+)', line)
         if subtotal_match:
-            metadata['subtotal_amount'] = float(subtotal_match.group(1).replace(',', ''))
+            metadata['subtotal_amount_cents'] = parse_dollars_to_cents(subtotal_match.group(1))
             metadata['has_subtotal'] = True
         
         tax_match = re.search(r'Tax\s+\$([0-9,.]+)', line)
         if tax_match:
-            metadata['tax_amount'] = float(tax_match.group(1).replace(',', ''))
+            metadata['tax_amount_cents'] = parse_dollars_to_cents(tax_match.group(1))
             metadata['has_tax'] = True
     
     # Identify sections and items
@@ -129,7 +155,7 @@ def parse_plain_text_receipt(content: str) -> Dict[str, Any]:
                 metadata['items'].append({
                     'name': item_name,
                     'section': current_section,
-                    'price': float(price_match.group(1).replace(',', ''))
+                    'price_cents': parse_dollars_to_cents(price_match.group(1))
                 })
     
     metadata['item_count'] = len(metadata['items'])
@@ -214,12 +240,12 @@ def parse_html_receipt(content: str) -> Dict[str, Any]:
         # Extract financial amounts
         subtotal_match = re.search(r'Subtotal.*?\$([0-9,.]+)', text_content, re.IGNORECASE)
         if subtotal_match:
-            metadata['subtotal_amount'] = float(subtotal_match.group(1).replace(',', ''))
+            metadata['subtotal_amount_cents'] = parse_dollars_to_cents(subtotal_match.group(1))
             metadata['has_subtotal'] = True
         
         tax_match = re.search(r'Tax.*?\$([0-9,.]+)', text_content, re.IGNORECASE)
         if tax_match:
-            metadata['tax_amount'] = float(tax_match.group(1).replace(',', ''))
+            metadata['tax_amount_cents'] = parse_dollars_to_cents(tax_match.group(1))
             metadata['has_tax'] = True
         
         # Total - try multiple patterns
@@ -230,7 +256,7 @@ def parse_html_receipt(content: str) -> Dict[str, Any]:
         for pattern in total_patterns:
             match = re.search(pattern, text_content, re.IGNORECASE)
             if match:
-                metadata['total_amount'] = float(match.group(1).replace(',', ''))
+                metadata['total_amount_cents'] = parse_dollars_to_cents(match.group(1))
                 break
         
         # Look for section headers
@@ -245,10 +271,12 @@ def parse_html_receipt(content: str) -> Dict[str, Any]:
         price_matches = re.findall(r'\$([0-9,.]+)', text_content)
         if price_matches:
             # Exclude subtotal, tax, total from item count estimate
-            item_prices = [p for p in price_matches if float(p.replace(',', '')) not in [
-                metadata.get('subtotal_amount', -1),
-                metadata.get('tax_amount', -1), 
-                metadata.get('total_amount', -1)
+            # Parse prices to cents for comparison
+            parsed_prices = [parse_dollars_to_cents(p) for p in price_matches]
+            item_prices = [p for p, cents in zip(price_matches, parsed_prices) if cents not in [
+                metadata.get('subtotal_amount_cents', -1),
+                metadata.get('tax_amount_cents', -1),
+                metadata.get('total_amount_cents', -1)
             ]]
             metadata['item_count'] = len(item_prices)
         
