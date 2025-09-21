@@ -68,18 +68,19 @@ class MatchScorer:
             return 1.0
         elif amount_diff <= 100:  # Within $1.00
             return 0.98
-        elif amount_diff <= ynab_amount * 0.01:  # Within 1%
+        elif amount_diff * 100 <= ynab_amount:  # Within 1%
             return 0.95
-        elif amount_diff <= ynab_amount * 0.02:  # Within 2%
+        elif amount_diff * 50 <= ynab_amount:  # Within 2%
             return 0.90
-        elif amount_diff <= ynab_amount * 0.05:  # Within 5%
+        elif amount_diff * 20 <= ynab_amount:  # Within 5%
             return 0.85
-        elif amount_diff <= ynab_amount * 0.10:  # Within 10%
+        elif amount_diff * 10 <= ynab_amount:  # Within 10%
             return 0.75
         else:
             # Proportional penalty for larger differences
-            penalty = min(0.5, amount_diff / ynab_amount)
-            return max(0.5, 1.0 - penalty)
+            # Use integer arithmetic: penalty = min(50%, amount_diff/ynab_amount * 100%)
+            penalty_percent = min(50, (amount_diff * 100) // ynab_amount)
+            return max(0.5, 1.0 - (penalty_percent / 100.0))
     
     @staticmethod
     def _get_min_date_diff(ynab_date: date, amazon_ship_dates: list) -> int:
@@ -123,7 +124,9 @@ class MatchScorer:
             return 0.80 if is_exact_amount else 0.65
         else:
             # Steep penalty for dates too far apart
-            return max(0.3, 0.8 - (date_diff - 7) * 0.1)
+            # Use integer arithmetic: 0.8 - (date_diff - 7) * 0.1
+            penalty_basis = 80 - (date_diff - 7) * 10  # Scale by 100
+            return max(0.3, penalty_basis / 100.0)
     
     @staticmethod
     def _apply_match_type_adjustments(match_type: MatchType, **kwargs) -> float:

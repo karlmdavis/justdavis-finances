@@ -8,6 +8,32 @@ Replaces: group_orders_by_id, group_by_shipment, group_by_ship_date_only
 
 import pandas as pd
 from datetime import date
+from decimal import Decimal
+
+
+def safe_currency_to_cents(currency_str) -> int:
+    """
+    Convert currency string to integer cents using decimal arithmetic.
+
+    Args:
+        currency_str: String like '$12.34', '12.34', or '12,345.67'
+
+    Returns:
+        Integer cents (1234 for $12.34)
+    """
+    try:
+        # Clean the string
+        clean_str = str(currency_str).replace('$', '').replace(',', '').strip()
+
+        # Handle empty or invalid strings
+        if not clean_str or clean_str in ['0', 'nan', '', 'None']:
+            return 0
+
+        # Use Decimal for precise arithmetic
+        decimal_amount = Decimal(clean_str)
+        return int(decimal_amount * 100)
+    except (ValueError, TypeError, OverflowError):
+        return 0
 from typing import Dict, List, Any, Union
 from enum import Enum
 
@@ -60,12 +86,10 @@ def _group_by_order_id(orders_df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         
         for _, row in group.iterrows():
             # Use Total Owed directly instead of calculating from unit price
-            total_owed = float(str(row.get('Total Owed', 0)).replace('$', '').replace(',', ''))
-            item_amount = int(total_owed * 100)  # Convert to cents
-            
+            item_amount = safe_currency_to_cents(row.get('Total Owed', 0))
+
             # Still extract unit price for metadata (but convert properly)
-            unit_price_str = str(row.get('Unit Price', 0)).replace('$', '').replace(',', '')
-            unit_price = int(float(unit_price_str) * 100) if unit_price_str not in ['0', 'nan', ''] else 0
+            unit_price = safe_currency_to_cents(row.get('Unit Price', 0))
             quantity = int(row.get('Quantity', 1))
             
             item = {
@@ -110,12 +134,10 @@ def _group_by_shipment(orders_df: pd.DataFrame) -> List[Dict[str, Any]]:
             
             for _, row in shipment_group.iterrows():
                 # Use Total Owed directly instead of calculating from unit price
-                total_owed = float(str(row.get('Total Owed', 0)).replace('$', '').replace(',', ''))
-                item_amount = int(total_owed * 100)  # Convert to cents
-                
+                item_amount = safe_currency_to_cents(row.get('Total Owed', 0))
+
                 # Still extract unit price for metadata (but convert properly)
-                unit_price_str = str(row.get('Unit Price', 0)).replace('$', '').replace(',', '')
-                unit_price = int(float(unit_price_str) * 100) if unit_price_str not in ['0', 'nan', ''] else 0
+                unit_price = safe_currency_to_cents(row.get('Unit Price', 0))
                 quantity = int(row.get('Quantity', 1))
                 
                 item = {
@@ -155,12 +177,10 @@ def _group_by_daily_shipment(orders_df: pd.DataFrame) -> List[Dict[str, Any]]:
             
             for _, row in daily_group.iterrows():
                 # Use Total Owed directly instead of calculating from unit price
-                total_owed = float(str(row.get('Total Owed', 0)).replace('$', '').replace(',', ''))
-                item_amount = int(total_owed * 100)  # Convert to cents
-                
+                item_amount = safe_currency_to_cents(row.get('Total Owed', 0))
+
                 # Still extract unit price for metadata (but convert properly)
-                unit_price_str = str(row.get('Unit Price', 0)).replace('$', '').replace(',', '')
-                unit_price = int(float(unit_price_str) * 100) if unit_price_str not in ['0', 'nan', ''] else 0
+                unit_price = safe_currency_to_cents(row.get('Unit Price', 0))
                 quantity = int(row.get('Quantity', 1))
                 
                 item = {

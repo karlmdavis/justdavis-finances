@@ -337,7 +337,9 @@ class FuzzyMatchStrategy:
             return matches
         
         # Use more generous tolerance for fuzzy matching
-        fuzzy_tolerance = max(500, int(ynab_amount * 0.15))  # At least $5 or 15% of amount
+        # Use integer arithmetic: max($5, 15% of amount)
+        fifteen_percent = (ynab_amount * 15) // 100  # 15% using integer division
+        fuzzy_tolerance = max(500, fifteen_percent)  # At least $5 or 15% of amount
         
         # Get candidates with fuzzy tolerance
         candidates = get_order_candidates(relevant_orders, ynab_amount, ynab_date, tolerance=fuzzy_tolerance)
@@ -491,7 +493,8 @@ class SimplifiedMatcher:
                 continue  # All items already matched
             
             # Only consider if transaction could be part of this order
-            if ynab_amount > order_data['total'] * 1.1:  # Transaction can't be more than 110% of order
+            # Convert 110% check to integer arithmetic: amount > total * 1.1 becomes amount * 10 > total * 11
+            if ynab_amount * 10 > order_data['total'] * 11:  # Transaction can't be more than 110% of order
                 continue
             
             # Try to match
