@@ -94,7 +94,7 @@ The Apple Receipt Transaction Matching System creates automated linkage between 
   "matched": true,
   "apple_receipts": [
     {
-      "apple_id": "***REMOVED***",
+      "apple_id": "user@example.com",
       "receipt_date": "2024-11-15",
       "order_id": "MLYPH7KXN9",
       "total": 19.99,

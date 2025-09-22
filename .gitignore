@@ -1,9 +1,5 @@
-# Sensitive financial data
-ynab-data/
-amazon/data/
-apple/data/
-apple/exports/
-analysis/*/results/
+# Sensitive financial data - unified data directory
+data/
 
 # Python environment
 .venv/
@@ -14,7 +10,6 @@ __pycache__/
 .Python
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo

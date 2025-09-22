@@ -1,280 +1,234 @@
 # Davis Family Finances
 
-This project/directory contains notes, reports, and automation useful for tracking and managing our family finances.
+Professional personal finance management system with automated transaction matching, receipt processing, and financial analysis.
 
 ## Overview
 
-Most of our cash flow is managed in YNAB, though we typically don't make much use of its budgeting features;
-  we use it mostly for tracking, categorizing, and reporting on transactions.
-Our retirement accounts, unfortunately, don't generally support automatic transaction sync,
-  so while we track that in YNAB,
-  for many of them it's just us manually updating the account balances every once in a while.
+A comprehensive Python package for automated financial data processing with YNAB integration. Features high-accuracy transaction matching for Amazon and Apple purchases, cash flow analysis, and professional CLI tools.
 
-One of the most important (and time-consuming) financial management activities we do
-  is regularly going through new transactions in YNAB and properly categorizing them.
-Oftentimes, this involves a **lot** of manually looking through receipts, order histories, etc. 
-  to determine what items and categories each transaction is comprised of.
-This is a particular challenge for amazon.com purchases and for Apple App Store purchases,
-  as those transactions are often composed of many separate and unrelated items.
-We've developed automated matching systems for both Amazon and Apple transactions to solve this categorization challenge.
+**Key Features:**
+- **Amazon Transaction Matching**: 94.7% accuracy with 3-strategy matching system
+- **Apple Receipt Processing**: 85.1% match rate with email integration
+- **Cash Flow Analysis**: Multi-timeframe analysis with statistical modeling
+- **YNAB Integration**: Secure transaction updates with audit trails
+- **Professional CLI**: Unified command-line interface for all operations
 
-## Project Structure
+## For Developers
 
-```
-finances/
-├── analysis/                           # Analysis tools and outputs
-│   ├── amazon_transaction_matching/    # Amazon-YNAB transaction matching system
-│   │   ├── match_single_transaction.py # Single transaction matcher
-│   │   ├── match_transactions_batch.py # Batch processing tool
-│   │   ├── results/                    # Match results (gitignored)
-│   │   └── README.md                   # Matching system documentation
-│   ├── apple_transaction_matching/     # Apple-YNAB transaction matching system
-│   │   ├── match_single_transaction.py # Single transaction matcher
-│   │   ├── match_transactions_batch.py # Batch processing tool
-│   │   ├── results/                    # Match results (gitignored)
-│   │   └── README.md                   # Matching system documentation
-│   ├── cash_flow/                      # Cash flow analysis tools
-│   │   ├── cash_flow_analysis.py       # Main analysis script
-│   │   └── results/                    # Generated reports (gitignored)
-│   └── csv-tools/                      # CSV analysis utilities
-│       ├── open.nu                     # Nushell CSV wrapper
-│       └── README.md                   # CSV tools documentation
-├── amazon/                             # Amazon data extraction
-│   ├── data/                          # Amazon order history (gitignored)
-│   ├── extract_amazon_data.sh         # Data extraction script
-│   └── README.md                      # Amazon data workflow
-├── apple/                              # Apple receipt extraction
-│   ├── scripts/                       # Receipt parsing and export tools
-│   ├── data/                          # Apple receipt emails (gitignored)
-│   ├── exports/                       # Parsed receipt exports (gitignored)
-│   └── README.md                      # Apple receipt workflow
-├── ynab-data/                         # Cached YNAB data (gitignored)
-├── ynab-exports/                      # YNAB export files
-├── README.md                          # This file
-├── CLAUDE.md                          # AI assistant guidance
-├── YNAB_DATA_WORKFLOW.md             # YNAB data extraction workflow
-└── pyproject.toml                     # Python dependencies (managed with uv)
-```
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for comprehensive development documentation including project architecture, testing framework, code quality standards, and development workflow.
 
-## Data Management
+## Quick Start
 
-### YNAB Data Extraction
+### Installation
 
-We maintain local cached copies of YNAB data for analysis and reporting. See [YNAB_DATA_WORKFLOW.md](YNAB_DATA_WORKFLOW.md) for detailed instructions on:
-
-- Setting up authentication with the YNAB CLI tool
-- Extracting account, category, and transaction data
-- Maintaining cached JSON files in `ynab-data/`
-- Scheduling automated updates
-- Troubleshooting common issues
-
-Quick refresh command:
 ```bash
-# Extract all current YNAB data to local cache
-ynab --output json list accounts > ynab-data/accounts.json
-ynab --output json list categories > ynab-data/categories.json
-ynab --output json list transactions > ynab-data/transactions.json
-```
+# Clone repository
+git clone <repository-url>
+cd finances
 
-## Analysis Tools
-
-### Cash Flow Analysis
-
-A comprehensive Python script that analyzes cash flow patterns using various financial visualization techniques:
-
-**Current Location:** `analysis/cash_flow/cash_flow_analysis.py` (legacy script)
-**Future Location:** `src/finances/analysis/` (package module)
-
-**Features:**
-- Multiple moving averages (7-day, 30-day, 90-day) to smooth daily volatility
-- Monthly net cash flow tracking (income vs expenses)
-- Trend analysis with statistical confidence
-- Cash flow velocity (30-day rolling changes)
-- Account composition breakdown over time
-- Detailed financial health metrics
-
-**Usage:**
-```bash
-# Ensure dependencies are installed
+# Install dependencies
 uv sync
 
-# Run the analysis
-uv run python analysis/cash_flow/cash_flow_analysis.py
+# Install package in development mode
+uv pip install -e .
 ```
 
-The script generates a timestamped dashboard image in `analysis/cash_flow/results/` with:
-- Cash flow trends with smoothed averages
-- Monthly spending patterns
-- Volatility analysis
-- Statistical summaries
-- Burn rate calculations
+### Basic Usage
 
-**Note:** The analysis excludes data before May 2024 due to incomplete transaction history.
+```bash
+# View available commands
+finances --help
+
+# Analyze cash flow
+finances cashflow analyze --start 2024-01-01 --end 2024-12-31
+
+# Match Amazon transactions
+finances amazon match --start 2024-07-01 --end 2024-07-31
+
+# Fetch and parse Apple receipts
+finances apple fetch-emails --days-back 30
+finances apple parse-receipts --input-dir data/apple/emails/
+
+# Generate YNAB transaction splits
+finances ynab generate-splits --input-file data/amazon/transaction_matches/results.json
+```
+
+
+## Core Features
 
 ### Amazon Transaction Matching
 
-An advanced system for automatically matching YNAB transactions to Amazon order data across multiple accounts:
+Automated matching of YNAB transactions to Amazon order data with industry-leading accuracy.
 
-**Current Location:** `analysis/amazon_transaction_matching/` (legacy scripts)
-**New Package:** `src/finances/amazon/` (migrated modules)
-
-The core matching logic has been migrated to the new package structure (`finances.amazon`), but the CLI scripts remain in the legacy location for backward compatibility.
-
-**Key Features:**
-- **Multi-account support** - Handles household Amazon accounts (karl, erica, etc.)
-- **Exact amount matching** - Finds perfect matches with 94.7% accuracy
-- **Multi-day shipping** - Handles orders that ship across multiple days
-- **Precision currency handling** - Uses integer cents to avoid floating-point errors
-- **Confidence scoring** - Rates match quality from 0.0 to 1.0
-- **Batch processing** - Process months of transactions efficiently
+**Features:**
+- **Multi-account support**: Handles household Amazon accounts automatically
+- **Exact amount matching**: 94.7% accuracy with precision currency handling
+- **Multi-day shipping**: Handles orders spanning multiple shipping dates
+- **Split payment detection**: Identifies partial order matches
+- **Confidence scoring**: 0.0-1.0 scoring for match quality assessment
 
 **Usage:**
 ```bash
-# Process a single transaction
-uv run python analysis/amazon_transaction_matching/match_single_transaction.py \
-  --transaction-id "abc123" --date "2024-07-07" --amount -227320 \
-  --payee-name "Amazon.com" --account-name "Chase Credit Card"
+# Match transactions for a date range
+finances amazon match --start 2024-07-01 --end 2024-07-31
 
-# Process a date range (e.g., July 2024)
-uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
-  --start 2024-07-01 --end 2024-07-31 --verbose
+# Match specific accounts only
+finances amazon match --start 2024-07-01 --end 2024-07-31 --accounts karl erica
 
-# Process specific accounts only
-uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
-  --start 2024-07-01 --end 2024-07-31 --accounts karl erica
+# Match single transaction
+finances amazon match-single \
+  --transaction-id "abc123" \
+  --date "2024-07-07" \
+  --amount -227320 \
+  --payee-name "Amazon.com" \
+  --account-name "Chase Credit Card"
 ```
 
-**Results:** Generates timestamped JSON files in `analysis/amazon_transaction_matching/results/` with:
-- Complete match details and confidence scores
-- Unmatched transaction analysis
-- Summary statistics and match rates
-- Account attribution for multi-household setups
+### Apple Receipt Processing
 
-See `analysis/amazon_transaction_matching/README.md` for detailed documentation.
+Complete Apple receipt processing pipeline with email integration and multi-format parsing.
 
-### Apple Transaction Matching
-
-An automated system for matching Apple receipts (extracted from emails) to corresponding YNAB credit card transactions,
-  solving the challenge of understanding what Apple purchases comprise each consolidated credit card charge:
-
-**Current Location:** `analysis/apple_transaction_matching/` (legacy scripts)
-**New Package:** `src/finances/apple/` (migrated modules)
-
-The core matching logic has been migrated to the new package structure (`finances.apple`), but the CLI scripts remain in the legacy location for backward compatibility.
-
-**Key Features:**
-- **1:1 Transaction Model** - Simple direct matching (vs Amazon's complex bundling)
-- **Multi-Apple ID Support** - Handles all family Apple accounts automatically
-- **85.1% Match Rate** - High success rate with 0.871 average confidence
-- **Email-Based Receipts** - Extracts itemized data from Apple receipt emails
-- **Fast Processing** - ~0.005 seconds per transaction
+**Features:**
+- **Email integration**: IMAP-based receipt fetching with security
+- **Multi-format parsing**: Supports legacy and modern Apple receipt formats
+- **85.1% match rate**: High-accuracy transaction matching
+- **Multi-Apple ID support**: Handles family accounts with attribution
+- **1:1 transaction model**: Optimized for Apple's direct billing
 
 **Usage:**
 ```bash
-# Process all Apple transactions in a specific month
-uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
-  --start 2024-07-01 --end 2024-07-31 --verbose
+# Fetch receipt emails (requires email configuration)
+finances apple fetch-emails --days-back 90 --max-emails 200
 
-# Match a specific transaction by ID
-uv run python analysis/apple_transaction_matching/match_single_transaction.py \
-  --transaction-id "abc123-def456-..." --verbose
+# Parse fetched emails
+finances apple parse-receipts --input-dir data/apple/emails/
+
+# Match transactions to receipts
+finances apple match --start 2024-07-01 --end 2024-07-31
 ```
 
-**Results:** Generates timestamped JSON files in `analysis/apple_transaction_matching/results/` with:
-- Complete match details and confidence scores
-- Apple ID attribution for multi-account households
-- Receipt details including order IDs and item breakdowns
-- Summary statistics and match quality metrics
+### Cash Flow Analysis
 
-**Integration:** Works with the Apple receipt extraction system in `apple/`
-  to parse emails and extract itemized purchase data.
+Comprehensive financial analysis with statistical modeling and professional dashboards.
 
-See `analysis/apple_transaction_matching/README.md` for detailed documentation.
-
-### CSV Analysis Tools (`analysis/csv-tools/`)
-
-Utilities for safe exploration and analysis of CSV data using nushell:
-
-**Tools:**
-- `open.nu` - Generic CSV opener with pipeline support
-- Filtering, sorting, and basic aggregation capabilities
-- Safe read-only operations
+**Features:**
+- **Multi-timeframe analysis**: 7-day, 30-day, and 90-day moving averages
+- **Trend detection**: Statistical confidence intervals and projections
+- **Account composition**: Track balance changes across accounts
+- **Volatility analysis**: Measure cash flow stability
+- **Professional dashboards**: 6-panel visualization with export options
 
 **Usage:**
 ```bash
-# View first few rows
-analysis/csv-tools/open.nu "amazon/data/account_data/file.csv" "first 5"
+# Generate full analysis dashboard
+finances cashflow analyze
 
-# Filter and select columns  
-analysis/csv-tools/open.nu "amazon/data/account_data/file.csv" \
-  "where 'Product Name' =~ 'Guitar' | select 'Product Name' 'Total Owed'"
+# Custom date range
+finances cashflow analyze --start 2024-01-01 --end 2024-06-30
+
+# Specific accounts only
+finances cashflow analyze --accounts "Chase Checking" "Apple Card"
+
+# Different output format
+finances cashflow analyze --format pdf --exclude-before 2024-05-01
 ```
 
-See `analysis/csv-tools/README.md` for complete documentation and examples.
+### YNAB Integration
 
-## Data Integration
+Secure YNAB integration with transaction splitting and audit trails.
 
-### Amazon Data Integration
+**Features:**
+- **Three-phase workflow**: Generate → Review → Apply for safety
+- **Transaction splitting**: Intelligent item-level categorization
+- **Audit trails**: Complete change tracking with reversibility
+- **Confidence thresholds**: Automatic approval for high-confidence matches
+- **Dry-run mode**: Test mutations before applying
 
-The system integrates with Amazon order history data for transaction matching:
-
-**Setup:** See `amazon/README.md` for complete data extraction workflow including:
-- Requesting your Amazon data export
-- Extracting and organizing order history files  
-- Setting up multi-account directory structure
-- Scheduling regular data updates
-
-**Directory structure:** Amazon data is organized by account and date:
-```
-amazon/data/
-├── 2025-08-24_karl_amazon_data/     # Karl's Amazon data (Aug 24, 2025)
-├── 2025-08-24_erica_amazon_data/    # Erica's Amazon data (Aug 24, 2025)  
-└── YYYY-MM-DD_account_amazon_data/  # Pattern for future extracts
-```
-
-### Apple Data Integration
-
-The system integrates with Apple receipt emails for transaction matching:
-
-**Setup:** See `apple/README.md` for complete receipt extraction workflow including:
-- Setting up IMAP email access for receipt fetching
-- Extracting and parsing Apple receipt emails
-- Setting up multi-Apple ID household structure
-- Exporting parsed receipts to JSON format
-
-**Directory structure:** Apple data is organized by timestamp:
-```
-apple/
-├── data/                            # Raw email data (gitignored)
-│   └── YYYY-MM-DD_HH-MM-SS_apple_emails/
-└── exports/                         # Parsed receipt exports (gitignored)
-    └── YYYY-MM-DD_HH-MM-SS_apple_receipts_export/
-```
-
-## Dependencies
-
-This project uses `uv` for Python dependency management. Dependencies are defined in `pyproject.toml`:
-
-- `pandas` - Data manipulation and time series analysis
-- `matplotlib` - Visualization and charting
-- `scipy` - Statistical analysis and trend calculations
-- **External:** `nushell` - CSV analysis and data exploration (install via Homebrew)
-
-To install dependencies:
+**Usage:**
 ```bash
-# Install Python dependencies
-uv sync
+# Generate splits from Amazon matches
+finances ynab generate-splits \
+  --input-file data/amazon/transaction_matches/2024-07-15_results.json
 
-# Install nushell (macOS)
-brew install nushell
+# Apply mutations to YNAB
+finances ynab apply-mutations \
+  --mutation-file data/ynab/mutations/2024-07-15_amazon_mutations.json
+
+# Sync YNAB data to local cache
+finances ynab sync-cache --days 30
 ```
 
-## Security Notes
+## Configuration
 
-- The `ynab-data/` directory contains sensitive financial data and is gitignored
-- The `amazon/data/` directory contains personal order history and is gitignored
-- The `apple/data/` and `apple/exports/` directories contain personal receipt data and are gitignored
-- All `analysis/*/results/` directories contain reports and are gitignored
-- Never commit API tokens, access credentials, or personal financial data
-- Use `.ynab.env` for YNAB authentication (not tracked in git)
-- Use `.env` for IMAP email credentials (not tracked in git)
+### Environment Variables
+
+Create `.env` file for configuration:
+
+```bash
+# Required for YNAB integration
+YNAB_API_TOKEN=your_ynab_token_here
+
+# Required for Apple email fetching
+EMAIL_USERNAME=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
+
+# Optional configuration
+FINANCES_ENV=development          # development, test, production
+FINANCES_DATA_DIR=./data         # Override data directory
+EMAIL_IMAP_SERVER=imap.gmail.com # IMAP server
+EMAIL_IMAP_PORT=993              # IMAP port
+```
+
+### Data Directories
+
+The system automatically creates and manages data directories:
+
+- `data/amazon/raw/`: Amazon order history files
+- `data/apple/emails/`: Apple receipt emails
+- `data/ynab/cache/`: Cached YNAB data
+- `data/cash_flow/charts/`: Generated analysis dashboards
+
+All sensitive financial data is gitignored for security.
+
+## Troubleshooting
+
+### Common Issues
+
+**Import errors after installation:**
+```bash
+# Reinstall in development mode
+uv pip install -e .
+```
+
+**YNAB authentication errors:**
+```bash
+# Verify token in .env file
+echo $YNAB_API_TOKEN
+
+# Test token with YNAB CLI
+ynab list budgets
+```
+
+**Email fetching fails:**
+```bash
+# Check credentials
+echo $EMAIL_USERNAME
+echo $EMAIL_PASSWORD
+
+# Verify IMAP settings for your provider
+# Gmail requires app-specific password
+```
+
+**No matches found:**
+```bash
+# Verify data directories exist and contain data
+ls data/amazon/raw/
+ls data/apple/exports/
+
+# Check date ranges
+finances amazon match --start 2024-07-01 --end 2024-07-31 --verbose
+```
+
+## License
+
+This project is for personal use and contains family financial management tools. See LICENSE file for details.

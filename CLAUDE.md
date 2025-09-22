@@ -12,21 +12,41 @@ This is a personal finance management repository for the Davis family. The prima
 
 ## Key Context
 
-### 🚀 Package Restructure (September 2024)
+### Professional Python Package (September 2024)
 
-This repository has been restructured from a script-based organization to a professional Python package:
+This repository is a complete professional Python package for financial management:
 
-- **New Package**: `src/finances/` - Modern Python package with domain separation
-- **Legacy Scripts**: `analysis/` - Original scripts maintained for backward compatibility
-- **Core Modules**: Currency, models, and configuration migrated to `src/finances/core/`
-- **Domain Packages**: Amazon (`finances.amazon`), Apple (`finances.apple`), YNAB (`finances.ynab`)
+- **Package Structure**: `src/finances/` - Modern Python package with domain separation
+- **Professional CLI**: Unified `finances` command-line interface for all operations
+- **Core Modules**: Currency, models, and configuration in `src/finances/core/`
+- **Domain Packages**: Amazon (`finances.amazon`), Apple (`finances.apple`), YNAB (`finances.ynab`), Analysis (`finances.analysis`)
 
 **Import Examples:**
 ```python
-from finances.amazon import SimplifiedMatcher
-from finances.apple import AppleMatcher
-from finances.core.currency import milliunits_to_cents
-from finances.ynab import calculate_amazon_splits
+from finances.amazon import SimplifiedMatcher, batch_match_transactions
+from finances.apple import AppleMatcher, AppleReceiptParser, AppleEmailFetcher
+from finances.core.currency import milliunits_to_cents, format_cents
+from finances.ynab import SplitCalculator
+from finances.analysis import CashFlowAnalyzer
+```
+
+**CLI Examples:**
+```bash
+# View available commands
+finances --help
+
+# Amazon transaction matching
+finances amazon match --start 2024-07-01 --end 2024-07-31
+
+# Apple receipt processing
+finances apple fetch-emails --days-back 30
+finances apple parse-receipts --input-dir data/apple/emails/
+
+# Cash flow analysis
+finances cashflow analyze --start 2024-01-01 --end 2024-12-31
+
+# YNAB integration
+finances ynab generate-splits --input-file data/amazon/transaction_matches/results.json
 ```
 
 ### Financial Management Tools
@@ -37,103 +57,35 @@ from finances.ynab import calculate_amazon_splits
   - Apple App Store purchases (bundled transactions)
   - Retirement account balance updates (no automatic sync)
 
-### Available Workflows and Scripts
+### Core Financial Workflows
 
-#### 1. YNAB Data Workflow (`YNAB_DATA_WORKFLOW.md`)
-- Documents the process for extracting and caching YNAB data locally
-- Uses `ynab` CLI tool with proper syntax: `ynab --output json list [resource]`
-- Maintains three JSON files in `ynab-data/`:
-  - `accounts.json` - Account information with nested structure
-  - `categories.json` - Category groups with nested categories
-  - `transactions.json` - Transaction array
+#### 1. YNAB Data Integration
+- **Package module**: `finances.ynab` - Professional YNAB integration with caching
+- **CLI commands**: `finances ynab sync-cache`, `finances ynab generate-splits`
+- **Data storage**: `data/ynab/cache/` - Cached YNAB data (accounts, categories, transactions)
+- **Features**: Three-phase workflow (Generate → Review → Apply), audit trails, confidence thresholds
 
-#### 2. Amazon Data Workflow (`amazon/README.md`)
-- Documents Amazon order history data extraction and management
-- Supports multi-account household setups (karl, erica, etc.)
-- Directory naming convention: `YYYY-MM-DD_accountname_amazon_data/`
-- Automatic discovery of all account directories
-- Used by Amazon transaction matching system
+#### 2. Amazon Transaction Matching
+- **Package module**: `finances.amazon` - Complete Amazon transaction processing
+- **CLI commands**: `finances amazon match`, `finances amazon match-single`
+- **Data sources**: `data/amazon/raw/` - Amazon order history files
+- **Output**: `data/amazon/transaction_matches/` - Matching results with confidence scoring
+- **Features**: 3-strategy matching system, multi-account support, split payment detection
+- **Performance**: 94.7% accuracy with 0.1 seconds per transaction
 
-#### 3. Cash Flow Analysis (`analysis/cash_flow/cash_flow_analysis.py`)
-- Python script for comprehensive financial analysis
-- Generates timestamped dashboard images in `analysis/cash_flow/results/`
-- Features multiple smoothing techniques (moving averages)
-- Excludes unreliable data before May 2024
-- Key accounts analyzed: Chase Checking, Chase Credit Card, Apple Card, Apple Cash, Apple Savings
+#### 3. Apple Receipt Processing
+- **Package modules**: `finances.apple` - Complete Apple ecosystem integration
+- **CLI commands**: `finances apple fetch-emails`, `finances apple parse-receipts`, `finances apple match`
+- **Data flow**: Email fetching → HTML parsing → Transaction matching
+- **Features**: IMAP email integration, multi-format parsing, 1:1 transaction model
+- **Performance**: 85.1% match rate with HTML-only parsing system
 
-#### 4. Amazon Transaction Matching System
-- **Primary purpose**: Automatically match YNAB transactions to Amazon orders
-- **Architecture**: Simplified 3-strategy system for clean, maintainable code
-- **Package location**: `src/finances/amazon/` (migrated modules)
-- **Legacy scripts**: `analysis/amazon_transaction_matching/` (CLI interfaces)
-- **Key modules** (in new package):
-  - `matcher.py` - Core SimplifiedMatcher with 3-strategy system
-  - `grouper.py` - Unified order grouping (complete orders, shipments, daily shipments)
-  - `scorer.py` - Confidence scoring and match result creation
-  - `split_matcher.py` - Split payment handling for partial order matches
-- **Multi-account support**: Automatically discovers and searches all Amazon accounts
-- **Precision handling**: Uses integer cents arithmetic to avoid floating-point errors
-- **Match strategies**: 3 clean strategies replacing complex 5-strategy system:
-  1. **Complete Match** - Exact order/shipment matches (high confidence)
-  2. **Split Payment** - Partial order matches with item tracking
-  3. **Fuzzy Match** - Approximate matches with flexible tolerances
-- **Output**: Timestamped JSON files in `analysis/amazon_transaction_matching/results/`
-- **Current performance**: 94.7% match rate maintained with simplified architecture
-- **Multi-day orders**: Handles orders that ship across multiple days
-- **Usage patterns**:
-  ```bash
-  # Process a month of transactions
-  uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
-    --start 2024-07-01 --end 2024-07-31 --verbose
-  
-  # Process specific accounts only
-  uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
-    --start 2024-07-01 --end 2024-07-31 --accounts karl erica
-    
-  # Disable split payment matching if needed
-  uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
-    --start 2024-07-01 --end 2024-07-31 --disable-split
-  ```
+#### 4. Cash Flow Analysis
+- **Package module**: `finances.analysis.cash_flow` - Professional financial analysis
+- **CLI commands**: `finances cashflow analyze` - Multi-timeframe analysis and dashboards
+- **Output**: `data/cash_flow/charts/` - Professional 6-panel dashboards
+- **Features**: Statistical modeling, trend detection, volatility analysis, export options
 
-#### 5. Apple Transaction Matching System
-- **Primary purpose**: Automatically match YNAB transactions to Apple receipt data
-- **Architecture**: Simplified 2-strategy system for Apple's 1:1 transaction model
-- **Package location**: `src/finances/apple/` (migrated modules)
-- **Legacy scripts**: `analysis/apple_transaction_matching/` (CLI interfaces)
-- **Key modules** (in new package):
-  - `matcher.py` - Core AppleMatcher with exact and date window strategies
-  - `loader.py` - Apple receipt data loading and normalization
-- **Multi-Apple ID support**: Automatically discovers and searches all family Apple accounts
-- **Integration**: Works with Apple receipt extraction system (`apple/scripts/`)
-- **Match strategies**: 2 clean strategies for Apple's simpler transaction model:
-  1. **Exact Match** - Same date + exact amount match (confidence 1.0)
-  2. **Date Window Match** - ±1-2 days with exact amount (confidence 0.75-0.90)
-- **Output**: Timestamped JSON files in `analysis/apple_transaction_matching/results/`
-- **Current performance**: 85.1% match rate with 0.871 average confidence
-- **Processing speed**: ~0.005 seconds per transaction (faster than Amazon)
-- **Usage patterns**:
-  ```bash
-  # Process a month of transactions
-  uv run python analysis/apple_transaction_matching/match_transactions_batch.py \
-    --start 2024-07-01 --end 2024-07-31 --verbose
-  
-  # Match specific transaction by ID
-  uv run python analysis/apple_transaction_matching/match_single_transaction.py \
-    --transaction-id "abc123-def456-..." --verbose
-  ```
-
-#### 6. CSV Analysis Tools (`analysis/csv-tools/`)
-- **Purpose**: Safe exploration of CSV data using nushell
-- **Main tool**: `open.nu` - Generic CSV wrapper with pipeline support
-- **Safety features**: Read-only operations, path validation
-- **Usage examples**:
-  ```bash
-  # Basic inspection
-  analysis/csv-tools/open.nu "file.csv" "first 5"
-  
-  # Filtering and selection
-  analysis/csv-tools/open.nu "file.csv" "where 'column' =~ 'pattern' | select 'col1' 'col2'"
-  ```
 
 ### Data Structure Notes
 
@@ -167,18 +119,25 @@ When developing automation or tools for this repository, prioritize:
 5. Cash flow trend analysis and projections
 
 ### Directory Conventions
-- `ynab-data/` - Cached YNAB data (gitignored)
-- `amazon/data/` - Amazon order history data (gitignored)
-- `apple/data/` - Apple receipt emails (gitignored)
-- `apple/exports/` - Parsed Apple receipt exports (gitignored)
-- `analysis/*/results/` - All generated outputs with timestamps (gitignored)
-- `ynab-exports/` - YNAB export files
+- `data/` - Unified data directory (gitignored)
+  - `data/amazon/raw/` - Amazon order history files
+  - `data/amazon/transaction_matches/` - Amazon matching results
+  - `data/apple/emails/` - Apple receipt emails
+  - `data/apple/exports/` - Parsed Apple receipt data
+  - `data/apple/transaction_matches/` - Apple matching results
+  - `data/ynab/cache/` - Cached YNAB data
+  - `data/ynab/mutations/` - Transaction updates
+  - `data/cash_flow/charts/` - Generated analysis dashboards
+- `src/finances/` - Python package source code
+- `tests/` - Comprehensive test suite with fixtures
 
 ### Python Environment
-- Uses `uv` for dependency management
-- Dependencies defined in `pyproject.toml`
-- Run scripts with: `uv run python script.py`
-- External dependency: `nushell` (install via Homebrew)
+- **Package manager**: `uv` for dependency management and virtual environments
+- **Package configuration**: `pyproject.toml` with full packaging metadata
+- **Installation**: `uv pip install -e .` for development mode
+- **CLI execution**: `finances --help` (installed command) or `uv run finances --help`
+- **Testing**: `uv run pytest` with comprehensive test suite
+- **Code quality**: `uv run black src/ tests/`, `uv run ruff src/ tests/`, `uv run mypy src/`
 
 ### Important Implementation Notes
 
@@ -195,26 +154,27 @@ maintains strict integer-only arithmetic for all financial calculations to ensur
 - **NO float() calls**: Never use `float()` for currency amounts, even temporarily
 - **NO division for display**: Never use `cents / 100` even with `.2f` formatting
 
-**Safe patterns in new package structure:**
+**Safe patterns in package structure:**
 - `src/finances/core/currency.py`: Centralized integer-based conversion functions
-- `src/finances/amazon/grouper.py`: Uses Decimal for parsing, then converts to integer cents
 - All domain modules use centralized currency utilities
+- Package-wide enforcement of integer-only arithmetic
 
 1. **Currency handling**:
    - YNAB amounts are in milliunits (1000 milliunits = $1.00)
-   - Amazon matching system uses integer cents internally (no floating-point allowed)
-   - Use centralized functions: `from finances.core.currency import milliunits_to_cents, format_cents`
+   - All calculations use integer arithmetic (cents or milliunits)
+   - **Required imports**: `from finances.core.currency import milliunits_to_cents, format_cents`
    - Convert: `milliunits_to_cents(amount) = abs(milliunits // 10)`
    - Display: `format_cents(cents) = f"${cents//100}.{cents%100:02d}"`
 2. **Date handling**: Transaction dates before May 2024 may have incomplete data
 3. **JSON structures**: Use proper jq paths for nested structures (e.g., `.accounts[0]` not `.[0]`)
 4. **Output organization**: Always create output directories if they don't exist
 5. **Timestamps**: Use format `YYYY-MM-DD_HH-MM-SS_filename` for all generated files
-6. **Path handling**: Use paths relative to script location, not working directory
-7. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/` naming
-8. **Working directory**: Stay in the personal/finances/ directory as much as possible, and run commands/scripts below it using their relative path. If you get a file or directory not found error, run `pwd` and try to navigate back to `personal/finances/` before retrying.
-9. **Python execution**: Use `uv run python3 -c ...` instead of just `python3 -c ...` when trying to run ad-hoc Python.
-10. **Markdown formatting**: When editing documentation files (README.md, CLAUDE.md), follow the existing line wrapping style:
+6. **Path handling**: Use package-relative paths and configuration-based directory resolution
+7. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/` naming in `data/amazon/raw/`
+8. **Working directory**: Repository root (`personal/finances/`) is the standard working directory
+9. **Package execution**: Use `finances` CLI or `uv run finances` for all operations
+10. **Development**: Use `uv run python -c ...` for ad-hoc Python with package imports
+11. **Markdown formatting**: When editing documentation files (README.md, CLAUDE.md), follow the existing line wrapping style:
     - Wrap long lines at approximately 80-120 characters for readability
     - Use 2-space indentation for continuation lines in paragraphs
     - Match the existing formatting patterns in each file
@@ -222,42 +182,39 @@ maintains strict integer-only arithmetic for all financial calculations to ensur
 
 ## Security Considerations
 - Never commit sensitive financial data, account numbers, or API credentials
-- Use environment variables or secure credential storage for any API keys
-- Ensure all financial data remains private and encrypted where applicable
-- **Gitignored directories**: 
-  - `ynab-data/` (YNAB financial data)
-  - `amazon/data/` (Amazon order history)
-  - `apple/data/` (Apple receipt emails)
-  - `apple/exports/` (parsed Apple receipt data)
-  - `analysis/*/results/` (all generated reports and outputs)
+- Use environment variables (`.env` file) for API keys and email credentials
+- All financial data stored locally with no cloud dependencies
+- **Gitignored directories**:
+  - `data/` (all financial data and generated outputs)
+  - `.env` (environment variables and credentials)
+  - Package maintains strict local-only processing for privacy
 
 ## Recent Major Improvements
 
+### Professional Python Package Migration (September 2024)
+- **Complete package transformation**: Migrated from script-based system to professional Python package
+- **Unified CLI interface**: Single `finances` command with comprehensive subcommands for all operations
+- **Domain-driven architecture**: Clean separation into Amazon, Apple, YNAB, and Analysis packages
+- **Centralized configuration**: Environment-based configuration with validation and type safety
+- **Comprehensive testing**: Full pytest suite with fixtures, markers, and domain-specific test organization
+- **Professional tooling**: Integration with black, ruff, mypy for code quality and development workflow
+
+Key architectural achievements:
+1. **Package structure**: `src/finances/` layout with proper imports, exports, and CLI integration
+2. **Legacy cleanup**: Removed 92 legacy Python files and 4 legacy directories while maintaining functionality
+3. **Unified data management**: Single `data/` directory with domain-specific subdirectories
+4. **Professional development**: Complete development tooling setup with pre-commit hooks and quality gates
+
 ### Apple Transaction Matching System Implementation (September 2024)
-- **Complete Apple ecosystem**: Implemented full Apple receipt extraction and transaction matching system
-- **Email-based receipt parsing**: Extracts itemized purchase data from Apple receipt emails with 100% parsing success
-- **1:1 transaction model**: Simplified matching logic leveraging Apple's direct transaction model
-- **Multi-Apple ID support**: Handles all family Apple accounts automatically with account attribution
-- **High match rate**: Achieved 85.1% match rate with 0.871 average confidence on production data
-- **Enhanced email search**: IMAP fetcher searches all folders, discovering 87 additional archived receipts
-- **HTML-only parsing**: Streamlined from 3-parser system to single robust HTML parser with 100% coverage
+- **Complete Apple ecosystem**: Full receipt extraction and transaction matching with email integration
+- **Multi-format parsing**: HTML parser supporting legacy and modern Apple receipt formats
+- **IMAP email fetching**: Secure email integration with comprehensive filtering and search
+- **High performance**: 85.1% match rate with 1:1 transaction model optimization
+- **Professional CLI**: `finances apple` commands for email fetching, parsing, and matching
 
-Key technical innovations:
-1. **Simplified 2-strategy matching**: Exact match + date window strategies optimized for Apple's transaction patterns
-2. **Receipt email integration**: Direct integration with Apple's receipt email system for complete purchase history
-3. **HTML parser consolidation**: Single EnhancedHTMLParser handles both legacy (94.2%) and modern (5.8%) receipt formats
-
-### Amazon Transaction Matching System Overhaul (August 2024)
-- **Architecture simplification**: Replaced complex 5-strategy system with clean 3-strategy architecture
-- **Code maintainability**: Modular design with separate files for grouping, scoring, and split payments
-- **Precision fixes**: Eliminated floating-point currency errors using integer cents
-- **Multi-day order support**: Now handles orders that ship across multiple days  
-- **Performance improvement**: Maintained 94.7% match rate with simplified, more reliable code
-- **Multi-account architecture**: Supports household with multiple Amazon accounts
-- **Split payment enhancement**: Improved partial order matching with persistent item tracking
-
-Key technical breakthroughs:
-1. **Simplified Architecture**: 3 focused strategies (Complete Match, Split Payment, Fuzzy Match) replace complex 5-strategy system
-2. **Package Structure**: Migrated to professional Python package (`finances.amazon`) with clean module separation
-3. **Modular Design**: Clean separation of concerns with `grouper.py`, `scorer.py`, and `split_matcher.py`
-4. **Multi-day Orders**: Fixed critical bug where exact amount matches failed due to single-day shipping restriction
+### Amazon Transaction Matching System (August 2024)
+- **3-strategy architecture**: Simplified from complex 5-strategy to maintainable 3-strategy system
+- **Integer arithmetic**: Eliminated floating-point errors with strict currency handling
+- **Multi-account support**: Household-level Amazon account management with automatic discovery
+- **94.7% accuracy**: Maintained high match rate with simplified, reliable architecture
+- **Professional CLI**: `finances amazon` commands for batch and single transaction processing

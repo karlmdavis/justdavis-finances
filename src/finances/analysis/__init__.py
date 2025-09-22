@@ -1,27 +1,25 @@
 """
 Financial Analysis Package
 
-Advanced financial analysis tools for cash flow, trends, and reporting.
-
-This package provides:
-- Cash flow analysis with statistical modeling
-- Financial dashboard generation with 6-panel layout
-- Trend analysis using multiple smoothing techniques
-- Account performance metrics and health indicators
-- Report generation and export functionality
+Comprehensive financial analysis tools including cash flow analysis,
+trend detection, and statistical reporting.
 
 Key Components:
-- cash_flow: Cash flow analysis and trend detection
-- dashboard: Interactive dashboard generation
-- reports: Report generation and formatting utilities
-- csv_tools: Safe CSV data exploration
+- cash_flow: Cash flow analysis and visualization
+- reports: Financial report generation
+- statistics: Statistical analysis utilities
 
-Analysis Features:
-- Moving averages (7-day, 30-day, 90-day)
-- Account balance trending
-- Transaction volume analysis
-- Financial health scoring
-- Visual dashboard with timestamped outputs
+Features:
+- Multiple moving averages for smoothing volatility
+- Trend analysis with statistical confidence
+- Monthly aggregation and burn rate calculation
+- Account composition tracking over time
+- Comprehensive dashboard generation
 """
 
-# Domain-specific exports will be added as modules are migrated
+from .cash_flow import CashFlowAnalyzer, CashFlowConfig
+
+__all__ = [
+    "CashFlowAnalyzer",
+    "CashFlowConfig",
+]

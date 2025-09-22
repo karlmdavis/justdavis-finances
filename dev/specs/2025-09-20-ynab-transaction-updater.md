@@ -278,7 +278,7 @@ mutations:
     matched_receipt:
       order_id: "ML7PQ2XYZ"
       receipt_date: "2025-09-16"
-      apple_id: "***REMOVED***"
+      apple_id: "user@example.com"
       subtotal: 29.99
       tax: 2.98
     splits:

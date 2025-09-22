@@ -125,7 +125,7 @@ class Config:
 
         # Component configurations
         database = DatabaseConfig(
-            cache_dir=cache_dir / "ynab",
+            cache_dir=data_dir / "ynab" / "cache",
             backup_enabled=env != Environment.TEST,
         )
 
@@ -154,7 +154,7 @@ class Config:
         )
 
         analysis = AnalysisConfig(
-            output_dir=output_dir,
+            output_dir=data_dir / "cash_flow" / "charts",
             chart_width=int(os.getenv("CHART_WIDTH", "12")),
             chart_height=int(os.getenv("CHART_HEIGHT", "8")),
             date_range_months=int(os.getenv("ANALYSIS_MONTHS", "12")),

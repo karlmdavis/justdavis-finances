@@ -1,1 +1,0 @@
-# Apple Receipt Extraction Tests

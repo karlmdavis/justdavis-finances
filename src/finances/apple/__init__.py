@@ -1,20 +1,37 @@
 """
-Apple Transaction Matching Package
+Apple Transaction Processing Package
 
-Automated matching of Apple receipt data to YNAB transactions with high accuracy.
+Advanced Apple receipt processing and transaction matching with email integration.
 
 This package provides:
-- 2-strategy matching system optimized for Apple's 1:1 transaction model
-- Apple receipt loading and normalization from email extracts
-- Date and amount-based matching with confidence scoring
-- Multi-Apple ID support for household accounts
-- Simplified matching logic leveraging Apple's direct transaction model
+- Apple receipt data loading from exported files
+- Transaction matching with confidence scoring using 2-strategy system
+- Email integration for direct receipt extraction
+- Receipt parsing from HTML emails with multiple format support
+- 1:1 transaction model optimized for Apple's billing structure
 
 Key Components:
 - loader: Apple receipt data loading and normalization
-- matcher: Core transaction matching logic
+- matcher: Transaction matching with exact + date window strategies
+- parser: HTML receipt parsing with format detection
+- email_fetcher: IMAP-based email fetching for receipt extraction
 
-Current Performance: 85.1% match rate with 0.871 average confidence
+Apple's simplified transaction model enables direct matching with high success rates.
+Unlike Amazon's complex bundling, Apple typically has 1:1 correspondence between
+receipts and credit card transactions.
+
+Transaction Matching Features:
+- Exact Match Strategy: Same date + exact amount (confidence 1.0)
+- Date Window Strategy: ±1-2 days with exact amount (confidence 0.75-0.90)
+- Multi-Apple ID Support: Handles family accounts with proper attribution
+- High Performance: ~0.005 seconds per transaction
+- Current Success Rate: 85.1% match rate with 0.871 average confidence
+
+Receipt Processing Features:
+- Multi-format HTML parsing (legacy aapl-*, modern custom-*, table-based)
+- Email fetching with IMAP support and secure authentication
+- Robust data extraction with fallback strategies
+- Financial precision with currency handling
 """
 
 from .loader import (
@@ -33,6 +50,19 @@ from .matcher import (
     generate_match_summary,
 )
 
+from .parser import (
+    AppleReceiptParser,
+    ParsedReceipt,
+    ParsedItem,
+)
+
+from .email_fetcher import (
+    AppleEmailFetcher,
+    AppleReceiptEmail,
+    EmailConfig,
+    fetch_apple_receipts_cli,
+)
+
 __all__ = [
     # Receipt loading
     "find_latest_apple_export",
@@ -47,4 +77,15 @@ __all__ = [
     "AppleMatcher",
     "batch_match_transactions",
     "generate_match_summary",
+
+    # Receipt parsing
+    "AppleReceiptParser",
+    "ParsedReceipt",
+    "ParsedItem",
+
+    # Email fetching
+    "AppleEmailFetcher",
+    "AppleReceiptEmail",
+    "EmailConfig",
+    "fetch_apple_receipts_cli",
 ]

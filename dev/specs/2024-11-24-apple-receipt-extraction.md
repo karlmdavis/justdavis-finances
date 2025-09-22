@@ -28,7 +28,7 @@ An automated system that extracts Apple receipt emails, parses purchase details,
 ### Data Extraction Requirements
 
 #### Email Retrieval
-- **Source**: IMAP access to email account (***REMOVED***)
+- **Source**: IMAP access to email account (user@example.com)
 - **Search Criteria**: Emails with subject "Your receipt from Apple" or similar patterns
 - **Historical Scope**: Extract all available receipts (potentially years of history)
 - **Incremental Updates**: Support for fetching only new receipts in future runs
@@ -160,7 +160,7 @@ An automated system that extracts Apple receipt emails, parses purchase details,
 ### Sample Receipt (Conceptual)
 ```json
 {
-  "apple_id": "***REMOVED***",
+  "apple_id": "user@example.com",
   "receipt_date": "2024-11-15T10:23:45Z",
   "order_id": "MLYPH7KXN9",
   "document_number": "723994857234",
