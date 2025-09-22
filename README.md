@@ -78,9 +78,12 @@ ynab --output json list transactions > ynab-data/transactions.json
 
 ## Analysis Tools
 
-### Cash Flow Analysis (`analysis/cash_flow/cash_flow_analysis.py`)
+### Cash Flow Analysis
 
 A comprehensive Python script that analyzes cash flow patterns using various financial visualization techniques:
+
+**Current Location:** `analysis/cash_flow/cash_flow_analysis.py` (legacy script)
+**Future Location:** `src/finances/analysis/` (package module)
 
 **Features:**
 - Multiple moving averages (7-day, 30-day, 90-day) to smooth daily volatility
@@ -108,9 +111,14 @@ The script generates a timestamped dashboard image in `analysis/cash_flow/result
 
 **Note:** The analysis excludes data before May 2024 due to incomplete transaction history.
 
-### Amazon Transaction Matching (`analysis/amazon_transaction_matching/`)
+### Amazon Transaction Matching
 
 An advanced system for automatically matching YNAB transactions to Amazon order data across multiple accounts:
+
+**Current Location:** `analysis/amazon_transaction_matching/` (legacy scripts)
+**New Package:** `src/finances/amazon/` (migrated modules)
+
+The core matching logic has been migrated to the new package structure (`finances.amazon`), but the CLI scripts remain in the legacy location for backward compatibility.
 
 **Key Features:**
 - **Multi-account support** - Handles household Amazon accounts (karl, erica, etc.)
@@ -144,10 +152,15 @@ uv run python analysis/amazon_transaction_matching/match_transactions_batch.py \
 
 See `analysis/amazon_transaction_matching/README.md` for detailed documentation.
 
-### Apple Transaction Matching (`analysis/apple_transaction_matching/`)
+### Apple Transaction Matching
 
 An automated system for matching Apple receipts (extracted from emails) to corresponding YNAB credit card transactions,
   solving the challenge of understanding what Apple purchases comprise each consolidated credit card charge:
+
+**Current Location:** `analysis/apple_transaction_matching/` (legacy scripts)
+**New Package:** `src/finances/apple/` (migrated modules)
+
+The core matching logic has been migrated to the new package structure (`finances.apple`), but the CLI scripts remain in the legacy location for backward compatibility.
 
 **Key Features:**
 - **1:1 Transaction Model** - Simple direct matching (vs Amazon's complex bundling)

@@ -1,0 +1,10 @@
+# Data Directory
+
+This directory contains all financial data used by the finances package.
+All subdirectories are gitignored to protect sensitive financial information.
+
+Structure:
+- amazon/: Amazon order history exports
+- apple/: Apple receipt emails and parsed data
+- ynab/: YNAB cached data
+- analysis/: Generated reports and analysis outputs

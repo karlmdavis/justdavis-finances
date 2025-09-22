@@ -12,6 +12,23 @@ This is a personal finance management repository for the Davis family. The prima
 
 ## Key Context
 
+### 🚀 Package Restructure (September 2024)
+
+This repository has been restructured from a script-based organization to a professional Python package:
+
+- **New Package**: `src/finances/` - Modern Python package with domain separation
+- **Legacy Scripts**: `analysis/` - Original scripts maintained for backward compatibility
+- **Core Modules**: Currency, models, and configuration migrated to `src/finances/core/`
+- **Domain Packages**: Amazon (`finances.amazon`), Apple (`finances.apple`), YNAB (`finances.ynab`)
+
+**Import Examples:**
+```python
+from finances.amazon import SimplifiedMatcher
+from finances.apple import AppleMatcher
+from finances.core.currency import milliunits_to_cents
+from finances.ynab import calculate_amazon_splits
+```
+
 ### Financial Management Tools
 - **Primary Tool**: YNAB (You Need A Budget) - used for transaction tracking, categorization, and reporting
 - **YNAB CLI**: Command-line tool for extracting YNAB data (`ynab` command)
@@ -44,16 +61,16 @@ This is a personal finance management repository for the Davis family. The prima
 - Excludes unreliable data before May 2024
 - Key accounts analyzed: Chase Checking, Chase Credit Card, Apple Card, Apple Cash, Apple Savings
 
-#### 4. Amazon Transaction Matching System (`analysis/amazon_transaction_matching/`)
+#### 4. Amazon Transaction Matching System
 - **Primary purpose**: Automatically match YNAB transactions to Amazon orders
 - **Architecture**: Simplified 3-strategy system for clean, maintainable code
-- **Key scripts**:
-  - `match_single_transaction.py` - Process individual transactions using SimplifiedMatcher
-  - `match_transactions_batch.py` - Batch process date ranges with 3-strategy architecture
-- **Supporting modules**:
-  - `order_grouper.py` - Unified order grouping (complete orders, shipments, daily shipments)
-  - `match_scorer.py` - Confidence scoring and match result creation
-  - `split_payment_matcher.py` - Split payment handling for partial order matches
+- **Package location**: `src/finances/amazon/` (migrated modules)
+- **Legacy scripts**: `analysis/amazon_transaction_matching/` (CLI interfaces)
+- **Key modules** (in new package):
+  - `matcher.py` - Core SimplifiedMatcher with 3-strategy system
+  - `grouper.py` - Unified order grouping (complete orders, shipments, daily shipments)
+  - `scorer.py` - Confidence scoring and match result creation
+  - `split_matcher.py` - Split payment handling for partial order matches
 - **Multi-account support**: Automatically discovers and searches all Amazon accounts
 - **Precision handling**: Uses integer cents arithmetic to avoid floating-point errors
 - **Match strategies**: 3 clean strategies replacing complex 5-strategy system:
@@ -78,16 +95,14 @@ This is a personal finance management repository for the Davis family. The prima
     --start 2024-07-01 --end 2024-07-31 --disable-split
   ```
 
-#### 5. Apple Transaction Matching System (`analysis/apple_transaction_matching/`)
+#### 5. Apple Transaction Matching System
 - **Primary purpose**: Automatically match YNAB transactions to Apple receipt data
 - **Architecture**: Simplified 2-strategy system for Apple's 1:1 transaction model
-- **Key scripts**:
-  - `match_single_transaction.py` - Process individual transactions
-  - `match_transactions_batch.py` - Batch process date ranges
-- **Supporting modules**:
-  - `apple_matcher.py` - Core matching logic with exact and date window strategies
-  - `match_scorer.py` - Confidence scoring adapted for Apple patterns
-  - `apple_receipt_loader.py` - Apple receipt data loading and normalization
+- **Package location**: `src/finances/apple/` (migrated modules)
+- **Legacy scripts**: `analysis/apple_transaction_matching/` (CLI interfaces)
+- **Key modules** (in new package):
+  - `matcher.py` - Core AppleMatcher with exact and date window strategies
+  - `loader.py` - Apple receipt data loading and normalization
 - **Multi-Apple ID support**: Automatically discovers and searches all family Apple accounts
 - **Integration**: Works with Apple receipt extraction system (`apple/scripts/`)
 - **Match strategies**: 2 clean strategies for Apple's simpler transaction model:
@@ -180,16 +195,17 @@ maintains strict integer-only arithmetic for all financial calculations to ensur
 - **NO float() calls**: Never use `float()` for currency amounts, even temporarily
 - **NO division for display**: Never use `cents / 100` even with `.2f` formatting
 
-**Safe patterns already in codebase:**
-- `order_grouper.py`: Uses Decimal for parsing, then converts to integer cents
-- `currency_utils.py`: Provides integer-based conversion functions
-- Most calculations already use integer arithmetic
+**Safe patterns in new package structure:**
+- `src/finances/core/currency.py`: Centralized integer-based conversion functions
+- `src/finances/amazon/grouper.py`: Uses Decimal for parsing, then converts to integer cents
+- All domain modules use centralized currency utilities
 
 1. **Currency handling**:
    - YNAB amounts are in milliunits (1000 milliunits = $1.00)
    - Amazon matching system uses integer cents internally (no floating-point allowed)
+   - Use centralized functions: `from finances.core.currency import milliunits_to_cents, format_cents`
    - Convert: `milliunits_to_cents(amount) = abs(milliunits // 10)`
-   - Display: `cents_to_dollars_str(cents) = f"{cents//100}.{cents%100:02d}"`
+   - Display: `format_cents(cents) = f"${cents//100}.{cents%100:02d}"`
 2. **Date handling**: Transaction dates before May 2024 may have incomplete data
 3. **JSON structures**: Use proper jq paths for nested structures (e.g., `.accounts[0]` not `.[0]`)
 4. **Output organization**: Always create output directories if they don't exist
@@ -242,5 +258,6 @@ Key technical innovations:
 
 Key technical breakthroughs:
 1. **Simplified Architecture**: 3 focused strategies (Complete Match, Split Payment, Fuzzy Match) replace complex 5-strategy system
-2. **Modular Design**: Clean separation of concerns with `order_grouper.py`, `match_scorer.py`, and `split_payment_matcher.py`
-3. **Multi-day Orders**: Fixed critical bug where exact amount matches failed due to single-day shipping restriction
+2. **Package Structure**: Migrated to professional Python package (`finances.amazon`) with clean module separation
+3. **Modular Design**: Clean separation of concerns with `grouper.py`, `scorer.py`, and `split_matcher.py`
+4. **Multi-day Orders**: Fixed critical bug where exact amount matches failed due to single-day shipping restriction
