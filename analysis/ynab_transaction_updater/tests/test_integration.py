@@ -111,7 +111,7 @@ class TestIntegrationWorkflow(unittest.TestCase):
 
     def _create_amazon_match_results(self):
         """Create synthetic Amazon matching results."""
-        tx_id = str(uuid.uuid4())
+        tx_id = "915a3595-0424-45a0-b5f9-f5cf4a03c986"  # Fixed UUID for test consistency
         return {
             "date_range": {"start": "2025-09-01", "end": "2025-09-30"},
             "results": [
@@ -169,7 +169,7 @@ class TestIntegrationWorkflow(unittest.TestCase):
 
     def _create_apple_match_results(self):
         """Create synthetic Apple matching results."""
-        tx_id = str(uuid.uuid4())
+        tx_id = "f57b6948-9b9b-4d8e-8e49-1640f0522c50"  # Fixed UUID for test consistency
         return {
             "date_range": {"start": "2025-09-01", "end": "2025-09-30"},
             "results": [
@@ -203,7 +203,7 @@ class TestIntegrationWorkflow(unittest.TestCase):
 
     def _create_ynab_transactions(self):
         """Create synthetic YNAB transactions for Amazon test."""
-        tx_id = str(uuid.uuid4())
+        tx_id = "915a3595-0424-45a0-b5f9-f5cf4a03c986"  # Fixed UUID for test consistency
         return [
             {
                 "id": tx_id,
@@ -219,7 +219,7 @@ class TestIntegrationWorkflow(unittest.TestCase):
 
     def _create_apple_ynab_transactions(self):
         """Create synthetic YNAB transactions for Apple test."""
-        tx_id = str(uuid.uuid4())
+        tx_id = "f57b6948-9b9b-4d8e-8e49-1640f0522c50"  # Fixed UUID for test consistency
         return [
             {
                 "id": tx_id,
