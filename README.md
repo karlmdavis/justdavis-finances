@@ -1,10 +1,13 @@
 # Davis Family Finances
 
-Professional personal finance management system with automated transaction matching, receipt processing, and financial analysis.
+Professional personal finance management system with automated transaction matching,
+  receipt processing, and financial analysis.
 
 ## Overview
 
-A comprehensive Python package for automated financial data processing with YNAB integration. Features high-accuracy transaction matching for Amazon and Apple purchases, cash flow analysis, and professional CLI tools.
+A comprehensive Python package for automated financial data processing with YNAB integration.
+Features high-accuracy transaction matching for Amazon and Apple purchases, cash flow analysis,
+  and professional CLI tools.
 
 **Key Features:**
 - **Amazon Transaction Matching**: 94.7% accuracy with 3-strategy matching system
@@ -15,7 +18,8 @@ A comprehensive Python package for automated financial data processing with YNAB
 
 ## For Developers
 
-See [CONTRIBUTORS.md](CONTRIBUTORS.md) for comprehensive development documentation including project architecture, testing framework, code quality standards, and development workflow.
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for comprehensive development documentation including project
+  architecture, testing framework, code quality standards, and development workflow.
 
 ## Quick Start
 
@@ -231,4 +235,5 @@ finances amazon match --start 2024-07-01 --end 2024-07-31 --verbose
 
 ## License
 
-This project is for personal use and contains family financial management tools. See LICENSE file for details.
+This project is for personal use and contains family financial management tools.
+See LICENSE file for details.

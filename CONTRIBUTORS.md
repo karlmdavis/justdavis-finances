@@ -1,6 +1,8 @@
 # Contributors Guide
 
-Welcome to the Davis Family Finances project! This guide provides comprehensive information for developers contributing to this professional personal finance management system.
+Welcome to the Davis Family Finances project!
+This guide provides comprehensive information for developers contributing to this professional
+  personal finance management system.
 
 ## Table of Contents
 
@@ -22,7 +24,8 @@ Welcome to the Davis Family Finances project! This guide provides comprehensive 
 The project follows a **domain-driven design** approach with strict architectural guidelines:
 
 - **Domain separation**: Each financial data source (Amazon, Apple, YNAB) has its own package
-- **Integer arithmetic**: All currency calculations use integer arithmetic to prevent floating-point errors
+- **Integer arithmetic**: All currency calculations use integer arithmetic to prevent
+  floating-point errors
 - **Configuration management**: Environment-based settings with comprehensive validation
 - **Security-first**: No sensitive data in source code, comprehensive audit trails
 - **Professional CLI**: Unified command-line interface with consistent patterns
@@ -230,7 +233,7 @@ from finances.core.currency import milliunits_to_cents
 @pytest.mark.unit
 @pytest.mark.currency
 def test_milliunits_conversion():
-    \"\"\"Test YNAB milliunits to cents conversion.\"\"\"
+    """Test YNAB milliunits to cents conversion."""
     assert milliunits_to_cents(123456) == 12345
     assert milliunits_to_cents(-123456) == 12345  # Always positive
 ```
@@ -238,7 +241,7 @@ def test_milliunits_conversion():
 #### Using Fixtures
 ```python
 def test_amazon_matching(sample_amazon_orders, sample_ynab_transactions):
-    \"\"\"Test Amazon transaction matching with sample data.\"\"\"
+    """Test Amazon transaction matching with sample data."""
     matcher = SimplifiedMatcher()
     results = matcher.match_transactions(
         sample_ynab_transactions,
@@ -320,11 +323,11 @@ from typing import List, Optional, Protocol
 from decimal import Decimal
 
 def milliunits_to_cents(milliunits: int) -> int:
-    \"\"\"Convert YNAB milliunits to integer cents.\"\"\"
+    """Convert YNAB milliunits to integer cents."""
     return abs(milliunits // 10)
 
 class Matcher(Protocol):
-    \"\"\"Protocol for transaction matching implementations.\"\"\"
+    """Protocol for transaction matching implementations."""
 
     def match_transactions(
         self,
@@ -375,6 +378,55 @@ Hook categories:
 
 ### Coding Standards
 
+#### Markdown Formatting Guidelines
+
+All markdown files in this repository follow consistent formatting standards for improved
+  readability and maintainability.
+
+##### Core Formatting Rules
+
+1. **One Sentence Per Line**: Each sentence should be on its own line for better version
+  control and readability.
+
+2. **100-Character Line Limit**: Lines should be wrapped when they exceed 100 characters.
+
+3. **Two-Space Indentation for Wrapped Lines**: When a sentence is wrapped, indent
+  continuation lines with exactly two spaces.
+
+4. **Natural Break Points**: When wrapping long lines, break at natural points such as:
+   - Commas and conjunctions
+   - Clause boundaries
+   - Before prepositions in long phrases
+   - After colons or semicolons
+
+##### Examples
+
+**Good formatting:**
+```markdown
+The Amazon Transaction Matching System creates automated linkage between Amazon order
+  history data and corresponding YNAB credit card transactions.
+This solves the challenge of understanding what Amazon purchases comprise each consolidated
+  charge, enabling accurate categorization.
+```
+
+**Avoid:**
+```markdown
+The Amazon Transaction Matching System creates automated linkage between Amazon order history data and corresponding YNAB credit card transactions. This solves the challenge of understanding what Amazon purchases comprise each consolidated charge.
+```
+
+##### Code Blocks and Lists
+
+- Preserve existing code block formatting
+- Maintain proper indentation for nested lists
+- Keep inline code spans on single lines when possible
+
+##### Cross-References
+
+When referencing this formatting standard in other documentation, use:
+```markdown
+See [Markdown Formatting Guidelines](CONTRIBUTORS.md#markdown-formatting-guidelines) for details.
+```
+
 #### Documentation Requirements
 ```python
 def calculate_confidence_score(
@@ -382,7 +434,7 @@ def calculate_confidence_score(
     date_proximity: int,
     merchant_match: bool
 ) -> float:
-    \"\"\"Calculate confidence score for transaction match.
+    """Calculate confidence score for transaction match.
 
     Args:
         amount_match: True if transaction amounts match exactly
@@ -397,7 +449,7 @@ def calculate_confidence_score(
         1.0
         >>> calculate_confidence_score(True, 2, False)
         0.75
-    \"\"\"
+    """
 ```
 
 #### Error Handling Patterns
@@ -408,13 +460,13 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 def safe_currency_conversion(value: str) -> Optional[int]:
-    \"\"\"Safely convert string currency to integer cents.\"\"\"
+    """Safely convert string currency to integer cents."""
     try:
         # Parse currency with proper validation
         decimal_value = Decimal(value.replace('$', '').replace(',', ''))
         return int(decimal_value * 100)
     except (ValueError, InvalidOperation) as e:
-        logger.warning(f\"Failed to convert currency '{value}': {e}\")
+        logger.warning(f"Failed to convert currency '{value}': {e}")
         return None
 ```
 
@@ -469,7 +521,7 @@ from typing import Optional
 
 @click.group()
 def domain():
-    \"\"\"Domain-specific commands.\"\"\"
+    """Domain-specific commands."""
     pass
 
 @domain.command()
@@ -478,9 +530,9 @@ def domain():
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.pass_context
 def process(ctx: click.Context, start: str, end: str, verbose: bool) -> None:
-    \"\"\"Process data for date range.\"\"\"
+    """Process data for date range."""
     if verbose or ctx.obj.get('verbose', False):
-        click.echo(f\"Processing {start} to {end}\")
+        click.echo(f"Processing {start} to {end}")
 
     # Implementation here
 ```
@@ -498,7 +550,7 @@ def add_amounts(amount1_cents: int, amount2_cents: int) -> int:
     return amount1_cents + amount2_cents
 
 def format_currency(cents: int) -> str:
-    return f\"${cents // 100}.{cents % 100:02d}\"
+    return f"${cents // 100}.{cents % 100:02d}"
 
 # INCORRECT: Never use float for currency
 def bad_currency_math(dollars: float) -> float:  # DON'T DO THIS
@@ -517,7 +569,7 @@ from finances.core.currency import (
 # Always use these centralized functions
 ynab_amount = -123456  # YNAB milliunits
 cents = milliunits_to_cents(ynab_amount)  # 12345 cents
-display = format_cents(cents)  # \"$123.45\"
+display = format_cents(cents)  # "$123.45"
 ```
 
 ### Amazon Domain Guidelines
@@ -557,14 +609,14 @@ import os
 from typing import Optional
 
 def get_api_token() -> Optional[str]:
-    \"\"\"Safely retrieve API token from environment.\"\"\"
+    """Safely retrieve API token from environment."""
     token = os.getenv('YNAB_API_TOKEN')
     if not token:
-        logger.error(\"YNAB_API_TOKEN not found in environment\")
+        logger.error("YNAB_API_TOKEN not found in environment")
         return None
 
     # Never log the actual token
-    logger.info(f\"Retrieved API token (length: {len(token)})\")
+    logger.info(f"Retrieved API token (length: {len(token)})")
     return token
 ```
 
@@ -585,7 +637,7 @@ def get_api_token() -> Optional[str]:
 uv pip install -e .
 
 # Verify package location
-python -c \"import finances; print(finances.__file__)\"
+python -c "import finances; print(finances.__file__)"
 ```
 
 #### Test Failures
@@ -621,7 +673,7 @@ uv run pre-commit autoupdate
 uv run pre-commit run black
 
 # Bypass hooks for emergency (use sparingly)
-git commit --no-verify -m \"emergency fix\"
+git commit --no-verify -m "emergency fix"
 ```
 
 ### Performance Issues
@@ -632,7 +684,7 @@ git commit --no-verify -m \"emergency fix\"
 uv run pytest --durations=10
 
 # Skip slow tests during development
-uv run pytest -m \"not slow\"
+uv run pytest -m "not slow"
 
 # Parallel test execution
 uv run pytest -n auto
@@ -644,7 +696,7 @@ uv run pytest -n auto
 time finances --help
 
 # Check for expensive imports
-python -c \"import sys; import time; start=time.time(); import finances; print(f'Import time: {time.time()-start:.3f}s')\"
+python -c "import sys; import time; start=time.time(); import finances; print(f'Import time: {time.time()-start:.3f}s')"
 ```
 
 ### Getting Help
@@ -665,4 +717,5 @@ python -c \"import sys; import time; start=time.time(); import finances; print(f
 6. **Integration**: Address feedback, ensure all checks pass
 7. **Documentation**: Update relevant documentation for changes
 
-This guide is a living document. Please update it as the project evolves and new patterns emerge.
+This guide is a living document.
+Please update it as the project evolves and new patterns emerge.

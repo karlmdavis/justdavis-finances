@@ -2,29 +2,41 @@
 
 ## Executive Summary
 
-The CSV Analysis Tools System provides safe, efficient exploration of financial CSV data using nushell's powerful data processing capabilities. It serves as a secure gateway for analyzing Amazon order history, YNAB exports, and other financial datasets without risk of data modification, enabling quick insights and data validation across the personal finance ecosystem.
+The CSV Analysis Tools System provides safe, efficient exploration of financial CSV
+  data using nushell's powerful data processing capabilities.
+It serves as a secure gateway for analyzing Amazon order history, YNAB exports, and
+  other financial datasets without risk of data modification, enabling quick insights
+  and data validation across the personal finance ecosystem.
 
 ## Problem Statement
 
 ### Current Pain Points
-1. **CSV Exploration Risk**: Direct file editing tools risk accidental data modification of financial records
-2. **Command Line Complexity**: Raw nushell commands require syntax knowledge and are error-prone
-3. **Data Validation Overhead**: Verifying CSV structure and content requires repetitive manual commands
-4. **Tool Inconsistency**: Different analysis approaches across various financial data sources
-5. **Path Management**: Cumbersome file path handling for deeply nested financial data directories
-6. **Learning Curve**: Team members need consistent, documented approach to CSV analysis
+1. **CSV Exploration Risk**: Direct file editing tools risk accidental data
+     modification of financial records
+2. **Command Line Complexity**: Raw nushell commands require syntax knowledge and are
+     error-prone
+3. **Data Validation Overhead**: Verifying CSV structure and content requires
+     repetitive manual commands
+4. **Tool Inconsistency**: Different analysis approaches across various financial
+     data sources
+5. **Path Management**: Cumbersome file path handling for deeply nested financial
+     data directories
+6. **Learning Curve**: Team members need consistent, documented approach to CSV
+     analysis
 
 ### Business Impact
 - **Data Safety**: Risk of accidentally modifying critical financial datasets
 - **Efficiency Loss**: Repeated manual commands slow down data exploration workflows
 - **Analysis Barriers**: Complex syntax prevents quick data validation and exploration
 - **Inconsistent Methods**: Different tools and approaches create confusion and errors
-- **Time Investment**: Learning and remembering command syntax slows down analysis tasks
+- **Time Investment**: Learning and remembering command syntax slows down analysis
+    tasks
 
 ## Success Criteria
 
 ### Primary Goals
-1. **Safe Data Exploration**: 100% read-only operations with zero risk of data modification
+1. **Safe Data Exploration**: 100% read-only operations with zero risk of data
+     modification
 2. **Simplified Interface**: Single command interface for all common CSV operations
 3. **Pipeline Power**: Full access to nushell's data processing capabilities
 4. **Consistent Experience**: Standardized approach across all financial CSV datasets
@@ -193,7 +205,8 @@ def main [file_path: string, ...pipeline_args] {
 
 #### Performance Characteristics
 
-1. **Memory Usage**: Loads entire CSV into memory (suitable for financial datasets <100MB)
+1. **Memory Usage**: Loads entire CSV into memory (suitable for financial datasets
+     <100MB)
 2. **Processing Speed**: Near-instantaneous for typical financial CSV files
 3. **Response Time**: Sub-second response for most common operations
 4. **Scalability**: Linear performance with file size
@@ -202,7 +215,8 @@ def main [file_path: string, ...pipeline_args] {
 
 ### Safety Validation
 
-1. **Read-Only Guarantee**: Comprehensive testing confirms no file modification capability
+1. **Read-Only Guarantee**: Comprehensive testing confirms no file modification
+     capability
 2. **Path Security**: Validation prevents access to unintended files
 3. **Command Injection Protection**: Nushell execution context provides sandboxing
 4. **Error Containment**: Failures don't impact system or other processes
@@ -317,4 +331,6 @@ def main [file_path: string, ...pipeline_args] {
 
 ---
 
-This specification provides a complete blueprint for the CSV Analysis Tools System, documenting its safety-first design, nushell integration, and role in the broader financial analysis ecosystem.
+This specification provides a complete blueprint for the CSV Analysis Tools System,
+  documenting its safety-first design, nushell integration, and role in the broader
+  financial analysis ecosystem.

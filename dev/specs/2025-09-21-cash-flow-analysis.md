@@ -2,39 +2,58 @@
 
 ## Executive Summary
 
-The Cash Flow Analysis System provides comprehensive financial dashboard generation and trend analysis for the Davis family's cash and liquid accounts. It transforms raw YNAB transaction data into visual insights including moving averages, volatility analysis, trend projections, and financial health metrics to support informed budgeting and spending decisions.
+The Cash Flow Analysis System provides comprehensive financial dashboard generation
+  and trend analysis for the Davis family's cash and liquid accounts.
+It transforms raw YNAB transaction data into visual insights including moving
+  averages, volatility analysis, trend projections, and financial health metrics to
+  support informed budgeting and spending decisions.
 
 ## Problem Statement
 
 ### Current Pain Points
-1. **Limited Financial Visibility**: YNAB provides transaction-level detail but lacks comprehensive cash flow trend analysis
-2. **Manual Analysis Burden**: Understanding spending patterns, seasonal trends, and financial health requires manual spreadsheet work
-3. **Missing Context**: Individual transactions don't reveal broader financial patterns or trajectory
-4. **No Predictive Insights**: Inability to project future cash flow based on historical trends
-5. **Volatility Blindness**: Difficult to understand balance fluctuation patterns and what drives them
-6. **Multi-Account Complexity**: Five different accounts need unified analysis to understand total financial picture
+1. **Limited Financial Visibility**: YNAB provides transaction-level detail but lacks
+     comprehensive cash flow trend analysis
+2. **Manual Analysis Burden**: Understanding spending patterns, seasonal trends, and
+     financial health requires manual spreadsheet work
+3. **Missing Context**: Individual transactions don't reveal broader financial
+     patterns or trajectory
+4. **No Predictive Insights**: Inability to project future cash flow based on
+     historical trends
+5. **Volatility Blindness**: Difficult to understand balance fluctuation patterns and
+     what drives them
+6. **Multi-Account Complexity**: Five different accounts need unified analysis to
+     understand total financial picture
 
 ### Business Impact
-- **Decision Making**: Limited visibility into whether spending patterns are sustainable
-- **Budget Planning**: Cannot identify seasonal patterns or cyclical spending behaviors
+- **Decision Making**: Limited visibility into whether spending patterns are
+    sustainable
+- **Budget Planning**: Cannot identify seasonal patterns or cyclical spending
+    behaviors
 - **Risk Assessment**: No early warning system for negative cash flow trends
-- **Goal Setting**: Difficult to set realistic financial targets without historical context
-- **Performance Tracking**: No quantitative way to measure financial health improvement over time
+- **Goal Setting**: Difficult to set realistic financial targets without historical
+    context
+- **Performance Tracking**: No quantitative way to measure financial health
+    improvement over time
 
 ## Success Criteria
 
 ### Primary Goals
-1. **Comprehensive Visualization**: Generate multi-faceted dashboard showing all key financial metrics
-2. **Trend Analysis**: Identify and quantify financial trajectory with statistical confidence
+1. **Comprehensive Visualization**: Generate multi-faceted dashboard showing all key
+     financial metrics
+2. **Trend Analysis**: Identify and quantify financial trajectory with statistical
+     confidence
 3. **Automated Insights**: Extract actionable insights without manual analysis
-4. **Historical Context**: Process all available reliable financial data for complete picture
-5. **Repeatable Analysis**: Enable regular dashboard generation for ongoing monitoring
+4. **Historical Context**: Process all available reliable financial data for complete
+     picture
+5. **Repeatable Analysis**: Enable regular dashboard generation for ongoing
+     monitoring
 
 ### Measurable Outcomes
 - **Dashboard Generation**: Complete analysis in <30 seconds
 - **Data Coverage**: Process all transactions since May 2024 (reliable data cutoff)
 - **Visual Clarity**: 6-panel dashboard covering all major financial dimensions
-- **Statistical Accuracy**: Trend analysis with confidence intervals and validation metrics
+- **Statistical Accuracy**: Trend analysis with confidence intervals and validation
+    metrics
 - **Actionable Insights**: Clear recommendations based on quantitative analysis
 
 ## Functional Requirements
@@ -43,8 +62,10 @@ The Cash Flow Analysis System provides comprehensive financial dashboard generat
 
 #### YNAB Transaction Data
 - **Source**: YNAB transaction cache in `ynab-data/transactions.json`
-- **Account Coverage**: Five cash/liquid accounts (Chase Checking, Chase Credit Card, Apple Card, Apple Cash, Apple Savings)
-- **Time Range**: All transactions from May 1, 2024 onward (excludes unreliable historical data)
+- **Account Coverage**: Five cash/liquid accounts (Chase Checking, Chase Credit Card,
+    Apple Card, Apple Cash, Apple Savings)
+- **Time Range**: All transactions from May 1, 2024 onward (excludes unreliable
+    historical data)
 - **Required Fields**:
   - Transaction ID, date, amount (in milliunits)
   - Account name, payee name
@@ -60,7 +81,8 @@ The Cash Flow Analysis System provides comprehensive financial dashboard generat
 ### Processing Requirements
 
 #### Daily Balance Calculation
-1. **Balance Reconstruction**: Work backwards from current balances using transaction history
+1. **Balance Reconstruction**: Work backwards from current balances using transaction
+     history
 2. **Time Series Completion**: Fill gaps to create complete daily balance series
 3. **Account Aggregation**: Calculate total liquid balance across all cash accounts
 4. **Data Validation**: Ensure balance calculations align with current account states
@@ -92,7 +114,8 @@ The Cash Flow Analysis System provides comprehensive financial dashboard generat
 1. **Main Balance Plot**: Daily balances with multiple moving averages and trend line
 2. **Monthly Cash Flow**: Bar chart showing net monthly changes with averages
 3. **Volatility Analysis**: Monthly balance ranges showing financial stability
-4. **Cash Flow Velocity**: 30-day rolling changes showing flow acceleration/deceleration
+4. **Cash Flow Velocity**: 30-day rolling changes showing flow
+     acceleration/deceleration
 5. **Account Composition**: Stacked visualization of individual account contributions
 6. **Statistical Summary**: Comprehensive metrics box with key insights
 
@@ -282,7 +305,8 @@ START_DATE = '2024-05-01'
 4. **Interactive Dashboards**: Web-based interactive visualizations
 
 ### Integration Opportunities
-1. **Transaction Matching Integration**: Incorporate Amazon/Apple categorization insights
+1. **Transaction Matching Integration**: Incorporate Amazon/Apple categorization
+     insights
 2. **Investment Analysis**: Expand to include investment account performance
 3. **External Data Sources**: Bank account direct feeds, investment APIs
 4. **Mobile Notifications**: Real-time financial health alerts
@@ -318,4 +342,6 @@ START_DATE = '2024-05-01'
 
 ---
 
-This specification provides a complete blueprint for the Cash Flow Analysis System, documenting its statistical methods, 6-panel dashboard design, and comprehensive financial health metrics generation.
+This specification provides a complete blueprint for the Cash Flow Analysis System,
+  documenting its statistical methods, 6-panel dashboard design, and comprehensive
+  financial health metrics generation.

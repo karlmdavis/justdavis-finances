@@ -6,23 +6,30 @@
 
 ## Overview
 
-Establish comprehensive code quality standards and automated development tooling for the personal finance management package to ensure maintainable, reliable, and professional-grade code throughout the project lifecycle.
+Establish comprehensive code quality standards and automated development tooling for
+  the personal finance management package to ensure maintainable, reliable, and
+  professional-grade code throughout the project lifecycle.
 
 ## Goals
 
 ### Primary Objectives
-- **Automated Quality Enforcement**: Pre-commit hooks and CI/CD integration prevent quality regressions
-- **Consistent Code Style**: Unified formatting and linting standards across entire codebase
+- **Automated Quality Enforcement**: Pre-commit hooks and CI/CD integration prevent
+    quality regressions
+- **Consistent Code Style**: Unified formatting and linting standards across entire
+    codebase
 - **Type Safety**: Comprehensive type annotations with static analysis validation
 - **Developer Productivity**: Seamless IDE integration and automated quality feedback
 - **Professional Standards**: Industry best practices for Python package development
 
 ### Secondary Objectives
-- **Onboarding Efficiency**: New contributors can immediately understand and follow quality standards
+- **Onboarding Efficiency**: New contributors can immediately understand and follow
+    quality standards
 - **Maintainability**: Code quality tools reduce technical debt accumulation
-- **Documentation Quality**: Automated verification of docstring completeness and formatting
+- **Documentation Quality**: Automated verification of docstring completeness and
+    formatting
 - **Performance Awareness**: Quality gates include performance regression detection
-- **Security Compliance**: Static analysis tools identify potential security vulnerabilities
+- **Security Compliance**: Static analysis tools identify potential security
+    vulnerabilities
 
 ## Quality Framework
 
@@ -44,8 +51,10 @@ Establish comprehensive code quality standards and automated development tooling
 
 #### Comprehensive Linting
 - **Ruff Integration**: Fast, comprehensive linting covering multiple rule sets
-- **Error Categories**: Syntax errors, logical issues, style violations, security concerns
-- **Custom Rules**: Domain-specific rules for financial calculations and data handling
+- **Error Categories**: Syntax errors, logical issues, style violations, security
+    concerns
+- **Custom Rules**: Domain-specific rules for financial calculations and data
+    handling
 - **Incremental Analysis**: Efficient linting of changed code only
 
 #### Advanced Code Quality
@@ -64,7 +73,8 @@ Establish comprehensive code quality standards and automated development tooling
 
 #### Financial Domain Types
 - **Currency Types**: Strict typing for milliunits, cents, and monetary calculations
-- **Transaction Models**: Comprehensive type definitions for financial data structures
+- **Transaction Models**: Comprehensive type definitions for financial data
+    structures
 - **API Contracts**: Type-safe interfaces for external service integration
 - **Configuration Types**: Typed configuration objects with validation
 
@@ -101,7 +111,8 @@ Establish comprehensive code quality standards and automated development tooling
 ### IDE Integration Standards
 
 #### Development Environment
-- **Configuration Files**: Standardized IDE settings for consistent development experience
+- **Configuration Files**: Standardized IDE settings for consistent development
+    experience
 - **Extension Recommendations**: Curated list of helpful development extensions
 - **Debugging Setup**: Pre-configured debugging profiles for common scenarios
 - **Code Navigation**: Enhanced code browsing with proper import resolution
@@ -137,7 +148,8 @@ Establish comprehensive code quality standards and automated development tooling
 - **Logging Safety**: Prevention of sensitive data in log outputs
 
 #### Dependency Security
-- **Vulnerability Scanning**: Automated detection of security issues in dependencies
+- **Vulnerability Scanning**: Automated detection of security issues in
+    dependencies
 - **License Compliance**: Verification of compatible open source licenses
 - **Supply Chain Security**: Monitoring of dependency provenance and integrity
 - **Update Policies**: Systematic approach to security updates
@@ -177,7 +189,8 @@ Establish comprehensive code quality standards and automated development tooling
 ### Pre-Commit Hook Configuration
 
 #### Hook Categories
-- **Formatting Hooks**: Black, isort, trailing whitespace, line ending normalization
+- **Formatting Hooks**: Black, isort, trailing whitespace, line ending
+    normalization
 - **Linting Hooks**: Ruff comprehensive linting with custom financial domain rules
 - **Type Checking**: Mypy validation with strict configuration
 - **Security Hooks**: Secret detection, dependency vulnerability scanning
@@ -234,14 +247,16 @@ Establish comprehensive code quality standards and automated development tooling
 ## Considerations
 
 ### Performance Impact
-- **Development Velocity**: Quality tools must enhance rather than hinder productivity
+- **Development Velocity**: Quality tools must enhance rather than hinder
+    productivity
 - **CI/CD Efficiency**: Quality checks integrated efficiently into build pipeline
 - **Local Development**: Minimal impact on local development workflow
 - **Scalability**: Quality tools scale effectively with codebase growth
 
 ### Maintainability
 - **Tool Updates**: Systematic approach to updating quality tool versions
-- **Configuration Management**: Centralized configuration with proper version control
+- **Configuration Management**: Centralized configuration with proper version
+    control
 - **Standard Evolution**: Process for updating quality standards over time
 - **Documentation Currency**: Keeping quality documentation up-to-date
 
@@ -253,6 +268,8 @@ Establish comprehensive code quality standards and automated development tooling
 
 ### Technical Debt Management
 - **Legacy Code**: Strategy for applying quality standards to existing code
-- **Incremental Improvement**: Gradual quality enhancement without disrupting functionality
+- **Incremental Improvement**: Gradual quality enhancement without disrupting
+    functionality
 - **Priority Ranking**: Focus quality efforts on highest-impact areas first
-- **Regression Prevention**: Quality gates prevent introduction of new technical debt
+- **Regression Prevention**: Quality gates prevent introduction of new technical
+    debt

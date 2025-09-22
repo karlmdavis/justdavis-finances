@@ -1,12 +1,13 @@
 # YNAB Data Caching Workflow
 
-This document describes the workflow for using the `ynab` command line tool to create and maintain local cached copies of YNAB data for the Davis Family Budget.
+This document describes the workflow for using the `ynab` command line tool to create and maintain
+  local cached copies of YNAB data for the Davis Family Budget.
 
 ## Overview
 
 The goal is to maintain three local JSON files that contain cached copies of all YNAB data:
 - `ynab-data/accounts.json` - All account information
-- `ynab-data/categories.json` - All category and category group information  
+- `ynab-data/categories.json` - All category and category group information
 - `ynab-data/transactions.json` - All transaction data
 
 ## Prerequisites
@@ -126,7 +127,7 @@ After extracting data, validate the JSON format and content:
 ```bash
 # Validate JSON format
 jq empty ynab-data/accounts.json && echo "accounts.json: Valid JSON" || echo "accounts.json: Invalid JSON"
-jq empty ynab-data/categories.json && echo "categories.json: Valid JSON" || echo "categories.json: Invalid JSON" 
+jq empty ynab-data/categories.json && echo "categories.json: Valid JSON" || echo "categories.json: Invalid JSON"
 jq empty ynab-data/transactions.json && echo "transactions.json: Valid JSON" || echo "transactions.json: Invalid JSON"
 
 # Check for expected data structure
@@ -151,7 +152,8 @@ crontab -e
 
 ### Rate Limiting Considerations
 
-YNAB API has rate limits (200 requests per hour). For large datasets:
+YNAB API has rate limits (200 requests per hour).
+For large datasets:
 - Extract accounts and categories less frequently (weekly)
 - Focus regular updates on transactions only
 - Add delays between requests if needed
@@ -174,7 +176,7 @@ Contains a JSON object with:
   - `deleted`: Whether account is deleted
 - `server_knowledge`: Server synchronization information
 
-### categories.json  
+### categories.json
 Contains a JSON object with:
 - `category_groups`: Array of category group objects with nested categories:
   - `id`: Category group ID
@@ -245,7 +247,7 @@ jq -s 'add' ynab-data/transactions_*.json > ynab-data/transactions.json
 echo "Unique accounts referenced in transactions: $(jq -r '.[].account_name' ynab-data/transactions.json | sort -u | wc -l)"
 echo "Accounts in accounts.json: $(jq '.accounts | length' ynab-data/accounts.json)"
 
-echo "Unique categories referenced in transactions: $(jq -r '.[].category_name' ynab-data/transactions.json | sort -u | wc -l)"  
+echo "Unique categories referenced in transactions: $(jq -r '.[].category_name' ynab-data/transactions.json | sort -u | wc -l)"
 echo "Total categories in categories.json: $(jq '[.category_groups[].categories[]] | length' ynab-data/categories.json)"
 ```
 
@@ -271,7 +273,7 @@ echo "Total categories in categories.json: $(jq '[.category_groups[].categories[
 jq '.[] | select(.amount < -500000) | {date, amount: (.amount/1000), payee_name, category_name}' ynab-data/transactions.json
 ```
 
-### Category Spending Analysis  
+### Category Spending Analysis
 ```bash
 # Sum spending by category for current year
 jq -r '.[] | select(.date >= "2024-01-01") | select(.amount < 0) | "\(.category_name),\(.amount)"' ynab-data/transactions.json | \
@@ -294,6 +296,6 @@ jq '.accounts[] | select(.closed == false) | {name, balance: (.balance/1000)}' y
 
 ---
 
-**Last Updated**: $(date)  
-**YNAB Budget**: Davis Family Budget  
+**Last Updated**: $(date)
+**YNAB Budget**: Davis Family Budget
 **CLI Tool Version**: Check with `ynab --version`

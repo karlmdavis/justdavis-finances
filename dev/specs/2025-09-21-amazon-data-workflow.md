@@ -2,36 +2,57 @@
 
 ## Executive Summary
 
-The Amazon Data Workflow System manages the complete lifecycle of Amazon order history data extraction, organization, and preparation for transaction matching analysis. It provides a streamlined, multi-account approach to obtaining comprehensive purchase data directly from Amazon's official data export system, replacing manual extraction methods with a reliable, automated workflow.
+The Amazon Data Workflow System manages the complete lifecycle of Amazon order
+  history data extraction, organization, and preparation for transaction matching
+  analysis.
+It provides a streamlined, multi-account approach to obtaining comprehensive purchase
+  data directly from Amazon's official data export system, replacing manual
+  extraction methods with a reliable, automated workflow.
 
 ## Problem Statement
 
 ### Current Pain Points
-1. **Manual Data Extraction**: Manual browser-based order history collection is time-intensive (4-6 hours) and error-prone
-2. **Incomplete Historical Data**: Browser interfaces limit access to complete purchase history
-3. **Multi-Account Complexity**: Managing order data from multiple family Amazon accounts requires coordinated workflow
-4. **Data Organization**: Extracted data needs structured organization for downstream analysis tools
-5. **Update Challenges**: Refreshing order history data involves repeating manual processes
-6. **Format Inconsistency**: Manual extraction creates inconsistent data formats requiring custom processing
+1. **Manual Data Extraction**: Manual browser-based order history collection is
+     time-intensive (4-6 hours) and error-prone
+2. **Incomplete Historical Data**: Browser interfaces limit access to complete
+     purchase history
+3. **Multi-Account Complexity**: Managing order data from multiple family Amazon
+     accounts requires coordinated workflow
+4. **Data Organization**: Extracted data needs structured organization for downstream
+     analysis tools
+5. **Update Challenges**: Refreshing order history data involves repeating manual
+     processes
+6. **Format Inconsistency**: Manual extraction creates inconsistent data formats
+     requiring custom processing
 
 ### Business Impact
-- **Time Investment**: 4-6 hours of active work for manual extraction vs 5 minutes + wait time
-- **Data Quality**: ~95% completeness with manual methods vs 100% with official exports
-- **Analysis Delays**: Inconsistent data formats slow down transaction matching workflows
-- **Maintenance Overhead**: Regular data updates require repeating tedious manual processes
-- **Multi-Account Management**: Household with multiple Amazon accounts creates coordination complexity
+- **Time Investment**: 4-6 hours of active work for manual extraction vs 5 minutes +
+    wait time
+- **Data Quality**: ~95% completeness with manual methods vs 100% with official
+    exports
+- **Analysis Delays**: Inconsistent data formats slow down transaction matching
+    workflows
+- **Maintenance Overhead**: Regular data updates require repeating tedious manual
+    processes
+- **Multi-Account Management**: Household with multiple Amazon accounts creates
+    coordination complexity
 
 ## Success Criteria
 
 ### Primary Goals
-1. **Automated Data Acquisition**: Request Amazon data exports with minimal manual intervention
-2. **Complete Historical Coverage**: Access to 100% of Amazon order history across all accounts
+1. **Automated Data Acquisition**: Request Amazon data exports with minimal manual
+     intervention
+2. **Complete Historical Coverage**: Access to 100% of Amazon order history across
+     all accounts
 3. **Multi-Account Management**: Seamlessly handle multiple family Amazon accounts
-4. **Structured Organization**: Consistent directory structure for automated tool discovery
-5. **Integration Ready**: Data prepared for immediate use by transaction matching systems
+4. **Structured Organization**: Consistent directory structure for automated tool
+     discovery
+5. **Integration Ready**: Data prepared for immediate use by transaction matching
+     systems
 
 ### Measurable Outcomes
-- **Time Efficiency**: Reduce data acquisition from 4-6 hours to 5 minutes of active work
+- **Time Efficiency**: Reduce data acquisition from 4-6 hours to 5 minutes of active
+    work
 - **Data Completeness**: 100% order history capture vs ~95% with manual methods
 - **Account Coverage**: Support for all household Amazon accounts (karl, erica, etc.)
 - **Processing Speed**: Complete extraction and organization in <5 minutes
@@ -107,7 +128,8 @@ The Amazon Data Workflow System manages the complete lifecycle of Amazon order h
 #### Structured Data Organization
 
 **Primary Data Files:**
-- **`Retail.OrderHistory.1/Retail.OrderHistory.1.csv`** - Complete purchase history (most critical)
+- **`Retail.OrderHistory.1/Retail.OrderHistory.1.csv`** - Complete purchase history
+    (most critical)
 - **`Digital-Ordering.1/Digital Orders.csv`** - Digital content purchases
 - **`Retail.CustomerReturns.1/`** - Return and refund history
 - **Additional CSV files** - Specialized order types and payment details
@@ -339,7 +361,8 @@ def load_amazon_data(account=None, data_dir="amazon/data/"):
 1. **Automated Scheduling**: Reminder system for periodic data refresh
 2. **Validation Dashboard**: Visual verification of extracted data quality
 3. **Account Synchronization**: Coordinate multi-account export timing
-4. **Integration Testing**: Automated validation of transaction matching compatibility
+4. **Integration Testing**: Automated validation of transaction matching
+     compatibility
 
 ### Advanced Features
 1. **API Integration**: Direct integration with Amazon's data API (if available)
@@ -384,4 +407,6 @@ def load_amazon_data(account=None, data_dir="amazon/data/"):
 
 ---
 
-This specification provides a complete blueprint for the Amazon Data Workflow System, documenting its official data export integration, multi-account management, and seamless integration with downstream transaction matching tools.
+This specification provides a complete blueprint for the Amazon Data Workflow System,
+  documenting its official data export integration, multi-account management, and
+  seamless integration with downstream transaction matching tools.

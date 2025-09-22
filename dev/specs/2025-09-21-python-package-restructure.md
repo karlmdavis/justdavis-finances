@@ -6,15 +6,20 @@
 
 ## Overview
 
-Transform the current script-based personal finance project into a professional, idiomatic Python package that follows modern Python development practices while maintaining all existing functionality.
+Transform the current script-based personal finance project into a professional,
+  idiomatic Python package that follows modern Python development practices while
+  maintaining all existing functionality.
 
 ## Goals
 
 ### Primary Objectives
-- **Professional Structure**: Adopt standard Python package layout with proper module hierarchy
-- **Maintainability**: Clear separation of concerns and well-defined package boundaries
+- **Professional Structure**: Adopt standard Python package layout with proper
+    module hierarchy
+- **Maintainability**: Clear separation of concerns and well-defined package
+    boundaries
 - **Testability**: Unified testing structure with proper import handling
-- **Extensibility**: Architecture that supports future growth and new financial data sources
+- **Extensibility**: Architecture that supports future growth and new financial data
+    sources
 - **Developer Experience**: Modern tooling and development workflow
 
 ### Secondary Objectives
@@ -26,15 +31,19 @@ Transform the current script-based personal finance project into a professional,
 ## Current State Analysis
 
 ### Structural Issues
-- **Flat Organization**: Domain-based directories (amazon/, apple/, analysis/) without proper package hierarchy
-- **Mixed Concerns**: Scripts, data processing, and analysis intermixed in same directories
+- **Flat Organization**: Domain-based directories (amazon/, apple/, analysis/)
+    without proper package hierarchy
+- **Mixed Concerns**: Scripts, data processing, and analysis intermixed in same
+    directories
 - **Import Dependencies**: Tests rely on `sys.path` manipulation for imports
 - **Data Commingling**: Data files stored alongside source code
 - **No Entry Points**: Inconsistent command-line interfaces across modules
 
 ### Functional Strengths to Preserve
-- **Robust Matching Logic**: Amazon and Apple transaction matching systems with high accuracy
-- **Financial Precision**: Integer arithmetic preventing floating-point currency errors
+- **Robust Matching Logic**: Amazon and Apple transaction matching systems with
+    high accuracy
+- **Financial Precision**: Integer arithmetic preventing floating-point currency
+    errors
 - **Multi-phase Safety**: Generate → Review → Apply workflow for YNAB updates
 - **Comprehensive Testing**: Good test coverage for core functionality
 
@@ -43,25 +52,30 @@ Transform the current script-based personal finance project into a professional,
 ### Package Layout Principles
 
 #### Source Layout (`src/finances/`)
-- **Domain Packages**: Separate packages for each financial data source (e.g., amazon, apple, ynab)
+- **Domain Packages**: Separate packages for each financial data source (e.g.,
+    amazon, apple, ynab)
 - **Core Utilities**: Shared business logic and utilities in dedicated core package
-- **Layered Architecture**: Clear separation between CLI, business logic, and data access
+- **Layered Architecture**: Clear separation between CLI, business logic, and data
+    access
 - **Unified Interface**: Consistent APIs across different domain packages
 
 #### Data Separation
 - **External Data Directory**: All financial data stored outside source tree
-- **Configurable Paths**: Data locations configurable via environment or config files
+- **Configurable Paths**: Data locations configurable via environment or config
+    files
 - **Secure Defaults**: Gitignore patterns protect sensitive financial information
 
 #### Testing Structure
 - **Centralized Tests**: All tests under single `tests/` hierarchy
 - **Mirror Source Layout**: Test structure mirrors source package organization
 - **Shared Fixtures**: Common test data and utilities in centralized location
-- **Multiple Test Types**: Unit tests for individual components, integration tests for workflows
+- **Multiple Test Types**: Unit tests for individual components, integration tests
+    for workflows
 
 ### Domain Package Design
 
-Each financial data source (Amazon, Apple, etc.) follows consistent internal structure:
+Each financial data source (Amazon, Apple, etc.) follows consistent internal
+  structure:
 
 #### Models Layer
 - Data classes representing domain concepts (orders, receipts, transactions)

@@ -2,37 +2,57 @@
 
 ## Executive Summary
 
-The Amazon Transaction Matching System creates automated linkage between Amazon order history data and corresponding YNAB credit card transactions. This solves the challenge of understanding what Amazon purchases comprise each consolidated credit card charge, enabling accurate categorization and spending analysis across the Davis family's multiple Amazon accounts.
+The Amazon Transaction Matching System creates automated linkage between Amazon order
+  history data and corresponding YNAB credit card transactions.
+This solves the challenge of understanding what Amazon purchases comprise each
+  consolidated credit card charge, enabling accurate categorization and spending
+  analysis across the Davis family's multiple Amazon accounts.
 
 ## Problem Statement
 
 ### Current Pain Points
-1. **Opaque Amazon Charges**: YNAB shows consolidated Amazon charges (e.g., "$89.99 from AMZN Mktp US*RT4Y12") without details of what was purchased
-2. **Manual Investigation Required**: Each Amazon transaction requires manual order history searching to understand the underlying purchases
-3. **Multi-Item Complexity**: Single orders with multiple items, shipping across different days, create complex matching scenarios
-4. **Multi-Account Management**: Household has multiple Amazon accounts (karl, erica) with purchases appearing on shared credit cards
-5. **Split Payment Scenarios**: Large orders may be split across multiple payment methods or billing cycles
-6. **Historical Data Volume**: Years of Amazon transactions lack proper categorization and item-level detail
+1. **Opaque Amazon Charges**: YNAB shows consolidated Amazon charges (e.g.,
+     "$89.99 from AMZN Mktp US*RT4Y12") without details of what was purchased
+2. **Manual Investigation Required**: Each Amazon transaction requires manual order
+     history searching to understand the underlying purchases
+3. **Multi-Item Complexity**: Single orders with multiple items, shipping across
+     different days, create complex matching scenarios
+4. **Multi-Account Management**: Household has multiple Amazon accounts (karl, erica)
+     with purchases appearing on shared credit cards
+5. **Split Payment Scenarios**: Large orders may be split across multiple payment
+     methods or billing cycles
+6. **Historical Data Volume**: Years of Amazon transactions lack proper categorization
+     and item-level detail
 
 ### Business Impact
-- **Time Cost**: 10-15 minutes per Amazon transaction for manual matching and categorization
-- **Analysis Limitations**: Cannot track product category spending, seasonal patterns, or individual item costs
-- **Budget Accuracy**: Amazon purchases (potentially $200+/month) are inadequately categorized
-- **Financial Insights**: Missing visibility into shopping patterns, bulk purchase optimization, and subscription management
+- **Time Cost**: 10-15 minutes per Amazon transaction for manual matching and
+    categorization
+- **Analysis Limitations**: Cannot track product category spending, seasonal patterns,
+    or individual item costs
+- **Budget Accuracy**: Amazon purchases (potentially $200+/month) are inadequately
+    categorized
+- **Financial Insights**: Missing visibility into shopping patterns, bulk purchase
+    optimization, and subscription management
 
 ## Success Criteria
 
 ### Primary Goals
-1. **95% Match Coverage**: Nearly all Amazon transactions find corresponding order matches with high confidence
-2. **Automated Processing**: No manual intervention required for standard matching scenarios
-3. **Multi-Strategy Architecture**: Handle complete orders, split payments, and fuzzy matching scenarios
+1. **95% Match Coverage**: Nearly all Amazon transactions find corresponding order
+     matches with high confidence
+2. **Automated Processing**: No manual intervention required for standard matching
+     scenarios
+3. **Multi-Strategy Architecture**: Handle complete orders, split payments, and fuzzy
+     matching scenarios
 4. **Multi-Account Support**: Seamlessly process all household Amazon accounts
-5. **Historical Coverage**: Process years of existing Amazon order history and transactions
+5. **Historical Coverage**: Process years of existing Amazon order history and
+     transactions
 
 ### Measurable Outcomes
-- **Match Rate**: ≥94% of Amazon transactions automatically matched with confidence ≥0.8
+- **Match Rate**: ≥94% of Amazon transactions automatically matched with confidence
+    ≥0.8
 - **Processing Speed**: Complete monthly batch processing in <60 seconds
-- **Time Savings**: Reduce Amazon transaction processing from 15 minutes to <2 minutes per transaction
+- **Time Savings**: Reduce Amazon transaction processing from 15 minutes to <2
+    minutes per transaction
 - **Item Detail Coverage**: Enable item-level categorization for Amazon purchases
 
 ## Functional Requirements
@@ -41,7 +61,8 @@ The Amazon Transaction Matching System creates automated linkage between Amazon 
 
 #### Amazon Order History Data
 - **Source**: CSV files from Amazon data exports in `amazon/data/` directories
-- **Multi-Account Structure**: Support `YYYY-MM-DD_accountname_amazon_data/` naming convention
+- **Multi-Account Structure**: Support `YYYY-MM-DD_accountname_amazon_data/` naming
+    convention
 - **Coverage**: All accounts automatically discovered and processed
 - **Historical Scope**: Process all available order history
 - **Data Fields Required**:
@@ -184,7 +205,8 @@ The system employs a **3-strategy architecture** designed for clean, maintainabl
 ### Multi-Day Order Processing
 
 #### Problem
-Amazon orders may ship across multiple days, with separate credit card charges for each shipment date.
+Amazon orders may ship across multiple days, with separate credit card charges for
+  each shipment date.
 
 #### Solution
 1. **Order Discovery**: Identify all shipments belonging to same order ID
@@ -252,7 +274,8 @@ python analysis/amazon_transaction_matching/match_transactions_batch.py \
 
 ### Error Recovery
 
-1. **Graceful Degradation**: Skip problematic orders/transactions without stopping batch
+1. **Graceful Degradation**: Skip problematic orders/transactions without stopping
+     batch
 2. **Detailed Logging**: Comprehensive error reporting with context
 3. **Retry Logic**: Handle transient issues with order data loading
 4. **Debug Mode**: Verbose output for troubleshooting complex scenarios
@@ -277,7 +300,8 @@ python analysis/amazon_transaction_matching/match_transactions_batch.py \
 ## Future Enhancements
 
 ### Near-Term Improvements
-1. **Machine Learning Confidence**: Improve confidence scoring with historical success data
+1. **Machine Learning Confidence**: Improve confidence scoring with historical
+     success data
 2. **Subscription Detection**: Identify and tag recurring Amazon purchases
 3. **Category Suggestions**: Recommend YNAB categories based on Amazon product data
 4. **Real-Time Processing**: Support incremental matching for new transactions
@@ -318,4 +342,6 @@ python analysis/amazon_transaction_matching/match_transactions_batch.py \
 
 ---
 
-This specification provides a complete blueprint for the Amazon Transaction Matching System, documenting its 3-strategy architecture, multi-day order handling, and 94.7% match rate achievement.
+This specification provides a complete blueprint for the Amazon Transaction Matching
+  System, documenting its 3-strategy architecture, multi-day order handling, and
+  94.7% match rate achievement.
