@@ -146,7 +146,7 @@ Consider scheduling regular data updates using cron:
 crontab -e
 
 # Add entry for daily updates at 6 AM
-0 6 * * * cd /Users/karl/workspaces/justdavis/personal/finances && /path/to/refresh-ynab-data.sh >> ynab-data/refresh.log 2>&1
+0 6 * * * cd /Users/karl/workspaces/justdavis/personal/justdavis-finances && /path/to/refresh-ynab-data.sh >> ynab-data/refresh.log 2>&1
 ```
 
 ### Rate Limiting Considerations

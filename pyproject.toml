@@ -59,9 +59,9 @@ docs = [
 finances = "finances.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/justdavis/personal-finances"
-Repository = "https://github.com/justdavis/personal-finances"
-Issues = "https://github.com/justdavis/personal-finances/issues"
+Homepage = "https://github.com/karlmdavis/justdavis-finances"
+Repository = "https://github.com/karlmdavis/justdavis-finances"
+Issues = "https://github.com/karlmdavis/justdavis-finances/issues"
 
 # Package configuration
 [tool.hatch.build.targets.wheel]

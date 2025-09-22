@@ -24,7 +24,7 @@ See [CONTRIBUTORS.md](CONTRIBUTORS.md) for comprehensive development documentati
 ```bash
 # Clone repository
 git clone <repository-url>
-cd finances
+cd justdavis-finances
 
 # Install dependencies
 uv sync

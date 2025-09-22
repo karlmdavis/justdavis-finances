@@ -171,7 +171,7 @@ maintains strict integer-only arithmetic for all financial calculations to ensur
 5. **Timestamps**: Use format `YYYY-MM-DD_HH-MM-SS_filename` for all generated files
 6. **Path handling**: Use package-relative paths and configuration-based directory resolution
 7. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/` naming in `data/amazon/raw/`
-8. **Working directory**: Repository root (`personal/finances/`) is the standard working directory
+8. **Working directory**: Repository root (`personal/justdavis-finances/`) is the standard working directory
 9. **Package execution**: Use `finances` CLI or `uv run finances` for all operations
 10. **Development**: Use `uv run python -c ...` for ad-hoc Python with package imports
 11. **Markdown formatting**: When editing documentation files (README.md, CLAUDE.md), follow the existing line wrapping style:

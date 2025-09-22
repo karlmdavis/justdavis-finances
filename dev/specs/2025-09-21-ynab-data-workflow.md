@@ -272,10 +272,10 @@ validate_data() {
 #### Cron Configuration
 ```bash
 # Daily refresh at 6 AM
-0 6 * * * cd /Users/karl/workspaces/justdavis/personal/finances && ./scripts/refresh-ynab-data.sh >> ynab-data/refresh.log 2>&1
+0 6 * * * cd /Users/karl/workspaces/justdavis/personal/justdavis-finances && ./scripts/refresh-ynab-data.sh >> ynab-data/refresh.log 2>&1
 
 # Weekly full validation at 6 AM Sunday
-0 6 * * 0 cd /Users/karl/workspaces/justdavis/personal/finances && ./scripts/validate-ynab-cache.sh >> ynab-data/validation.log 2>&1
+0 6 * * 0 cd /Users/karl/workspaces/justdavis/personal/justdavis-finances && ./scripts/validate-ynab-cache.sh >> ynab-data/validation.log 2>&1
 ```
 
 #### Manual Refresh Interface
