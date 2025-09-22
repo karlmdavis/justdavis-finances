@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Karl Davis", email = "user@example.com"},
+    {name = "Karl Davis", email = "karl@justdavis.com"},
 ]
 keywords = ["finance", "ynab", "amazon", "apple", "transaction-matching"]
 classifiers = [
