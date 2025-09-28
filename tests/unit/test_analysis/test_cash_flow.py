@@ -335,6 +335,7 @@ class TestCashFlowAnalyzer:
         account_columns = [col for col in analyzer.df.columns
                           if col in analyzer.config.cash_accounts]
         calculated_total = analyzer.df[account_columns].sum(axis=1)
+        calculated_total.name = 'Total'  # Set the name to match
 
         # Should be approximately equal (allowing for small floating point differences)
         pd.testing.assert_series_equal(
@@ -413,6 +414,10 @@ class TestCashFlowEdgeCases:
         # Write invalid JSON
         with open(ynab_cache_dir / "accounts.json", 'w') as f:
             f.write("invalid json {")
+
+        # Also create transactions.json so file existence check passes
+        with open(ynab_cache_dir / "transactions.json", 'w') as f:
+            f.write("[]")  # Valid empty JSON for transactions
 
         config = CashFlowConfig(
             cash_accounts=['Test Account'],

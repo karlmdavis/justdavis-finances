@@ -284,7 +284,7 @@ class TestAppleMatchingStrategies:
         }
 
         receipt = {
-            'receipt_date': '2024-08-15',
+            'receipt_date': 'Aug 15, 2024',
             'total': 29.99,
             'apple_id': 'test@example.com',
             'items': [{'title': 'Test App', 'cost': 29.99}]
@@ -303,7 +303,7 @@ class TestAppleMatchingStrategies:
         }
 
         receipt = {
-            'receipt_date': '2024-08-15',
+            'receipt_date': 'Aug 15, 2024',
             'total': 29.99,
             'apple_id': 'test@example.com',
             'items': [{'title': 'Test App', 'cost': 29.99}]
@@ -394,7 +394,7 @@ class TestAppleEdgeCases:
         transaction = {
             'id': 'test-small',
             'date': '2024-08-15',
-            'amount': -99,  # $0.99
+            'amount': -990,  # $0.99 in milliunits
             'payee_name': 'Apple Store'
         }
 
@@ -403,8 +403,8 @@ class TestAppleEdgeCases:
                 'order_id': 'small-purchase',
                 'receipt_date': 'Aug 15, 2024',
                 'apple_id': 'test@example.com',
-                'total': 0.99,
-                'items': [{'title': 'Small In-App Purchase', 'cost': 0.99}]
+                'total': 99,  # $0.99 in cents
+                'items': [{'title': 'Small In-App Purchase', 'cost': 99}]  # $0.99 in cents
             }
         ]
 
@@ -456,7 +456,7 @@ class TestAppleReceiptParsing:
         # Valid receipt
         valid_receipt = {
             'order_id': 'ML7PQ2XYZ',
-            'receipt_date': '2024-08-15',
+            'receipt_date': 'Aug 15, 2024',
             'apple_id': 'test@example.com',
             'total': 29.99,
             'items': [{'title': 'Test App', 'cost': 29.99}]
@@ -465,7 +465,7 @@ class TestAppleReceiptParsing:
         # Invalid receipts missing required fields
         invalid_receipts = [
             {'order_id': 'ML7PQ2XYZ'},  # Missing date, total, items
-            {'receipt_date': '2024-08-15'},  # Missing order_id, total, items
+            {'receipt_date': 'Aug 15, 2024'},  # Missing order_id, total, items
             {'total': 29.99},  # Missing order_id, date, items
         ]
 

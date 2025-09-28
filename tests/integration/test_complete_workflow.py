@@ -25,21 +25,18 @@ class TestAmazonWorkflow:
         raw_dir.mkdir(parents=True)
         matches_dir.mkdir(parents=True)
 
-        # Sample order data
+        # Sample order data - using actual Amazon CSV column names
         orders = [
             {
-                'order_id': '111-2223334-5556667',
-                'order_date': '2024-08-15',
-                'ship_date': '2024-08-15',
-                'total': 4599,
-                'items': [
-                    {
-                        'name': 'Echo Dot (4th Gen)',
-                        'quantity': 1,
-                        'amount': 4599,
-                        'asin': 'B084J4KNDS'
-                    }
-                ]
+                'Order ID': '111-2223334-5556667',
+                'Order Date': '2024-08-15',
+                'Ship Date': '2024-08-15',
+                'Total Owed': '$45.99',
+                'Title': 'Echo Dot (4th Gen)',
+                'Quantity': 1,
+                'ASIN/ISBN': 'B084J4KNDS',
+                'Item Subtotal': '$45.99',
+                'Item Tax': '$0.00'
             }
         ]
 
@@ -68,8 +65,11 @@ class TestAmazonWorkflow:
         matcher = SimplifiedMatcher()
         matches = []
 
-        # Convert orders to account_data format
-        account_data = {'test_account': (pd.DataFrame(orders), pd.DataFrame())}
+        # Convert orders to account_data format with proper date handling
+        orders_df = pd.DataFrame(orders)
+        orders_df['Order Date'] = pd.to_datetime(orders_df['Order Date'])
+        orders_df['Ship Date'] = pd.to_datetime(orders_df['Ship Date'])
+        account_data = {'test_account': (orders_df, pd.DataFrame())}
 
         for transaction in transactions:
             result = matcher.match_transaction(transaction, account_data)
@@ -86,17 +86,18 @@ class TestAmazonWorkflow:
         splits_results = []
         for match_data in matches:
             transaction = match_data['transaction']
-            order = match_data['match']['order']
+            amazon_orders = match_data['match']['amazon_orders']
 
             # Convert order items to split format
             items = []
-            for item in order['items']:
-                items.append({
-                    'name': item['name'],
-                    'amount': item['amount'],
-                    'quantity': item['quantity'],
-                    'unit_price': item['amount'] // item['quantity']
-                })
+            for order in amazon_orders:
+                for item in order['items']:
+                    items.append({
+                        'name': item['name'],
+                        'amount': item['amount'],
+                        'quantity': item['quantity'],
+                        'unit_price': item['amount'] // item['quantity']
+                    })
 
             splits = calculate_amazon_splits(transaction['amount'], items)
             splits_results.append({
@@ -128,19 +129,19 @@ class TestAppleWorkflow:
         exports_dir.mkdir(parents=True)
         matches_dir.mkdir(parents=True)
 
-        # Sample receipt data
+        # Sample receipt data (amounts in cents)
         receipts = [
             {
                 'order_id': 'ML7PQ2XYZ',
-                'receipt_date': '2024-08-15',
+                'receipt_date': 'Aug 15, 2024',  # Proper Apple date format
                 'apple_id': 'test@example.com',
-                'subtotal': 29.99,
-                'tax': 2.98,
-                'total': 32.97,
+                'subtotal': 2999,  # $29.99 in cents
+                'tax': 298,  # $2.98 in cents
+                'total': 3297,  # $32.97 in cents
                 'items': [
                     {
                         'title': 'Procreate',
-                        'cost': 29.99
+                        'cost': 2999  # $29.99 in cents
                     }
                 ]
             }
@@ -188,14 +189,36 @@ class TestAppleWorkflow:
         splits_results = []
         for match_data in matches:
             transaction = match_data['transaction']
-            receipt = match_data['match']['receipt']
+            match_result = match_data['match']
+            # Get the first matched receipt from the MatchResult object
+            receipt = match_result.receipts[0] if match_result.receipts else None
 
-            splits = calculate_apple_splits(transaction['amount'], receipt)
+            # Convert Receipt object to the format expected by calculate_apple_splits
+            if receipt:
+                # Transform Apple item format to expected format
+                transformed_items = []
+                for item in receipt.items:
+                    transformed_items.append({
+                        'name': item['title'],  # Apple uses 'title'
+                        'price': item['cost']   # Apple uses 'cost'
+                    })
+
+                splits = calculate_apple_splits(
+                    transaction_amount=transaction['amount'],
+                    apple_items=transformed_items,
+                    receipt_subtotal=receipt.subtotal,
+                    receipt_tax=receipt.tax_amount
+                )
+                receipt_id = receipt.id
+            else:
+                splits = []
+                receipt_id = None
+
             splits_results.append({
                 'transaction_id': transaction['id'],
                 'splits': splits,
-                'receipt_id': receipt['order_id'],
-                'apple_id': receipt['apple_id']
+                'receipt_id': receipt_id,
+                'apple_id': receipt.customer_id if receipt else None
             })
 
         assert len(splits_results) > 0
@@ -410,19 +433,19 @@ class TestCrossSystemIntegration:
                 'items': [
                     {
                         'title': 'Final Cut Pro',
-                        'cost': 299.99
+                        'cost': 29999  # $299.99 in cents
                     },
                     {
                         'title': 'Logic Pro',
-                        'cost': 299.99
+                        'cost': 29999  # $299.99 in cents
                     },
                     {
                         'title': 'Motion',
-                        'cost': 49.99
+                        'cost': 4999  # $49.99 in cents
                     },
                     {
                         'title': 'Compressor',
-                        'cost': 49.99
+                        'cost': 4999  # $49.99 in cents
                     }
                 ]
             },
@@ -430,18 +453,29 @@ class TestCrossSystemIntegration:
         }
 
         # Generate splits
+        # Transform Apple item format to expected format
+        transformed_items = []
+        for item in apple_match['receipt']['items']:
+            transformed_items.append({
+                'name': item['title'],  # Apple uses 'title'
+                'price': item['cost']   # Apple uses 'cost'
+            })
+
         splits = calculate_apple_splits(
             apple_match['transaction']['amount'],
-            apple_match['receipt']
+            transformed_items,
+            receipt_subtotal=apple_match['receipt']['total']
         )
 
         # Validate mutation structure
         assert len(splits) == 4
         assert sum(split['amount'] for split in splits) == apple_match['transaction']['amount']
 
-        # Check Apple ID attribution
-        for split in splits:
-            assert apple_match['receipt']['apple_id'] in split['memo']
+        # Check that splits have the expected item names as memos
+        expected_titles = ['Final Cut Pro', 'Logic Pro', 'Motion', 'Compressor']
+        actual_memos = [split['memo'] for split in splits]
+        for title in expected_titles:
+            assert title in actual_memos
 
     @pytest.mark.integration
     def test_configuration_integration(self, temp_dir):

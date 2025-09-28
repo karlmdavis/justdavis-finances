@@ -111,7 +111,7 @@ class Config:
 
         # Base directories
         if env == Environment.TEST:
-            base_dir = Path("/tmp/test_finances")
+            base_dir = Path(os.getenv("FINANCES_DATA_DIR", "/tmp/test_finances"))
         else:
             base_dir = Path(os.getenv("FINANCES_DATA_DIR", "./data")).expanduser().resolve()
 

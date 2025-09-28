@@ -106,6 +106,11 @@ def normalize_apple_receipt_data(receipts: List[Dict[str, Any]]) -> pd.DataFrame
             receipt_date_str = receipt.get('receipt_date', '')
             receipt_date = parse_apple_date(receipt_date_str)
 
+            # Skip receipts without valid dates
+            if receipt_date is None:
+                print(f"Warning: Skipping receipt {receipt.get('order_id', 'unknown')} due to invalid date: '{receipt_date_str}'")
+                continue
+
             # Get total amount (already in cents from parsing)
             total = receipt.get('total', 0)
             if total is None:
