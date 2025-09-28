@@ -69,12 +69,16 @@ from .amazon import amazon
 from .apple import apple
 from .ynab import ynab
 from .cashflow import cashflow
+from .retirement import retirement
+from .flow import flow
 
 # Register subcommands
 main.add_command(amazon)
 main.add_command(apple)
 main.add_command(ynab)
 main.add_command(cashflow)
+main.add_command(retirement)
+main.add_command(flow)
 
 
 if __name__ == '__main__':

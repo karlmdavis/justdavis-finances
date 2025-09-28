@@ -9,7 +9,9 @@
             except when required by Markdown's formatting rules,
             such as for code blocks inside a list.
     - [ ] Files should end with a line break, per POSIX.
+- [ ] Rename the YNAB "mutations" to "edits".
+- [ ] JSON file outputs should be pretty-printed, for readability and searchability.
 
 ## Major Items
 
-_(None at this time.)_
+- [ ] Implement @dev/specs/2025-09-21-code-quality.md, to add lints and CI and such.

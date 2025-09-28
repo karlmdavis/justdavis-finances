@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from ..amazon import SimplifiedMatcher
+from ..amazon.unzipper import extract_amazon_zip_files
 from ..core.config import get_config
 
 
@@ -174,6 +175,94 @@ def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
+        raise click.ClickException(str(e))
+
+
+@amazon.command()
+@click.option('--download-dir', required=True, help='Directory containing downloaded ZIP files')
+@click.option('--accounts', multiple=True, help='Filter by specific account names (karl, erica)')
+@click.option('--output-dir', help='Override output directory (default: data/amazon/raw)')
+@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.pass_context
+def unzip(ctx: click.Context, download_dir: str, accounts: tuple,
+          output_dir: Optional[str], verbose: bool) -> None:
+    """
+    Extract Amazon order history ZIP files to structured directories.
+
+    Downloads Amazon order history as ZIP files and extracts them to organized
+    directory structure for downstream processing. Each ZIP file is extracted to
+    a timestamped directory named with the detected account.
+
+    Examples:
+      finances amazon unzip --download-dir ~/Downloads
+      finances amazon unzip --download-dir ~/Downloads --accounts karl erica
+      finances amazon unzip --download-dir ~/Downloads --output-dir data/amazon/raw
+    """
+    config = get_config()
+
+    # Determine output directory
+    if output_dir:
+        raw_data_path = Path(output_dir)
+    else:
+        raw_data_path = config.data_dir / "amazon" / "raw"
+
+    download_path = Path(download_dir)
+
+    if verbose or ctx.obj.get('verbose', False):
+        click.echo(f"Amazon Order History Unzip")
+        click.echo(f"Download directory: {download_path}")
+        click.echo(f"Output directory: {raw_data_path}")
+        click.echo(f"Account filter: {list(accounts) if accounts else 'all'}")
+        click.echo()
+
+    # Validate download directory
+    if not download_path.exists():
+        raise click.ClickException(f"Download directory does not exist: {download_path}")
+
+    try:
+        # Extract ZIP files
+        account_filter = list(accounts) if accounts else None
+        result = extract_amazon_zip_files(download_path, raw_data_path, account_filter)
+
+        # Display results
+        if result['success']:
+            click.echo(f"✅ {result['message']}")
+
+            if result['files_processed'] > 0:
+                click.echo(f"\nExtractions completed:")
+                for extraction in result['extractions']:
+                    click.echo(f"  📁 {extraction['output_directory']}")
+                    click.echo(f"     Account: {extraction['account_name']}")
+                    click.echo(f"     Files: {extraction['files_extracted']} ({len(extraction['csv_files'])} CSV)")
+
+        else:
+            click.echo(f"⚠️  {result['message']}")
+
+            # Show successful extractions
+            if result['extractions']:
+                click.echo(f"\nSuccessful extractions:")
+                for extraction in result['extractions']:
+                    click.echo(f"  ✅ {extraction['output_directory']}")
+
+            # Show errors
+            if result['errors']:
+                click.echo(f"\nErrors encountered:")
+                for error in result['errors']:
+                    click.echo(f"  ❌ {error['zip_file']}: {error['error']}")
+
+        # Show summary
+        click.echo(f"\nSummary:")
+        click.echo(f"  Files processed: {result['files_processed']}")
+        if result['files_failed'] > 0:
+            click.echo(f"  Files failed: {result['files_failed']}")
+
+        # Output JSON for programmatic use
+        if verbose:
+            click.echo("\nDetailed Results (JSON):")
+            click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(f"❌ Error during unzip: {e}", err=True)
         raise click.ClickException(str(e))
 
 
