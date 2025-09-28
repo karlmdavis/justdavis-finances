@@ -10,10 +10,12 @@ Features high-accuracy transaction matching for Amazon and Apple purchases, cash
   and professional CLI tools.
 
 **Key Features:**
+- **Financial Flow System**: Single-command orchestration with dependency management and change detection
 - **Amazon Transaction Matching**: 94.7% accuracy with 3-strategy matching system
 - **Apple Receipt Processing**: 85.1% match rate with email integration
 - **Cash Flow Analysis**: Multi-timeframe analysis with statistical modeling
 - **YNAB Integration**: Secure transaction updates with audit trails
+- **Retirement Account Tracking**: Interactive balance management with YNAB integration
 - **Professional CLI**: Unified command-line interface for all operations
 
 ## For Developers
@@ -43,22 +45,75 @@ uv pip install -e .
 # View available commands
 finances --help
 
-# Analyze cash flow
-finances cashflow analyze --start 2024-01-01 --end 2024-12-31
+# Execute complete financial update pipeline (recommended)
+finances flow execute
 
-# Match Amazon transactions
+# Validate flow configuration
+finances flow validate
+
+# View dependency graph
+finances flow graph
+
+# Individual commands (for specific tasks)
 finances amazon match --start 2024-07-01 --end 2024-07-31
-
-# Fetch and parse Apple receipts
 finances apple fetch-emails --days-back 30
-finances apple parse-receipts --input-dir data/apple/emails/
-
-# Generate YNAB transaction splits
-finances ynab generate-splits --input-file data/amazon/transaction_matches/results.json
+finances cashflow analyze --start 2024-01-01 --end 2024-12-31
+finances retirement update
 ```
 
 
 ## Core Features
+
+### Financial Flow System
+
+Intelligent orchestration of the complete financial data pipeline with dependency management,
+  change detection, and transactional consistency.
+
+**Benefits:**
+- **Single Command**: Replaces 10+ manual commands with `finances flow execute`
+- **Dependency Management**: Automatic execution ordering based on data dependencies
+- **Change Detection**: Only processes data that has actually changed
+- **Transactional Integrity**: Pre-execution archiving ensures data consistency
+- **Interactive Mode**: Prompts for manual steps (downloads, review confirmations)
+- **Non-Interactive Mode**: Automated execution for scheduled runs
+
+**Key Nodes and Dependencies:**
+- **YNAB Sync** → Amazon/Apple Matching → Split Generation → YNAB Apply
+- **Amazon Unzip** → Amazon Matching (when new ZIP files detected)
+- **Apple Email Fetch** → Apple Receipt Parsing → Apple Matching
+- **Retirement Updates** → YNAB Account Updates (independent)
+- **Cash Flow Analysis** (triggered by YNAB data changes)
+
+**Usage:**
+```bash
+# Execute complete pipeline with change detection
+finances flow execute
+
+# Dry run to see what would execute
+finances flow execute --dry-run --verbose
+
+# Force execution of all nodes regardless of changes
+finances flow execute --force
+
+# Execute specific nodes only
+finances flow execute --nodes ynab_sync --nodes amazon_matching
+
+# Non-interactive mode for automation
+finances flow execute --non-interactive
+
+# Execute with date filters
+finances flow execute --start 2024-07-01 --end 2024-07-31
+
+# View execution plan without running
+finances flow graph
+```
+
+**Archive Management:**
+The flow system automatically creates compressed archives before execution:
+- **Location**: `data/{domain}/archive/YYYY-MM-DD-NNN.tar.gz`
+- **Purpose**: Rollback capability and audit trails
+- **Retention**: All archives preserved indefinitely
+- **Metadata**: Complete execution context and trigger reasons
 
 ### Amazon Transaction Matching
 
@@ -73,6 +128,12 @@ Automated matching of YNAB transactions to Amazon order data with industry-leadi
 
 **Usage:**
 ```bash
+# Extract downloaded Amazon order history ZIP files
+finances amazon unzip --download-dir ~/Downloads
+
+# Extract specific accounts only
+finances amazon unzip --download-dir ~/Downloads --accounts karl erica
+
 # Match transactions for a date range
 finances amazon match --start 2024-07-01 --end 2024-07-31
 
@@ -162,6 +223,52 @@ finances ynab apply-mutations \
 finances ynab sync-cache --days 30
 ```
 
+### Retirement Account Management
+
+Interactive retirement account balance tracking with YNAB integration for keeping investment
+  accounts in sync.
+
+**Features:**
+- **Account tracking**: Manage multiple retirement accounts (401k, 403b, IRA, Roth IRA)
+- **Balance history**: Track balance changes over time with adjustments
+- **YNAB integration**: Generate adjustment transactions for balance changes
+- **Interactive workflow**: Guided prompts for balance updates
+- **Multi-provider support**: Works with any retirement account provider
+
+**Usage:**
+```bash
+# List tracked retirement accounts with current balances
+finances retirement list-accounts
+
+# Update account balances interactively
+finances retirement update
+
+# Update specific accounts only
+finances retirement update --account karl_401k --account erica_403b
+
+# Update with specific date
+finances retirement update --date 2024-07-31
+
+# Save YNAB transactions to file for review
+finances retirement update --output-file retirement_updates.yaml
+
+# View balance history
+finances retirement history --account karl_401k --limit 10
+```
+
+**Account Configuration:**
+The system tracks accounts in `data/retirement/accounts.yaml` with default accounts:
+- **karl_401k**: 401k account with Fidelity
+- **erica_403b**: 403b account with TIAA
+- **karl_ira**: IRA account with Vanguard
+
+**Balance History:**
+All balance updates are stored in `data/retirement/balance_history.yaml` with:
+- Date and timestamp of each update
+- Previous and new balance amounts
+- Calculated adjustments
+- Optional notes for each update
+
 ## Configuration
 
 ### Environment Variables
@@ -188,9 +295,14 @@ EMAIL_IMAP_PORT=993              # IMAP port
 The system automatically creates and manages data directories:
 
 - `data/amazon/raw/`: Amazon order history files
+- `data/amazon/archive/`: Transaction archives before processing
 - `data/apple/emails/`: Apple receipt emails
+- `data/apple/exports/`: Parsed Apple receipt data
 - `data/ynab/cache/`: Cached YNAB data
+- `data/ynab/mutations/`: Generated transaction updates
+- `data/retirement/`: Retirement account balance history
 - `data/cash_flow/charts/`: Generated analysis dashboards
+- `data/cache/flow/`: Flow system change detection metadata
 
 All sensitive financial data is gitignored for security.
 
@@ -231,6 +343,34 @@ ls data/apple/exports/
 
 # Check date ranges
 finances amazon match --start 2024-07-01 --end 2024-07-31 --verbose
+```
+
+**Flow execution issues:**
+```bash
+# Validate flow configuration
+finances flow validate
+
+# Check what would execute without running
+finances flow execute --dry-run --verbose
+
+# View dependency graph
+finances flow graph
+
+# Force execution to bypass change detection
+finances flow execute --force --dry-run
+
+# Check flow cache state
+ls -la data/cache/flow/
+```
+
+**Flow reports no changes to execute:**
+```bash
+# This is normal - the system only processes changed data
+# To force execution of all nodes:
+finances flow execute --force
+
+# To check what changes are detected:
+finances flow execute --dry-run --verbose
 ```
 
 ## License
