@@ -6,7 +6,6 @@ Professional command-line interface for Amazon transaction matching.
 """
 
 import click
-import json
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List
@@ -14,6 +13,7 @@ from typing import Optional, List
 from ..amazon import SimplifiedMatcher
 from ..amazon.unzipper import extract_amazon_zip_files
 from ..core.config import get_config
+from ..core.json_utils import write_json, format_json
 
 
 @click.group()
@@ -96,8 +96,7 @@ def match(ctx: click.Context, start: str, end: str, accounts: tuple,
         }
 
         # Write result file
-        with open(output_file, 'w') as f:
-            json.dump(result, f, indent=2)
+        write_json(output_file, result)
 
         click.echo(f"✅ Results saved to: {output_file}")
 
@@ -171,7 +170,7 @@ def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int
 
         # Output JSON for programmatic use
         click.echo("\nJSON Result:")
-        click.echo(json.dumps(result, indent=2))
+        click.echo(format_json(result))
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
@@ -259,7 +258,7 @@ def unzip(ctx: click.Context, download_dir: str, accounts: tuple,
         # Output JSON for programmatic use
         if verbose:
             click.echo("\nDetailed Results (JSON):")
-            click.echo(json.dumps(result, indent=2))
+            click.echo(format_json(result))
 
     except Exception as e:
         click.echo(f"❌ Error during unzip: {e}", err=True)

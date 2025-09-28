@@ -6,12 +6,13 @@ Handles cases where Amazon splits a single order into multiple credit card trans
 Tracks which items have been matched to prevent double-counting.
 """
 
-import json
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Set
 from collections import defaultdict
 import pandas as pd
+
+from ..core.json_utils import write_json_with_defaults, read_json
 
 
 class SplitPaymentMatcher:
@@ -44,14 +45,13 @@ class SplitPaymentMatcher:
             return
 
         try:
-            with open(self.cache_file, 'r') as f:
-                data = json.load(f)
-                # Convert lists back to sets
-                self.matched_items = {
-                    order_id: set(items)
-                    for order_id, items in data.get('matched_items', {}).items()
-                }
-                self.transaction_matches = data.get('transaction_matches', {})
+            data = read_json(self.cache_file)
+            # Convert lists back to sets
+            self.matched_items = {
+                order_id: set(items)
+                for order_id, items in data.get('matched_items', {}).items()
+            }
+            self.transaction_matches = data.get('transaction_matches', {})
         except Exception as e:
             print(f"Warning: Could not load cache: {e}")
 
@@ -70,8 +70,7 @@ class SplitPaymentMatcher:
                 'timestamp': datetime.now().isoformat()
             }
 
-            with open(self.cache_file, 'w') as f:
-                json.dump(data, f, indent=2)
+            write_json_with_defaults(self.cache_file, data)
         except Exception as e:
             print(f"Warning: Could not save cache: {e}")
 

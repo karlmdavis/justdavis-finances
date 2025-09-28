@@ -6,7 +6,6 @@ Professional command-line interface for YNAB transaction updates.
 """
 
 import click
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -14,6 +13,7 @@ from typing import Optional, List
 from ..ynab import calculate_amazon_splits, calculate_apple_splits
 from ..core.config import get_config
 from ..core.models import Transaction
+from ..core.json_utils import write_json
 
 
 @click.group()
@@ -131,8 +131,7 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
         }
 
         # Write edit file
-        with open(output_file, 'w') as f:
-            json.dump(edit_data, f, indent=2)
+        write_json(output_file, edit_data)
 
         # Display summary
         click.echo(f"✅ Generated {len(edits)} edits")

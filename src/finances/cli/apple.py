@@ -6,13 +6,13 @@ Professional command-line interface for Apple transaction matching.
 """
 
 import click
-import json
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List
 
 from ..apple import AppleMatcher, fetch_apple_receipts_cli, AppleReceiptParser
 from ..core.config import get_config
+from ..core.json_utils import write_json, format_json
 
 
 @click.group()
@@ -91,8 +91,7 @@ def match(ctx: click.Context, start: str, end: str, apple_ids: tuple,
         }
 
         # Write result file
-        with open(output_file, 'w') as f:
-            json.dump(result, f, indent=2)
+        write_json(output_file, result)
 
         click.echo(f"✅ Results saved to: {output_file}")
 
@@ -166,7 +165,7 @@ def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int
 
         # Output JSON for programmatic use
         click.echo("\nJSON Result:")
-        click.echo(json.dumps(result, indent=2))
+        click.echo(format_json(result))
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
@@ -312,8 +311,7 @@ def parse_receipts(ctx: click.Context, input_dir: str, output_dir: Optional[str]
             "receipts": parsed_receipts
         }
 
-        with open(output_file, 'w') as f:
-            json.dump(export_data, f, indent=2)
+        write_json(output_file, export_data)
 
         click.echo(f"✅ Parsing completed")
         click.echo(f"   Successful: {successful_parses}")

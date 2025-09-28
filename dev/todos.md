@@ -10,7 +10,7 @@
             such as for code blocks inside a list.
     - [ ] Files should end with a line break, per POSIX.
 - [X] Rename the YNAB "mutations" to "edits".
-- [ ] JSON file outputs should be pretty-printed, for readability and searchability.
+- [X] JSON file outputs should be pretty-printed, for readability and searchability.
 
 ## Major Items
 

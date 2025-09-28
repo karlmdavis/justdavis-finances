@@ -133,10 +133,10 @@ class TestCashFlowAnalyzer:
 
         # Write data files
         with open(ynab_cache_dir / "accounts.json", 'w') as f:
-            json.dump(accounts_data, f)
+            json.dump(accounts_data, f, indent=2)
 
         with open(ynab_cache_dir / "transactions.json", 'w') as f:
-            json.dump(transactions_data, f)
+            json.dump(transactions_data, f, indent=2)
 
         return ynab_cache_dir
 
@@ -301,10 +301,10 @@ class TestCashFlowAnalyzer:
         transactions_data = []  # Empty transactions
 
         with open(ynab_cache_dir / "accounts.json", 'w') as f:
-            json.dump(accounts_data, f)
+            json.dump(accounts_data, f, indent=2)
 
         with open(ynab_cache_dir / "transactions.json", 'w') as f:
-            json.dump(transactions_data, f)
+            json.dump(transactions_data, f, indent=2)
 
         with pytest.raises(ValueError, match="No transactions found"):
             analyzer.load_data(ynab_cache_dir)
@@ -386,10 +386,10 @@ class TestCashFlowEdgeCases:
         ]
 
         with open(ynab_cache_dir / "accounts.json", 'w') as f:
-            json.dump(accounts_data, f)
+            json.dump(accounts_data, f, indent=2)
 
         with open(ynab_cache_dir / "transactions.json", 'w') as f:
-            json.dump(transactions_data, f)
+            json.dump(transactions_data, f, indent=2)
 
         config = CashFlowConfig(
             cash_accounts=['Missing Account'],
@@ -458,10 +458,10 @@ class TestCashFlowEdgeCases:
             })
 
         with open(ynab_cache_dir / "accounts.json", 'w') as f:
-            json.dump(accounts_data, f)
+            json.dump(accounts_data, f, indent=2)
 
         with open(ynab_cache_dir / "transactions.json", 'w') as f:
-            json.dump(transactions_data, f)
+            json.dump(transactions_data, f, indent=2)
 
         config = CashFlowConfig(
             cash_accounts=['Test Account'],
@@ -522,10 +522,10 @@ def test_full_cash_flow_workflow(temp_dir):
         ])
 
     with open(ynab_cache_dir / "accounts.json", 'w') as f:
-        json.dump(accounts_data, f)
+        json.dump(accounts_data, f, indent=2)
 
     with open(ynab_cache_dir / "transactions.json", 'w') as f:
-        json.dump(transactions_data, f)
+        json.dump(transactions_data, f, indent=2)
 
     # Run complete analysis
     config = CashFlowConfig(

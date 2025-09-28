@@ -6,7 +6,6 @@ Provides intelligent change detection for all Financial Flow System nodes
 to determine when execution is required based on upstream data changes.
 """
 
-import json
 import imaplib
 import email
 from datetime import datetime, timedelta
@@ -16,6 +15,7 @@ import logging
 
 from .flow import FlowContext
 from .config import get_config
+from .json_utils import write_json_with_defaults, read_json
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,7 @@ class ChangeDetector:
         cache_file = self.get_cache_file(node_name)
         if cache_file.exists():
             try:
-                with open(cache_file, 'r') as f:
-                    return json.load(f)
+                return read_json(cache_file)
             except Exception as e:
                 logger.warning(f"Failed to load cache for {node_name}: {e}")
 
@@ -59,8 +58,7 @@ class ChangeDetector:
         """Save the last check state for a node."""
         cache_file = self.get_cache_file(node_name)
         try:
-            with open(cache_file, 'w') as f:
-                json.dump(state, f, indent=2, default=str)
+            write_json_with_defaults(cache_file, state)
         except Exception as e:
             logger.warning(f"Failed to save cache for {node_name}: {e}")
 
@@ -131,24 +129,22 @@ class YnabSyncChangeDetector(ChangeDetector):
             # Check accounts server_knowledge
             accounts_file = ynab_cache_dir / "accounts.json"
             if accounts_file.exists():
-                with open(accounts_file, 'r') as f:
-                    accounts_data = json.load(f)
-                    current_accounts_knowledge = accounts_data.get('server_knowledge')
+                accounts_data = read_json(accounts_file)
+                current_accounts_knowledge = accounts_data.get('server_knowledge')
 
-                    last_accounts_knowledge = last_state.get('accounts_server_knowledge')
-                    if current_accounts_knowledge != last_accounts_knowledge:
-                        server_knowledge_changes.append("accounts server_knowledge changed")
+                last_accounts_knowledge = last_state.get('accounts_server_knowledge')
+                if current_accounts_knowledge != last_accounts_knowledge:
+                    server_knowledge_changes.append("accounts server_knowledge changed")
 
             # Check categories server_knowledge
             categories_file = ynab_cache_dir / "categories.json"
             if categories_file.exists():
-                with open(categories_file, 'r') as f:
-                    categories_data = json.load(f)
-                    current_categories_knowledge = categories_data.get('server_knowledge')
+                categories_data = read_json(categories_file)
+                current_categories_knowledge = categories_data.get('server_knowledge')
 
-                    last_categories_knowledge = last_state.get('categories_server_knowledge')
-                    if current_categories_knowledge != last_categories_knowledge:
-                        server_knowledge_changes.append("categories server_knowledge changed")
+                last_categories_knowledge = last_state.get('categories_server_knowledge')
+                if current_categories_knowledge != last_categories_knowledge:
+                    server_knowledge_changes.append("categories server_knowledge changed")
 
             # Check time-based refresh (e.g., every 24 hours)
             last_sync_time = last_state.get('last_sync_time')

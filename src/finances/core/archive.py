@@ -7,7 +7,6 @@ to ensure data consistency and enable rollback capabilities.
 """
 
 import tarfile
-import json
 import yaml
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +14,8 @@ from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, asdict
 import logging
 import shutil
+
+from .json_utils import write_json, read_json
 
 logger = logging.getLogger(__name__)
 
@@ -182,8 +183,7 @@ class DomainArchiver:
 
             # Save manifest alongside archive
             manifest_path = archive_path.with_suffix('.json')
-            with open(manifest_path, 'w') as f:
-                json.dump(asdict(manifest), f, indent=2)
+            write_json(manifest_path, asdict(manifest))
 
             logger.info(f"Created archive: {archive_path} ({len(files_to_archive)} files, {archive_size:,} bytes)")
 
@@ -297,13 +297,12 @@ class ArchiveManager:
 
         # Save session manifest
         session_file = self.session_dir / f"{session_id}.json"
-        with open(session_file, 'w') as f:
-            session_data = asdict(archive_session)
-            # Convert ArchiveManifest objects to dicts
-            session_data['archives'] = {
-                domain: asdict(manifest) for domain, manifest in archives.items()
-            }
-            json.dump(session_data, f, indent=2)
+        session_data = asdict(archive_session)
+        # Convert ArchiveManifest objects to dicts
+        session_data['archives'] = {
+            domain: asdict(manifest) for domain, manifest in archives.items()
+        }
+        write_json(session_file, session_data)
 
         logger.info(f"Archive session complete: {len(archives)} domains, {total_files} files, {total_size:,} bytes")
 
@@ -335,9 +334,8 @@ class ArchiveManager:
                 manifest_path = archive_path.with_suffix('.json')
                 if manifest_path.exists():
                     try:
-                        with open(manifest_path, 'r') as f:
-                            manifest_data = json.load(f)
-                            archives.append(manifest_data)
+                        manifest_data = read_json(manifest_path)
+                        archives.append(manifest_data)
                     except Exception as e:
                         logger.warning(f"Failed to read manifest {manifest_path}: {e}")
 
@@ -351,9 +349,8 @@ class ArchiveManager:
 
             for session_file in session_files:
                 try:
-                    with open(session_file, 'r') as f:
-                        session_data = json.load(f)
-                        archives.append(session_data)
+                    session_data = read_json(session_file)
+                    archives.append(session_data)
                 except Exception as e:
                     logger.warning(f"Failed to read session {session_file}: {e}")
 

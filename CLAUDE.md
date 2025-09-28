@@ -186,7 +186,14 @@ This repository maintains strict integer-only arithmetic for all financial calcu
    working directory
 9. **Package execution**: Use `finances` CLI or `uv run finances` for all operations
 10. **Development**: Use `uv run python -c ...` for ad-hoc Python with package imports
-11. **Markdown formatting**: All markdown files follow standardized formatting rules.
+11. **JSON formatting**: All JSON files must use pretty-printing with 2-space indentation.
+    **Required practice**:
+    - Import: `from finances.core.json_utils import write_json, read_json, format_json`
+    - File writing: Use `write_json(filepath, data)` instead of `json.dump()`
+    - File reading: Use `read_json(filepath)` instead of `json.load()`
+    - String formatting: Use `format_json(data)` instead of `json.dumps()`
+    - **Never use** direct `json.dump()` or `json.dumps()` calls without `indent=2`
+12. **Markdown formatting**: All markdown files follow standardized formatting rules.
     See [Markdown Formatting Guidelines](CONTRIBUTORS.md#markdown-formatting-guidelines) for
       complete details:
     - One sentence per line for better version control

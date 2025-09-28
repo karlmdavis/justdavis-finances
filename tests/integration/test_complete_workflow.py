@@ -304,10 +304,10 @@ class TestCashFlowWorkflow:
 
         # Write YNAB data
         with open(ynab_dir / "accounts.json", 'w') as f:
-            json.dump(accounts_data, f)
+            json.dump(accounts_data, f, indent=2)
 
         with open(ynab_dir / "transactions.json", 'w') as f:
-            json.dump(transactions_data, f)
+            json.dump(transactions_data, f, indent=2)
 
         return ynab_dir, cash_flow_dir
 
@@ -520,9 +520,9 @@ class TestCrossSystemIntegration:
         ]
 
         with open(ynab_cache_dir / "accounts.json", 'w') as f:
-            json.dump(accounts_data, f)
+            json.dump(accounts_data, f, indent=2)
         with open(ynab_cache_dir / "transactions.json", 'w') as f:
-            json.dump(transactions_data, f)
+            json.dump(transactions_data, f, indent=2)
 
         # Test that analyzer can load from configured location
         try:
@@ -570,10 +570,10 @@ def test_performance_integration(temp_dir):
             })
 
     with open(ynab_dir / "accounts.json", 'w') as f:
-        json.dump(accounts_data, f)
+        json.dump(accounts_data, f, indent=2)
 
     with open(ynab_dir / "transactions.json", 'w') as f:
-        json.dump(transactions_data, f)
+        json.dump(transactions_data, f, indent=2)
 
     # Test performance
     import time

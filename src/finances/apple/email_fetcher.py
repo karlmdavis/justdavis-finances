@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 import logging
 
 from ..core.config import get_config
+from ..core.json_utils import write_json
 
 logger = logging.getLogger(__name__)
 
@@ -515,8 +516,7 @@ class AppleEmailFetcher:
                     'metadata': email_obj.metadata
                 }
 
-                with open(metadata_file, 'w', encoding='utf-8') as f:
-                    json.dump(metadata, f, indent=2)
+                write_json(metadata_file, metadata)
                 stats['files_created'].append(str(metadata_file))
 
                 stats['saved_successfully'] += 1
