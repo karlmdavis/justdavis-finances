@@ -10,13 +10,13 @@ Features high-accuracy transaction matching for Amazon and Apple purchases, cash
   and professional CLI tools.
 
 **Key Features:**
-- **Financial Flow System**: Single-command orchestration with dependency management and change detection
-- **Amazon Transaction Matching**: 94.7% accuracy with 3-strategy matching system
-- **Apple Receipt Processing**: 85.1% match rate with email integration
-- **Cash Flow Analysis**: Multi-timeframe analysis with statistical modeling
-- **YNAB Integration**: Secure transaction updates with audit trails
-- **Retirement Account Tracking**: Interactive balance management with YNAB integration
-- **Professional CLI**: Unified command-line interface for all operations
+- **Financial Flow System**: Single-command orchestration with dependency management and change detection.
+- **Amazon Transaction Matching**: 94.7% accuracy with 3-strategy matching system.
+- **Apple Receipt Processing**: 85.1% match rate with email integration.
+- **Cash Flow Analysis**: Multi-timeframe analysis with statistical modeling.
+- **YNAB Integration**: Secure transaction updates with audit trails.
+- **Retirement Account Tracking**: Interactive balance management with YNAB integration.
+- **Professional CLI**: Unified command-line interface for all operations.
 
 ## For Developers
 
@@ -70,19 +70,19 @@ Intelligent orchestration of the complete financial data pipeline with dependenc
   change detection, and transactional consistency.
 
 **Benefits:**
-- **Single Command**: Replaces 10+ manual commands with `finances flow execute`
-- **Dependency Management**: Automatic execution ordering based on data dependencies
-- **Change Detection**: Only processes data that has actually changed
-- **Transactional Integrity**: Pre-execution archiving ensures data consistency
-- **Interactive Mode**: Prompts for manual steps (downloads, review confirmations)
-- **Non-Interactive Mode**: Automated execution for scheduled runs
+- **Single Command**: Replaces 10+ manual commands with `finances flow execute`.
+- **Dependency Management**: Automatic execution ordering based on data dependencies.
+- **Change Detection**: Only processes data that has actually changed.
+- **Transactional Integrity**: Pre-execution archiving ensures data consistency.
+- **Interactive Mode**: Prompts for manual steps (downloads, review confirmations).
+- **Non-Interactive Mode**: Automated execution for scheduled runs.
 
 **Key Nodes and Dependencies:**
-- **YNAB Sync** → Amazon/Apple Matching → Split Generation → YNAB Apply
-- **Amazon Unzip** → Amazon Matching (when new ZIP files detected)
-- **Apple Email Fetch** → Apple Receipt Parsing → Apple Matching
-- **Retirement Updates** → YNAB Account Updates (independent)
-- **Cash Flow Analysis** (triggered by YNAB data changes)
+- **YNAB Sync** → Amazon/Apple Matching → Split Generation → YNAB Apply.
+- **Amazon Unzip** → Amazon Matching (when new ZIP files detected).
+- **Apple Email Fetch** → Apple Receipt Parsing → Apple Matching.
+- **Retirement Updates** → YNAB Account Updates (independent).
+- **Cash Flow Analysis** (triggered by YNAB data changes).
 
 **Usage:**
 ```bash
@@ -110,21 +110,21 @@ finances flow graph
 
 **Archive Management:**
 The flow system automatically creates compressed archives before execution:
-- **Location**: `data/{domain}/archive/YYYY-MM-DD-NNN.tar.gz`
-- **Purpose**: Rollback capability and audit trails
-- **Retention**: All archives preserved indefinitely
-- **Metadata**: Complete execution context and trigger reasons
+- **Location**: `data/{domain}/archive/YYYY-MM-DD-NNN.tar.gz`.
+- **Purpose**: Rollback capability and audit trails.
+- **Retention**: All archives preserved indefinitely.
+- **Metadata**: Complete execution context and trigger reasons.
 
 ### Amazon Transaction Matching
 
 Automated matching of YNAB transactions to Amazon order data with industry-leading accuracy.
 
 **Features:**
-- **Multi-account support**: Handles household Amazon accounts automatically
-- **Exact amount matching**: 94.7% accuracy with precision currency handling
-- **Multi-day shipping**: Handles orders spanning multiple shipping dates
-- **Split payment detection**: Identifies partial order matches
-- **Confidence scoring**: 0.0-1.0 scoring for match quality assessment
+- **Multi-account support**: Handles household Amazon accounts automatically.
+- **Exact amount matching**: 94.7% accuracy with precision currency handling.
+- **Multi-day shipping**: Handles orders spanning multiple shipping dates.
+- **Split payment detection**: Identifies partial order matches.
+- **Confidence scoring**: 0.0-1.0 scoring for match quality assessment.
 
 **Usage:**
 ```bash
@@ -154,11 +154,11 @@ finances amazon match-single \
 Complete Apple receipt processing pipeline with email integration and multi-format parsing.
 
 **Features:**
-- **Email integration**: IMAP-based receipt fetching with security
-- **Multi-format parsing**: Supports legacy and modern Apple receipt formats
-- **85.1% match rate**: High-accuracy transaction matching
-- **Multi-Apple ID support**: Handles family accounts with attribution
-- **1:1 transaction model**: Optimized for Apple's direct billing
+- **Email integration**: IMAP-based receipt fetching with security.
+- **Multi-format parsing**: Supports legacy and modern Apple receipt formats.
+- **85.1% match rate**: High-accuracy transaction matching.
+- **Multi-Apple ID support**: Handles family accounts with attribution.
+- **1:1 transaction model**: Optimized for Apple's direct billing.
 
 **Usage:**
 ```bash
@@ -177,11 +177,11 @@ finances apple match --start 2024-07-01 --end 2024-07-31
 Comprehensive financial analysis with statistical modeling and professional dashboards.
 
 **Features:**
-- **Multi-timeframe analysis**: 7-day, 30-day, and 90-day moving averages
-- **Trend detection**: Statistical confidence intervals and projections
-- **Account composition**: Track balance changes across accounts
-- **Volatility analysis**: Measure cash flow stability
-- **Professional dashboards**: 6-panel visualization with export options
+- **Multi-timeframe analysis**: 7-day, 30-day, and 90-day moving averages.
+- **Trend detection**: Statistical confidence intervals and projections.
+- **Account composition**: Track balance changes across accounts.
+- **Volatility analysis**: Measure cash flow stability.
+- **Professional dashboards**: 6-panel visualization with export options.
 
 **Usage:**
 ```bash
@@ -203,11 +203,11 @@ finances cashflow analyze --format pdf --exclude-before 2024-05-01
 Secure YNAB integration with transaction splitting and audit trails.
 
 **Features:**
-- **Three-phase workflow**: Generate → Review → Apply for safety
-- **Transaction splitting**: Intelligent item-level categorization
-- **Audit trails**: Complete change tracking with reversibility
-- **Confidence thresholds**: Automatic approval for high-confidence matches
-- **Dry-run mode**: Test edits before applying
+- **Three-phase workflow**: Generate → Review → Apply for safety.
+- **Transaction splitting**: Intelligent item-level categorization.
+- **Audit trails**: Complete change tracking with reversibility.
+- **Confidence thresholds**: Automatic approval for high-confidence matches.
+- **Dry-run mode**: Test edits before applying.
 
 **Usage:**
 ```bash
@@ -229,11 +229,11 @@ Interactive retirement account balance tracking with YNAB integration for keepin
   accounts in sync.
 
 **Features:**
-- **Account tracking**: Manage multiple retirement accounts (401k, 403b, IRA, Roth IRA)
-- **Balance history**: Track balance changes over time with adjustments
-- **YNAB integration**: Generate adjustment transactions for balance changes
-- **Interactive workflow**: Guided prompts for balance updates
-- **Multi-provider support**: Works with any retirement account provider
+- **Account tracking**: Manage multiple retirement accounts (401k, 403b, IRA, Roth IRA).
+- **Balance history**: Track balance changes over time with adjustments.
+- **YNAB integration**: Generate adjustment transactions for balance changes.
+- **Interactive workflow**: Guided prompts for balance updates.
+- **Multi-provider support**: Works with any retirement account provider.
 
 **Usage:**
 ```bash
@@ -258,16 +258,16 @@ finances retirement history --account karl_401k --limit 10
 
 **Account Configuration:**
 The system tracks accounts in `data/retirement/accounts.yaml` with default accounts:
-- **karl_401k**: 401k account with Fidelity
-- **erica_403b**: 403b account with TIAA
-- **karl_ira**: IRA account with Vanguard
+- **karl_401k**: 401k account with Fidelity.
+- **erica_403b**: 403b account with TIAA.
+- **karl_ira**: IRA account with Vanguard.
 
 **Balance History:**
 All balance updates are stored in `data/retirement/balance_history.yaml` with:
-- Date and timestamp of each update
-- Previous and new balance amounts
-- Calculated adjustments
-- Optional notes for each update
+- Date and timestamp of each update.
+- Previous and new balance amounts.
+- Calculated adjustments.
+- Optional notes for each update.
 
 ## Configuration
 
@@ -294,15 +294,15 @@ EMAIL_IMAP_PORT=993              # IMAP port
 
 The system automatically creates and manages data directories:
 
-- `data/amazon/raw/`: Amazon order history files
-- `data/amazon/archive/`: Transaction archives before processing
-- `data/apple/emails/`: Apple receipt emails
-- `data/apple/exports/`: Parsed Apple receipt data
-- `data/ynab/cache/`: Cached YNAB data
-- `data/ynab/edits/`: Generated transaction updates
-- `data/retirement/`: Retirement account balance history
-- `data/cash_flow/charts/`: Generated analysis dashboards
-- `data/cache/flow/`: Flow system change detection metadata
+- `data/amazon/raw/`: Amazon order history files.
+- `data/amazon/archive/`: Transaction archives before processing.
+- `data/apple/emails/`: Apple receipt emails.
+- `data/apple/exports/`: Parsed Apple receipt data.
+- `data/ynab/cache/`: Cached YNAB data.
+- `data/ynab/edits/`: Generated transaction updates.
+- `data/retirement/`: Retirement account balance history.
+- `data/cash_flow/charts/`: Generated analysis dashboards.
+- `data/cache/flow/`: Flow system change detection metadata.
 
 All sensitive financial data is gitignored for security.
 

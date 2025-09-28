@@ -1,6 +1,6 @@
 # Contributors Guide
 
-Welcome to the Davis Family Finances project!
+Welcome to the Davis Family Finances project.
 This guide provides comprehensive information for developers contributing to this professional
   personal finance management system.
 
@@ -23,12 +23,12 @@ This guide provides comprehensive information for developers contributing to thi
 
 The project follows a **domain-driven design** approach with strict architectural guidelines:
 
-- **Domain separation**: Each financial data source (Amazon, Apple, YNAB) has its own package
+- **Domain separation**: Each financial data source (Amazon, Apple, YNAB) has its own package.
 - **Integer arithmetic**: All currency calculations use integer arithmetic to prevent
-  floating-point errors
-- **Configuration management**: Environment-based settings with comprehensive validation
-- **Security-first**: No sensitive data in source code, comprehensive audit trails
-- **Professional CLI**: Unified command-line interface with consistent patterns
+  floating-point errors.
+- **Configuration management**: Environment-based settings with comprehensive validation.
+- **Security-first**: No sensitive data in source code, comprehensive audit trails.
+- **Professional CLI**: Unified command-line interface with consistent patterns.
 
 ### Package Structure
 
@@ -72,10 +72,10 @@ src/finances/
 
 Each domain package follows consistent internal organization:
 
-1. **Data Layer**: Models and validation (`models.py`, data classes)
-2. **Processing Layer**: Business logic and algorithms (`matcher.py`, `parser.py`)
-3. **Integration Layer**: External service interfaces (`loader.py`, `email_fetcher.py`)
-4. **Interface Layer**: CLI commands and API endpoints (`cli/`)
+1. **Data Layer**: Models and validation (`models.py`, data classes).
+2. **Processing Layer**: Business logic and algorithms (`matcher.py`, `parser.py`).
+3. **Integration Layer**: External service interfaces (`loader.py`, `email_fetcher.py`).
+4. **Interface Layer**: CLI commands and API endpoints (`cli/`).
 
 ## Directory Structure
 
@@ -131,18 +131,18 @@ finances/                           # Repository root
 
 The `data/` directory is automatically created and managed by the package:
 
-- **Gitignored**: All financial data is excluded from version control for security
-- **Auto-creation**: Directories created automatically when needed
-- **Timestamped outputs**: All generated files include timestamps for tracking
-- **Organized by domain**: Clear separation between Amazon, Apple, YNAB, and analysis data
+- **Gitignored**: All financial data is excluded from version control for security.
+- **Auto-creation**: Directories created automatically when needed.
+- **Timestamped outputs**: All generated files include timestamps for tracking.
+- **Organized by domain**: Clear separation between Amazon, Apple, YNAB, and analysis data.
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Python 3.9+**: Required for modern type annotations and language features
-- **uv**: Package manager for dependency management and virtual environments
-- **Git**: Version control system
+- **Python 3.9+**: Required for modern type annotations and language features.
+- **uv**: Package manager for dependency management and virtual environments.
+- **Git**: Version control system.
 
 ### Initial Setup
 
@@ -184,10 +184,10 @@ EMAIL_IMAP_PORT=993              # IMAP port
 
 The project includes comprehensive development tooling:
 
-- **Testing**: pytest, pytest-cov for test execution and coverage
-- **Code Quality**: black, ruff, mypy for formatting, linting, and type checking
-- **Pre-commit**: Automated quality gates for git commits
-- **Documentation**: Tools for generating and maintaining documentation
+- **Testing**: pytest, pytest-cov for test execution and coverage.
+- **Code Quality**: black, ruff, mypy for formatting, linting, and type checking.
+- **Pre-commit**: Automated quality gates for git commits.
+- **Documentation**: Tools for generating and maintaining documentation.
 
 ## Testing Framework
 
@@ -215,13 +215,13 @@ uv run pytest --cov=src/finances --cov-report=html
 
 Tests are marked with pytest markers for selective execution:
 
-- **unit**: Unit tests for individual components and functions
-- **integration**: End-to-end workflow tests with realistic data
-- **currency**: Tests specifically for currency handling and precision
-- **amazon**: Amazon transaction matching system tests
-- **apple**: Apple receipt processing system tests
-- **ynab**: YNAB integration and API tests
-- **slow**: Tests that take significant time to run
+- **unit**: Unit tests for individual components and functions.
+- **integration**: End-to-end workflow tests with realistic data.
+- **currency**: Tests specifically for currency handling and precision.
+- **amazon**: Amazon transaction matching system tests.
+- **apple**: Apple receipt processing system tests.
+- **ynab**: YNAB integration and API tests.
+- **slow**: Tests that take significant time to run.
 
 ### Writing Tests
 
@@ -252,10 +252,10 @@ def test_amazon_matching(sample_amazon_orders, sample_ynab_transactions):
 
 ### Test Coverage Requirements
 
-- **Minimum coverage**: 90% line coverage for all production code
-- **Critical paths**: 100% branch coverage for financial calculations
-- **Integration coverage**: End-to-end workflow testing with realistic data
-- **Performance testing**: Regression testing for critical performance paths
+- **Minimum coverage**: 90% line coverage for all production code.
+- **Critical paths**: 100% branch coverage for financial calculations.
+- **Integration coverage**: End-to-end workflow testing with realistic data.
+- **Performance testing**: Regression testing for critical performance paths.
 
 ## Code Quality Standards
 
@@ -271,9 +271,9 @@ uv run black --check src/ tests/
 ```
 
 Configuration in `pyproject.toml`:
-- Line length: 88 characters
-- Target Python: 3.9+
-- Consistent quote style and formatting
+- Line length: 88 characters.
+- Target Python: 3.9+.
+- Consistent quote style and formatting.
 
 #### Import Organization
 ```bash
@@ -293,12 +293,12 @@ uv run ruff --fix src/ tests/
 ```
 
 Enabled rule categories:
-- **E, W**: pycodestyle errors and warnings
-- **F**: pyflakes for logical errors
-- **I**: isort for import organization
-- **B**: flake8-bugbear for likely bugs
-- **C4**: flake8-comprehensions for better comprehensions
-- **UP**: pyupgrade for modern Python patterns
+- **E, W**: pycodestyle errors and warnings.
+- **F**: pyflakes for logical errors.
+- **I**: isort for import organization.
+- **B**: flake8-bugbear for likely bugs.
+- **C4**: flake8-comprehensions for better comprehensions.
+- **UP**: pyupgrade for modern Python patterns.
 
 ### Type Safety
 
@@ -312,10 +312,10 @@ uv run mypy src/finances/amazon/
 ```
 
 Type checking requirements:
-- **Strict mode**: Comprehensive type checking with minimal exemptions
-- **Public API coverage**: All public functions must have type annotations
-- **Financial types**: Specialized types for currency and financial calculations
-- **Protocol definitions**: Type protocols for flexible interfaces
+- **Strict mode**: Comprehensive type checking with minimal exemptions.
+- **Public API coverage**: All public functions must have type annotations.
+- **Financial types**: Specialized types for currency and financial calculations.
+- **Protocol definitions**: Type protocols for flexible interfaces.
 
 #### Type Annotation Examples
 ```python
@@ -353,19 +353,19 @@ git commit --no-verify
 ```
 
 Hook categories:
-- **Formatting**: Black formatting, trailing whitespace cleanup
-- **Linting**: Ruff comprehensive linting
-- **Type Checking**: MyPy static analysis
-- **Security**: Secret detection, dependency vulnerability scanning
+- **Formatting**: Black formatting, trailing whitespace cleanup.
+- **Linting**: Ruff comprehensive linting.
+- **Type Checking**: MyPy static analysis.
+- **Security**: Secret detection, dependency vulnerability scanning.
 
 ## Development Workflow
 
 ### Git Workflow
 
-1. **Feature Branches**: Create feature branches from main
-2. **Quality Gates**: All commits must pass pre-commit hooks
-3. **Pull Requests**: Code review required for all changes
-4. **Testing**: All tests must pass before merging
+1. **Feature Branches**: Create feature branches from main.
+2. **Quality Gates**: All commits must pass pre-commit hooks.
+3. **Pull Requests**: Code review required for all changes.
+4. **Testing**: All tests must pass before merging.
 
 ### Code Review Guidelines
 
@@ -388,10 +388,12 @@ All markdown files in this repository follow consistent formatting standards for
 1. **One Sentence Per Line**: Each sentence should be on its own line for better version
   control and readability.
 
-2. **100-Character Line Limit**: Lines should be wrapped when they exceed 100 characters.
+2. **110-Character Line Limit**: Lines should be wrapped when they exceed 110 characters,
+  breaking at natural points for optimal readability.
 
 3. **Two-Space Indentation for Wrapped Lines**: When a sentence is wrapped, indent
-  continuation lines with exactly two spaces.
+  continuation lines with exactly two spaces beyond the start of the sentence on the
+  preceding line.
 
 4. **Natural Break Points**: When wrapping long lines, break at natural points such as:
    - Commas and conjunctions
@@ -399,26 +401,54 @@ All markdown files in this repository follow consistent formatting standards for
    - Before prepositions in long phrases
    - After colons or semicolons
 
+5. **Sentence Completion**: Every sentence, list item, or other full sentence-like line
+  should end with a period.
+
+6. **Trailing Whitespace Removal**: Remove trailing whitespace from all lines, except when
+  required by Markdown's formatting rules (such as for code blocks inside lists).
+
+7. **POSIX Line Endings**: Files should end with a line break, per POSIX standards.
+
 ##### Examples
 
-**Good formatting:**
+**Good formatting (110-character limit with 2-space indentation):**
 ```markdown
 The Amazon Transaction Matching System creates automated linkage between Amazon order
   history data and corresponding YNAB credit card transactions.
 This solves the challenge of understanding what Amazon purchases comprise each consolidated
   charge, enabling accurate categorization.
+
+1. The quick brown fox jumps over the lazy dog and continues running through the forest
+     until it reaches the river.
+
+> The comprehensive financial analysis tool provides multi-timeframe insights including
+>   statistical modeling, trend detection, and professional dashboard generation.
 ```
 
-**Avoid:**
+**Avoid (long lines without proper wrapping):**
 ```markdown
-The Amazon Transaction Matching System creates automated linkage between Amazon order history data and corresponding YNAB credit card transactions. This solves the challenge of understanding what Amazon purchases comprise each consolidated charge.
+The Amazon Transaction Matching System creates automated linkage between Amazon order history data and
+  corresponding YNAB credit card transactions. This solves the challenge of understanding what Amazon
+  purchases comprise each consolidated charge.
+```
+
+**Avoid (missing periods on sentence-like lines):**
+```markdown
+- Feature request for improved matching accuracy
+- Bug fix for currency conversion errors
+```
+
+**Good (periods on sentence-like lines):**
+```markdown
+- Feature request for improved matching accuracy.
+- Bug fix for currency conversion errors.
 ```
 
 ##### Code Blocks and Lists
 
-- Preserve existing code block formatting
-- Maintain proper indentation for nested lists
-- Keep inline code spans on single lines when possible
+- Preserve existing code block formatting.
+- Maintain proper indentation for nested lists.
+- Keep inline code spans on single lines when possible.
 
 ##### Cross-References
 
@@ -507,9 +537,9 @@ finances --version
 ### Version Management
 
 Version is managed in `pyproject.toml`:
-- Follow semantic versioning (MAJOR.MINOR.PATCH)
-- Update version for releases
-- Tag releases in git
+- Follow semantic versioning (MAJOR.MINOR.PATCH).
+- Update version for releases.
+- Tag releases in git.
 
 ### CLI Development
 
@@ -574,33 +604,33 @@ display = format_cents(cents)  # "$123.45"
 
 ### Amazon Domain Guidelines
 
-- **Multi-account support**: Handle multiple Amazon accounts automatically
-- **Multi-day orders**: Support orders shipping across multiple days
-- **Split payments**: Handle partial order matches with item tracking
-- **Confidence scoring**: Use 3-strategy system (Complete, Split, Fuzzy)
+- **Multi-account support**: Handle multiple Amazon accounts automatically.
+- **Multi-day orders**: Support orders shipping across multiple days.
+- **Split payments**: Handle partial order matches with item tracking.
+- **Confidence scoring**: Use 3-strategy system (Complete, Split, Fuzzy).
 
 ### Apple Domain Guidelines
 
-- **1:1 transaction model**: Leverage Apple's direct billing approach
-- **Multi-format parsing**: Support legacy and modern receipt formats
-- **Email integration**: IMAP-based receipt fetching with security
-- **Family accounts**: Handle multiple Apple IDs with proper attribution
+- **1:1 transaction model**: Leverage Apple's direct billing approach.
+- **Multi-format parsing**: Support legacy and modern receipt formats.
+- **Email integration**: IMAP-based receipt fetching with security.
+- **Family accounts**: Handle multiple Apple IDs with proper attribution.
 
 ### YNAB Integration Guidelines
 
-- **Three-phase workflow**: Generate → Review → Apply for safety
-- **Audit trails**: Complete change tracking with reversibility
-- **Batch operations**: Efficient bulk transaction updates
-- **Error recovery**: Graceful handling of API failures
+- **Three-phase workflow**: Generate → Review → Apply for safety.
+- **Audit trails**: Complete change tracking with reversibility.
+- **Batch operations**: Efficient bulk transaction updates.
+- **Error recovery**: Graceful handling of API failures.
 
 ## Security Considerations
 
 ### Data Protection
 
-- **No sensitive data in code**: All financial data excluded from version control
-- **Environment variables**: Use `.env` file for sensitive configuration
-- **Local processing**: All analysis performed locally (no cloud services)
-- **Encrypted communication**: HTTPS/IMAPS for all external connections
+- **No sensitive data in code**: All financial data excluded from version control.
+- **Environment variables**: Use `.env` file for sensitive configuration.
+- **Local processing**: All analysis performed locally (no cloud services).
+- **Encrypted communication**: HTTPS/IMAPS for all external connections.
 
 ### Best Practices
 
@@ -622,10 +652,10 @@ def get_api_token() -> Optional[str]:
 
 ### Credential Management
 
-- **API tokens**: Use YNAB personal access tokens (never passwords)
-- **Email security**: Use app-specific passwords for email access
-- **No hardcoded secrets**: All credentials via environment variables
-- **Audit trails**: Log access patterns without exposing secrets
+- **API tokens**: Use YNAB personal access tokens (never passwords).
+- **Email security**: Use app-specific passwords for email access.
+- **No hardcoded secrets**: All credentials via environment variables.
+- **Audit trails**: Log access patterns without exposing secrets.
 
 ## Troubleshooting
 
@@ -696,26 +726,27 @@ uv run pytest -n auto
 time finances --help
 
 # Check for expensive imports
-python -c "import sys; import time; start=time.time(); import finances; print(f'Import time: {time.time()-start:.3f}s')"
+python -c "import sys; import time; start=time.time(); import finances; \
+  print(f'Import time: {time.time()-start:.3f}s')"
 ```
 
 ### Getting Help
 
-1. **Check existing issues**: Review troubleshooting sections in documentation
-2. **Run diagnostics**: Use verbose flags for detailed error information
-3. **Verify environment**: Ensure all dependencies and configuration are correct
-4. **Test isolation**: Reproduce issues with minimal test cases
-5. **Documentation**: Update this guide when discovering new solutions
+1. **Check existing issues**: Review troubleshooting sections in documentation.
+2. **Run diagnostics**: Use verbose flags for detailed error information.
+3. **Verify environment**: Ensure all dependencies and configuration are correct.
+4. **Test isolation**: Reproduce issues with minimal test cases.
+5. **Documentation**: Update this guide when discovering new solutions.
 
 ## Contributing Workflow Summary
 
-1. **Setup**: Clone repository, install dependencies, configure environment
-2. **Development**: Create feature branch, write code following standards
-3. **Testing**: Write comprehensive tests, ensure coverage requirements
-4. **Quality**: Run formatting, linting, and type checking
-5. **Review**: Submit pull request with clear description
-6. **Integration**: Address feedback, ensure all checks pass
-7. **Documentation**: Update relevant documentation for changes
+1. **Setup**: Clone repository, install dependencies, configure environment.
+2. **Development**: Create feature branch, write code following standards.
+3. **Testing**: Write comprehensive tests, ensure coverage requirements.
+4. **Quality**: Run formatting, linting, and type checking.
+5. **Review**: Submit pull request with clear description.
+6. **Integration**: Address feedback, ensure all checks pass.
+7. **Documentation**: Update relevant documentation for changes.
 
 This guide is a living document.
 Please update it as the project evolves and new patterns emerge.

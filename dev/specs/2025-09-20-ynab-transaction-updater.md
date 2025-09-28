@@ -2,38 +2,48 @@
 
 ## Executive Summary
 
-The YNAB Transaction Updater automates the application of Amazon and Apple transaction matching results to YNAB transactions. It splits consolidated transactions into detailed subtransactions with item-level memos, providing visibility into individual purchases while maintaining transaction integrity. The system employs a three-phase safety approach (generate → review → apply) to prevent accidental data corruption and ensures all operations are reversible.
+The YNAB Transaction Updater automates the application of Amazon and Apple transaction matching
+  results to YNAB transactions.
+It splits consolidated transactions into detailed subtransactions with item-level memos,
+  providing visibility into individual purchases while maintaining transaction integrity.
+The system employs a three-phase safety approach (generate → review → apply) to prevent
+  accidental data corruption and ensures all operations are reversible.
 
 ## Problem Statement
 
 ### Current Pain Points
-1. **Opaque Transaction Details**: Amazon and Apple transactions appear as single line items (e.g., "AMZN Mktp US*RT4Y12" for $89.99) without visibility into what was actually purchased
-2. **Manual Splitting Burden**: Users must manually split transactions and add item details, taking 5-10 minutes per transaction
-3. **Lost Purchase History**: Without item-level detail, historical spending analysis is impossible
-4. **Error-Prone Process**: Manual data entry leads to mistakes and inconsistencies
-5. **Tax/Shipping Ambiguity**: Difficult to allocate tax and shipping costs across items manually
+1. **Opaque Transaction Details**: Amazon and Apple transactions appear as single line items
+     (e.g., "AMZN Mktp US*RT4Y12" for $89.99) without visibility into what was actually
+     purchased.
+2. **Manual Splitting Burden**: Users must manually split transactions and add item details,
+     taking 5-10 minutes per transaction.
+3. **Lost Purchase History**: Without item-level detail, historical spending analysis is
+     impossible.
+4. **Error-Prone Process**: Manual data entry leads to mistakes and inconsistencies.
+5. **Tax/Shipping Ambiguity**: Difficult to allocate tax and shipping costs across items
+     manually.
 
 ### Business Impact
-- **Time Cost**: 10+ minutes per multi-item transaction for manual splitting
-- **Data Quality**: Inconsistent memo formats and missing details
-- **Analysis Limitations**: Cannot track spending on specific products or categories
-- **Budget Accuracy**: Inability to understand true cost allocation
+- **Time Cost**: 10+ minutes per multi-item transaction for manual splitting.
+- **Data Quality**: Inconsistent memo formats and missing details.
+- **Analysis Limitations**: Cannot track spending on specific products or categories.
+- **Budget Accuracy**: Inability to understand true cost allocation.
 
 ## Solution Overview
 
 An automated system that:
-1. Reads transaction matching results from Amazon/Apple matchers
-2. Generates a reviewable mutation plan with proposed splits
-3. Allows user review and selective approval
-4. Applies approved changes via the YNAB CLI
-5. Maintains a complete audit trail for recovery
+1. Reads transaction matching results from Amazon/Apple matchers.
+2. Generates a reviewable mutation plan with proposed splits.
+3. Allows user review and selective approval.
+4. Applies approved changes via the YNAB CLI.
+5. Maintains a complete audit trail for recovery.
 
 ### Key Principles
-- **Safety First**: Three-phase approach with user review
-- **Cache-Only**: Works only with cached YNAB data (no live API calls)
-- **No Category Changes**: Focus on splits and memos only
-- **Integer Arithmetic**: All calculations in milliunits to avoid floating-point errors
-- **Reversibility**: Complete audit trail via delete logs
+- **Safety First**: Three-phase approach with user review.
+- **Cache-Only**: Works only with cached YNAB data (no live API calls).
+- **No Category Changes**: Focus on splits and memos only.
+- **Integer Arithmetic**: All calculations in milliunits to avoid floating-point errors.
+- **Reversibility**: Complete audit trail via delete logs.
 
 ## Functional Requirements
 
@@ -42,19 +52,19 @@ An automated system that:
 #### Match Results Data
 - **Source**: JSON files from Amazon/Apple transaction matchers
 - **Required Fields**:
-  - Transaction ID
-  - Match confidence
-  - Order/receipt details with items
-  - Item names, quantities, amounts
-  - Tax and shipping information (where available)
+  - Transaction ID.
+  - Match confidence.
+  - Order/receipt details with items.
+  - Item names, quantities, amounts.
+  - Tax and shipping information (where available).
 
 #### YNAB Cache Data  
 - **Source**: Cached `transactions.json` from YNAB data workflow
 - **Required Fields**:
-  - Transaction ID, date, amount
-  - Current memo, payee, category
-  - Account information
-  - Existing subtransactions (if any)
+  - Transaction ID, date, amount.
+  - Current memo, payee, category.
+  - Account information.
+  - Existing subtransactions (if any).
 
 ### Processing Requirements
 
