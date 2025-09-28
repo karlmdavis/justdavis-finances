@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-YNAB CLI - Transaction Updates and Mutation Management
+YNAB CLI - Transaction Updates and Edit Management
 
 Professional command-line interface for YNAB transaction updates.
 """
@@ -18,7 +18,7 @@ from ..core.models import Transaction
 
 @click.group()
 def ynab():
-    """YNAB transaction update and mutation management commands."""
+    """YNAB transaction update and edit management commands."""
     pass
 
 
@@ -26,14 +26,14 @@ def ynab():
 @click.option('--input-file', required=True, help='Match results JSON file')
 @click.option('--confidence-threshold', type=float, default=0.8,
               help='Minimum confidence for automatic approval (default: 0.8)')
-@click.option('--dry-run', is_flag=True, help='Generate mutations without applying them')
+@click.option('--dry-run', is_flag=True, help='Generate edits without applying them')
 @click.option('--output-dir', help='Override output directory')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.pass_context
 def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: float,
                    dry_run: bool, output_dir: Optional[str], verbose: bool) -> None:
     """
-    Generate transaction split mutations from match results.
+    Generate transaction split edits from match results.
 
     Examples:
       finances ynab generate-splits --input-file data/amazon/transaction_matches/2024-07-15_results.json
@@ -45,7 +45,7 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
     if output_dir:
         output_path = Path(output_dir)
     else:
-        output_path = config.data_dir / "ynab" / "mutations"
+        output_path = config.data_dir / "ynab" / "edits"
 
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -57,7 +57,7 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
         click.echo(f"YNAB Split Generation")
         click.echo(f"Input: {input_path}")
         click.echo(f"Confidence threshold: {confidence_threshold}")
-        click.echo(f"Mode: {'Dry run' if dry_run else 'Generate mutations'}")
+        click.echo(f"Mode: {'Dry run' if dry_run else 'Generate edits'}")
         click.echo(f"Output: {output_path}")
         click.echo()
 
@@ -76,8 +76,8 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
         elif "apple" in str(input_path).lower():
             match_type = "apple"
 
-        # Generate mutations
-        mutations = []
+        # Generate edits
+        edits = []
         auto_approved = 0
         requires_review = 0
 
@@ -92,7 +92,7 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
                 click.echo(f"⚠️  Unknown match type, skipping: {match.get('transaction_id', 'unknown')}")
                 continue
 
-            mutation = {
+            edit = {
                 "transaction_id": match.get('transaction_id'),
                 "confidence": confidence,
                 "auto_approved": confidence >= confidence_threshold,
@@ -100,20 +100,20 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
                 "match_details": match
             }
 
-            mutations.append(mutation)
+            edits.append(edit)
 
-            if mutation["auto_approved"]:
+            if edit["auto_approved"]:
                 auto_approved += 1
             else:
                 requires_review += 1
 
         # Generate output filename
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        mode_suffix = "dry_run" if dry_run else "mutations"
+        mode_suffix = "dry_run" if dry_run else "edits"
         output_file = output_path / f"{timestamp}_{match_type}_{mode_suffix}.json"
 
-        # Create mutation file
-        mutation_data = {
+        # Create edit file
+        edit_data = {
             "metadata": {
                 "source_file": str(input_path),
                 "match_type": match_type,
@@ -122,26 +122,26 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
                 "timestamp": timestamp
             },
             "summary": {
-                "total_mutations": len(mutations),
+                "total_edits": len(edits),
                 "auto_approved": auto_approved,
                 "requires_review": requires_review,
-                "approval_rate": auto_approved / len(mutations) if mutations else 0.0
+                "approval_rate": auto_approved / len(edits) if edits else 0.0
             },
-            "mutations": mutations
+            "edits": edits
         }
 
-        # Write mutation file
+        # Write edit file
         with open(output_file, 'w') as f:
-            json.dump(mutation_data, f, indent=2)
+            json.dump(edit_data, f, indent=2)
 
         # Display summary
-        click.echo(f"✅ Generated {len(mutations)} mutations")
+        click.echo(f"✅ Generated {len(edits)} edits")
         click.echo(f"   Auto-approved: {auto_approved}")
         click.echo(f"   Requires review: {requires_review}")
         click.echo(f"   Saved to: {output_file}")
 
         if dry_run:
-            click.echo("\n💡 This was a dry run. Use --apply to execute mutations.")
+            click.echo("\n💡 This was a dry run. Use --apply to execute edits.")
 
     except Exception as e:
         click.echo(f"❌ Error generating splits: {e}", err=True)
@@ -149,74 +149,74 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
 
 
 @ynab.command()
-@click.option('--mutation-file', required=True, help='Mutation file to apply')
+@click.option('--edit-file', required=True, help='Edit file to apply')
 @click.option('--force', is_flag=True, help='Apply without confirmation prompt')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.pass_context
-def apply_mutations(ctx: click.Context, mutation_file: str, force: bool, verbose: bool) -> None:
+def apply_edits(ctx: click.Context, edit_file: str, force: bool, verbose: bool) -> None:
     """
-    Apply transaction mutations to YNAB.
+    Apply transaction edits to YNAB.
 
     Example:
-      finances ynab apply-mutations --mutation-file data/ynab/mutations/2024-07-15_amazon_mutations.json
+      finances ynab apply-edits --edit-file data/ynab/edits/2024-07-15_amazon_edits.json
     """
     config = get_config()
-    mutation_path = Path(mutation_file)
+    edit_path = Path(edit_file)
 
-    if not mutation_path.exists():
-        raise click.ClickException(f"Mutation file not found: {mutation_path}")
+    if not edit_path.exists():
+        raise click.ClickException(f"Edit file not found: {edit_path}")
 
     if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"YNAB Mutation Application")
-        click.echo(f"Mutation file: {mutation_path}")
+        click.echo(f"YNAB Edit Application")
+        click.echo(f"Edit file: {edit_path}")
         click.echo()
 
     try:
-        # Load mutation data
-        with open(mutation_path, 'r') as f:
-            mutation_data = json.load(f)
+        # Load edit data
+        with open(edit_path, 'r') as f:
+            edit_data = json.load(f)
 
-        mutations = mutation_data.get('mutations', [])
-        auto_approved = sum(1 for m in mutations if m.get('auto_approved', False))
-        requires_review = len(mutations) - auto_approved
+        edits = edit_data.get('edits', [])
+        auto_approved = sum(1 for m in edits if m.get('auto_approved', False))
+        requires_review = len(edits) - auto_approved
 
         if verbose:
-            click.echo(f"Loaded {len(mutations)} mutations")
+            click.echo(f"Loaded {len(edits)} edits")
             click.echo(f"  Auto-approved: {auto_approved}")
             click.echo(f"  Requires review: {requires_review}")
             click.echo()
 
         # Confirmation prompt
         if not force:
-            click.echo(f"About to apply {auto_approved} auto-approved mutations to YNAB.")
+            click.echo(f"About to apply {auto_approved} auto-approved edits to YNAB.")
             if requires_review > 0:
-                click.echo(f"Note: {requires_review} mutations require review and will be skipped.")
+                click.echo(f"Note: {requires_review} edits require review and will be skipped.")
 
             if not click.confirm("Continue?"):
                 click.echo("Cancelled.")
                 return
 
-        # Apply mutations
-        click.echo("🔍 Applying mutations to YNAB...")
+        # Apply edits
+        click.echo("🔍 Applying edits to YNAB...")
         click.echo("⚠️  Full implementation requires YNAB API integration")
 
         # Placeholder implementation
         applied = 0
         skipped = 0
 
-        for mutation in mutations:
-            if mutation.get('auto_approved', False):
-                # Would apply mutation here
+        for edit in edits:
+            if edit.get('auto_approved', False):
+                # Would apply edit here
                 applied += 1
             else:
                 skipped += 1
 
-        click.echo(f"✅ Applied {applied} mutations")
+        click.echo(f"✅ Applied {applied} edits")
         if skipped > 0:
-            click.echo(f"⏸️  Skipped {skipped} mutations (require review)")
+            click.echo(f"⏸️  Skipped {skipped} edits (require review)")
 
     except Exception as e:
-        click.echo(f"❌ Error applying mutations: {e}", err=True)
+        click.echo(f"❌ Error applying edits: {e}", err=True)
         raise click.ClickException(str(e))
 
 

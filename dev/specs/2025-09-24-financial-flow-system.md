@@ -52,7 +52,7 @@ The system employs a directed acyclic graph (DAG) to manage dependencies between
 - **Execution Time**: <5 minutes for complete pipeline (excluding manual steps)
 - **Data Consistency**: 100% transactional integrity via pre-execution archiving
 - **Change Detection Accuracy**: 100% identification of new upstream data
-- **User Intervention**: Required only for manual downloads and mutation reviews
+- **User Intervention**: Required only for manual downloads and edit reviews
 - **Archive Completeness**: 100% of outputs preserved with compression
 
 ## Functional Requirements
@@ -163,12 +163,12 @@ Nodes and Edges:
 ##### Split Generation Node
 - **Command**: `finances ynab generate-splits`
 - **Change Detection**: New match results from Amazon or Apple
-- **Outputs**: `data/ynab/mutations/YYYY-MM-DD_HH-MM-SS_{source}_mutations.yaml`
+- **Outputs**: `data/ynab/edits/YYYY-MM-DD_HH-MM-SS_{source}_edits.yaml`
 - **Dependencies**: YNAB Sync, Amazon Matching, Apple Matching
 - **Special Behavior**: Aggregate results from all upstream matchers
 
 ##### YNAB Apply Node
-- **Command**: `finances ynab apply-mutations`
+- **Command**: `finances ynab apply-edits`
 - **Interactive Features**:
   - Display summary of proposed changes
   - Show confidence scores and auto-approval counts
@@ -214,15 +214,15 @@ Nodes and Edges:
   - Memory usage
 - **Aggregate Metrics**:
   - Total execution time
-  - Total YNAB mutations generated
+  - Total YNAB edits generated
   - New transactions discovered
   - Archive size created
 
 #### Review Artifacts
-- **Mutation Files**: YAML format with clear next steps documentation
+- **Edit Files**: YAML format with clear next steps documentation
 - **Non-Interactive Summary**: Generated when `--non-interactive` flag used
   - Location of all generated artifacts
-  - Commands to manually review mutations
+  - Commands to manually review edits
   - Instructions for applying approved changes
 
 #### Error Reporting

@@ -285,7 +285,7 @@ python analysis/amazon_transaction_matching/match_transactions_batch.py \
 ### YNAB Data Workflow Integration
 - **Dependencies**: Requires fresh YNAB transaction cache
 - **Trigger Points**: After YNAB data refresh, before transaction updates
-- **Data Flow**: YNAB transactions → matching → mutation generation
+- **Data Flow**: YNAB transactions → matching → edit generation
 
 ### Amazon Data Workflow Integration
 - **Dependencies**: Requires Amazon order history extracts

@@ -9,7 +9,7 @@
             except when required by Markdown's formatting rules,
             such as for code blocks inside a list.
     - [ ] Files should end with a line break, per POSIX.
-- [ ] Rename the YNAB "mutations" to "edits".
+- [X] Rename the YNAB "mutations" to "edits".
 - [ ] JSON file outputs should be pretty-printed, for readability and searchability.
 
 ## Major Items

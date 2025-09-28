@@ -266,7 +266,7 @@ def update(ctx: click.Context, interactive: bool, account: tuple, date: Optional
                     yaml.dump(ynab_data, f, default_flow_style=False, sort_keys=True)
 
                 click.echo(f"\n💾 YNAB transactions saved to: {output_path}")
-                click.echo("Use 'finances ynab apply-mutations' to apply these transactions")
+                click.echo("Use 'finances ynab apply-edits' to apply these transactions")
 
         else:
             click.echo("\nNo YNAB transactions needed (no balance changes).")

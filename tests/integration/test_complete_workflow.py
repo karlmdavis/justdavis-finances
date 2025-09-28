@@ -367,8 +367,8 @@ class TestCrossSystemIntegration:
     """Test integration between different systems."""
 
     @pytest.mark.integration
-    def test_amazon_to_ynab_mutation_workflow(self):
-        """Test Amazon matches -> YNAB mutations workflow."""
+    def test_amazon_to_ynab_edit_workflow(self):
+        """Test Amazon matches -> YNAB edits workflow."""
         # Sample Amazon match result
         amazon_match = {
             'transaction': {
@@ -407,7 +407,7 @@ class TestCrossSystemIntegration:
 
         splits = calculate_amazon_splits(amazon_match['transaction']['amount'], items)
 
-        # Validate mutation structure
+        # Validate edit structure
         assert len(splits) == 2
         assert sum(split['amount'] for split in splits) == amazon_match['transaction']['amount']
 
@@ -417,8 +417,8 @@ class TestCrossSystemIntegration:
             assert any(item['name'] in split['memo'] for item in items)
 
     @pytest.mark.integration
-    def test_apple_to_ynab_mutation_workflow(self):
-        """Test Apple matches -> YNAB mutations workflow."""
+    def test_apple_to_ynab_edit_workflow(self):
+        """Test Apple matches -> YNAB edits workflow."""
         # Sample Apple match result
         apple_match = {
             'transaction': {
@@ -467,7 +467,7 @@ class TestCrossSystemIntegration:
             receipt_subtotal=apple_match['receipt']['total']
         )
 
-        # Validate mutation structure
+        # Validate edit structure
         assert len(splits) == 4
         assert sum(split['amount'] for split in splits) == apple_match['transaction']['amount']
 

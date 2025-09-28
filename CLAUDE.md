@@ -132,7 +132,7 @@ When developing automation or tools for this repository, prioritize:
   - `data/apple/exports/` - Parsed Apple receipt data
   - `data/apple/transaction_matches/` - Apple matching results
   - `data/ynab/cache/` - Cached YNAB data
-  - `data/ynab/mutations/` - Transaction updates
+  - `data/ynab/edits/` - Transaction updates
   - `data/cash_flow/charts/` - Generated analysis dashboards
 - `src/finances/` - Python package source code
 - `tests/` - Comprehensive test suite with fixtures

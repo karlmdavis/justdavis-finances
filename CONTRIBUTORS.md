@@ -109,9 +109,9 @@ finances/                           # Repository root
 │   │   ├── emails/                 # Receipt emails (HTML/EML format)
 │   │   ├── exports/                # Parsed receipt data (JSON format)
 │   │   └── transaction_matches/    # Matching results (JSON format)
-│   ├── ynab/                       # YNAB data and mutations
+│   ├── ynab/                       # YNAB data and edits
 │   │   ├── cache/                  # Cached YNAB data (JSON format)
-│   │   └── mutations/              # Transaction updates (JSON format)
+│   │   └── edits/                  # Transaction updates (JSON format)
 │   └── cash_flow/                  # Cash flow analysis results
 │       └── charts/                 # Generated dashboards (PNG/PDF format)
 ├── dev/                            # Development documentation and specifications

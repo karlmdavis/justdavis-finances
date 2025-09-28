@@ -6,13 +6,13 @@ Secure integration with YNAB API for transaction updates and data caching.
 This package provides:
 - YNAB API client with authentication and error handling
 - Local data caching for performance and offline operation
-- Three-phase mutation workflow (generate → review → apply)
+- Three-phase edit workflow (generate → review → apply)
 - Transaction splitting with item-level memos
 - Audit trail for all changes with reversibility
 
 Key Components:
 - split_calculator: Transaction splitting with tax allocation
-- mutations: Mutation generation, review, and execution
+- edits: Edit generation, review, and execution
 - client: YNAB API integration (future)
 - cache: Local data storage and synchronization (future)
 

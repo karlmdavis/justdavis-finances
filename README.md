@@ -207,7 +207,7 @@ Secure YNAB integration with transaction splitting and audit trails.
 - **Transaction splitting**: Intelligent item-level categorization
 - **Audit trails**: Complete change tracking with reversibility
 - **Confidence thresholds**: Automatic approval for high-confidence matches
-- **Dry-run mode**: Test mutations before applying
+- **Dry-run mode**: Test edits before applying
 
 **Usage:**
 ```bash
@@ -215,9 +215,9 @@ Secure YNAB integration with transaction splitting and audit trails.
 finances ynab generate-splits \
   --input-file data/amazon/transaction_matches/2024-07-15_results.json
 
-# Apply mutations to YNAB
-finances ynab apply-mutations \
-  --mutation-file data/ynab/mutations/2024-07-15_amazon_mutations.json
+# Apply edits to YNAB
+finances ynab apply-edits \
+  --edit-file data/ynab/edits/2024-07-15_amazon_edits.json
 
 # Sync YNAB data to local cache
 finances ynab sync-cache --days 30
@@ -299,7 +299,7 @@ The system automatically creates and manages data directories:
 - `data/apple/emails/`: Apple receipt emails
 - `data/apple/exports/`: Parsed Apple receipt data
 - `data/ynab/cache/`: Cached YNAB data
-- `data/ynab/mutations/`: Generated transaction updates
+- `data/ynab/edits/`: Generated transaction updates
 - `data/retirement/`: Retirement account balance history
 - `data/cash_flow/charts/`: Generated analysis dashboards
 - `data/cache/flow/`: Flow system change detection metadata
