@@ -470,10 +470,11 @@ class TestFlowExecutionEngine:
 
         executions = engine.execute_flow(context)
 
-        assert len(executions) == 1  # Should stop after node1 failure
+        assert len(executions) == 2  # node1 failed, node2 skipped due to failure
         assert executions["node1"].status == NodeStatus.FAILED
+        assert executions["node2"].status == NodeStatus.SKIPPED
         assert node1.execution_count == 1
-        assert node2.execution_count == 0
+        assert node2.execution_count == 0  # Should not execute due to dependency failure
 
     def test_execute_flow_continue_on_error(self):
         """Test flow execution continues on error with force flag."""

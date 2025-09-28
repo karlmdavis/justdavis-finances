@@ -97,11 +97,11 @@ class TestFlowCLIIntegration:
         (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
         (ynab_dir / "transactions.json").write_text('[]')
 
-        result = self.runner.invoke(flow, ['execute', '--dry-run', '--verbose'])
+        result = self.runner.invoke(flow, ['go', '--dry-run', '--verbose'])
 
         assert result.exit_code == 0
         assert "Dry run mode - no changes will be made" in result.output
-        assert "Planned execution for" in result.output
+        assert "Dynamic execution will process" in result.output
 
     @patch('finances.core.config.get_config')
     def test_flow_execute_no_changes(self, mock_get_config):
@@ -112,7 +112,7 @@ class TestFlowCLIIntegration:
         mock_get_config.return_value = mock_config
 
         # Don't create any data files - should result in no changes, use dry-run mode
-        result = self.runner.invoke(flow, ['execute', '--dry-run'])
+        result = self.runner.invoke(flow, ['go', '--dry-run'])
 
         assert result.exit_code == 0
         # With no data files, we might still get some nodes that want to execute
@@ -127,12 +127,12 @@ class TestFlowCLIIntegration:
         mock_get_config.return_value = mock_config
 
         result = self.runner.invoke(flow, [
-            'execute', '--dry-run', '--nodes', 'ynab_sync', '--nodes', 'cash_flow_analysis'
+            'go', '--dry-run', '--nodes', 'ynab_sync', '--nodes', 'cash_flow_analysis'
         ])
 
         assert result.exit_code == 0
         # Should show limited execution plan
-        assert "Planned execution for" in result.output
+        assert "Dynamic execution will process" in result.output
 
     @patch('finances.core.config.get_config')
     def test_flow_execute_force_mode(self, mock_get_config):
@@ -142,10 +142,10 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, ['execute', '--dry-run', '--force'])
+        result = self.runner.invoke(flow, ['go', '--dry-run', '--force'])
 
         assert result.exit_code == 0
-        assert "Planned execution for" in result.output
+        assert "Dynamic execution will process" in result.output
         # In force mode, should execute many nodes even without changes
 
     @patch('finances.core.config.get_config')
@@ -156,7 +156,7 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, ['execute', '--non-interactive', '--dry-run'])
+        result = self.runner.invoke(flow, ['go', '--non-interactive', '--dry-run'])
 
         assert result.exit_code == 0
         assert "Dry run mode" in result.output
@@ -453,7 +453,7 @@ class TestEndToEndFlow:
 
         # Execute with archive creation
         runner = CliRunner()
-        result = runner.invoke(flow, ['execute', '--dry-run', '--verbose'])
+        result = runner.invoke(flow, ['go', '--dry-run', '--verbose'])
 
         assert result.exit_code == 0
         # In dry run mode, archives are not created, so we just check it runs successfully

@@ -40,39 +40,127 @@ def setup_flow_nodes():
     config = get_config()
     change_detectors = create_change_detectors(config.data_dir)
 
-    # For now, we'll register placeholder nodes
-    # In a complete implementation, these would integrate with actual CLI commands
+    # Import CLI command functions for real implementations
+    from .ynab import sync_cache as ynab_sync_cmd
+    from .amazon import unzip as amazon_unzip_cmd, match as amazon_match_cmd
+    from .apple import fetch_emails as apple_fetch_cmd, parse_receipts as apple_parse_cmd, match as apple_match_cmd
+    from .ynab import generate_splits as ynab_splits_cmd, apply_edits as ynab_apply_cmd
+    from .retirement import update as retirement_update_cmd
+    from .cashflow import analyze as cashflow_analyze_cmd
 
-    def placeholder_node_executor(context: FlowContext, node_name: str):
-        """Placeholder executor for demonstration."""
-        from ..core.flow import FlowResult
-        logger.info(f"Executing placeholder for {node_name}")
-        return FlowResult(
-            success=True,
-            items_processed=0,
-            metadata={"placeholder": True, "node": node_name}
-        )
+    def create_cli_executor(cli_func, **default_kwargs):
+        """
+        Create a flow executor that wraps a CLI command function.
+
+        Args:
+            cli_func: The CLI command function to execute
+            **default_kwargs: Default parameters to pass to the CLI function
+        """
+        def executor(context: FlowContext):
+            from ..core.flow import FlowResult
+            try:
+                # Create a mock click context for the CLI function
+                import click
+                from types import SimpleNamespace
+
+                # Create mock context object
+                mock_ctx = click.Context(cli_func)
+                mock_ctx.obj = {
+                    'verbose': context.verbose,
+                    'config': config
+                }
+
+                # Merge flow context parameters with defaults
+                kwargs = default_kwargs.copy()
+                if context.date_range:
+                    start_date, end_date = context.date_range
+                    if start_date:
+                        kwargs['start'] = start_date.strftime('%Y-%m-%d')
+                    if end_date:
+                        kwargs['end'] = end_date.strftime('%Y-%m-%d')
+
+                kwargs['verbose'] = context.verbose
+
+                # Execute the CLI function
+                logger.info(f"Executing CLI function: {cli_func.__name__}")
+                result = cli_func(mock_ctx, **kwargs)
+
+                return FlowResult(
+                    success=True,
+                    items_processed=1,  # CLI functions don't return item counts
+                    metadata={"cli_function": cli_func.__name__, "executed": True}
+                )
+
+            except Exception as e:
+                logger.error(f"CLI function {cli_func.__name__} failed: {e}")
+                return FlowResult(
+                    success=False,
+                    error_message=str(e),
+                    metadata={"cli_function": cli_func.__name__, "error": str(e)}
+                )
+
+        return executor
 
     # Register YNAB Sync Node
     flow_registry.register_function_node(
         name="ynab_sync",
-        func=lambda ctx: placeholder_node_executor(ctx, "ynab_sync"),
+        func=create_cli_executor(ynab_sync_cmd, days=30),
         dependencies=[],
         change_detector=get_change_detector_function(change_detectors["ynab_sync"])
     )
 
     # Register Amazon Order History Request Node (manual step)
+    def amazon_order_history_request_executor(context: FlowContext):
+        """Manual step - prompts user to download Amazon order history."""
+        from ..core.flow import FlowResult
+        logger.info("Amazon order history request - manual step")
+        if context.interactive:
+            import click
+            click.echo("\n📋 Manual Step Required:")
+            click.echo("1. Visit https://www.amazon.com/gp/privacycentral/dsar/preview.html")
+            click.echo("2. Request 'Order Reports' for the desired date range")
+            click.echo("3. Download the ZIP files when ready")
+            click.echo("4. Place them in your download directory")
+            if not click.confirm("Have you completed this step?"):
+                return FlowResult(success=False, error_message="User cancelled manual step")
+
+        return FlowResult(
+            success=True,
+            items_processed=0,
+            metadata={"manual_step": True, "description": "Amazon order history request"}
+        )
+
     flow_registry.register_function_node(
         name="amazon_order_history_request",
-        func=lambda ctx: placeholder_node_executor(ctx, "amazon_order_history_request"),
+        func=amazon_order_history_request_executor,
         dependencies=[],
         change_detector=lambda ctx: (False, ["Manual step - user prompt required"])
     )
 
     # Register Amazon Unzip Node
+    def amazon_unzip_executor(context: FlowContext):
+        """Execute Amazon unzip with automatic download directory detection."""
+        from ..core.flow import FlowResult
+        import os
+        from pathlib import Path
+
+        # Try to find download directory
+        download_dir = Path.home() / "Downloads"
+        if not download_dir.exists():
+            return FlowResult(
+                success=False,
+                error_message="Downloads directory not found"
+            )
+
+        return create_cli_executor(
+            amazon_unzip_cmd,
+            download_dir=str(download_dir),
+            accounts=()  # All accounts
+        )(context)
+
     flow_registry.register_function_node(
         name="amazon_unzip",
-        func=lambda ctx: placeholder_node_executor(ctx, "amazon_unzip"),
+        func=amazon_unzip_executor,
         dependencies=["amazon_order_history_request"],
         change_detector=get_change_detector_function(change_detectors["amazon_unzip"])
     )
@@ -80,7 +168,12 @@ def setup_flow_nodes():
     # Register Amazon Matching Node
     flow_registry.register_function_node(
         name="amazon_matching",
-        func=lambda ctx: placeholder_node_executor(ctx, "amazon_matching"),
+        func=create_cli_executor(
+            amazon_match_cmd,
+            accounts=(),  # All accounts
+            disable_split=False,
+            output_dir=None
+        ),
         dependencies=["ynab_sync", "amazon_unzip"],
         change_detector=get_change_detector_function(change_detectors["amazon_matching"])
     )
@@ -88,15 +181,39 @@ def setup_flow_nodes():
     # Register Apple Email Fetch Node
     flow_registry.register_function_node(
         name="apple_email_fetch",
-        func=lambda ctx: placeholder_node_executor(ctx, "apple_email_fetch"),
+        func=create_cli_executor(
+            apple_fetch_cmd,
+            days_back=90,
+            max_emails=None,
+            output_dir=None
+        ),
         dependencies=[],
         change_detector=get_change_detector_function(change_detectors["apple_email_fetch"])
     )
 
     # Register Apple Receipt Parsing Node
+    def apple_receipt_parsing_executor(context: FlowContext):
+        """Execute Apple receipt parsing using the email fetch output directory."""
+        from ..core.flow import FlowResult
+        from pathlib import Path
+
+        # Use default Apple email directory
+        email_dir = config.data_dir / "apple" / "emails"
+        if not email_dir.exists():
+            return FlowResult(
+                success=False,
+                error_message="Apple emails directory not found. Run apple email fetch first."
+            )
+
+        return create_cli_executor(
+            apple_parse_cmd,
+            input_dir=str(email_dir),
+            output_dir=None
+        )(context)
+
     flow_registry.register_function_node(
         name="apple_receipt_parsing",
-        func=lambda ctx: placeholder_node_executor(ctx, "apple_receipt_parsing"),
+        func=apple_receipt_parsing_executor,
         dependencies=["apple_email_fetch"],
         change_detector=lambda ctx: (True, ["New email directories detected"])
     )
@@ -104,23 +221,113 @@ def setup_flow_nodes():
     # Register Apple Matching Node
     flow_registry.register_function_node(
         name="apple_matching",
-        func=lambda ctx: placeholder_node_executor(ctx, "apple_matching"),
+        func=create_cli_executor(
+            apple_match_cmd,
+            apple_ids=(),  # All Apple IDs
+            output_dir=None
+        ),
         dependencies=["ynab_sync", "apple_receipt_parsing"],
         change_detector=get_change_detector_function(change_detectors["apple_matching"])
     )
 
     # Register Split Generation Node
+    def split_generation_executor(context: FlowContext):
+        """Generate splits from both Amazon and Apple match results."""
+        from ..core.flow import FlowResult
+        from pathlib import Path
+        import glob
+
+        # Find the most recent match results files
+        data_dir = config.data_dir
+        amazon_matches = list((data_dir / "amazon" / "transaction_matches").glob("*.json"))
+        apple_matches = list((data_dir / "apple" / "transaction_matches").glob("*.json"))
+
+        results = []
+
+        # Process Amazon matches
+        if amazon_matches:
+            latest_amazon = max(amazon_matches, key=lambda p: p.stat().st_mtime)
+            try:
+                result = create_cli_executor(
+                    ynab_splits_cmd,
+                    input_file=str(latest_amazon),
+                    confidence_threshold=0.8,
+                    dry_run=False,
+                    output_dir=None
+                )(context)
+                results.append(result)
+            except Exception as e:
+                logger.warning(f"Failed to generate splits from Amazon matches: {e}")
+
+        # Process Apple matches
+        if apple_matches:
+            latest_apple = max(apple_matches, key=lambda p: p.stat().st_mtime)
+            try:
+                result = create_cli_executor(
+                    ynab_splits_cmd,
+                    input_file=str(latest_apple),
+                    confidence_threshold=0.8,
+                    dry_run=False,
+                    output_dir=None
+                )(context)
+                results.append(result)
+            except Exception as e:
+                logger.warning(f"Failed to generate splits from Apple matches: {e}")
+
+        if not results:
+            return FlowResult(
+                success=False,
+                error_message="No match results found to generate splits from"
+            )
+
+        # Return success if at least one succeeded
+        success = any(r.success for r in results)
+        return FlowResult(
+            success=success,
+            items_processed=len(results),
+            metadata={"splits_generated_from": len(results), "sources": ["amazon", "apple"]}
+        )
+
     flow_registry.register_function_node(
         name="split_generation",
-        func=lambda ctx: placeholder_node_executor(ctx, "split_generation"),
+        func=split_generation_executor,
         dependencies=["amazon_matching", "apple_matching"],
         change_detector=lambda ctx: (True, ["New match results from upstream"])
     )
 
     # Register YNAB Apply Node
+    def ynab_apply_executor(context: FlowContext):
+        """Apply the most recent YNAB edit files."""
+        from ..core.flow import FlowResult
+        from pathlib import Path
+
+        # Find the most recent edit files
+        edit_dir = config.data_dir / "ynab" / "edits"
+        if not edit_dir.exists():
+            return FlowResult(
+                success=False,
+                error_message="YNAB edits directory not found"
+            )
+
+        edit_files = list(edit_dir.glob("*.json"))
+        if not edit_files:
+            return FlowResult(
+                success=False,
+                error_message="No YNAB edit files found"
+            )
+
+        # Apply the most recent edit file
+        latest_edit = max(edit_files, key=lambda p: p.stat().st_mtime)
+
+        return create_cli_executor(
+            ynab_apply_cmd,
+            edit_file=str(latest_edit),
+            force=not context.interactive  # Auto-apply in non-interactive mode
+        )(context)
+
     flow_registry.register_function_node(
         name="ynab_apply",
-        func=lambda ctx: placeholder_node_executor(ctx, "ynab_apply"),
+        func=ynab_apply_executor,
         dependencies=["split_generation"],
         change_detector=lambda ctx: (True, ["New splits to apply"])
     )
@@ -128,7 +335,13 @@ def setup_flow_nodes():
     # Register Retirement Account Updates Node
     flow_registry.register_function_node(
         name="retirement_update",
-        func=lambda ctx: placeholder_node_executor(ctx, "retirement_update"),
+        func=create_cli_executor(
+            retirement_update_cmd,
+            interactive=True,
+            account=(),
+            date=None,
+            output_file=None
+        ),
         dependencies=[],
         change_detector=get_change_detector_function(change_detectors["retirement_update"])
     )
@@ -136,7 +349,13 @@ def setup_flow_nodes():
     # Register Cash Flow Analysis Node
     flow_registry.register_function_node(
         name="cash_flow_analysis",
-        func=lambda ctx: placeholder_node_executor(ctx, "cash_flow_analysis"),
+        func=create_cli_executor(
+            cashflow_analyze_cmd,
+            accounts=(),
+            exclude_before=None,
+            output_dir=None,
+            format="png"
+        ),
         dependencies=["ynab_sync"],
         change_detector=lambda ctx: (True, ["YNAB data updated"])
     )
@@ -158,7 +377,7 @@ def setup_flow_nodes():
 @click.option('--skip-archive', is_flag=True, help='Skip archive creation')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.pass_context
-def execute(ctx: click.Context, interactive: bool, start: Optional[str], end: Optional[str],
+def go(ctx: click.Context, interactive: bool, start: Optional[str], end: Optional[str],
            confidence_threshold: int, perf: bool, dry_run: bool, force: bool,
            nodes: tuple, skip_archive: bool, verbose: bool) -> None:
     """
@@ -169,11 +388,16 @@ def execute(ctx: click.Context, interactive: bool, start: Optional[str], end: Op
     detection.
 
     Examples:
-      finances flow execute
-      finances flow execute --dry-run --verbose
-      finances flow execute --nodes ynab_sync --nodes amazon_matching
-      finances flow execute --start 2024-07-01 --end 2024-07-31
-      finances flow execute --non-interactive --force
+
+      finances flow go
+
+      finances flow go --dry-run --verbose
+
+      finances flow go --nodes ynab_sync --nodes amazon_matching
+
+      finances flow go --start 2024-07-01 --end 2024-07-31
+
+      finances flow go --non-interactive --force
     """
     config = get_config()
 
@@ -228,32 +452,62 @@ def execute(ctx: click.Context, interactive: bool, start: Optional[str], end: Op
         # Determine target nodes
         target_nodes = set(nodes) if nodes else None
 
-        # Plan execution
-        execution_order, change_summary = engine.plan_execution(flow_context, target_nodes)
+        # Detect initial changes for preview
+        if target_nodes is None:
+            all_nodes = set(flow_registry.get_all_nodes().keys())
+        else:
+            all_nodes = target_nodes
 
-        if not execution_order:
+        changes = engine.detect_changes(flow_context, all_nodes)
+        initially_changed = set()
+        change_summary = {}
+
+        for node_name, (has_changes, reasons) in changes.items():
+            if has_changes or force:
+                initially_changed.add(node_name)
+                if force:
+                    change_summary[node_name] = ["Force execution requested"] + reasons
+                else:
+                    change_summary[node_name] = reasons
+
+        if force:
+            initially_changed.update(all_nodes)
+            for node_name in all_nodes:
+                if node_name not in change_summary:
+                    change_summary[node_name] = ["Force execution requested"]
+
+        potential_nodes = engine.dependency_graph.find_changed_subgraph(initially_changed)
+
+        if not potential_nodes:
             click.echo("✅ No nodes need execution (no changes detected)")
-            if force:
+            if not force:
                 click.echo("Use --force flag to execute all nodes regardless of changes")
             return
 
-        click.echo(f"Planned execution for {len(execution_order)} nodes:")
-        for i, node_name in enumerate(execution_order, 1):
-            node = flow_registry.get_node(node_name)
-            display_name = node.get_display_name() if node else node_name
-            active_form = node.get_active_form() if node else f"Processing {node_name}"
+        click.echo(f"Dynamic execution will process up to {len(potential_nodes)} nodes as dependencies allow:")
 
-            click.echo(f"  {i}. {display_name}")
-            if node_name in change_summary:
-                for reason in change_summary[node_name]:
-                    click.echo(f"     • {reason}")
+        # Show initially changed nodes
+        if initially_changed:
+            click.echo("\nInitially triggered nodes:")
+            for node_name in sorted(initially_changed):
+                node = flow_registry.get_node(node_name)
+                display_name = node.get_display_name() if node else node_name
+                click.echo(f"  • {display_name}")
+                if node_name in change_summary:
+                    for reason in change_summary[node_name]:
+                        click.echo(f"    - {reason}")
+
+        # Show potentially affected nodes
+        downstream_nodes = potential_nodes - initially_changed
+        if downstream_nodes:
+            click.echo(f"\nPotentially affected downstream nodes: {len(downstream_nodes)}")
 
         if dry_run:
             click.echo("\n🏃 Dry run mode - no changes will be made")
             return
 
         # Confirm execution in interactive mode
-        if interactive and not click.confirm("\nProceed with execution?"):
+        if interactive and not click.confirm("\nProceed with dynamic execution?"):
             click.echo("Execution cancelled.")
             return
 
@@ -330,8 +584,8 @@ def execute(ctx: click.Context, interactive: bool, start: Optional[str], end: Op
 
         # Show archive information
         if archive_session:
-            click.echo(f"\n📦 Archive session: {archive_session.session_id}")
-            click.echo("Archives created:")
+            click.echo(f"\n📦 Archive batch: {archive_session.session_id}")
+            click.echo(f"Separate archives created for {len(archive_session.archives)} domains:")
             for domain, manifest in archive_session.archives.items():
                 click.echo(f"  • {domain}: {manifest.files_archived} files ({manifest.archive_size_bytes:,} bytes)")
 

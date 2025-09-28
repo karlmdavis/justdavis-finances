@@ -338,10 +338,42 @@ class FlowExecutionEngine:
 
         return execution
 
+    def find_ready_nodes(self, remaining_nodes: Set[str], completed_nodes: Set[str]) -> Set[str]:
+        """
+        Find nodes that are ready to execute (all dependencies satisfied).
+
+        Args:
+            remaining_nodes: Set of nodes that haven't been executed yet
+            completed_nodes: Set of nodes that have been successfully completed
+
+        Returns:
+            Set of nodes that are ready to execute
+        """
+        ready_nodes = set()
+
+        for node_name in remaining_nodes:
+            node = self.registry.get_node(node_name)
+            if not node:
+                continue
+
+            # Check if all dependencies are satisfied
+            dependencies_satisfied = all(
+                dep_name in completed_nodes or dep_name not in remaining_nodes
+                for dep_name in node.dependencies
+            )
+
+            if dependencies_satisfied:
+                ready_nodes.add(node_name)
+
+        return ready_nodes
+
     def execute_flow(self, context: FlowContext,
                     target_nodes: Optional[Set[str]] = None) -> Dict[str, NodeExecution]:
         """
-        Execute the complete flow with dependency resolution.
+        Execute the complete flow with dynamic dependency resolution.
+
+        Uses dynamic execution planning where nodes are executed as their
+        dependencies become satisfied, allowing for adaptive workflow execution.
 
         Args:
             context: Flow execution context
@@ -355,41 +387,106 @@ class FlowExecutionEngine:
         if validation_errors:
             raise ValueError(f"Flow validation failed: {validation_errors}")
 
-        # Plan execution
-        execution_order, change_summary = self.plan_execution(context, target_nodes)
+        # Determine initial nodes to consider
+        if target_nodes is None:
+            all_nodes = set(self.registry.get_all_nodes().keys())
+        else:
+            all_nodes = target_nodes
 
-        logger.info(f"Planned execution for {len(execution_order)} nodes")
+        # Initial change detection to find starting nodes
+        changes = self.detect_changes(context, all_nodes)
+        initially_changed = set()
+        change_summary = {}
+
+        for node_name, (has_changes, reasons) in changes.items():
+            if has_changes or context.force:
+                initially_changed.add(node_name)
+                if context.force:
+                    change_summary[node_name] = ["Force execution requested"] + reasons
+                else:
+                    change_summary[node_name] = reasons
+
+        if context.force:
+            initially_changed.update(all_nodes)
+            for node_name in all_nodes:
+                if node_name not in change_summary:
+                    change_summary[node_name] = ["Force execution requested"]
+
+        # Find all nodes that need execution due to changes (including downstream)
+        nodes_needing_execution = self.dependency_graph.find_changed_subgraph(initially_changed)
+
+        logger.info(f"Dynamic execution starting with {len(nodes_needing_execution)} potential nodes")
         if context.verbose:
-            logger.info(f"Execution order: {execution_order}")
-            logger.info(f"Changes detected: {change_summary}")
+            logger.info(f"Initially changed: {initially_changed}")
+            logger.info(f"Nodes needing execution: {nodes_needing_execution}")
 
-        # Execute nodes in order
+        # Dynamic execution state
         executions = {}
+        completed_nodes = set()
+        failed_nodes = set()
+        remaining_nodes = nodes_needing_execution.copy()
+        execution_count = 0
 
-        for i, node_name in enumerate(execution_order, 1):
-            logger.info(f"[{i}/{len(execution_order)}] Executing: {node_name}")
+        # Dynamic execution loop
+        while remaining_nodes:
+            # Find nodes that are ready to execute
+            ready_nodes = self.find_ready_nodes(remaining_nodes, completed_nodes)
 
-            # Check if we should skip due to dry run
-            if context.dry_run:
-                execution = NodeExecution(
-                    node_name=node_name,
-                    status=NodeStatus.SKIPPED,
-                    start_time=datetime.now(),
-                    end_time=datetime.now(),
-                    result=FlowResult(success=True, metadata={"dry_run": True})
-                )
-                logger.info(f"Skipped {node_name} (dry run mode)")
-            else:
-                execution = self.execute_node(node_name, context)
-
-            executions[node_name] = execution
-            context.execution_history.append(execution)
-
-            # Stop on failure unless we're in continue-on-error mode
-            if execution.status == NodeStatus.FAILED and not context.force:
-                logger.error(f"Flow execution stopped due to failure in {node_name}")
+            if not ready_nodes:
+                # No nodes are ready - either dependency cycle or all remaining nodes failed
+                logger.error(f"No ready nodes found with {len(remaining_nodes)} remaining")
+                logger.error(f"Remaining nodes: {remaining_nodes}")
+                logger.error(f"Failed nodes: {failed_nodes}")
                 break
 
+            # Execute ready nodes (in deterministic order for consistency)
+            for node_name in sorted(ready_nodes):
+                execution_count += 1
+                logger.info(f"[{execution_count}] Executing: {node_name}")
+
+                # Check if we should skip due to dry run
+                if context.dry_run:
+                    execution = NodeExecution(
+                        node_name=node_name,
+                        status=NodeStatus.SKIPPED,
+                        start_time=datetime.now(),
+                        end_time=datetime.now(),
+                        result=FlowResult(success=True, metadata={"dry_run": True})
+                    )
+                    logger.info(f"Skipped {node_name} (dry run mode)")
+                    completed_nodes.add(node_name)
+                else:
+                    execution = self.execute_node(node_name, context)
+
+                    if execution.status == NodeStatus.COMPLETED:
+                        completed_nodes.add(node_name)
+                        logger.info(f"Node {node_name} completed successfully")
+                    elif execution.status == NodeStatus.FAILED:
+                        failed_nodes.add(node_name)
+                        logger.error(f"Node {node_name} failed")
+
+                executions[node_name] = execution
+                context.execution_history.append(execution)
+                remaining_nodes.discard(node_name)
+
+                # Stop on failure unless we're in force mode
+                if execution.status == NodeStatus.FAILED and not context.force:
+                    logger.error(f"Flow execution stopped due to failure in {node_name}")
+                    # Mark remaining dependent nodes as skipped
+                    for remaining_node in remaining_nodes:
+                        skip_execution = NodeExecution(
+                            node_name=remaining_node,
+                            status=NodeStatus.SKIPPED,
+                            start_time=datetime.now(),
+                            end_time=datetime.now(),
+                            result=FlowResult(success=True, metadata={"skipped_due_to_failure": node_name})
+                        )
+                        executions[remaining_node] = skip_execution
+                        context.execution_history.append(skip_execution)
+                    remaining_nodes.clear()
+                    break
+
+        logger.info(f"Dynamic execution completed: {len(completed_nodes)} completed, {len(failed_nodes)} failed")
         return executions
 
     def get_execution_summary(self, executions: Dict[str, NodeExecution]) -> Dict[str, Any]:
