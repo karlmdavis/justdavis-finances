@@ -66,9 +66,17 @@ def cents_to_dollars_str(cents: int) -> str:
     Example:
         cents_to_dollars_str(4599) -> "45.99"
     """
-    dollars = cents // 100
-    remainder = abs(cents % 100)  # abs() handles negative amounts
-    return f"{dollars}.{remainder:02d}"
+    # Handle negative amounts properly
+    is_negative = cents < 0
+    abs_cents = abs(int(cents))  # Ensure it's an int
+
+    dollars = int(abs_cents // 100)
+    remainder = int(abs_cents % 100)
+
+    if is_negative:
+        return f"-{dollars}.{remainder:02d}"
+    else:
+        return f"{dollars}.{remainder:02d}"
 
 
 def safe_currency_to_cents(currency_str: Union[str, int, float]) -> int:

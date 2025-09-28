@@ -3,9 +3,10 @@
 
 import pytest
 import json
+import pandas as pd
 from pathlib import Path
 from finances.amazon import SimplifiedMatcher
-from finances.apple import AppleMatcher
+from finances.apple import AppleMatcher, normalize_apple_receipt_data
 from finances.ynab import calculate_amazon_splits, calculate_apple_splits
 from finances.analysis import CashFlowAnalyzer, CashFlowConfig
 from finances.core.config import get_config
@@ -67,10 +68,13 @@ class TestAmazonWorkflow:
         matcher = SimplifiedMatcher()
         matches = []
 
+        # Convert orders to account_data format
+        account_data = {'test_account': (pd.DataFrame(orders), pd.DataFrame())}
+
         for transaction in transactions:
-            transaction_matches = matcher.find_matches(transaction, orders)
-            if transaction_matches:
-                best_match = max(transaction_matches, key=lambda m: m['confidence'])
+            result = matcher.match_transaction(transaction, account_data)
+            if result['matches']:
+                best_match = result['best_match']
                 matches.append({
                     'transaction': transaction,
                     'match': best_match
@@ -167,13 +171,15 @@ class TestAppleWorkflow:
         matcher = AppleMatcher()
         matches = []
 
+        # Normalize receipts data like the real system does
+        receipts_df = normalize_apple_receipt_data(receipts)
+
         for transaction in transactions:
-            transaction_matches = matcher.find_matches(transaction, receipts)
-            if transaction_matches:
-                best_match = max(transaction_matches, key=lambda m: m['confidence'])
+            result = matcher.match_single_transaction(transaction, receipts_df)
+            if result.receipts:  # If match found
                 matches.append({
                     'transaction': transaction,
-                    'match': best_match
+                    'match': result
                 })
 
         assert len(matches) > 0
@@ -394,13 +400,13 @@ class TestCrossSystemIntegration:
         apple_match = {
             'transaction': {
                 'id': 'ynab-txn-456',
-                'amount': -99980,  # $999.80
+                'amount': -699960,  # $699.96 (299.99+299.99+49.99+49.99)
                 'date': '2024-08-15'
             },
             'receipt': {
                 'order_id': 'ML7PQ2XYZ',
                 'apple_id': 'user@example.com',
-                'total': 999.80,
+                'total': 69996,  # $699.96 in cents
                 'items': [
                     {
                         'title': 'Final Cut Pro',

@@ -58,7 +58,7 @@ def sample_apple_receipt() -> Dict[str, Any]:
     """Sample Apple receipt for testing."""
     return {
         'order_id': 'ML7PQ2XYZ',
-        'receipt_date': '2024-08-15',
+        'receipt_date': 'Aug 15, 2024',
         'apple_id': 'test@example.com',
         'subtotal': 29.99,
         'tax': 2.98,
