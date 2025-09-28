@@ -36,7 +36,7 @@ class ChangeDetector:
             data_dir: Base data directory for the system
         """
         self.data_dir = data_dir
-        self.cache_dir = data_dir.parent / ".cache"
+        self.cache_dir = data_dir / "cache" / "flow"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def get_cache_file(self, node_name: str) -> Path:
