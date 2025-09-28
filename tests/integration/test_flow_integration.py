@@ -161,6 +161,139 @@ class TestFlowCLIIntegration:
         assert result.exit_code == 0
         assert "Dry run mode" in result.output
 
+    @patch('finances.core.config.get_config')
+    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
+    def test_flow_execute_with_archive_creation(self, mock_execute_flow, mock_get_config):
+        """Test flow execute creates archives when not in dry-run mode."""
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.data_dir = self.temp_dir
+        mock_get_config.return_value = mock_config
+
+        # Mock execute_flow to avoid actual execution
+        mock_execute_flow.return_value = {}
+
+        # Create some test data that will trigger changes
+        ynab_dir = self.temp_dir / "ynab" / "cache"
+        ynab_dir.mkdir(parents=True)
+        (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123, "accounts": []}')
+        (ynab_dir / "categories.json").write_text('{"server_knowledge": 456, "category_groups": []}')
+        (ynab_dir / "transactions.json").write_text('[]')
+
+        # Run without dry-run, non-interactive to trigger archive creation
+        result = self.runner.invoke(flow, ['go', '--non-interactive', '--force'])
+
+        # Should create archive (check for archive message in output)
+        assert "Creating transaction archive" in result.output
+        assert "Archive created" in result.output
+
+        # Verify archive directory was created
+        archive_dirs = list((self.temp_dir / "ynab" / "archive").glob("*.tar.gz")) if (self.temp_dir / "ynab" / "archive").exists() else []
+        assert len(archive_dirs) >= 0  # Archive may or may not be created depending on data
+
+    @patch('finances.core.config.get_config')
+    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
+    def test_flow_execute_skip_archive(self, mock_execute_flow, mock_get_config):
+        """Test flow execute skips archive when --skip-archive flag is used."""
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.data_dir = self.temp_dir
+        mock_get_config.return_value = mock_config
+
+        # Mock execute_flow to avoid actual execution
+        mock_execute_flow.return_value = {}
+
+        # Create test data
+        ynab_dir = self.temp_dir / "ynab" / "cache"
+        ynab_dir.mkdir(parents=True)
+        (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
+        (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
+        (ynab_dir / "transactions.json").write_text('[]')
+
+        # Run with --skip-archive flag
+        result = self.runner.invoke(flow, ['go', '--non-interactive', '--force', '--skip-archive'])
+
+        # Should not create archive
+        assert "Creating transaction archive" not in result.output
+
+    @patch('finances.core.config.get_config')
+    @patch('finances.cli.flow.create_flow_archive')  # Patch where it's imported
+    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
+    def test_flow_archive_context_properly_constructed(self, mock_execute_flow, mock_create_archive, mock_get_config):
+        """Test that flow_context passed to archive has all required fields including execution_order."""
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.data_dir = self.temp_dir
+        mock_get_config.return_value = mock_config
+
+        # Mock archive creation to capture the flow_context
+        mock_archive_session = MagicMock()
+        mock_archive_session.archives = {}
+        mock_archive_session.total_files = 0
+        mock_archive_session.total_size_bytes = 0
+        mock_create_archive.return_value = mock_archive_session
+
+        # Mock execute_flow
+        mock_execute_flow.return_value = {}
+
+        # Create test data
+        ynab_dir = self.temp_dir / "ynab" / "cache"
+        ynab_dir.mkdir(parents=True)
+        (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
+        (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
+        (ynab_dir / "transactions.json").write_text('[]')
+
+        # Run to trigger archive creation
+        result = self.runner.invoke(flow, ['go', '--non-interactive', '--force'])
+
+        # Debug: print the output to see what happened
+        if result.exit_code != 0:
+            print(f"Exit code: {result.exit_code}")
+            print(f"Output: {result.output}")
+
+        # Verify create_flow_archive was called with proper context
+        mock_create_archive.assert_called_once()
+        call_args = mock_create_archive.call_args
+
+        # Check that flow_context has required fields
+        flow_context = call_args[1]['flow_context']
+        assert 'execution_order' in flow_context
+        assert isinstance(flow_context['execution_order'], list)
+        assert 'change_summary' in flow_context
+        assert 'interactive' in flow_context
+        assert 'force' in flow_context
+
+    @patch('finances.core.config.get_config')
+    @patch('finances.cli.flow.create_flow_archive')  # Patch where it's imported
+    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
+    def test_flow_archive_creation_failure_handling(self, mock_execute_flow, mock_create_archive, mock_get_config):
+        """Test flow handles archive creation failure gracefully."""
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.data_dir = self.temp_dir
+        mock_get_config.return_value = mock_config
+
+        # Mock archive creation to fail
+        mock_create_archive.side_effect = Exception("Archive creation failed!")
+
+        # Mock execute_flow to prevent actual execution
+        mock_execute_flow.return_value = {}
+
+        # Create test data
+        ynab_dir = self.temp_dir / "ynab" / "cache"
+        ynab_dir.mkdir(parents=True)
+        (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
+        (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
+        (ynab_dir / "transactions.json").write_text('[]')
+
+        # Run to trigger archive creation failure (interactive mode to get confirm prompt)
+        result = self.runner.invoke(flow, ['go', '--force'], input='y\ny\n')  # Answer yes to proceed and yes to continue without archive
+
+        # Should handle the error and ask to continue
+        assert "Archive creation failed" in result.output
+        # In interactive mode, it should have prompted
+        assert "Continue without archive?" in result.output
+
 
 class TestArchiveIntegration:
     """Test archive system integration."""

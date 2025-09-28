@@ -520,7 +520,7 @@ def go(ctx: click.Context, interactive: bool, start: Optional[str], end: Optiona
                     config.data_dir,
                     "flow_execution",
                     flow_context={
-                        "execution_order": execution_order,
+                        "execution_order": list(potential_nodes),
                         "change_summary": change_summary,
                         "interactive": interactive,
                         "force": force
