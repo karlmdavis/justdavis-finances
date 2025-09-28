@@ -55,7 +55,7 @@ def list_accounts(ctx: click.Context, verbose: bool) -> None:
     click.echo("=" * 50)
 
     for account in active_accounts:
-        click.echo(f"\n📊 {account.name}")
+        click.echo(f"\n[ACCOUNT] {account.name}")
         click.echo(f"   Type: {account.account_type}")
         click.echo(f"   Provider: {account.provider}")
 
@@ -146,7 +146,7 @@ def update(ctx: click.Context, interactive: bool, account: tuple, date: Optional
             # Show current info
             last_balance = tracker.get_last_balance(account_obj.name)
 
-            click.echo(f"📊 {account_obj.name} ({account_obj.account_type})")
+            click.echo(f"[ACCOUNT] {account_obj.name} ({account_obj.account_type})")
             click.echo(f"   Provider: {account_obj.provider}")
 
             if last_balance:
@@ -317,18 +317,18 @@ def history(ctx: click.Context, account: Optional[str], limit: int, verbose: boo
 
     for account_name in accounts_to_show:
         if account_name not in tracker.balance_history:
-            click.echo(f"📊 {account_name}: No balance history")
+            click.echo(f"[ACCOUNT] {account_name}: No balance history")
             continue
 
         entries = tracker.balance_history[account_name]
         if not entries:
-            click.echo(f"📊 {account_name}: No balance history")
+            click.echo(f"[ACCOUNT] {account_name}: No balance history")
             continue
 
         # Sort by date (most recent first) and limit
         sorted_entries = sorted(entries, key=lambda x: x.date, reverse=True)[:limit]
 
-        click.echo(f"📊 {account_name}:")
+        click.echo(f"[ACCOUNT] {account_name}:")
 
         for entry in sorted_entries:
             click.echo(f"   {entry.date}: {format_cents(entry.balance_cents)}")

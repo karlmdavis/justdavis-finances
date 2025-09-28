@@ -209,7 +209,13 @@ class CashFlowAnalyzer:
 
         x = np.arange(len(self.df))
         y = self.df['Total'].values
-        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+
+        # Check if we have enough data points for statistical analysis
+        if len(x) < 2:
+            # Not enough data for regression - use default values
+            slope = intercept = r_value = p_value = std_err = 0.0
+        else:
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
 
         self.trend_stats = {
             'slope': slope,
@@ -400,7 +406,7 @@ class CashFlowAnalyzer:
         yearly_trend = self.trend_stats['yearly_trend']
 
         stats_text = f"""
-📊 FINANCIAL HEALTH METRICS (Since {self.config.start_date})
+FINANCIAL HEALTH METRICS (Since {self.config.start_date})
 {'='*40}
 
 CURRENT STATUS:
@@ -424,7 +430,7 @@ TREND ANALYSIS:
 • Daily Trend: ${slope:,.2f}/day
 • Monthly Projection: ${monthly_trend:,.0f}/month
 • Yearly Projection: ${yearly_trend:,.0f}/year
-• Trend Direction: {'📈 Growing' if slope > 0 else '📉 Declining'}
+• Trend Direction: {'↗ Growing' if slope > 0 else '↘ Declining'}
 • Trend Confidence: {abs(r_value)*100:.1f}%
 
 VOLATILITY METRICS:

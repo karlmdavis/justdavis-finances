@@ -94,10 +94,10 @@ def analyze(ctx: click.Context, start: Optional[str], end: Optional[str],
             click.echo(f"Analyzing accounts: {analyzer_config.cash_accounts}")
             click.echo(f"Start date: {analyzer_config.start_date}")
 
-        click.echo("📊 Loading and processing cash flow data...")
+        click.echo("[ANALYSIS] Loading and processing cash flow data...")
         analyzer.load_data(ynab_cache_dir)
 
-        click.echo("📈 Generating comprehensive dashboard...")
+        click.echo("[DASHBOARD] Generating comprehensive dashboard...")
         output_file = analyzer.generate_dashboard(output_path)
 
         # Get summary statistics
@@ -106,7 +106,7 @@ def analyze(ctx: click.Context, start: Optional[str], end: Optional[str],
         click.echo(f"\n✅ Dashboard saved to: {output_file}")
 
         # Display key insights
-        click.echo("\n📊 Key Insights:")
+        click.echo("\n[INSIGHTS] Key Statistics:")
         click.echo(f"   Current Balance: ${stats['current_balance']:,.0f}")
         click.echo(f"   Monthly Trend: ${stats['monthly_trend']:,.0f}/month ({stats['trend_direction']})")
         click.echo(f"   Monthly Burn Rate: ${stats['monthly_burn_rate']:,.0f}")
@@ -182,7 +182,7 @@ def report(ctx: click.Context, period: str, start: Optional[str], end: Optional[
             "Variance from historical averages"
         ]
 
-        click.echo("\n📊 Report Sections:")
+        click.echo("\n[REPORT] Sections:")
         for section in report_sections:
             click.echo(f"  • {section}")
 
@@ -234,7 +234,7 @@ def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, ve
         for metric in forecast_metrics:
             click.echo(f"  • {metric}")
 
-        click.echo("\n📈 Forecast Summary:")
+        click.echo("\n[FORECAST] Summary:")
         click.echo("   30-day projection: $X,XXX ± $XXX")
         click.echo("   60-day projection: $X,XXX ± $XXX")
         click.echo("   90-day projection: $X,XXX ± $XXX")
