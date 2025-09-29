@@ -271,7 +271,7 @@ def setup_flow_nodes():
 
     # Register Split Generation Node
     def split_generation_executor(context: FlowContext):
-        """Generate splits from both Amazon and Apple match results."""
+        """Generate splits from Amazon, Apple, and retirement updates."""
         from ..core.flow import FlowResult
         from pathlib import Path
         import glob
@@ -280,6 +280,8 @@ def setup_flow_nodes():
         data_dir = config.data_dir
         amazon_matches = list((data_dir / "amazon" / "transaction_matches").glob("*.json"))
         apple_matches = list((data_dir / "apple" / "transaction_matches").glob("*.json"))
+        # Note: Retirement edits are already in the correct format, no split generation needed
+        # They go directly to the edits directory
 
         results = []
 
@@ -313,10 +315,15 @@ def setup_flow_nodes():
             except Exception as e:
                 logger.warning(f"Failed to generate splits from Apple matches: {e}")
 
+        # Retirement edits are generated directly by retirement_update node
+        # and placed in data/ynab/edits/, so they're ready for apply_edits
+
         if not results:
+            # This is ok if only retirement was updated
             return FlowResult(
-                success=False,
-                error_message="No match results found to generate splits from"
+                success=True,
+                items_processed=0,
+                metadata={"note": "Retirement edits generated separately"}
             )
 
         # Return success if at least one succeeded
@@ -324,13 +331,13 @@ def setup_flow_nodes():
         return FlowResult(
             success=success,
             items_processed=len(results),
-            metadata={"splits_generated_from": len(results), "sources": ["amazon", "apple"]}
+            metadata={"splits_generated_from": len(results), "sources": ["amazon", "apple", "retirement"]}
         )
 
     flow_registry.register_function_node(
         name="split_generation",
         func=split_generation_executor,
-        dependencies=["amazon_matching", "apple_matching"],
+        dependencies=["amazon_matching", "apple_matching", "retirement_update"],
         change_detector=lambda ctx: (True, ["New match results from upstream"])
     )
 
@@ -377,11 +384,10 @@ def setup_flow_nodes():
         func=create_cli_executor(
             retirement_update_cmd,
             interactive=True,
-            account=(),
             date_str=None,
             output_file=None
         ),
-        dependencies=[],
+        dependencies=["ynab_sync"],  # Needs YNAB data to read current balances
         change_detector=get_change_detector_function(change_detectors["retirement_update"])
     )
 

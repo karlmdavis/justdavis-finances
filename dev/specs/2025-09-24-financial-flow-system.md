@@ -72,7 +72,7 @@ Nodes and Edges:
 - Amazon Matching → Split Generation
 - Apple Matching → Split Generation
 - Split Generation → YNAB Apply
-- Retirement Account Updates → YNAB Account Updates
+- Retirement Account Updates → Split Generation
 ```
 
 #### Change Detection Sources
@@ -162,10 +162,10 @@ Nodes and Edges:
 
 ##### Split Generation Node
 - **Command**: `finances ynab generate-splits`
-- **Change Detection**: New match results from Amazon or Apple
+- **Change Detection**: New match results from Amazon, Apple, or retirement updates
 - **Outputs**: `data/ynab/edits/YYYY-MM-DD_HH-MM-SS_{source}_edits.yaml`
-- **Dependencies**: YNAB Sync, Amazon Matching, Apple Matching
-- **Special Behavior**: Aggregate results from all upstream matchers
+- **Dependencies**: YNAB Sync, Amazon Matching, Apple Matching, Retirement Account Updates
+- **Special Behavior**: Aggregate results from all upstream transaction sources (Amazon, Apple, retirement)
 
 ##### YNAB Apply Node
 - **Command**: `finances ynab apply-edits`
@@ -178,15 +178,18 @@ Nodes and Edges:
 
 ##### Retirement Account Updates Node
 - **Command**: `finances retirement update`
+- **Account Discovery**: Auto-discover retirement accounts from YNAB cache by filtering
+  `type: "otherAsset"` and `on_budget: false`
 - **Interactive Flow**:
-  1. List tracked retirement accounts
+  1. List discovered retirement accounts with current YNAB balances
   2. For each account:
-     - Show last update date and balance
+     - Show account name, provider (from account name), current balance
      - Prompt for new balance (or skip)
-     - Optional: prompt for as-of date (default: today)
-  3. Create adjustment transactions in YNAB
-- **Outputs**: `data/retirement/balance_history.yaml`
-- **Dependencies**: None (root node)
+     - Calculate adjustment amount automatically
+  3. Generate YNAB reconciliation transactions as edits
+- **Outputs**: `data/ynab/edits/YYYY-MM-DD_HH-MM-SS_retirement_edits.yaml`
+- **Dependencies**: YNAB Sync (to read current account balances)
+- **Integration**: Follows standard YNAB edit workflow for review and approval
 
 ##### Cash Flow Analysis Node
 - **Command**: `finances cashflow analyze`
