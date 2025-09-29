@@ -85,7 +85,7 @@ def list_accounts(ctx: click.Context, verbose: bool) -> None:
 @click.option('--output-file', help='Save YNAB transactions to file')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.pass_context
-def update(ctx: click.Context, interactive: bool, account: tuple, date: Optional[str],
+def update(ctx: click.Context, interactive: bool, account: tuple, date_str: Optional[str],
            output_file: Optional[str], verbose: bool) -> None:
     """
     Update retirement account balances interactively.
@@ -104,11 +104,11 @@ def update(ctx: click.Context, interactive: bool, account: tuple, date: Optional
 
     # Parse date
     update_date = None
-    if date:
+    if date_str:
         try:
-            update_date = datetime.strptime(date, "%Y-%m-%d").date()
+            update_date = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            raise click.ClickException(f"Invalid date format: {date}. Use YYYY-MM-DD")
+            raise click.ClickException(f"Invalid date format: {date_str}. Use YYYY-MM-DD")
     else:
         update_date = date.today()
 
