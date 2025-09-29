@@ -393,7 +393,9 @@ def setup_flow_nodes():
             accounts=(),
             exclude_before=None,
             output_dir=None,
-            format="png"
+            format="png",
+            start=None,  # Provide default value for required parameter
+            end=None     # Provide default value for required parameter
         ),
         dependencies=["ynab_sync"],
         change_detector=lambda ctx: (True, ["YNAB data updated"])
