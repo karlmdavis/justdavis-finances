@@ -30,6 +30,26 @@ def flow():
     pass
 
 
+def safe_get_callable_name(obj):
+    """
+    Safely extract a name from any callable object.
+
+    Handles functions, Click Command objects, and other callables.
+
+    Args:
+        obj: Any callable object
+
+    Returns:
+        str: Best available name for the callable
+    """
+    if hasattr(obj, '__name__'):
+        return obj.__name__
+    elif hasattr(obj, 'name'):
+        return obj.name
+    else:
+        return obj.__class__.__name__
+
+
 def setup_flow_nodes():
     """
     Register all flow nodes with their dependencies and change detectors.
@@ -82,21 +102,23 @@ def setup_flow_nodes():
                 kwargs['verbose'] = context.verbose
 
                 # Execute the CLI function
-                logger.info(f"Executing CLI function: {cli_func.__name__}")
+                cli_name = safe_get_callable_name(cli_func)
+                logger.info(f"Executing CLI function: {cli_name}")
                 result = cli_func(mock_ctx, **kwargs)
 
                 return FlowResult(
                     success=True,
                     items_processed=1,  # CLI functions don't return item counts
-                    metadata={"cli_function": cli_func.__name__, "executed": True}
+                    metadata={"cli_function": cli_name, "executed": True}
                 )
 
             except Exception as e:
-                logger.error(f"CLI function {cli_func.__name__} failed: {e}")
+                cli_name = safe_get_callable_name(cli_func)
+                logger.error(f"CLI function {cli_name} failed: {e}")
                 return FlowResult(
                     success=False,
                     error_message=str(e),
-                    metadata={"cli_function": cli_func.__name__, "error": str(e)}
+                    metadata={"cli_function": cli_name, "error": str(e)}
                 )
 
         return executor

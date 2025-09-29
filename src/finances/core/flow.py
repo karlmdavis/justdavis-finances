@@ -17,6 +17,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def safe_get_callable_name(obj):
+    """
+    Safely extract a name from any callable object.
+
+    Handles functions, Click Command objects, and other callables.
+
+    Args:
+        obj: Any callable object
+
+    Returns:
+        str: Best available name for the callable
+    """
+    if hasattr(obj, '__name__'):
+        return obj.__name__
+    elif hasattr(obj, 'name'):
+        return obj.name
+    else:
+        return obj.__class__.__name__
+
+
 class NodeStatus(Enum):
     """Execution status for flow nodes."""
     PENDING = "pending"
@@ -200,7 +220,8 @@ class FunctionFlowNode(FlowNode):
 
             # Ensure result is valid
             if not isinstance(result, FlowResult):
-                raise ValueError(f"Function {self.func.__name__} must return FlowResult")
+                func_name = safe_get_callable_name(self.func)
+                raise ValueError(f"Function {func_name} must return FlowResult")
 
             # Add timing information
             if context.performance_tracking:
