@@ -378,7 +378,7 @@ def setup_flow_nodes():
             retirement_update_cmd,
             interactive=True,
             account=(),
-            date=None,
+            date_str=None,
             output_file=None
         ),
         dependencies=[],
