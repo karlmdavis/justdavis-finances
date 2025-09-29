@@ -104,7 +104,24 @@ def setup_flow_nodes():
                 # Execute the CLI function
                 cli_name = safe_get_callable_name(cli_func)
                 logger.info(f"Executing CLI function: {cli_name}")
-                result = cli_func(mock_ctx, **kwargs)
+
+                # Direct call approach: call the underlying callable function
+                # Most CLI functions are decorated Click commands, we need to get the actual function
+                actual_function = cli_func
+
+                # If this is a Click command, get the underlying callback function
+                if hasattr(cli_func, 'callback'):
+                    actual_function = cli_func.callback
+
+                # Call the function directly with just the kwargs, no context
+                # Most CLI functions use the context just to access ctx.obj['verbose'] etc
+                # We can simulate this by injecting what they need directly
+                if 'ctx' in actual_function.__code__.co_varnames:
+                    # Function expects a context parameter
+                    result = actual_function(mock_ctx, **kwargs)
+                else:
+                    # Function doesn't need context
+                    result = actual_function(**kwargs)
 
                 return FlowResult(
                     success=True,
