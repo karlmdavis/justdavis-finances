@@ -145,6 +145,42 @@ When developing automation or tools for this repository, prioritize:
 - **Testing**: `uv run pytest` with comprehensive test suite.
 - **Code quality**: `uv run black src/ tests/`, `uv run ruff src/ tests/`, `uv run mypy src/`.
 
+### Development Workflow
+
+This repository uses a **PR-based workflow** with branch protection rules enforced on main.
+
+**Core principles:**
+- **ALL changes** must go through pull requests - direct commits to main are blocked.
+- **ALWAYS** create a feature branch before making any code changes.
+- **NEVER** attempt to commit directly to the main branch.
+
+**Branch naming conventions:**
+- `feature/descriptive-name` - New features or enhancements.
+- `fix/descriptive-name` - Bug fixes.
+- `refactor/descriptive-name` - Code refactoring without functional changes.
+- `docs/descriptive-name` - Documentation updates.
+
+**PR workflow using gh CLI:**
+1. Create and checkout a feature branch: `git checkout -b feature/your-feature-name`.
+2. Make changes and commit to the feature branch.
+3. Push branch: `git push -u origin feature/your-feature-name`.
+4. Create PR: `gh pr create --title "Title" --body "Description"`.
+5. Review and approve PR (self-review for solo project).
+6. Merge PR: `gh pr merge --squash` or `gh pr merge --merge`.
+7. Branches are automatically deleted after merge (GitHub setting).
+
+**PR management commands:**
+- `gh pr create` - Create a new pull request.
+- `gh pr view` - View PR details.
+- `gh pr list` - List open pull requests.
+- `gh pr merge` - Merge an approved pull request.
+- `gh pr checks` - View CI/CD check status.
+
+**PR description requirements:**
+- **Summary**: 1-3 bullet points explaining what changed and why.
+- **Test plan**: How the changes were tested (commands run, test coverage, manual verification).
+- **Context**: Link to related issues or provide background for the change.
+
 ### Important Implementation Notes
 
 #### Critical: Currency Handling - ZERO Floating Point Tolerance
