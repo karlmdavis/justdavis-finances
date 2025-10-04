@@ -5,11 +5,11 @@ Amazon Order History Unzipper
 Extracts Amazon order history ZIP files to structured data directories.
 """
 
+import logging
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional
-import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class AmazonUnzipper:
         self.raw_data_dir = raw_data_dir
         self.raw_data_dir.mkdir(parents=True, exist_ok=True)
 
-    def scan_for_zip_files(self, download_dir: Path) -> List[Path]:
+    def scan_for_zip_files(self, download_dir: Path) -> list[Path]:
         """
         Scan directory for Amazon order history ZIP files.
 
@@ -51,7 +51,7 @@ class AmazonUnzipper:
 
         return sorted(zip_files)
 
-    def extract_zip_file(self, zip_path: Path, account_name: Optional[str] = None) -> Dict[str, any]:
+    def extract_zip_file(self, zip_path: Path, account_name: Optional[str] = None) -> dict[str, any]:
         """
         Extract a single ZIP file to organized directory structure.
 
@@ -96,7 +96,7 @@ class AmazonUnzipper:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 # Get list of files in ZIP
                 file_list = zip_ref.namelist()
                 logger.info(f"Extracting {len(file_list)} files from {zip_path.name}")
@@ -105,9 +105,9 @@ class AmazonUnzipper:
                 zip_ref.extractall(output_dir)
 
                 # Categorize extracted files
-                csv_files = [f for f in file_list if f.endswith('.csv')]
-                json_files = [f for f in file_list if f.endswith('.json')]
-                other_files = [f for f in file_list if not (f.endswith('.csv') or f.endswith('.json'))]
+                csv_files = [f for f in file_list if f.endswith(".csv")]
+                json_files = [f for f in file_list if f.endswith(".json")]
+                other_files = [f for f in file_list if not (f.endswith(".csv") or f.endswith(".json"))]
 
                 result = {
                     "success": True,
@@ -118,7 +118,7 @@ class AmazonUnzipper:
                     "csv_files": csv_files,
                     "json_files": json_files,
                     "other_files": other_files,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
                 logger.info(f"Successfully extracted to: {output_dir}")
@@ -136,8 +136,7 @@ class AmazonUnzipper:
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 
-    def batch_extract(self, download_dir: Path,
-                     account_filter: Optional[List[str]] = None) -> Dict[str, any]:
+    def batch_extract(self, download_dir: Path, account_filter: Optional[list[str]] = None) -> dict[str, any]:
         """
         Extract all ZIP files found in download directory.
 
@@ -155,7 +154,7 @@ class AmazonUnzipper:
                 "success": True,
                 "message": "No ZIP files found to extract",
                 "files_processed": 0,
-                "extractions": []
+                "extractions": [],
             }
 
         extractions = []
@@ -185,7 +184,7 @@ class AmazonUnzipper:
                 error_info = {
                     "zip_file": str(zip_path),
                     "error": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
                 errors.append(error_info)
                 logger.error(f"Failed to extract {zip_path}: {e}")
@@ -195,7 +194,7 @@ class AmazonUnzipper:
             "files_processed": len(extractions),
             "files_failed": len(errors),
             "extractions": extractions,
-            "errors": errors
+            "errors": errors,
         }
 
         if errors:
@@ -207,8 +206,9 @@ class AmazonUnzipper:
         return result
 
 
-def extract_amazon_zip_files(download_dir: Path, raw_data_dir: Path,
-                           account_filter: Optional[List[str]] = None) -> Dict[str, any]:
+def extract_amazon_zip_files(
+    download_dir: Path, raw_data_dir: Path, account_filter: Optional[list[str]] = None
+) -> dict[str, any]:
     """
     Convenience function for extracting Amazon ZIP files.
 

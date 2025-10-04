@@ -20,38 +20,32 @@ Current Performance: 94.7% match rate with simplified architecture
 
 from .grouper import (
     GroupingLevel,
-    group_orders,
     get_order_candidates,
+    group_orders,
 )
-
+from .matcher import (
+    SimplifiedMatcher,
+)
 from .scorer import (
-    MatchType,
-    MatchScorer,
     ConfidenceThresholds,
+    MatchScorer,
+    MatchType,
 )
-
 from .split_matcher import (
     SplitPaymentMatcher,
 )
 
-from .matcher import (
-    SimplifiedMatcher,
-)
-
 __all__ = [
+    "ConfidenceThresholds",
     # Order grouping
     "GroupingLevel",
-    "group_orders",
-    "get_order_candidates",
-
+    "MatchScorer",
     # Match scoring
     "MatchType",
-    "MatchScorer",
-    "ConfidenceThresholds",
-
-    # Split payment matching
-    "SplitPaymentMatcher",
-
     # Main matcher
     "SimplifiedMatcher",
+    # Split payment matching
+    "SplitPaymentMatcher",
+    "get_order_candidates",
+    "group_orders",
 ]

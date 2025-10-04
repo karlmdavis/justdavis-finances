@@ -6,13 +6,20 @@ Tests the interaction between Click commands and the flow system,
 particularly handling of Command objects in flow executors.
 """
 
-import pytest
-import click
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-from finances.core.flow import FlowContext, FlowResult, FunctionFlowNode, safe_get_callable_name as core_safe_get_callable_name
+import click
+
 from finances.cli.flow import safe_get_callable_name
+from finances.core.flow import (
+    FlowContext,
+    FlowResult,
+    FunctionFlowNode,
+)
+from finances.core.flow import (
+    safe_get_callable_name as core_safe_get_callable_name,
+)
 
 
 class TestFlowCliIntegration:
@@ -20,28 +27,30 @@ class TestFlowCliIntegration:
 
     def test_safe_get_callable_name_with_click_command(self):
         """Test safe_get_callable_name handles Click Command objects."""
+
         # Create a mock Click command that mimics real CLI functions
         @click.command()
-        @click.option('--test-param', default='default')
+        @click.option("--test-param", default="default")
         @click.pass_context
         def mock_command(ctx, test_param):
             """Mock CLI command for testing."""
             return {"executed": True, "param": test_param}
 
         # Verify Click command doesn't have __name__
-        assert not hasattr(mock_command, '__name__')
-        assert hasattr(mock_command, 'name')
+        assert not hasattr(mock_command, "__name__")
+        assert hasattr(mock_command, "name")
 
         # safe_get_callable_name should handle this gracefully
         name = safe_get_callable_name(mock_command)
-        assert name == 'mock'  # Click removes the '_command' suffix
+        assert name == "mock"  # Click removes the '_command' suffix
 
         # Both implementations should work the same
         core_name = core_safe_get_callable_name(mock_command)
-        assert core_name == 'mock'
+        assert core_name == "mock"
 
     def test_function_flow_node_with_command_object(self):
         """Test FunctionFlowNode handles objects without __name__."""
+
         # Create a callable object without __name__ attribute
         class MockCallable:
             def __call__(self, context):
@@ -50,7 +59,7 @@ class TestFlowCliIntegration:
         mock_callable = MockCallable()
 
         # Ensure it doesn't have __name__ (like Click Command objects)
-        assert not hasattr(mock_callable, '__name__')
+        assert not hasattr(mock_callable, "__name__")
 
         # Create FunctionFlowNode
         node = FunctionFlowNode("test_node", mock_callable, [])
@@ -66,6 +75,7 @@ class TestFlowCliIntegration:
 
     def test_click_command_properties(self):
         """Test properties of Click Command objects."""
+
         @click.command()
         def test_command():
             """Test command."""
@@ -73,9 +83,9 @@ class TestFlowCliIntegration:
 
         # Verify Click Command object behavior
         assert isinstance(test_command, click.Command)
-        assert not hasattr(test_command, '__name__')
-        assert hasattr(test_command, 'name')
-        assert test_command.name == 'test'  # Click removes '_command' suffix
+        assert not hasattr(test_command, "__name__")
+        assert hasattr(test_command, "name")
+        assert test_command.name == "test"  # Click removes '_command' suffix
 
 
 class TestSafeNameExtraction:
@@ -83,26 +93,29 @@ class TestSafeNameExtraction:
 
     def test_extract_name_from_function(self):
         """Test name extraction from regular functions."""
+
         def test_function():
             pass
 
         # Should use function __name__
-        assert hasattr(test_function, '__name__')
-        assert test_function.__name__ == 'test_function'
+        assert hasattr(test_function, "__name__")
+        assert test_function.__name__ == "test_function"
 
     def test_extract_name_from_click_command(self):
         """Test name extraction from Click commands."""
+
         @click.command()
         def test_command():
             pass
 
         # Click Command objects don't have __name__ but have .name
-        assert not hasattr(test_command, '__name__')
-        assert hasattr(test_command, 'name')
-        assert test_command.name == 'test'  # Click removes '_command' suffix
+        assert not hasattr(test_command, "__name__")
+        assert hasattr(test_command, "name")
+        assert test_command.name == "test"  # Click removes '_command' suffix
 
     def test_extract_name_from_callable_class(self):
         """Test name extraction from callable classes."""
+
         class TestCallable:
             def __call__(self):
                 pass
@@ -110,16 +123,17 @@ class TestSafeNameExtraction:
         callable_obj = TestCallable()
 
         # Should fall back to class name
-        assert not hasattr(callable_obj, '__name__')
-        assert callable_obj.__class__.__name__ == 'TestCallable'
+        assert not hasattr(callable_obj, "__name__")
+        assert callable_obj.__class__.__name__ == "TestCallable"
 
     def test_safe_name_extraction_helper(self):
         """Test a safe name extraction helper function."""
+
         def safe_get_name(obj):
             """Helper to safely extract name from any callable."""
-            if hasattr(obj, '__name__'):
+            if hasattr(obj, "__name__"):
                 return obj.__name__
-            elif hasattr(obj, 'name'):
+            elif hasattr(obj, "name"):
                 return obj.name
             else:
                 return obj.__class__.__name__
@@ -127,19 +141,22 @@ class TestSafeNameExtraction:
         # Test with function
         def test_func():
             pass
-        assert safe_get_name(test_func) == 'test_func'
+
+        assert safe_get_name(test_func) == "test_func"
 
         # Test with Click command
         @click.command()
         def test_cmd():
             pass
-        assert safe_get_name(test_cmd) == 'test'  # Click removes '_cmd' suffix
+
+        assert safe_get_name(test_cmd) == "test"  # Click removes '_cmd' suffix
 
         # Test with callable class
         class TestCallable:
             def __call__(self):
                 pass
-        assert safe_get_name(TestCallable()) == 'TestCallable'
+
+        assert safe_get_name(TestCallable()) == "TestCallable"
 
 
 class TestFlowExecutorParameterBinding:
@@ -147,14 +164,13 @@ class TestFlowExecutorParameterBinding:
 
     def test_apple_receipt_parsing_executor_context_error(self):
         """Test that reproduces the 'Context' object is not iterable error."""
-        from finances.cli.flow import setup_flow_nodes
-        from finances.core.flow import FlowContext, flow_registry
-        from finances.core.config import get_config
+        import tempfile
         from datetime import datetime
         from pathlib import Path
-        from unittest.mock import patch, MagicMock
-        import tempfile
-        import os
+        from unittest.mock import MagicMock
+
+        from finances.cli.flow import setup_flow_nodes
+        from finances.core.flow import FlowContext, flow_registry
 
         # Setup temporary directory structure
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -168,9 +184,12 @@ class TestFlowExecutorParameterBinding:
             apple_emails_dir = temp_path / "apple" / "emails"
             apple_emails_dir.mkdir(parents=True, exist_ok=True)
 
-            with patch('finances.cli.flow.get_config', return_value=mock_config):
-                with patch('finances.core.change_detection.create_change_detectors', return_value={}):
-                    with patch('finances.cli.flow.get_change_detector_function', return_value=lambda ctx: (True, ["Test"])):
+            with patch("finances.cli.flow.get_config", return_value=mock_config):
+                with patch("finances.core.change_detection.create_change_detectors", return_value={}):
+                    with patch(
+                        "finances.cli.flow.get_change_detector_function",
+                        return_value=lambda ctx: (True, ["Test"]),
+                    ):
                         # Setup flow nodes (this creates the apple_receipt_parsing node)
                         setup_flow_nodes()
 
@@ -190,7 +209,7 @@ class TestFlowExecutorParameterBinding:
                             assert result.success is False or result.success is True
                         except TypeError as e:
                             if "'Context' object is not iterable" in str(e):
-                                assert False, "Context iteration error should be fixed but still occurs"
+                                raise AssertionError("Context iteration error should be fixed but still occurs")
                             else:
                                 # Different error, re-raise
                                 raise
@@ -200,15 +219,15 @@ class TestFlowExecutorParameterBinding:
         import click
 
         @click.command()
-        @click.option('--test-param', default='default')
+        @click.option("--test-param", default="default")
         def mock_cli_command(test_param: str):
             """Mock CLI command."""
             return f"executed with {test_param}"
 
         # Verify the command has a callback attribute
-        assert hasattr(mock_cli_command, 'callback')
+        assert hasattr(mock_cli_command, "callback")
         assert callable(mock_cli_command.callback)
 
         # The callback should be the original function
         callback = mock_cli_command.callback
-        assert callback.__name__ == 'mock_cli_command'
+        assert callback.__name__ == "mock_cli_command"

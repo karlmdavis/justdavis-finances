@@ -5,16 +5,20 @@ Main CLI Entry Point for Davis Family Finances
 Provides unified command-line interface for all financial management tools.
 """
 
-import click
 from typing import Optional
+
+import click
 
 from ..core.config import get_config
 
 
 @click.group()
-@click.option('--config-env', type=click.Choice(['development', 'test', 'production']),
-              help='Override environment configuration')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option(
+    "--config-env",
+    type=click.Choice(["development", "test", "production"]),
+    help="Override environment configuration",
+)
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def main(ctx: click.Context, config_env: Optional[str], verbose: bool) -> None:
     """
@@ -29,11 +33,12 @@ def main(ctx: click.Context, config_env: Optional[str], verbose: bool) -> None:
     # Set environment if specified
     if config_env:
         import os
-        os.environ['FINANCES_ENV'] = config_env
+
+        os.environ["FINANCES_ENV"] = config_env
 
     # Store global options
-    ctx.obj['verbose'] = verbose
-    ctx.obj['config'] = get_config()
+    ctx.obj["verbose"] = verbose
+    ctx.obj["config"] = get_config()
 
     if verbose:
         click.echo(f"Environment: {ctx.obj['config'].environment.value}")
@@ -44,7 +49,8 @@ def main(ctx: click.Context, config_env: Optional[str], verbose: bool) -> None:
 @click.pass_context
 def version(ctx: click.Context) -> None:
     """Show version information."""
-    from finances import __version__, __author__
+    from finances import __author__, __version__
+
     click.echo(f"Davis Family Finances v{__version__}")
     click.echo(f"Author: {__author__}")
 
@@ -53,7 +59,7 @@ def version(ctx: click.Context) -> None:
 @click.pass_context
 def config(ctx: click.Context) -> None:
     """Show current configuration."""
-    config_obj = ctx.obj['config']
+    config_obj = ctx.obj["config"]
 
     click.echo("Current Configuration:")
     click.echo(f"  Environment: {config_obj.environment.value}")
@@ -67,10 +73,10 @@ def config(ctx: click.Context) -> None:
 # Import subcommands
 from .amazon import amazon
 from .apple import apple
-from .ynab import ynab
 from .cashflow import cashflow
-from .retirement import retirement
 from .flow import flow
+from .retirement import retirement
+from .ynab import ynab
 
 # Register subcommands
 main.add_command(amazon)
@@ -81,5 +87,5 @@ main.add_command(retirement)
 main.add_command(flow)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

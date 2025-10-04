@@ -12,27 +12,25 @@ Key Features:
 - Sum verification for exact total matching
 """
 
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Optional
 
 from ..core.currency import (
-    milliunits_to_cents,
-    cents_to_milliunits,
-    validate_sum_equals_total,
     allocate_remainder,
-    safe_divide_proportional
+    cents_to_milliunits,
+    safe_divide_proportional,
+    validate_sum_equals_total,
 )
 
 
 class SplitCalculationError(Exception):
     """Raised when split calculation fails validation"""
+
     pass
 
 
 def calculate_amazon_splits(
-    transaction_amount: int,
-    amazon_items: List[Dict[str, Any]],
-    category_id: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    transaction_amount: int, amazon_items: list[dict[str, Any]], category_id: Optional[str] = None
+) -> list[dict[str, Any]]:
     """
     Calculate splits for Amazon transaction using pre-allocated item totals.
 
@@ -54,28 +52,25 @@ def calculate_amazon_splits(
 
     # Convert Amazon amounts (cents) to YNAB milliunits
     for item in amazon_items:
-        item_amount_milliunits = cents_to_milliunits(item['amount'])
+        item_amount_milliunits = cents_to_milliunits(item["amount"])
 
         # YNAB uses negative amounts for expenses
         split_amount = -item_amount_milliunits
 
         memo = f"{item['name']}"
-        if item.get('quantity', 1) > 1:
+        if item.get("quantity", 1) > 1:
             memo += f" (qty: {item['quantity']})"
 
-        split = {
-            'amount': split_amount,
-            'memo': memo
-        }
+        split = {"amount": split_amount, "memo": memo}
 
         if category_id:
-            split['category_id'] = category_id
+            split["category_id"] = category_id
 
         splits.append(split)
 
     # Verify splits sum to transaction total
     if not validate_sum_equals_total(splits, transaction_amount):
-        total_splits = sum(split['amount'] for split in splits)
+        total_splits = sum(split["amount"] for split in splits)
         raise SplitCalculationError(
             f"Amazon splits total {total_splits} doesn't match transaction {transaction_amount}"
         )
@@ -85,11 +80,11 @@ def calculate_amazon_splits(
 
 def calculate_apple_splits(
     transaction_amount: int,
-    apple_items: List[Dict[str, Any]],
+    apple_items: list[dict[str, Any]],
     receipt_subtotal: Optional[int] = None,
     receipt_tax: Optional[int] = None,
-    category_id: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    category_id: Optional[str] = None,
+) -> list[dict[str, Any]]:
     """
     Calculate splits for Apple transaction with proportional tax allocation.
 
@@ -116,7 +111,7 @@ def calculate_apple_splits(
     calculated_subtotal = 0
 
     for item in apple_items:
-        item_price = item.get('price', 0)
+        item_price = item.get("price", 0)
         item_subtotals.append(item_price)
         calculated_subtotal += item_price
 
@@ -145,20 +140,17 @@ def calculate_apple_splits(
         # YNAB uses negative amounts for expenses
         split_amount = -item_amount_milliunits
 
-        memo = item['name']
-        split = {
-            'amount': split_amount,
-            'memo': memo
-        }
+        memo = item["name"]
+        split = {"amount": split_amount, "memo": memo}
 
         if category_id:
-            split['category_id'] = category_id
+            split["category_id"] = category_id
 
         splits.append(split)
 
     # Verify splits sum to transaction total
     if not validate_sum_equals_total(splits, transaction_amount):
-        total_splits = sum(split['amount'] for split in splits)
+        total_splits = sum(split["amount"] for split in splits)
         raise SplitCalculationError(
             f"Apple splits total {total_splits} doesn't match transaction {transaction_amount}"
         )
@@ -167,10 +159,8 @@ def calculate_apple_splits(
 
 
 def calculate_generic_splits(
-    transaction_amount: int,
-    items: List[Dict[str, Any]],
-    category_id: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    transaction_amount: int, items: list[dict[str, Any]], category_id: Optional[str] = None
+) -> list[dict[str, Any]]:
     """
     Calculate splits for generic transaction with simple item amounts.
 
@@ -188,24 +178,21 @@ def calculate_generic_splits(
     splits = []
 
     for item in items:
-        item_amount_milliunits = cents_to_milliunits(item['amount'])
+        item_amount_milliunits = cents_to_milliunits(item["amount"])
 
         # YNAB uses negative amounts for expenses
         split_amount = -item_amount_milliunits
 
-        split = {
-            'amount': split_amount,
-            'memo': item['name']
-        }
+        split = {"amount": split_amount, "memo": item["name"]}
 
         if category_id:
-            split['category_id'] = category_id
+            split["category_id"] = category_id
 
         splits.append(split)
 
     # Verify splits sum to transaction total
     if not validate_sum_equals_total(splits, transaction_amount):
-        total_splits = sum(split['amount'] for split in splits)
+        total_splits = sum(split["amount"] for split in splits)
         raise SplitCalculationError(
             f"Generic splits total {total_splits} doesn't match transaction {transaction_amount}"
         )
@@ -214,10 +201,8 @@ def calculate_generic_splits(
 
 
 def validate_split_calculation(
-    splits: List[Dict[str, Any]],
-    expected_total: int,
-    tolerance: int = 0
-) -> Tuple[bool, str]:
+    splits: list[dict[str, Any]], expected_total: int, tolerance: int = 0
+) -> tuple[bool, str]:
     """
     Validate that calculated splits are correct.
 
@@ -232,7 +217,7 @@ def validate_split_calculation(
     if not splits:
         return False, "No splits provided"
 
-    total_splits = sum(split['amount'] for split in splits)
+    total_splits = sum(split["amount"] for split in splits)
     difference = abs(total_splits - expected_total)
 
     if difference > tolerance:
@@ -240,17 +225,17 @@ def validate_split_calculation(
 
     # Check that all splits have required fields
     for i, split in enumerate(splits):
-        if 'amount' not in split:
+        if "amount" not in split:
             return False, f"Split {i} missing 'amount' field"
-        if 'memo' not in split:
+        if "memo" not in split:
             return False, f"Split {i} missing 'memo' field"
-        if not isinstance(split['amount'], int):
+        if not isinstance(split["amount"], int):
             return False, f"Split {i} amount is not an integer: {type(split['amount'])}"
 
     return True, "Splits are valid"
 
 
-def sort_splits_for_stability(splits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def sort_splits_for_stability(splits: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Sort splits for stable, consistent ordering.
 
@@ -262,10 +247,10 @@ def sort_splits_for_stability(splits: List[Dict[str, Any]]) -> List[Dict[str, An
     Returns:
         Sorted list of splits
     """
-    return sorted(splits, key=lambda s: (-abs(s['amount']), s['memo']))
+    return sorted(splits, key=lambda s: (-abs(s["amount"]), s["memo"]))
 
 
-def create_split_summary(splits: List[Dict[str, Any]]) -> Dict[str, Any]:
+def create_split_summary(splits: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Create a summary of split calculation results.
 
@@ -277,21 +262,21 @@ def create_split_summary(splits: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     if not splits:
         return {
-            'split_count': 0,
-            'total_amount': 0,
-            'average_amount': 0,
-            'largest_split': 0,
-            'smallest_split': 0
+            "split_count": 0,
+            "total_amount": 0,
+            "average_amount": 0,
+            "largest_split": 0,
+            "smallest_split": 0,
         }
 
-    amounts = [abs(split['amount']) for split in splits]
-    total_amount = sum(split['amount'] for split in splits)
+    amounts = [abs(split["amount"]) for split in splits]
+    total_amount = sum(split["amount"] for split in splits)
 
     return {
-        'split_count': len(splits),
-        'total_amount': total_amount,
-        'average_amount': total_amount // len(splits),
-        'largest_split': max(amounts),
-        'smallest_split': min(amounts),
-        'memo_preview': [split['memo'][:50] for split in splits[:3]]  # First 3 memos, truncated
+        "split_count": len(splits),
+        "total_amount": total_amount,
+        "average_amount": total_amount // len(splits),
+        "largest_split": max(amounts),
+        "smallest_split": min(amounts),
+        "memo_preview": [split["memo"][:50] for split in splits[:3]],  # First 3 memos, truncated
     }

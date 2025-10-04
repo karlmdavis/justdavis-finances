@@ -5,13 +5,14 @@ Cash Flow CLI - Financial Analysis Commands
 Professional command-line interface for cash flow analysis and reporting.
 """
 
-import click
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from ..core.config import get_config
+import click
+
 from ..analysis import CashFlowAnalyzer, CashFlowConfig
+from ..core.config import get_config
 
 
 @click.group()
@@ -21,18 +22,26 @@ def cashflow():
 
 
 @cashflow.command()
-@click.option('--start', help='Start date (YYYY-MM-DD), defaults to 6 months ago')
-@click.option('--end', help='End date (YYYY-MM-DD), defaults to today')
-@click.option('--accounts', multiple=True, help='Specific accounts to analyze')
-@click.option('--exclude-before', help='Exclude data before date (YYYY-MM-DD)')
-@click.option('--output-dir', help='Override output directory')
-@click.option('--format', type=click.Choice(['png', 'pdf', 'svg']), default='png',
-              help='Output format (default: png)')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--start", help="Start date (YYYY-MM-DD), defaults to 6 months ago")
+@click.option("--end", help="End date (YYYY-MM-DD), defaults to today")
+@click.option("--accounts", multiple=True, help="Specific accounts to analyze")
+@click.option("--exclude-before", help="Exclude data before date (YYYY-MM-DD)")
+@click.option("--output-dir", help="Override output directory")
+@click.option(
+    "--format", type=click.Choice(["png", "pdf", "svg"]), default="png", help="Output format (default: png)"
+)
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def analyze(ctx: click.Context, start: Optional[str], end: Optional[str],
-           accounts: tuple, exclude_before: Optional[str], output_dir: Optional[str],
-           format: str, verbose: bool) -> None:
+def analyze(
+    ctx: click.Context,
+    start: Optional[str],
+    end: Optional[str],
+    accounts: tuple,
+    exclude_before: Optional[str],
+    output_dir: Optional[str],
+    format: str,
+    verbose: bool,
+) -> None:
     """
     Generate comprehensive cash flow analysis dashboard.
 
@@ -58,15 +67,12 @@ def analyze(ctx: click.Context, start: Optional[str], end: Optional[str],
         start_date = date.fromisoformat(start)
 
     # Determine output directory
-    if output_dir:
-        output_path = Path(output_dir)
-    else:
-        output_path = config.data_dir / "cash_flow" / "charts"
+    output_path = Path(output_dir) if output_dir else config.data_dir / "cash_flow" / "charts"
 
     output_path.mkdir(parents=True, exist_ok=True)
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"Cash Flow Analysis")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("Cash Flow Analysis")
         click.echo(f"Date range: {start} to {end}")
         click.echo(f"Accounts: {list(accounts) if accounts else 'all primary accounts'}")
         if exclude_before:
@@ -80,7 +86,7 @@ def analyze(ctx: click.Context, start: Optional[str], end: Optional[str],
         analyzer_config = CashFlowConfig(
             cash_accounts=list(accounts) if accounts else CashFlowConfig.default().cash_accounts,
             start_date=exclude_before if exclude_before else CashFlowConfig.default().start_date,
-            output_format=format
+            output_format=format,
         )
 
         # Initialize analyzer
@@ -123,18 +129,34 @@ def analyze(ctx: click.Context, start: Optional[str], end: Optional[str],
 
 
 @cashflow.command()
-@click.option('--period', type=click.Choice(['daily', 'weekly', 'monthly']),
-              default='monthly', help='Reporting period (default: monthly)')
-@click.option('--start', help='Start date (YYYY-MM-DD)')
-@click.option('--end', help='End date (YYYY-MM-DD)')
-@click.option('--categories', multiple=True, help='Specific categories to report')
-@click.option('--output-dir', help='Override output directory')
-@click.option('--format', type=click.Choice(['json', 'csv', 'xlsx']), default='json',
-              help='Output format (default: json)')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option(
+    "--period",
+    type=click.Choice(["daily", "weekly", "monthly"]),
+    default="monthly",
+    help="Reporting period (default: monthly)",
+)
+@click.option("--start", help="Start date (YYYY-MM-DD)")
+@click.option("--end", help="End date (YYYY-MM-DD)")
+@click.option("--categories", multiple=True, help="Specific categories to report")
+@click.option("--output-dir", help="Override output directory")
+@click.option(
+    "--format",
+    type=click.Choice(["json", "csv", "xlsx"]),
+    default="json",
+    help="Output format (default: json)",
+)
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def report(ctx: click.Context, period: str, start: Optional[str], end: Optional[str],
-          categories: tuple, output_dir: Optional[str], format: str, verbose: bool) -> None:
+def report(
+    ctx: click.Context,
+    period: str,
+    start: Optional[str],
+    end: Optional[str],
+    categories: tuple,
+    output_dir: Optional[str],
+    format: str,
+    verbose: bool,
+) -> None:
     """
     Generate structured cash flow reports.
 
@@ -146,15 +168,12 @@ def report(ctx: click.Context, period: str, start: Optional[str], end: Optional[
     config = get_config()
 
     # Determine output directory
-    if output_dir:
-        output_path = Path(output_dir)
-    else:
-        output_path = config.data_dir / "cash_flow" / "data"
+    output_path = Path(output_dir) if output_dir else config.data_dir / "cash_flow" / "data"
 
     output_path.mkdir(parents=True, exist_ok=True)
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"Cash Flow Report Generation")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("Cash Flow Report Generation")
         click.echo(f"Period: {period}")
         if start:
             click.echo(f"Start date: {start}")
@@ -179,7 +198,7 @@ def report(ctx: click.Context, period: str, start: Optional[str], end: Optional[
             "Category-wise spending analysis",
             "Account balance changes",
             "Trend indicators",
-            "Variance from historical averages"
+            "Variance from historical averages",
         ]
 
         click.echo("\n[REPORT] Sections:")
@@ -194,11 +213,11 @@ def report(ctx: click.Context, period: str, start: Optional[str], end: Optional[
 
 
 @cashflow.command()
-@click.option('--lookback-days', type=int, default=90,
-              help='Days to analyze for trend (default: 90)')
-@click.option('--confidence-level', type=float, default=0.95,
-              help='Statistical confidence level (default: 0.95)')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--lookback-days", type=int, default=90, help="Days to analyze for trend (default: 90)")
+@click.option(
+    "--confidence-level", type=float, default=0.95, help="Statistical confidence level (default: 0.95)"
+)
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, verbose: bool) -> None:
     """
@@ -207,10 +226,10 @@ def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, ve
     Example:
       finances cashflow forecast --lookback-days 180 --confidence-level 0.90
     """
-    config = get_config()
+    get_config()
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"Cash Flow Forecasting")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("Cash Flow Forecasting")
         click.echo(f"Lookback period: {lookback_days} days")
         click.echo(f"Confidence level: {confidence_level}")
         click.echo()
@@ -227,7 +246,7 @@ def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, ve
             "Confidence intervals",
             "Trend strength indicators",
             "Seasonality adjustments",
-            "Risk assessment"
+            "Risk assessment",
         ]
 
         click.echo("\n🎯 Forecast Metrics:")
@@ -245,5 +264,5 @@ def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, ve
         raise click.ClickException(str(e))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cashflow()

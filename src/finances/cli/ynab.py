@@ -5,15 +5,15 @@ YNAB CLI - Transaction Updates and Edit Management
 Professional command-line interface for YNAB transaction updates.
 """
 
-import click
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
-from ..ynab import calculate_amazon_splits, calculate_apple_splits
+import click
+
 from ..core.config import get_config
-from ..core.models import Transaction
 from ..core.json_utils import write_json
+from ..ynab import calculate_amazon_splits, calculate_apple_splits
 
 
 @click.group()
@@ -23,15 +23,25 @@ def ynab():
 
 
 @ynab.command()
-@click.option('--input-file', required=True, help='Match results JSON file')
-@click.option('--confidence-threshold', type=float, default=0.8,
-              help='Minimum confidence for automatic approval (default: 0.8)')
-@click.option('--dry-run', is_flag=True, help='Generate edits without applying them')
-@click.option('--output-dir', help='Override output directory')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--input-file", required=True, help="Match results JSON file")
+@click.option(
+    "--confidence-threshold",
+    type=float,
+    default=0.8,
+    help="Minimum confidence for automatic approval (default: 0.8)",
+)
+@click.option("--dry-run", is_flag=True, help="Generate edits without applying them")
+@click.option("--output-dir", help="Override output directory")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: float,
-                   dry_run: bool, output_dir: Optional[str], verbose: bool) -> None:
+def generate_splits(
+    ctx: click.Context,
+    input_file: str,
+    confidence_threshold: float,
+    dry_run: bool,
+    output_dir: Optional[str],
+    verbose: bool,
+) -> None:
     """
     Generate transaction split edits from match results.
 
@@ -42,10 +52,7 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
     config = get_config()
 
     # Determine output directory
-    if output_dir:
-        output_path = Path(output_dir)
-    else:
-        output_path = config.data_dir / "ynab" / "edits"
+    output_path = Path(output_dir) if output_dir else config.data_dir / "ynab" / "edits"
 
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -53,8 +60,8 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
     if not input_path.exists():
         raise click.ClickException(f"Input file not found: {input_path}")
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"YNAB Split Generation")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("YNAB Split Generation")
         click.echo(f"Input: {input_path}")
         click.echo(f"Confidence threshold: {confidence_threshold}")
         click.echo(f"Mode: {'Dry run' if dry_run else 'Generate edits'}")
@@ -63,7 +70,7 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
 
     try:
         # Load match results
-        with open(input_path, 'r') as f:
+        with open(input_path) as f:
             match_results = json.load(f)
 
         if verbose:
@@ -81,8 +88,8 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
         auto_approved = 0
         requires_review = 0
 
-        for match in match_results.get('matches', []):
-            confidence = match.get('confidence', 0.0)
+        for match in match_results.get("matches", []):
+            confidence = match.get("confidence", 0.0)
 
             if match_type == "amazon":
                 splits = calculate_amazon_splits(match)
@@ -93,11 +100,11 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
                 continue
 
             edit = {
-                "transaction_id": match.get('transaction_id'),
+                "transaction_id": match.get("transaction_id"),
                 "confidence": confidence,
                 "auto_approved": confidence >= confidence_threshold,
                 "splits": splits,
-                "match_details": match
+                "match_details": match,
             }
 
             edits.append(edit)
@@ -119,15 +126,15 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
                 "match_type": match_type,
                 "confidence_threshold": confidence_threshold,
                 "dry_run": dry_run,
-                "timestamp": timestamp
+                "timestamp": timestamp,
             },
             "summary": {
                 "total_edits": len(edits),
                 "auto_approved": auto_approved,
                 "requires_review": requires_review,
-                "approval_rate": auto_approved / len(edits) if edits else 0.0
+                "approval_rate": auto_approved / len(edits) if edits else 0.0,
             },
-            "edits": edits
+            "edits": edits,
         }
 
         # Write edit file
@@ -148,9 +155,9 @@ def generate_splits(ctx: click.Context, input_file: str, confidence_threshold: f
 
 
 @ynab.command()
-@click.option('--edit-file', required=True, help='Edit file to apply')
-@click.option('--force', is_flag=True, help='Apply without confirmation prompt')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--edit-file", required=True, help="Edit file to apply")
+@click.option("--force", is_flag=True, help="Apply without confirmation prompt")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def apply_edits(ctx: click.Context, edit_file: str, force: bool, verbose: bool) -> None:
     """
@@ -159,24 +166,24 @@ def apply_edits(ctx: click.Context, edit_file: str, force: bool, verbose: bool) 
     Example:
       finances ynab apply-edits --edit-file data/ynab/edits/2024-07-15_amazon_edits.json
     """
-    config = get_config()
+    get_config()
     edit_path = Path(edit_file)
 
     if not edit_path.exists():
         raise click.ClickException(f"Edit file not found: {edit_path}")
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"YNAB Edit Application")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("YNAB Edit Application")
         click.echo(f"Edit file: {edit_path}")
         click.echo()
 
     try:
         # Load edit data
-        with open(edit_path, 'r') as f:
+        with open(edit_path) as f:
             edit_data = json.load(f)
 
-        edits = edit_data.get('edits', [])
-        auto_approved = sum(1 for m in edits if m.get('auto_approved', False))
+        edits = edit_data.get("edits", [])
+        auto_approved = sum(1 for m in edits if m.get("auto_approved", False))
         requires_review = len(edits) - auto_approved
 
         if verbose:
@@ -204,7 +211,7 @@ def apply_edits(ctx: click.Context, edit_file: str, force: bool, verbose: bool) 
         skipped = 0
 
         for edit in edits:
-            if edit.get('auto_approved', False):
+            if edit.get("auto_approved", False):
                 # Would apply edit here
                 applied += 1
             else:
@@ -220,8 +227,8 @@ def apply_edits(ctx: click.Context, edit_file: str, force: bool, verbose: bool) 
 
 
 @ynab.command()
-@click.option('--days', type=int, default=7, help='Number of days to sync (default: 7)')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--days", type=int, default=7, help="Number of days to sync (default: 7)")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
     """
@@ -234,8 +241,8 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
     cache_dir = config.data_dir / "ynab" / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"YNAB Cache Sync")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("YNAB Cache Sync")
         click.echo(f"Days to sync: {days}")
         click.echo(f"Cache directory: {cache_dir}")
         click.echo()
@@ -252,7 +259,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
         # - categories.json
         # - transactions.json (last N days)
 
-        click.echo(f"✅ YNAB data synced to cache")
+        click.echo("✅ YNAB data synced to cache")
         click.echo(f"   Timestamp: {timestamp}")
 
     except Exception as e:
@@ -260,5 +267,5 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
         raise click.ClickException(str(e))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ynab()

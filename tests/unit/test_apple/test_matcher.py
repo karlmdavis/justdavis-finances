@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Tests for Apple transaction matching module."""
 
+
 import pytest
-import pandas as pd
-from datetime import date, datetime
+
 from finances.apple import AppleMatcher, normalize_apple_receipt_data
 
 
@@ -20,63 +20,48 @@ class TestAppleMatcher:
         """Sample Apple receipts for testing."""
         return [
             {
-                'order_id': 'ML7PQ2XYZ',
-                'receipt_date': 'Aug 15, 2024',
-                'apple_id': 'test@example.com',
-                'subtotal': 2999,  # $29.99 in cents
-                'tax': 298,  # $2.98 in cents
-                'total': 3297,  # $32.97 in cents
-                'items': [
-                    {
-                        'title': 'Procreate',
-                        'cost': 2999  # $29.99 in cents
-                    }
-                ]
+                "order_id": "ML7PQ2XYZ",
+                "receipt_date": "Aug 15, 2024",
+                "apple_id": "test@example.com",
+                "subtotal": 2999,  # $29.99 in cents
+                "tax": 298,  # $2.98 in cents
+                "total": 3297,  # $32.97 in cents
+                "items": [{"title": "Procreate", "cost": 2999}],  # $29.99 in cents
             },
             {
-                'order_id': 'NX8QR3ABC',
-                'receipt_date': 'Aug 16, 2024',
-                'apple_id': 'family@example.com',
-                'subtotal': 999,  # $9.99 in cents
-                'tax': 99,  # $0.99 in cents
-                'total': 1098,  # $10.98 in cents
-                'items': [
-                    {
-                        'title': 'Apple Music (Monthly)',
-                        'cost': 999,  # $9.99 in cents
-                        'subscription': True
-                    }
-                ]
+                "order_id": "NX8QR3ABC",
+                "receipt_date": "Aug 16, 2024",
+                "apple_id": "family@example.com",
+                "subtotal": 999,  # $9.99 in cents
+                "tax": 99,  # $0.99 in cents
+                "total": 1098,  # $10.98 in cents
+                "items": [
+                    {"title": "Apple Music (Monthly)", "cost": 999, "subscription": True}  # $9.99 in cents
+                ],
             },
             {
-                'order_id': 'KL5MN4DEF',
-                'receipt_date': 'Aug 14, 2024',
-                'apple_id': 'test@example.com',
-                'subtotal': 59998,  # $599.98 in cents
-                'tax': 5964,  # $59.64 in cents
-                'total': 65962,  # $659.62 in cents
-                'items': [
-                    {
-                        'title': 'Final Cut Pro',
-                        'cost': 29999  # $299.99 in cents
-                    },
-                    {
-                        'title': 'Logic Pro',
-                        'cost': 29999  # $299.99 in cents
-                    }
-                ]
-            }
+                "order_id": "KL5MN4DEF",
+                "receipt_date": "Aug 14, 2024",
+                "apple_id": "test@example.com",
+                "subtotal": 59998,  # $599.98 in cents
+                "tax": 5964,  # $59.64 in cents
+                "total": 65962,  # $659.62 in cents
+                "items": [
+                    {"title": "Final Cut Pro", "cost": 29999},  # $299.99 in cents
+                    {"title": "Logic Pro", "cost": 29999},  # $299.99 in cents
+                ],
+            },
         ]
 
     @pytest.mark.apple
     def test_exact_amount_and_date_match(self, matcher, sample_apple_receipts):
         """Test exact amount and date matching."""
         transaction = {
-            'id': 'test-txn-123',
-            'date': '2024-08-15',
-            'amount': -32970,  # $32.97 expense in milliunits
-            'payee_name': 'Apple Store',
-            'account_name': 'Chase Credit Card'
+            "id": "test-txn-123",
+            "date": "2024-08-15",
+            "amount": -32970,  # $32.97 expense in milliunits
+            "payee_name": "Apple Store",
+            "account_name": "Chase Credit Card",
         }
 
         # Normalize receipts data like the real system does
@@ -88,17 +73,17 @@ class TestAppleMatcher:
 
         # Should match the $32.97 Procreate purchase
         matched_receipt = result.receipts[0]
-        assert matched_receipt.id == 'ML7PQ2XYZ'
+        assert matched_receipt.id == "ML7PQ2XYZ"
 
     @pytest.mark.apple
     def test_multi_app_purchase_match(self, matcher, sample_apple_receipts):
         """Test matching to multi-app purchase."""
         transaction = {
-            'id': 'test-txn-456',
-            'date': '2024-08-14',
-            'amount': -659620,  # $659.62 expense in milliunits
-            'payee_name': 'Apple Store',
-            'account_name': 'Chase Credit Card'
+            "id": "test-txn-456",
+            "date": "2024-08-14",
+            "amount": -659620,  # $659.62 expense in milliunits
+            "payee_name": "Apple Store",
+            "account_name": "Chase Credit Card",
         }
 
         # Normalize receipts data like the real system does
@@ -109,18 +94,18 @@ class TestAppleMatcher:
 
         # Should match the multi-app purchase
         matched_receipt = result.receipts[0]
-        assert matched_receipt.id == 'KL5MN4DEF'
+        assert matched_receipt.id == "KL5MN4DEF"
         assert len(matched_receipt.items) == 2
 
     @pytest.mark.apple
     def test_date_window_matching(self, matcher, sample_apple_receipts):
         """Test matching within date window (±2 days)."""
         transaction = {
-            'id': 'test-txn-789',
-            'date': '2024-08-18',  # 2 days after receipt
-            'amount': -10980,  # $10.98 expense in milliunits
-            'payee_name': 'Apple Store',
-            'account_name': 'Chase Credit Card'
+            "id": "test-txn-789",
+            "date": "2024-08-18",  # 2 days after receipt
+            "amount": -10980,  # $10.98 expense in milliunits
+            "payee_name": "Apple Store",
+            "account_name": "Chase Credit Card",
         }
 
         # Normalize receipts data like the real system does
@@ -141,11 +126,11 @@ class TestAppleMatcher:
     def test_no_matches_found(self, matcher, sample_apple_receipts):
         """Test case where no matches are found."""
         transaction = {
-            'id': 'test-txn-999',
-            'date': '2024-08-20',
-            'amount': -99999,  # $999.99 - no matching receipt
-            'payee_name': 'Apple Store',
-            'account_name': 'Chase Credit Card'
+            "id": "test-txn-999",
+            "date": "2024-08-20",
+            "amount": -99999,  # $999.99 - no matching receipt
+            "payee_name": "Apple Store",
+            "account_name": "Chase Credit Card",
         }
 
         # Normalize receipts data like the real system does
@@ -160,11 +145,11 @@ class TestAppleMatcher:
     def test_subscription_identification(self, matcher, sample_apple_receipts):
         """Test identification of subscription transactions."""
         transaction = {
-            'id': 'test-txn-sub',
-            'date': '2024-08-16',
-            'amount': -10980,  # $10.98 expense in milliunits
-            'payee_name': 'Apple Store',
-            'account_name': 'Chase Credit Card'
+            "id": "test-txn-sub",
+            "date": "2024-08-16",
+            "amount": -10980,  # $10.98 expense in milliunits
+            "payee_name": "Apple Store",
+            "account_name": "Chase Credit Card",
         }
 
         # Normalize receipts data like the real system does
@@ -182,11 +167,11 @@ class TestAppleMatcher:
     def test_apple_id_attribution(self, matcher, sample_apple_receipts):
         """Test Apple ID attribution in matches."""
         transaction = {
-            'id': 'test-txn-attr',
-            'date': '2024-08-15',
-            'amount': -32970,  # $32.97 expense in milliunits
-            'payee_name': 'Apple Store',
-            'account_name': 'Chase Credit Card'
+            "id": "test-txn-attr",
+            "date": "2024-08-15",
+            "amount": -32970,  # $32.97 expense in milliunits
+            "payee_name": "Apple Store",
+            "account_name": "Chase Credit Card",
         }
 
         # Normalize receipts data like the real system does
@@ -205,24 +190,24 @@ class TestAppleMatcher:
         """Test confidence scoring based on date distance."""
         # Same amount, different dates
         same_day_transaction = {
-            'id': 'test-same-day',
-            'date': '2024-08-15',
-            'amount': -32970,
-            'payee_name': 'Apple Store'
+            "id": "test-same-day",
+            "date": "2024-08-15",
+            "amount": -32970,
+            "payee_name": "Apple Store",
         }
 
         one_day_off_transaction = {
-            'id': 'test-one-day',
-            'date': '2024-08-16',
-            'amount': -32970,
-            'payee_name': 'Apple Store'
+            "id": "test-one-day",
+            "date": "2024-08-16",
+            "amount": -32970,
+            "payee_name": "Apple Store",
         }
 
         two_days_off_transaction = {
-            'id': 'test-two-days',
-            'date': '2024-08-17',
-            'amount': -32970,
-            'payee_name': 'Apple Store'
+            "id": "test-two-days",
+            "date": "2024-08-17",
+            "amount": -32970,
+            "payee_name": "Apple Store",
         }
 
         # Normalize receipts data like the real system does
@@ -242,22 +227,14 @@ class TestAppleMatcher:
         """Test handling of multiple Apple IDs in receipt data."""
         # Transaction that could match receipts from different Apple IDs
         transaction = {
-            'id': 'test-multi-id',
-            'date': '2024-08-15',
-            'amount': -32970,
-            'payee_name': 'Apple Store'
+            "id": "test-multi-id",
+            "date": "2024-08-15",
+            "amount": -32970,
+            "payee_name": "Apple Store",
         }
 
         # Add receipt with different Apple ID but same amount/date
-        additional_receipts = sample_apple_receipts + [
-            {
-                'order_id': 'ZZ9YY8XXX',
-                'receipt_date': 'Aug 15, 2024',
-                'apple_id': 'another@example.com',
-                'total': 32.97,
-                'items': [{'title': 'Different App', 'cost': 32.97}]
-            }
-        ]
+        additional_receipts = [*sample_apple_receipts, {"order_id": "ZZ9YY8XXX", "receipt_date": "Aug 15, 2024", "apple_id": "another@example.com", "total": 32.97, "items": [{"title": "Different App", "cost": 32.97}]}]
 
         # Normalize receipts data like the real system does
         receipts_df = normalize_apple_receipt_data(additional_receipts)
@@ -278,17 +255,7 @@ class TestAppleMatchingStrategies:
     @pytest.mark.apple
     def test_exact_match_strategy(self, matcher):
         """Test exact match strategy (same date + exact amount)."""
-        transaction = {
-            'date': '2024-08-15',
-            'amount': -29990,  # $29.99
-        }
 
-        receipt = {
-            'receipt_date': 'Aug 15, 2024',
-            'total': 29.99,
-            'apple_id': 'test@example.com',
-            'items': [{'title': 'Test App', 'cost': 29.99}]
-        }
 
         # This would test exact match logic specifically
         # Implementation depends on matcher's internal structure
@@ -297,17 +264,7 @@ class TestAppleMatchingStrategies:
     @pytest.mark.apple
     def test_date_window_strategy(self, matcher):
         """Test date window matching strategy."""
-        transaction = {
-            'date': '2024-08-17',  # 2 days after receipt
-            'amount': -29990,
-        }
 
-        receipt = {
-            'receipt_date': 'Aug 15, 2024',
-            'total': 29.99,
-            'apple_id': 'test@example.com',
-            'items': [{'title': 'Test App', 'cost': 29.99}]
-        }
 
         # Should match with reduced confidence
         # Implementation would test date window logic
@@ -324,12 +281,7 @@ class TestAppleEdgeCases:
     @pytest.mark.apple
     def test_empty_receipts_list(self, matcher):
         """Test matching with empty receipts list."""
-        transaction = {
-            'id': 'test-txn',
-            'date': '2024-08-15',
-            'amount': -32970,
-            'payee_name': 'Apple Store'
-        }
+        transaction = {"id": "test-txn", "date": "2024-08-15", "amount": -32970, "payee_name": "Apple Store"}
 
         # Normalize empty receipts data
         receipts_df = normalize_apple_receipt_data([])
@@ -339,16 +291,11 @@ class TestAppleEdgeCases:
     @pytest.mark.apple
     def test_malformed_receipt_data(self, matcher):
         """Test handling of malformed receipt data."""
-        transaction = {
-            'id': 'test-txn',
-            'date': '2024-08-15',
-            'amount': -32970,
-            'payee_name': 'Apple Store'
-        }
+        transaction = {"id": "test-txn", "date": "2024-08-15", "amount": -32970, "payee_name": "Apple Store"}
 
         malformed_receipts = [
             {
-                'order_id': 'test-receipt',
+                "order_id": "test-receipt",
                 # Missing required fields like total, date
             }
         ]
@@ -366,19 +313,19 @@ class TestAppleEdgeCases:
     def test_zero_amount_transactions(self, matcher):
         """Test handling of zero amount transactions (free apps)."""
         transaction = {
-            'id': 'test-free',
-            'date': '2024-08-15',
-            'amount': 0,  # Free app
-            'payee_name': 'Apple Store'
+            "id": "test-free",
+            "date": "2024-08-15",
+            "amount": 0,  # Free app
+            "payee_name": "Apple Store",
         }
 
         receipts = [
             {
-                'order_id': 'free-app',
-                'receipt_date': 'Aug 15, 2024',
-                'apple_id': 'test@example.com',
-                'total': 0.00,
-                'items': [{'title': 'Free App', 'cost': 0.00}]
+                "order_id": "free-app",
+                "receipt_date": "Aug 15, 2024",
+                "apple_id": "test@example.com",
+                "total": 0.00,
+                "items": [{"title": "Free App", "cost": 0.00}],
             }
         ]
 
@@ -392,19 +339,19 @@ class TestAppleEdgeCases:
     def test_very_small_amounts(self, matcher):
         """Test handling of very small transaction amounts."""
         transaction = {
-            'id': 'test-small',
-            'date': '2024-08-15',
-            'amount': -990,  # $0.99 in milliunits
-            'payee_name': 'Apple Store'
+            "id": "test-small",
+            "date": "2024-08-15",
+            "amount": -990,  # $0.99 in milliunits
+            "payee_name": "Apple Store",
         }
 
         receipts = [
             {
-                'order_id': 'small-purchase',
-                'receipt_date': 'Aug 15, 2024',
-                'apple_id': 'test@example.com',
-                'total': 99,  # $0.99 in cents
-                'items': [{'title': 'Small In-App Purchase', 'cost': 99}]  # $0.99 in cents
+                "order_id": "small-purchase",
+                "receipt_date": "Aug 15, 2024",
+                "apple_id": "test@example.com",
+                "total": 99,  # $0.99 in cents
+                "items": [{"title": "Small In-App Purchase", "cost": 99}],  # $0.99 in cents
             }
         ]
 
@@ -418,25 +365,28 @@ class TestAppleEdgeCases:
     def test_large_receipt_collection(self, matcher):
         """Test performance with large number of receipts."""
         transaction = {
-            'id': 'test-large',
-            'date': '2024-08-15',
-            'amount': -29990,
-            'payee_name': 'Apple Store'
+            "id": "test-large",
+            "date": "2024-08-15",
+            "amount": -29990,
+            "payee_name": "Apple Store",
         }
 
         # Generate large collection of receipts
         large_receipts = []
         for i in range(500):
-            large_receipts.append({
-                'order_id': f'receipt-{i}',
-                'receipt_date': 'Aug 15, 2024',
-                'apple_id': f'user{i}@example.com',
-                'total': 10.00 + i * 0.01,  # Varying amounts
-                'items': [{'title': f'App {i}', 'cost': 10.00 + i * 0.01}]
-            })
+            large_receipts.append(
+                {
+                    "order_id": f"receipt-{i}",
+                    "receipt_date": "Aug 15, 2024",
+                    "apple_id": f"user{i}@example.com",
+                    "total": 10.00 + i * 0.01,  # Varying amounts
+                    "items": [{"title": f"App {i}", "cost": 10.00 + i * 0.01}],
+                }
+            )
 
         # Should complete in reasonable time
         import time
+
         start_time = time.time()
         receipts_df = normalize_apple_receipt_data(large_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
@@ -454,20 +404,8 @@ class TestAppleReceiptParsing:
     def test_receipt_field_validation(self):
         """Test validation of required receipt fields."""
         # Valid receipt
-        valid_receipt = {
-            'order_id': 'ML7PQ2XYZ',
-            'receipt_date': 'Aug 15, 2024',
-            'apple_id': 'test@example.com',
-            'total': 29.99,
-            'items': [{'title': 'Test App', 'cost': 29.99}]
-        }
 
         # Invalid receipts missing required fields
-        invalid_receipts = [
-            {'order_id': 'ML7PQ2XYZ'},  # Missing date, total, items
-            {'receipt_date': 'Aug 15, 2024'},  # Missing order_id, total, items
-            {'total': 29.99},  # Missing order_id, date, items
-        ]
 
         # Test that validation works (implementation specific)
         pass
@@ -475,20 +413,6 @@ class TestAppleReceiptParsing:
     @pytest.mark.apple
     def test_currency_parsing(self):
         """Test parsing of currency values in receipts."""
-        receipts_with_currency = [
-            {
-                'total': 29.99,  # Float
-                'items': [{'cost': 29.99}]
-            },
-            {
-                'total': '$29.99',  # String with $
-                'items': [{'cost': '$29.99'}]
-            },
-            {
-                'total': '29.99',  # String without $
-                'items': [{'cost': '29.99'}]
-            }
-        ]
 
         # All should parse to same normalized format
         # Implementation would test currency normalization
@@ -507,7 +431,7 @@ def test_integration_with_fixtures(sample_ynab_transaction, sample_apple_receipt
 
     assert isinstance(result.receipts, list)
     # Verify match result structure
-    assert hasattr(result, 'confidence')
-    assert hasattr(result, 'match_method')
+    assert hasattr(result, "confidence")
+    assert hasattr(result, "match_method")
     assert isinstance(result.confidence, (int, float))
     assert 0 <= result.confidence <= 1

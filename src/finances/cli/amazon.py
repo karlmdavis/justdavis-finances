@@ -5,15 +5,16 @@ Amazon CLI - Transaction Matching Commands
 Professional command-line interface for Amazon transaction matching.
 """
 
-import click
-from datetime import datetime, date
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
+
+import click
 
 from ..amazon import SimplifiedMatcher
 from ..amazon.unzipper import extract_amazon_zip_files
 from ..core.config import get_config
-from ..core.json_utils import write_json, format_json
+from ..core.json_utils import format_json, write_json
 
 
 @click.group()
@@ -23,15 +24,22 @@ def amazon():
 
 
 @amazon.command()
-@click.option('--start', required=True, help='Start date (YYYY-MM-DD)')
-@click.option('--end', required=True, help='End date (YYYY-MM-DD)')
-@click.option('--accounts', multiple=True, help='Specific Amazon accounts to process')
-@click.option('--disable-split', is_flag=True, help='Disable split payment matching')
-@click.option('--output-dir', help='Override output directory')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--start", required=True, help="Start date (YYYY-MM-DD)")
+@click.option("--end", required=True, help="End date (YYYY-MM-DD)")
+@click.option("--accounts", multiple=True, help="Specific Amazon accounts to process")
+@click.option("--disable-split", is_flag=True, help="Disable split payment matching")
+@click.option("--output-dir", help="Override output directory")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def match(ctx: click.Context, start: str, end: str, accounts: tuple,
-          disable_split: bool, output_dir: Optional[str], verbose: bool) -> None:
+def match(
+    ctx: click.Context,
+    start: str,
+    end: str,
+    accounts: tuple,
+    disable_split: bool,
+    output_dir: Optional[str],
+    verbose: bool,
+) -> None:
     """
     Match YNAB transactions to Amazon orders in a date range.
 
@@ -42,15 +50,12 @@ def match(ctx: click.Context, start: str, end: str, accounts: tuple,
     config = get_config()
 
     # Determine output directory
-    if output_dir:
-        output_path = Path(output_dir)
-    else:
-        output_path = config.data_dir / "amazon" / "transaction_matches"
+    output_path = Path(output_dir) if output_dir else config.data_dir / "amazon" / "transaction_matches"
 
     output_path.mkdir(parents=True, exist_ok=True)
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"Amazon Transaction Matching")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("Amazon Transaction Matching")
         click.echo(f"Date range: {start} to {end}")
         click.echo(f"Accounts: {list(accounts) if accounts else 'all'}")
         click.echo(f"Split payments: {'disabled' if disable_split else 'enabled'}")
@@ -60,7 +65,7 @@ def match(ctx: click.Context, start: str, end: str, accounts: tuple,
     try:
         # Initialize matcher
         split_cache_file = None if disable_split else str(config.cache_dir / "amazon_split_cache.json")
-        matcher = SimplifiedMatcher(split_cache_file=split_cache_file)
+        SimplifiedMatcher(split_cache_file=split_cache_file)
 
         # Load Amazon data for specified accounts
         amazon_data_dir = config.data_dir / "amazon" / "raw"
@@ -84,15 +89,15 @@ def match(ctx: click.Context, start: str, end: str, accounts: tuple,
                 "end_date": end,
                 "accounts": list(accounts) if accounts else "all",
                 "split_payments_enabled": not disable_split,
-                "timestamp": timestamp
+                "timestamp": timestamp,
             },
             "summary": {
                 "total_transactions": 0,
                 "matched_transactions": 0,
                 "match_rate": 0.0,
-                "average_confidence": 0.0
+                "average_confidence": 0.0,
             },
-            "matches": []
+            "matches": [],
         }
 
         # Write result file
@@ -106,16 +111,24 @@ def match(ctx: click.Context, start: str, end: str, accounts: tuple,
 
 
 @amazon.command()
-@click.option('--transaction-id', required=True, help='YNAB transaction ID')
-@click.option('--date', required=True, help='Transaction date (YYYY-MM-DD)')
-@click.option('--amount', required=True, type=int, help='Transaction amount in milliunits')
-@click.option('--payee-name', required=True, help='Transaction payee name')
-@click.option('--account-name', required=True, help='Account name')
-@click.option('--accounts', multiple=True, help='Amazon accounts to search')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--transaction-id", required=True, help="YNAB transaction ID")
+@click.option("--date", required=True, help="Transaction date (YYYY-MM-DD)")
+@click.option("--amount", required=True, type=int, help="Transaction amount in milliunits")
+@click.option("--payee-name", required=True, help="Transaction payee name")
+@click.option("--account-name", required=True, help="Account name")
+@click.option("--accounts", multiple=True, help="Amazon accounts to search")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int,
-                payee_name: str, account_name: str, accounts: tuple, verbose: bool) -> None:
+def match_single(
+    ctx: click.Context,
+    transaction_id: str,
+    date: str,
+    amount: int,
+    payee_name: str,
+    account_name: str,
+    accounts: tuple,
+    verbose: bool,
+) -> None:
     """
     Match a single YNAB transaction to Amazon orders.
 
@@ -125,8 +138,8 @@ def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int
     """
     config = get_config()
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"Single Amazon Transaction Matching")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("Single Amazon Transaction Matching")
         click.echo(f"Transaction ID: {transaction_id}")
         click.echo(f"Date: {date}")
         click.echo(f"Amount: {amount} milliunits")
@@ -136,19 +149,19 @@ def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int
 
     # Create transaction object
     ynab_transaction = {
-        'id': transaction_id,
-        'date': date,
-        'amount': amount,
-        'payee_name': payee_name,
-        'account_name': account_name
+        "id": transaction_id,
+        "date": date,
+        "amount": amount,
+        "payee_name": payee_name,
+        "account_name": account_name,
     }
 
     try:
         # Initialize matcher
-        matcher = SimplifiedMatcher()
+        SimplifiedMatcher()
 
         # Load Amazon data
-        amazon_data_dir = config.data_dir / "amazon" / "raw"
+        config.data_dir / "amazon" / "raw"
 
         click.echo("🔍 Searching for matching Amazon orders...")
         click.echo("⚠️  Full implementation requires integration with existing single transaction logic")
@@ -158,11 +171,11 @@ def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int
             "transaction": ynab_transaction,
             "matches": [],
             "best_match": None,
-            "message": "CLI implementation in progress"
+            "message": "CLI implementation in progress",
         }
 
         # Display result
-        if result.get('best_match'):
+        if result.get("best_match"):
             click.echo("✅ Match found!")
             click.echo(f"Confidence: {result['best_match']['confidence']}")
         else:
@@ -178,13 +191,14 @@ def match_single(ctx: click.Context, transaction_id: str, date: str, amount: int
 
 
 @amazon.command()
-@click.option('--download-dir', required=True, help='Directory containing downloaded ZIP files')
-@click.option('--accounts', multiple=True, help='Filter by specific account names (karl, erica)')
-@click.option('--output-dir', help='Override output directory (default: data/amazon/raw)')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option("--download-dir", required=True, help="Directory containing downloaded ZIP files")
+@click.option("--accounts", multiple=True, help="Filter by specific account names (karl, erica)")
+@click.option("--output-dir", help="Override output directory (default: data/amazon/raw)")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def unzip(ctx: click.Context, download_dir: str, accounts: tuple,
-          output_dir: Optional[str], verbose: bool) -> None:
+def unzip(
+    ctx: click.Context, download_dir: str, accounts: tuple, output_dir: Optional[str], verbose: bool
+) -> None:
     """
     Extract Amazon order history ZIP files to structured directories.
 
@@ -200,15 +214,12 @@ def unzip(ctx: click.Context, download_dir: str, accounts: tuple,
     config = get_config()
 
     # Determine output directory
-    if output_dir:
-        raw_data_path = Path(output_dir)
-    else:
-        raw_data_path = config.data_dir / "amazon" / "raw"
+    raw_data_path = Path(output_dir) if output_dir else config.data_dir / "amazon" / "raw"
 
     download_path = Path(download_dir)
 
-    if verbose or ctx.obj.get('verbose', False):
-        click.echo(f"Amazon Order History Unzip")
+    if verbose or ctx.obj.get("verbose", False):
+        click.echo("Amazon Order History Unzip")
         click.echo(f"Download directory: {download_path}")
         click.echo(f"Output directory: {raw_data_path}")
         click.echo(f"Account filter: {list(accounts) if accounts else 'all'}")
@@ -224,35 +235,37 @@ def unzip(ctx: click.Context, download_dir: str, accounts: tuple,
         result = extract_amazon_zip_files(download_path, raw_data_path, account_filter)
 
         # Display results
-        if result['success']:
+        if result["success"]:
             click.echo(f"✅ {result['message']}")
 
-            if result['files_processed'] > 0:
-                click.echo(f"\nExtractions completed:")
-                for extraction in result['extractions']:
+            if result["files_processed"] > 0:
+                click.echo("\nExtractions completed:")
+                for extraction in result["extractions"]:
                     click.echo(f"  📁 {extraction['output_directory']}")
                     click.echo(f"     Account: {extraction['account_name']}")
-                    click.echo(f"     Files: {extraction['files_extracted']} ({len(extraction['csv_files'])} CSV)")
+                    click.echo(
+                        f"     Files: {extraction['files_extracted']} ({len(extraction['csv_files'])} CSV)"
+                    )
 
         else:
             click.echo(f"⚠️  {result['message']}")
 
             # Show successful extractions
-            if result['extractions']:
-                click.echo(f"\nSuccessful extractions:")
-                for extraction in result['extractions']:
+            if result["extractions"]:
+                click.echo("\nSuccessful extractions:")
+                for extraction in result["extractions"]:
                     click.echo(f"  ✅ {extraction['output_directory']}")
 
             # Show errors
-            if result['errors']:
-                click.echo(f"\nErrors encountered:")
-                for error in result['errors']:
+            if result["errors"]:
+                click.echo("\nErrors encountered:")
+                for error in result["errors"]:
                     click.echo(f"  ❌ {error['zip_file']}: {error['error']}")
 
         # Show summary
-        click.echo(f"\nSummary:")
+        click.echo("\nSummary:")
         click.echo(f"  Files processed: {result['files_processed']}")
-        if result['files_failed'] > 0:
+        if result["files_failed"] > 0:
             click.echo(f"  Files failed: {result['files_failed']}")
 
         # Output JSON for programmatic use
@@ -265,5 +278,5 @@ def unzip(ctx: click.Context, download_dir: str, accounts: tuple,
         raise click.ClickException(str(e))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     amazon()

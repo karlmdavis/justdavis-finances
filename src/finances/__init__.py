@@ -32,30 +32,28 @@ __version__ = "0.2.0"
 __author__ = "Karl Davis"
 
 # Export core utilities for easy access
+from .core.config import Environment, get_config
 from .core.currency import (
-    milliunits_to_cents,
-    cents_to_milliunits,
     cents_to_dollars_str,
+    cents_to_milliunits,
+    milliunits_to_cents,
     safe_currency_to_cents,
 )
 
 # Export key domain functionality
-from .core.models import Transaction, Receipt, MatchResult
-from .core.config import get_config, Environment
+from .core.models import MatchResult, Receipt, Transaction
 
 __all__ = [
-    # Core currency functions
-    "milliunits_to_cents",
-    "cents_to_milliunits",
-    "cents_to_dollars_str",
-    "safe_currency_to_cents",
-
+    "Environment",
+    "MatchResult",
+    "Receipt",
     # Core models
     "Transaction",
-    "Receipt",
-    "MatchResult",
-
+    "cents_to_dollars_str",
+    "cents_to_milliunits",
     # Configuration
     "get_config",
-    "Environment",
+    # Core currency functions
+    "milliunits_to_cents",
+    "safe_currency_to_cents",
 ]

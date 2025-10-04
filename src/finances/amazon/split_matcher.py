@@ -7,12 +7,13 @@ Tracks which items have been matched to prevent double-counting.
 """
 
 import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional, Set
 from collections import defaultdict
+from datetime import datetime
+from typing import Optional
+
 import pandas as pd
 
-from ..core.json_utils import write_json_with_defaults, read_json
+from ..core.json_utils import read_json, write_json_with_defaults
 
 
 class SplitPaymentMatcher:
@@ -48,10 +49,9 @@ class SplitPaymentMatcher:
             data = read_json(self.cache_file)
             # Convert lists back to sets
             self.matched_items = {
-                order_id: set(items)
-                for order_id, items in data.get('matched_items', {}).items()
+                order_id: set(items) for order_id, items in data.get("matched_items", {}).items()
             }
-            self.transaction_matches = data.get('transaction_matches', {})
+            self.transaction_matches = data.get("transaction_matches", {})
         except Exception as e:
             print(f"Warning: Could not load cache: {e}")
 
@@ -62,19 +62,19 @@ class SplitPaymentMatcher:
 
         try:
             data = {
-                'matched_items': {
+                "matched_items": {
                     order_id: list(items)  # Convert sets to lists for JSON
                     for order_id, items in self.matched_items.items()
                 },
-                'transaction_matches': self.transaction_matches,
-                'timestamp': datetime.now().isoformat()
+                "transaction_matches": self.transaction_matches,
+                "timestamp": datetime.now().isoformat(),
             }
 
             write_json_with_defaults(self.cache_file, data)
         except Exception as e:
             print(f"Warning: Could not save cache: {e}")
 
-    def get_unmatched_items(self, order_id: str, order_data: Dict) -> Tuple[List[Dict], int]:
+    def get_unmatched_items(self, order_id: str, order_data: dict) -> tuple[list[dict], int]:
         """
         Get items from an order that haven't been matched yet.
 
@@ -89,17 +89,16 @@ class SplitPaymentMatcher:
         unmatched_items = []
         total_amount = 0
 
-        for i, item in enumerate(order_data.get('items', [])):
+        for i, item in enumerate(order_data.get("items", [])):
             if i not in matched_indices:
-                unmatched_items.append({
-                    'index': i,
-                    **item
-                })
-                total_amount += item.get('amount', 0)
+                unmatched_items.append({"index": i, **item})
+                total_amount += item.get("amount", 0)
 
         return unmatched_items, total_amount
 
-    def find_item_combinations(self, items: List[Dict], target_amount: int, tolerance: int = 0) -> List[List[int]]:
+    def find_item_combinations(
+        self, items: list[dict], target_amount: int, tolerance: int = 0
+    ) -> list[list[int]]:
         """
         Find combinations of items that sum to approximately the target amount.
 
@@ -112,15 +111,15 @@ class SplitPaymentMatcher:
             List of item index combinations that match the target
         """
         # Sort items by amount for efficiency
-        sorted_items = sorted(items, key=lambda x: x['amount'], reverse=True)
+        sorted_items = sorted(items, key=lambda x: x["amount"], reverse=True)
 
         results = []
 
         # Try single items first (most common case)
         for item in sorted_items:
-            diff = abs(item['amount'] - target_amount)
+            diff = abs(item["amount"] - target_amount)
             if diff <= tolerance:
-                results.append([item['index']])
+                results.append([item["index"]])
 
         # If no single item matches, try combinations
         if not results and len(items) <= 20:  # Limit complexity for large orders
@@ -129,7 +128,7 @@ class SplitPaymentMatcher:
 
         return results
 
-    def _find_subset_sum(self, items: List[Dict], target: int, tolerance: int) -> List[List[int]]:
+    def _find_subset_sum(self, items: list[dict], target: int, tolerance: int) -> list[list[int]]:
         """
         Dynamic programming solution for subset sum with tolerance.
 
@@ -147,14 +146,14 @@ class SplitPaymentMatcher:
 
         # Create DP table
         # dp[i][j] = list of combinations using first i items that sum to approximately j
-        max_sum = sum(item['amount'] for item in items)
+        max_sum = sum(item["amount"] for item in items)
         if max_sum < target - tolerance:
             return []  # Can't reach target even with all items
 
         results = []
 
         # Use recursive backtracking with memoization for efficiency
-        def backtrack(index: int, current_sum: int, current_items: List[int]):
+        def backtrack(index: int, current_sum: int, current_items: list[int]):
             # Check if we've found a valid combination
             if abs(current_sum - target) <= tolerance and current_items:
                 results.append(current_items[:])
@@ -166,7 +165,7 @@ class SplitPaymentMatcher:
 
             # Try including the current item
             item = items[index]
-            backtrack(index + 1, current_sum + item['amount'], current_items + [item['index']])
+            backtrack(index + 1, current_sum + item["amount"], [*current_items, item["index"]])
 
             # Try excluding the current item
             backtrack(index + 1, current_sum, current_items)
@@ -184,7 +183,7 @@ class SplitPaymentMatcher:
 
         return unique_results
 
-    def match_split_payment(self, ynab_tx: Dict, order_data: Dict, account_name: str) -> Optional[Dict]:
+    def match_split_payment(self, ynab_tx: dict, order_data: dict, account_name: str) -> Optional[dict]:
         """
         Attempt to match a YNAB transaction to part of an order.
 
@@ -196,8 +195,8 @@ class SplitPaymentMatcher:
         Returns:
             Match result or None if no match found
         """
-        order_id = order_data['order_id']
-        ynab_amount = abs(ynab_tx['amount'])  # Amount in cents
+        order_id = order_data["order_id"]
+        ynab_amount = abs(ynab_tx["amount"])  # Amount in cents
 
         # Get unmatched items from the order
         unmatched_items, unmatched_total = self.get_unmatched_items(order_id, order_data)
@@ -212,7 +211,7 @@ class SplitPaymentMatcher:
             # No exact match - try matching if transaction amount equals remaining total
             if abs(unmatched_total - ynab_amount) <= 0:  # Exact match only
                 # This transaction might cover all remaining items
-                item_combination = [item['index'] for item in unmatched_items]
+                item_combination = [item["index"] for item in unmatched_items]
                 item_combinations = [item_combination]
             else:
                 return None
@@ -227,18 +226,16 @@ class SplitPaymentMatcher:
         for item_index in best_combination:
             # Find the item data
             for item in unmatched_items:
-                if item['index'] == item_index:
-                    matched_items_data.append({
-                        k: v for k, v in item.items() if k != 'index'
-                    })
-                    matched_total += item['amount']
+                if item["index"] == item_index:
+                    matched_items_data.append({k: v for k, v in item.items() if k != "index"})
+                    matched_total += item["amount"]
                     break
 
         # Calculate confidence based on amount match and date alignment
-        ynab_date = datetime.strptime(ynab_tx['date'], '%Y-%m-%d').date()
+        ynab_date = datetime.strptime(ynab_tx["date"], "%Y-%m-%d").date()
 
         # Use ship dates for date matching
-        ship_dates = order_data.get('ship_dates', [])
+        ship_dates = order_data.get("ship_dates", [])
         if ship_dates:
             # Find closest ship date
             date_diffs = []
@@ -247,11 +244,11 @@ class SplitPaymentMatcher:
                 if pd.isna(ship_date):
                     continue
 
-                if hasattr(ship_date, 'date'):
+                if hasattr(ship_date, "date"):
                     ship_date = ship_date.date()
                 elif isinstance(ship_date, str):
                     try:
-                        ship_date = datetime.strptime(ship_date, '%Y-%m-%d').date()
+                        ship_date = datetime.strptime(ship_date, "%Y-%m-%d").date()
                     except:
                         continue
 
@@ -295,24 +292,26 @@ class SplitPaymentMatcher:
         confidence *= 0.95
 
         match_result = {
-            'account': account_name,
-            'amazon_orders': [{
-                'order_id': order_id,
-                'items': matched_items_data,
-                'total': matched_total,
-                'ship_dates': order_data.get('ship_dates', []),
-                'order_date': order_data.get('order_date'),
-                'is_partial': True,
-                'matched_item_indices': best_combination
-            }],
-            'match_method': 'split_payment',
-            'confidence': round(confidence, 2),
-            'unmatched_amount': ynab_amount - matched_total
+            "account": account_name,
+            "amazon_orders": [
+                {
+                    "order_id": order_id,
+                    "items": matched_items_data,
+                    "total": matched_total,
+                    "ship_dates": order_data.get("ship_dates", []),
+                    "order_date": order_data.get("order_date"),
+                    "is_partial": True,
+                    "matched_item_indices": best_combination,
+                }
+            ],
+            "match_method": "split_payment",
+            "confidence": round(confidence, 2),
+            "unmatched_amount": ynab_amount - matched_total,
         }
 
         return match_result
 
-    def record_match(self, transaction_id: str, order_id: str, item_indices: List[int]):
+    def record_match(self, transaction_id: str, order_id: str, item_indices: list[int]):
         """
         Record that certain items from an order have been matched.
 
@@ -326,9 +325,9 @@ class SplitPaymentMatcher:
 
         # Record transaction match
         self.transaction_matches[transaction_id] = {
-            'order_id': order_id,
-            'item_indices': item_indices,
-            'timestamp': datetime.now().isoformat()
+            "order_id": order_id,
+            "item_indices": item_indices,
+            "timestamp": datetime.now().isoformat(),
         }
 
         # Save to cache if configured

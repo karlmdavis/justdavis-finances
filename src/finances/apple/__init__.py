@@ -34,58 +34,52 @@ Receipt Processing Features:
 - Financial precision with currency handling
 """
 
-from .loader import (
-    find_latest_apple_export,
-    load_apple_receipts,
-    normalize_apple_receipt_data,
-    parse_apple_date,
-    filter_receipts_by_date_range,
-    get_apple_receipt_summary,
-)
-
-from .matcher import (
-    MatchStrategy,
-    AppleMatcher,
-    batch_match_transactions,
-    generate_match_summary,
-)
-
-from .parser import (
-    AppleReceiptParser,
-    ParsedReceipt,
-    ParsedItem,
-)
-
 from .email_fetcher import (
     AppleEmailFetcher,
     AppleReceiptEmail,
     EmailConfig,
     fetch_apple_receipts_cli,
 )
+from .loader import (
+    filter_receipts_by_date_range,
+    find_latest_apple_export,
+    get_apple_receipt_summary,
+    load_apple_receipts,
+    normalize_apple_receipt_data,
+    parse_apple_date,
+)
+from .matcher import (
+    AppleMatcher,
+    MatchStrategy,
+    batch_match_transactions,
+    generate_match_summary,
+)
+from .parser import (
+    AppleReceiptParser,
+    ParsedItem,
+    ParsedReceipt,
+)
 
 __all__ = [
+    # Email fetching
+    "AppleEmailFetcher",
+    "AppleMatcher",
+    "AppleReceiptEmail",
+    # Receipt parsing
+    "AppleReceiptParser",
+    "EmailConfig",
+    # Transaction matching
+    "MatchStrategy",
+    "ParsedItem",
+    "ParsedReceipt",
+    "batch_match_transactions",
+    "fetch_apple_receipts_cli",
+    "filter_receipts_by_date_range",
     # Receipt loading
     "find_latest_apple_export",
+    "generate_match_summary",
+    "get_apple_receipt_summary",
     "load_apple_receipts",
     "normalize_apple_receipt_data",
     "parse_apple_date",
-    "filter_receipts_by_date_range",
-    "get_apple_receipt_summary",
-
-    # Transaction matching
-    "MatchStrategy",
-    "AppleMatcher",
-    "batch_match_transactions",
-    "generate_match_summary",
-
-    # Receipt parsing
-    "AppleReceiptParser",
-    "ParsedReceipt",
-    "ParsedItem",
-
-    # Email fetching
-    "AppleEmailFetcher",
-    "AppleReceiptEmail",
-    "EmailConfig",
-    "fetch_apple_receipts_cli",
 ]
