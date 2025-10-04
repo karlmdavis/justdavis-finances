@@ -7,7 +7,7 @@ Professional command-line interface for Apple transaction matching.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
@@ -156,7 +156,7 @@ def match_single(
         click.echo("⚠️  Full implementation requires integration with existing single transaction logic")
 
         # Placeholder result
-        result = {
+        result: dict[str, Any] = {
             "transaction": ynab_transaction,
             "matches": [],
             "best_match": None,
@@ -316,7 +316,7 @@ def parse_receipts(ctx: click.Context, input_dir: str, output_dir: Optional[str]
         click.echo("✅ Parsing completed")
         click.echo(f"   Successful: {successful_parses}")
         click.echo(f"   Failed: {failed_parses}")
-        click.echo(f"   Success rate: {export_data['metadata']['success_rate']*100:.1f}%")
+        click.echo(f"   Success rate: {export_data['metadata']['success_rate']*100:.1f}%")  # type: ignore[index]
         click.echo(f"   Results saved to: {output_file}")
 
     except Exception as e:

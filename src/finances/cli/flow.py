@@ -51,7 +51,7 @@ def safe_get_callable_name(obj: Any) -> str:
     elif hasattr(obj, "name"):
         return str(obj.name)
     else:
-        return obj.__class__.__name__
+        return str(obj.__class__.__name__)
 
 
 def setup_flow_nodes() -> None:
@@ -100,7 +100,7 @@ def setup_flow_nodes() -> None:
                 import click
 
                 # Create mock context object
-                mock_ctx = click.Context(cli_func)
+                mock_ctx = click.Context(cli_func)  # type: ignore[arg-type]
                 mock_ctx.obj = {"verbose": context.verbose, "config": config}
 
                 # Merge flow context parameters with defaults
@@ -444,13 +444,15 @@ def go(
 
     # Parse date range
     date_range = None
-    if start or end:
+    if start and end:
         try:
-            start_date = datetime.strptime(start, "%Y-%m-%d").date() if start else None
-            end_date = datetime.strptime(end, "%Y-%m-%d").date() if end else None
+            start_date = datetime.strptime(start, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end, "%Y-%m-%d").date()
             date_range = (start_date, end_date)
         except ValueError as e:
             raise click.ClickException(f"Invalid date format: {e}")
+    elif start or end:
+        raise click.ClickException("Both --start and --end must be provided together")
 
     # Setup flow nodes
     setup_flow_nodes()
@@ -641,7 +643,7 @@ def go(
             click.echo("\n🔍 Items requiring review:")
             for execution in review_items:
                 click.echo(f"  • {execution.node_name}")
-                if execution.result.review_instructions:
+                if execution.result and execution.result.review_instructions:
                     click.echo(f"    {execution.result.review_instructions}")
 
         # Final status
@@ -740,7 +742,7 @@ def graph(ctx: click.Context, output_format: str, verbose: bool) -> None:
 
         if output_format == "json":
             # JSON output
-            graph_data = {"nodes": {}, "execution_levels": dependency_graph.get_execution_levels()}
+            graph_data: dict[str, Any] = {"nodes": {}, "execution_levels": dependency_graph.get_execution_levels()}
 
             for node_name, node in all_nodes.items():
                 graph_data["nodes"][node_name] = {

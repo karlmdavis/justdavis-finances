@@ -7,7 +7,7 @@ Professional command-line interface for Amazon transaction matching.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
@@ -167,7 +167,7 @@ def match_single(
         click.echo("⚠️  Full implementation requires integration with existing single transaction logic")
 
         # Placeholder result
-        result = {
+        result: dict[str, Any] = {
             "transaction": ynab_transaction,
             "matches": [],
             "best_match": None,
@@ -240,7 +240,7 @@ def unzip(
 
             if result["files_processed"] > 0:
                 click.echo("\nExtractions completed:")
-                for extraction in result["extractions"]:
+                for extraction in result["extractions"]:  # type: ignore[attr-defined]
                     click.echo(f"  📁 {extraction['output_directory']}")
                     click.echo(f"     Account: {extraction['account_name']}")
                     click.echo(
@@ -248,7 +248,7 @@ def unzip(
                     )
 
         else:
-            click.echo(f"⚠️  {result['message']}")
+            click.echo(f"⚠️  {result['message']}")  # type: ignore[unreachable]
 
             # Show successful extractions
             if result["extractions"]:
