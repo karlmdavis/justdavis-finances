@@ -8,7 +8,7 @@ Implements a simplified 2-strategy system optimized for Apple's 1:1 transaction 
 
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -140,7 +140,7 @@ class AppleMatcher:
                 print(
                     f"  Found exact match: Receipt {receipt['order_id']} for {format_cents(receipt['total'])}"
                 )
-                receipt_dict: dict[str, Any] = receipt.to_dict()  # type: ignore[assignment]
+                receipt_dict: dict[str, Any] = receipt.to_dict()
                 return receipt_dict
 
         return None
@@ -235,11 +235,11 @@ class AppleMatcher:
             Receipt object
         """
         receipt_date_raw = receipt_data.get("receipt_date")
-        receipt_date: date | str
+        receipt_date: Union[date, str]
         if isinstance(receipt_date_raw, str):
             receipt_date = datetime.strptime(receipt_date_raw, "%Y-%m-%d").date()
         elif receipt_date_raw is not None and hasattr(receipt_date_raw, "date"):
-            receipt_date = receipt_date_raw.date()  # type: ignore[union-attr]
+            receipt_date = receipt_date_raw.date()
         else:
             # Fallback to empty string if date is None
             receipt_date = ""

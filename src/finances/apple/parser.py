@@ -537,14 +537,12 @@ class AppleReceiptParser:
                         attr_result = elem.get(selector_config["attr"])
                         if attr_result:
                             self.selectors_successful.append(f"{field_name}:{selector}")
-                            # Return string if it's a string or list, otherwise return as is
-                            if isinstance(attr_result, (str, list)):
-                                return (
-                                    str(attr_result)
-                                    if isinstance(attr_result, str)
-                                    else str(attr_result[0]) if attr_result else None
-                                )
-                            return str(attr_result)
+                            # BeautifulSoup elem.get() returns str or list[str]
+                            if isinstance(attr_result, str):
+                                return attr_result
+                            else:
+                                # Must be a list
+                                return str(attr_result[0]) if attr_result else None
 
                 elif method == "sibling":
                     elem = soup.select_one(selector)

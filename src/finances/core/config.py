@@ -53,6 +53,7 @@ class EmailConfig:
     username: Optional[str] = None
     password: Optional[str] = None
     use_oauth: bool = False
+    search_folders: list[str] = field(default_factory=lambda: ["INBOX", "[Gmail]/All Mail"])
 
 
 @dataclass

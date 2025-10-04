@@ -4,6 +4,16 @@ Unified Order Grouping Module
 
 Consolidates the three separate grouping functions into a single flexible system.
 Provides multiple levels of Amazon order grouping for transaction matching.
+
+Type Checking Notes:
+--------------------
+This module contains strategic type: ignore comments for pandas GroupBy operations.
+These are necessary due to known limitations in pandas-stubs where:
+- GroupBy.__iter__ returns overly broad Union types containing all possible pandas scalar types
+- Dictionary access on group_summary returns Union types despite our known dict structure
+- These are not actual type errors but rather limitations in pandas type stubs
+
+All type: ignore comments are marked with specific error codes and explanations.
 """
 
 from datetime import date
@@ -79,35 +89,37 @@ def _group_by_order_id(orders_df: pd.DataFrame) -> dict[str, dict[str, Any]]:
                 "quantity": quantity,
                 "asin": row.get("ASIN", ""),
             }
-            items_list: list[Any] = order_summary["items"]  # type: ignore[assignment]
+            items_list: list[Any] = order_summary["items"]
             items_list.append(item)
-            total_val: int = order_summary["total"]  # type: ignore[assignment]
+            total_val: int = order_summary["total"]
             order_summary["total"] = total_val + item_amount
 
             # Track unique ship dates
             ship_date = row.get("Ship Date")
-            ship_dates_list: list[Any] = order_summary["ship_dates"]  # type: ignore[assignment]
+            ship_dates_list: list[Any] = order_summary["ship_dates"]
             if ship_date and ship_date not in ship_dates_list:
                 ship_dates_list.append(ship_date)
 
         # Set order date (should be same for all items in order)
         order_summary["order_date"] = group.iloc[0].get("Order Date")
-        ship_dates_list = order_summary["ship_dates"]  # type: ignore[assignment]
-        order_summary["ship_dates"] = sorted(ship_dates_list)  # type: ignore[type-var]
+        ship_dates_list = order_summary["ship_dates"]
+        order_summary["ship_dates"] = sorted(ship_dates_list)
 
-        grouped[order_id] = order_summary
+        # pandas-stubs limitation: groupby iterator returns overly broad Union type for keys
+        grouped[order_id] = order_summary  # type: ignore[index]
 
     return grouped
 
 
 def _group_by_shipment(orders_df: pd.DataFrame) -> list[dict[str, Any]]:
     """Group orders by Order ID + exact Ship Date combination."""
-    shipment_groups = []
+    shipment_groups: list[dict[str, Any]] = []
 
     # Group by Order ID first, then by exact Ship Date within each order
+    # pandas-stubs limitation: groupby iterator returns overly broad Union type
     for order_id, order_group in orders_df.groupby("Order ID"):
         for ship_date, shipment_group in order_group.groupby("Ship Date"):
-            group_summary = {
+            group_summary: dict[str, Any] = {
                 "order_id": order_id,
                 "ship_date": ship_date,
                 "items": [],
@@ -130,6 +142,7 @@ def _group_by_shipment(orders_df: pd.DataFrame) -> list[dict[str, Any]]:
                     "quantity": quantity,
                     "asin": row.get("ASIN", ""),
                 }
+                # pandas-stubs: dict access returns Union type despite our known structure
                 group_summary["items"].append(item)
                 group_summary["total"] += item_amount
 
@@ -144,12 +157,13 @@ def _group_by_daily_shipment(orders_df: pd.DataFrame) -> list[dict[str, Any]]:
     orders_df = orders_df.copy()
     orders_df["Ship Date Only"] = orders_df["Ship Date"].dt.date
 
-    shipment_groups = []
+    shipment_groups: list[dict[str, Any]] = []
 
     # Group by Order ID first, then by Ship Date (date only) within each order
+    # pandas-stubs limitation: groupby iterator returns overly broad Union type
     for order_id, order_group in orders_df.groupby("Order ID"):
         for ship_date_only, daily_group in order_group.groupby("Ship Date Only"):
-            group_summary = {
+            group_summary: dict[str, Any] = {
                 "order_id": order_id,
                 "ship_date": ship_date_only,  # Date only
                 "items": [],
@@ -173,6 +187,7 @@ def _group_by_daily_shipment(orders_df: pd.DataFrame) -> list[dict[str, Any]]:
                     "quantity": quantity,
                     "asin": row.get("ASIN", ""),
                 }
+                # pandas-stubs: dict access returns Union type despite our known structure
                 group_summary["items"].append(item)
                 group_summary["total"] += item_amount
 
@@ -202,28 +217,33 @@ def get_order_candidates(
     Returns:
         Dictionary with candidates from each grouping level
     """
-    candidates = {"complete_orders": [], "shipments": [], "daily_shipments": []}
+    candidates: dict[str, list[dict[str, Any]]] = {
+        "complete_orders": [],
+        "shipments": [],
+        "daily_shipments": [],
+    }
 
     # Try each grouping level
     for level in GroupingLevel:
         groups = group_orders(orders_df, level)
 
         if level == GroupingLevel.ORDER:
-            # groups is a dict
-            for order_data in groups.values():
+            # groups is a dict - pandas-stubs: Union type from group_orders return
+            for order_data in groups.values():  # type: ignore[union-attr]
                 amount_diff = abs(ynab_amount - order_data["total"])
                 if amount_diff <= tolerance:
                     candidates["complete_orders"].append(
                         {**order_data, "amount_diff": amount_diff, "grouping_level": "order"}
                     )
         else:
-            # groups is a list
+            # groups is a list - pandas-stubs: Union type from group_orders return
             for group in groups:
-                amount_diff = abs(ynab_amount - group["total"])
+                # pandas-stubs: group dict values return Union type despite our known structure
+                amount_diff = abs(ynab_amount - group["total"])  # type: ignore[operator, index]
                 if amount_diff <= tolerance:
                     level_name = "shipments" if level == GroupingLevel.SHIPMENT else "daily_shipments"
                     candidates[level_name].append(
-                        {**group, "amount_diff": amount_diff, "grouping_level": level.value}
+                        {**group, "amount_diff": amount_diff, "grouping_level": level.value}  # type: ignore[dict-item]
                     )
 
     return candidates

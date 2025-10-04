@@ -160,10 +160,14 @@ class SimplifiedMatcher:
         self, ynab_tx: dict, ynab_amount: int, ynab_date: date, orders_df: pd.DataFrame, account_name: str
     ) -> list[dict[str, Any]]:
         """Find split payment matches."""
-        matches = []
+        matches: list[dict[str, Any]] = []
 
         # Group by complete orders to find candidates for split payments
         complete_orders = group_orders(orders_df, GroupingLevel.ORDER)
+
+        # complete_orders is always a dict when using GroupingLevel.ORDER
+        if not isinstance(complete_orders, dict):
+            return matches
 
         for order_data in complete_orders.values():
             # Try split payment matching
@@ -186,8 +190,8 @@ class SimplifiedMatcher:
             return None
 
         # Sort by confidence (highest first), then by match method preference
-        def match_priority(match):
-            confidence = match["confidence"]
+        def match_priority(match: dict[str, Any]) -> float:
+            confidence = float(match["confidence"])
             method = match["match_method"]
 
             # Complete matches get priority over split payments

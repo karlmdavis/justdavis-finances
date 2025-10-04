@@ -145,7 +145,7 @@ class CashFlowAnalyzer:
         date_range = pd.date_range(start=all_dates[0], end=all_dates[-1], freq="D")
 
         complete_balances = {}
-        last_balances = dict.fromkeys(self.config.cash_accounts, 0)
+        last_balances: dict[str, float] = dict.fromkeys(self.config.cash_accounts, 0.0)
 
         for date_str in date_range.strftime("%Y-%m-%d"):
             if date_str in daily_balances:
@@ -421,8 +421,8 @@ class CashFlowAnalyzer:
         std_balance = self.df["Total"].std()
         min_balance = self.df["Total"].min()
         max_balance = self.df["Total"].max()
-        days_positive: int = (self.df["Daily_Change"] > 0).sum()  # type: ignore[assignment]
-        days_negative: int = (self.df["Daily_Change"] < 0).sum()  # type: ignore[assignment]
+        days_positive: int = int((self.df["Daily_Change"] > 0).sum())
+        days_negative: int = int((self.df["Daily_Change"] < 0).sum())
         avg_daily_change = self.df["Daily_Change"].mean()
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()
 

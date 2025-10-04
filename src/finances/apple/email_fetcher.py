@@ -478,7 +478,7 @@ class AppleEmailFetcher:
                     html_file = output_dir / f"{base_name}-formatted-simple.html"
                     with open(html_file, "w", encoding="utf-8") as f:
                         f.write(email_obj.html_content)
-                    files_list: list[Any] = stats["files_created"]  # type: ignore[assignment]
+                    files_list: list[Any] = stats["files_created"]
                     files_list.append(str(html_file))
 
                 # Save text content if available
@@ -486,14 +486,14 @@ class AppleEmailFetcher:
                     text_file = output_dir / f"{base_name}.txt"
                     with open(text_file, "w", encoding="utf-8") as f:
                         f.write(email_obj.text_content)
-                    files_list = stats["files_created"]  # type: ignore[assignment]
+                    files_list = stats["files_created"]
                     files_list.append(str(text_file))
 
                 # Save raw email
                 raw_file = output_dir / f"{base_name}.eml"
                 with open(raw_file, "w", encoding="utf-8") as f:
                     f.write(email_obj.raw_content or "")
-                files_list = stats["files_created"]  # type: ignore[assignment]
+                files_list = stats["files_created"]
                 files_list.append(str(raw_file))
 
                 # Save metadata
@@ -508,15 +508,15 @@ class AppleEmailFetcher:
                 }
 
                 write_json(metadata_file, metadata)
-                files_list = stats["files_created"]  # type: ignore[assignment]
+                files_list = stats["files_created"]
                 files_list.append(str(metadata_file))
 
-                saved_count: int = stats["saved_successfully"]  # type: ignore[assignment]
+                saved_count: int = stats["saved_successfully"]
                 stats["saved_successfully"] = saved_count + 1
 
             except Exception as e:
                 logger.error(f"Error saving email {i}: {e}")
-                error_count: int = stats["save_errors"]  # type: ignore[assignment]
+                error_count: int = stats["save_errors"]
                 stats["save_errors"] = error_count + 1
 
         logger.info(f"Saved {stats['saved_successfully']}/{stats['total_emails']} emails to {output_dir}")

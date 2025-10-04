@@ -240,7 +240,7 @@ def unzip(
 
             if result["files_processed"] > 0:
                 click.echo("\nExtractions completed:")
-                for extraction in result["extractions"]:  # type: ignore[attr-defined]
+                for extraction in result["extractions"]:
                     click.echo(f"  📁 {extraction['output_directory']}")
                     click.echo(f"     Account: {extraction['account_name']}")
                     click.echo(
@@ -248,7 +248,7 @@ def unzip(
                     )
 
         else:
-            click.echo(f"⚠️  {result['message']}")  # type: ignore[unreachable]
+            click.echo(f"⚠️  {result['message']}")
 
             # Show successful extractions
             if result["extractions"]:

@@ -155,7 +155,7 @@ class SplitPaymentMatcher:
         results = []
 
         # Use recursive backtracking with memoization for efficiency
-        def backtrack(index: int, current_sum: int, current_items: list[int]):
+        def backtrack(index: int, current_sum: int, current_items: list[int]) -> None:
             # Check if we've found a valid combination
             if abs(current_sum - target) <= tolerance and current_items:
                 results.append(current_items[:])

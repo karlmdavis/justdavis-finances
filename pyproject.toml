@@ -144,6 +144,7 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults
     "S101",  # allow assert statements (tests use them)
     "S108",  # hardcoded /tmp usage - safe for test environments
+    "S110",  # try-except-pass - used in tests for expected failures
     "S112",  # try-except-continue - acceptable for robustness in parsing code
     "B904",  # raise from err - can be addressed in future PR
     "UP007", # X | Y syntax - requires Python 3.10+, keeping Optional for 3.9 compat
@@ -152,8 +153,14 @@ ignore = [
     "SIM117",  # combine with statements - style preference, can be addressed later
 ]
 
+[tool.ruff.lint.pyupgrade]
+# Keep runtime typing (Optional, Union) for Python 3.9 compatibility
+# even when __future__ annotations are present
+keep-runtime-typing = true
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101"] # allow assert statements in tests
+"tests/**/*" = ["S101"]  # allow assert statements in tests
+"src/finances/cli/main.py" = ["E402"]  # imports after setup code for CLI initialization
 
 # MyPy configuration
 [tool.mypy]

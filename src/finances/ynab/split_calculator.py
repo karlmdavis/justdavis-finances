@@ -70,7 +70,7 @@ def calculate_amazon_splits(
 
     # Verify splits sum to transaction total
     if not validate_sum_equals_total(splits, transaction_amount):
-        total_splits = sum(int(split["amount"]) for split in splits)
+        total_splits: int = sum(split["amount"] for split in splits)  # type: ignore[misc]
         raise SplitCalculationError(
             f"Amazon splits total {total_splits} doesn't match transaction {transaction_amount}"
         )
