@@ -6,18 +6,18 @@ Provides unified command abstraction, dependency management, and execution
 orchestration for the Financial Flow System.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, date
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Callable, Set
+from datetime import date, datetime
 from enum import Enum
-import logging
+from pathlib import Path
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def safe_get_callable_name(obj):
+def safe_get_callable_name(obj: Any) -> str:
     """
     Safely extract a name from any callable object.
 
@@ -29,16 +29,17 @@ def safe_get_callable_name(obj):
     Returns:
         str: Best available name for the callable
     """
-    if hasattr(obj, '__name__'):
-        return obj.__name__
-    elif hasattr(obj, 'name'):
-        return obj.name
+    if hasattr(obj, "__name__"):
+        return str(obj.__name__)
+    elif hasattr(obj, "name"):
+        return str(obj.name)
     else:
-        return obj.__class__.__name__
+        return str(obj.__class__.__name__)
 
 
 class NodeStatus(Enum):
     """Execution status for flow nodes."""
+
     PENDING = "pending"
     READY = "ready"
     RUNNING = "running"
@@ -50,28 +51,30 @@ class NodeStatus(Enum):
 @dataclass
 class FlowResult:
     """Standardized result structure from flow node execution."""
+
     success: bool
     items_processed: int = 0
     new_items: int = 0
     updated_items: int = 0
-    outputs: List[Path] = field(default_factory=list)
+    outputs: list[Path] = field(default_factory=list)
     requires_review: bool = False
     review_instructions: Optional[str] = None
     execution_time_seconds: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     error_message: Optional[str] = None
 
 
 @dataclass
 class FlowContext:
     """Execution context shared across all flow nodes."""
+
     start_time: datetime
     interactive: bool = True
     performance_tracking: bool = False
     confidence_threshold: int = 10000  # 100.00% in basis points
     date_range: Optional[tuple[date, date]] = None
-    archive_manifest: Dict[str, Path] = field(default_factory=dict)
-    execution_history: List['NodeExecution'] = field(default_factory=list)
+    archive_manifest: dict[str, Path] = field(default_factory=dict)
+    execution_history: list["NodeExecution"] = field(default_factory=list)
     dry_run: bool = False
     force: bool = False
     verbose: bool = False
@@ -80,13 +83,14 @@ class FlowContext:
 @dataclass
 class NodeExecution:
     """Record of a single node execution."""
+
     node_name: str
     status: NodeStatus
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     result: Optional[FlowResult] = None
     changes_detected: bool = False
-    change_reasons: List[str] = field(default_factory=list)
+    change_reasons: list[str] = field(default_factory=list)
 
 
 class FlowNode(ABC):
@@ -106,15 +110,15 @@ class FlowNode(ABC):
             name: Unique identifier for this node in the flow graph
         """
         self.name = name
-        self._dependencies: Set[str] = set()
+        self._dependencies: set[str] = set()
 
     @property
-    def dependencies(self) -> Set[str]:
+    def dependencies(self) -> set[str]:
         """Get the set of node names this node depends on."""
         return self._dependencies.copy()
 
     @abstractmethod
-    def check_changes(self, context: FlowContext) -> tuple[bool, List[str]]:
+    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """
         Check if this node needs to execute based on upstream changes.
 
@@ -141,23 +145,25 @@ class FlowNode(ABC):
 
     def get_display_name(self) -> str:
         """Get human-readable display name for this node."""
-        return self.name.replace('_', ' ').title()
+        return self.name.replace("_", " ").title()
 
     def get_active_form(self) -> str:
         """Get present continuous form for progress display."""
         display = self.get_display_name()
         # Simple transformation to present continuous
-        if display.endswith('Sync'):
+        if display.endswith("Sync"):
             return f"Syncing {display[:-4].strip()}"
-        elif display.endswith('Match'):
+        elif display.endswith("Match"):
             return f"Matching {display[:-5].strip()}"
-        elif display.endswith('Analysis'):
+        elif display.endswith("Analysis"):
             return f"Analyzing {display[:-8].strip()}"
         else:
             return f"Processing {display}"
 
 
-def flow_node(name: str, depends_on: Optional[List[str]] = None):
+def flow_node(
+    name: str, depends_on: Optional[list[str]] = None
+) -> Callable[[Callable[[FlowContext], FlowResult]], "FunctionFlowNode"]:
     """
     Decorator for registering flow nodes with dependency declarations.
 
@@ -171,7 +177,8 @@ def flow_node(name: str, depends_on: Optional[List[str]] = None):
             # Implementation
             return FlowResult(success=True, items_processed=150)
     """
-    def decorator(func: Callable[[FlowContext], FlowResult]) -> 'FunctionFlowNode':
+
+    def decorator(func: Callable[[FlowContext], FlowResult]) -> "FunctionFlowNode":
         return FunctionFlowNode(name, func, depends_on or [])
 
     return decorator
@@ -185,8 +192,7 @@ class FunctionFlowNode(FlowNode):
     through a functional interface.
     """
 
-    def __init__(self, name: str, func: Callable[[FlowContext], FlowResult],
-                 dependencies: List[str]):
+    def __init__(self, name: str, func: Callable[[FlowContext], FlowResult], dependencies: list[str]):
         """
         Initialize function-based flow node.
 
@@ -198,13 +204,13 @@ class FunctionFlowNode(FlowNode):
         super().__init__(name)
         self._dependencies = set(dependencies)
         self.func = func
-        self._change_detector: Optional[Callable[[FlowContext], tuple[bool, List[str]]]] = None
+        self._change_detector: Optional[Callable[[FlowContext], tuple[bool, list[str]]]] = None
 
-    def set_change_detector(self, detector: Callable[[FlowContext], tuple[bool, List[str]]]) -> None:
+    def set_change_detector(self, detector: Callable[[FlowContext], tuple[bool, list[str]]]) -> None:
         """Set custom change detection function."""
         self._change_detector = detector
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, List[str]]:
+    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check for changes using registered detector or default logic."""
         if self._change_detector:
             return self._change_detector(context)
@@ -218,10 +224,12 @@ class FunctionFlowNode(FlowNode):
             start_time = datetime.now()
             result = self.func(context)
 
-            # Ensure result is valid
-            if not isinstance(result, FlowResult):
-                func_name = safe_get_callable_name(self.func)
-                raise ValueError(f"Function {func_name} must return FlowResult")
+            # Runtime validation using assert for type safety
+            # This validates at runtime while mypy validates at compile time
+            assert isinstance(result, FlowResult), (
+                f"Function {safe_get_callable_name(self.func)} must return FlowResult, "
+                f"got {type(result).__name__}"
+            )
 
             # Add timing information
             if context.performance_tracking:
@@ -230,12 +238,12 @@ class FunctionFlowNode(FlowNode):
 
             return result
 
+        except AssertionError as e:
+            logger.error(f"Type validation failed for {self.name}: {e}")
+            return FlowResult(success=False, error_message=str(e))
         except Exception as e:
             logger.error(f"Error executing {self.name}: {e}")
-            return FlowResult(
-                success=False,
-                error_message=str(e)
-            )
+            return FlowResult(success=False, error_message=str(e))
 
 
 class CLIAdapterNode(FlowNode):
@@ -246,9 +254,13 @@ class CLIAdapterNode(FlowNode):
     flow system by wrapping CLI command functions.
     """
 
-    def __init__(self, name: str, cli_command: Callable,
-                 dependencies: Optional[List[str]] = None,
-                 change_detector: Optional[Callable[[FlowContext], tuple[bool, List[str]]]] = None):
+    def __init__(
+        self,
+        name: str,
+        cli_command: Callable,
+        dependencies: Optional[list[str]] = None,
+        change_detector: Optional[Callable[[FlowContext], tuple[bool, list[str]]]] = None,
+    ):
         """
         Initialize CLI adapter node.
 
@@ -265,7 +277,7 @@ class CLIAdapterNode(FlowNode):
         self.cli_command = cli_command
         self._change_detector = change_detector
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, List[str]]:
+    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check for changes using provided detector or default."""
         if self._change_detector:
             return self._change_detector(context)
@@ -291,7 +303,13 @@ class CLIAdapterNode(FlowNode):
             result = FlowResult(
                 success=True,
                 items_processed=0,
-                metadata={"cli_command": self.cli_command.__name__ if hasattr(self.cli_command, '__name__') else str(self.cli_command)}
+                metadata={
+                    "cli_command": (
+                        self.cli_command.__name__
+                        if hasattr(self.cli_command, "__name__")
+                        else str(self.cli_command)
+                    )
+                },
             )
 
             if context.performance_tracking:
@@ -302,10 +320,7 @@ class CLIAdapterNode(FlowNode):
 
         except Exception as e:
             logger.error(f"Error executing CLI command {self.name}: {e}")
-            return FlowResult(
-                success=False,
-                error_message=str(e)
-            )
+            return FlowResult(success=False, error_message=str(e))
 
 
 class FlowNodeRegistry:
@@ -316,10 +331,10 @@ class FlowNodeRegistry:
     dependency resolution and graph construction capabilities.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize empty node registry."""
-        self._nodes: Dict[str, FlowNode] = {}
-        self._change_detectors: Dict[str, Callable[[FlowContext], tuple[bool, List[str]]]] = {}
+        self._nodes: dict[str, FlowNode] = {}
+        self._change_detectors: dict[str, Callable[[FlowContext], tuple[bool, list[str]]]] = {}
 
     def register_node(self, node: FlowNode) -> None:
         """
@@ -334,9 +349,13 @@ class FlowNodeRegistry:
         self._nodes[node.name] = node
         logger.debug(f"Registered flow node: {node.name}")
 
-    def register_function_node(self, name: str, func: Callable[[FlowContext], FlowResult],
-                             dependencies: Optional[List[str]] = None,
-                             change_detector: Optional[Callable[[FlowContext], tuple[bool, List[str]]]] = None) -> None:
+    def register_function_node(
+        self,
+        name: str,
+        func: Callable[[FlowContext], FlowResult],
+        dependencies: Optional[list[str]] = None,
+        change_detector: Optional[Callable[[FlowContext], tuple[bool, list[str]]]] = None,
+    ) -> None:
         """
         Register a function as a flow node.
 
@@ -356,11 +375,11 @@ class FlowNodeRegistry:
         """Get a registered node by name."""
         return self._nodes.get(name)
 
-    def get_all_nodes(self) -> Dict[str, FlowNode]:
+    def get_all_nodes(self) -> dict[str, FlowNode]:
         """Get all registered nodes."""
         return self._nodes.copy()
 
-    def validate_dependencies(self) -> List[str]:
+    def validate_dependencies(self) -> list[str]:
         """
         Validate that all node dependencies exist.
 
@@ -376,18 +395,19 @@ class FlowNodeRegistry:
 
         return errors
 
-    def detect_cycles(self) -> List[List[str]]:
+    def detect_cycles(self) -> list[list[str]]:
         """
         Detect dependency cycles in the flow graph.
 
         Returns:
             List of cycles found, each cycle is a list of node names
         """
-        def visit(node_name: str, path: List[str], visited: Set[str], cycles: List[List[str]]) -> None:
+
+        def visit(node_name: str, path: list[str], visited: set[str], cycles: list[list[str]]) -> None:
             if node_name in path:
                 # Found a cycle
                 cycle_start = path.index(node_name)
-                cycle = path[cycle_start:] + [node_name]
+                cycle = [*path[cycle_start:], node_name]
                 cycles.append(cycle)
                 return
 
@@ -404,8 +424,8 @@ class FlowNodeRegistry:
 
             path.pop()
 
-        cycles = []
-        visited = set()
+        cycles: list[list[str]] = []
+        visited: set[str] = set()
 
         for node_name in self._nodes:
             if node_name not in visited:

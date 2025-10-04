@@ -25,35 +25,34 @@ Safety Features:
 - Manual review workflow for complex cases
 """
 
-from .split_calculator import (
-    calculate_amazon_splits,
-    calculate_apple_splits,
-    calculate_generic_splits,
-    validate_split_calculation,
-    sort_splits_for_stability,
-    create_split_summary,
-    SplitCalculationError,
-)
-
 from .retirement import (
-    YnabRetirementService,
     RetirementAccount,
+    YnabRetirementService,
     discover_retirement_accounts,
     generate_retirement_edits,
 )
+from .split_calculator import (
+    SplitCalculationError,
+    calculate_amazon_splits,
+    calculate_apple_splits,
+    calculate_generic_splits,
+    create_split_summary,
+    sort_splits_for_stability,
+    validate_split_calculation,
+)
 
 __all__ = [
+    "RetirementAccount",
+    "SplitCalculationError",
+    # Retirement management
+    "YnabRetirementService",
     # Split calculation
     "calculate_amazon_splits",
     "calculate_apple_splits",
     "calculate_generic_splits",
-    "validate_split_calculation",
-    "sort_splits_for_stability",
     "create_split_summary",
-    "SplitCalculationError",
-    # Retirement management
-    "YnabRetirementService",
-    "RetirementAccount",
     "discover_retirement_accounts",
     "generate_retirement_edits",
+    "sort_splits_for_stability",
+    "validate_split_calculation",
 ]

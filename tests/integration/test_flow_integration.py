@@ -5,21 +5,19 @@ Integration tests for the Financial Flow System.
 Tests end-to-end flow execution with real CLI integration and file system operations.
 """
 
-import pytest
-import tempfile
 import json
-import yaml
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
 from finances.cli.flow import flow, setup_flow_nodes
-from finances.core.flow import FlowContext, FlowResult, flow_registry, NodeStatus
-from finances.core.flow_engine import FlowExecutionEngine
 from finances.core.archive import ArchiveManager
 from finances.core.change_detection import create_change_detectors
+from finances.core.flow import FlowContext, FlowResult, NodeStatus, flow_registry
+from finances.core.flow_engine import FlowExecutionEngine
 
 
 class TestFlowCLIIntegration:
@@ -33,9 +31,10 @@ class TestFlowCLIIntegration:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_validate_command(self, mock_get_config):
         """Test flow validate CLI command."""
         # Mock config
@@ -43,13 +42,13 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, ['validate'])
+        result = self.runner.invoke(flow, ["validate"])
 
         assert result.exit_code == 0
         assert "Flow validation passed" in result.output
         assert "Registered nodes:" in result.output
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_graph_command(self, mock_get_config):
         """Test flow graph CLI command."""
         # Mock config
@@ -57,13 +56,13 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, ['graph'])
+        result = self.runner.invoke(flow, ["graph"])
 
         assert result.exit_code == 0
         assert "Financial Flow System Dependency Graph" in result.output
         assert "Level 1:" in result.output
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_graph_json_format(self, mock_get_config):
         """Test flow graph CLI command with JSON output."""
         # Mock config
@@ -71,7 +70,7 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, ['graph', '--format', 'json'])
+        result = self.runner.invoke(flow, ["graph", "--format", "json"])
 
         assert result.exit_code == 0
 
@@ -80,7 +79,7 @@ class TestFlowCLIIntegration:
         assert "nodes" in graph_data
         assert "execution_levels" in graph_data
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_execute_dry_run(self, mock_get_config):
         """Test flow execute CLI command in dry run mode."""
         # Mock config
@@ -95,15 +94,15 @@ class TestFlowCLIIntegration:
         # Create placeholder YNAB cache files
         (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
         (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
-        (ynab_dir / "transactions.json").write_text('[]')
+        (ynab_dir / "transactions.json").write_text("[]")
 
-        result = self.runner.invoke(flow, ['go', '--dry-run', '--verbose'])
+        result = self.runner.invoke(flow, ["go", "--dry-run", "--verbose"])
 
         assert result.exit_code == 0
         assert "Dry run mode - no changes will be made" in result.output
         assert "Dynamic execution will process" in result.output
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_execute_no_changes(self, mock_get_config):
         """Test flow execute when no changes are detected."""
         # Mock config
@@ -112,13 +111,13 @@ class TestFlowCLIIntegration:
         mock_get_config.return_value = mock_config
 
         # Don't create any data files - should result in no changes, use dry-run mode
-        result = self.runner.invoke(flow, ['go', '--dry-run'])
+        result = self.runner.invoke(flow, ["go", "--dry-run"])
 
         assert result.exit_code == 0
         # With no data files, we might still get some nodes that want to execute
         assert "Dry run mode" in result.output
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_execute_specific_nodes(self, mock_get_config):
         """Test flow execute with specific nodes."""
         # Mock config
@@ -126,15 +125,15 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, [
-            'go', '--dry-run', '--nodes', 'ynab_sync', '--nodes', 'cash_flow_analysis'
-        ])
+        result = self.runner.invoke(
+            flow, ["go", "--dry-run", "--nodes", "ynab_sync", "--nodes", "cash_flow_analysis"]
+        )
 
         assert result.exit_code == 0
         # Should show limited execution plan
         assert "Dynamic execution will process" in result.output
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_execute_force_mode(self, mock_get_config):
         """Test flow execute with force mode."""
         # Mock config
@@ -142,13 +141,13 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, ['go', '--dry-run', '--force'])
+        result = self.runner.invoke(flow, ["go", "--dry-run", "--force"])
 
         assert result.exit_code == 0
         assert "Dynamic execution will process" in result.output
         # In force mode, should execute many nodes even without changes
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_execute_non_interactive(self, mock_get_config):
         """Test flow execute in non-interactive mode."""
         # Mock config
@@ -156,13 +155,13 @@ class TestFlowCLIIntegration:
         mock_config.data_dir = self.temp_dir
         mock_get_config.return_value = mock_config
 
-        result = self.runner.invoke(flow, ['go', '--non-interactive', '--dry-run'])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run"])
 
         assert result.exit_code == 0
         assert "Dry run mode" in result.output
 
-    @patch('finances.core.config.get_config')
-    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
+    @patch("finances.core.config.get_config")
+    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
     def test_flow_execute_with_archive_creation(self, mock_execute_flow, mock_get_config):
         """Test flow execute creates archives when not in dry-run mode."""
         # Mock config
@@ -178,21 +177,25 @@ class TestFlowCLIIntegration:
         ynab_dir.mkdir(parents=True)
         (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123, "accounts": []}')
         (ynab_dir / "categories.json").write_text('{"server_knowledge": 456, "category_groups": []}')
-        (ynab_dir / "transactions.json").write_text('[]')
+        (ynab_dir / "transactions.json").write_text("[]")
 
         # Run without dry-run, non-interactive to trigger archive creation
-        result = self.runner.invoke(flow, ['go', '--non-interactive', '--force'])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--force"])
 
         # Should create archive (check for archive message in output)
         assert "Creating transaction archive" in result.output
         assert "Archive created" in result.output
 
         # Verify archive directory was created
-        archive_dirs = list((self.temp_dir / "ynab" / "archive").glob("*.tar.gz")) if (self.temp_dir / "ynab" / "archive").exists() else []
+        archive_dirs = (
+            list((self.temp_dir / "ynab" / "archive").glob("*.tar.gz"))
+            if (self.temp_dir / "ynab" / "archive").exists()
+            else []
+        )
         assert len(archive_dirs) >= 0  # Archive may or may not be created depending on data
 
-    @patch('finances.core.config.get_config')
-    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
+    @patch("finances.core.config.get_config")
+    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
     def test_flow_execute_skip_archive(self, mock_execute_flow, mock_get_config):
         """Test flow execute skips archive when --skip-archive flag is used."""
         # Mock config
@@ -208,18 +211,20 @@ class TestFlowCLIIntegration:
         ynab_dir.mkdir(parents=True)
         (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
         (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
-        (ynab_dir / "transactions.json").write_text('[]')
+        (ynab_dir / "transactions.json").write_text("[]")
 
         # Run with --skip-archive flag
-        result = self.runner.invoke(flow, ['go', '--non-interactive', '--force', '--skip-archive'])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--force", "--skip-archive"])
 
         # Should not create archive
         assert "Creating transaction archive" not in result.output
 
-    @patch('finances.core.config.get_config')
-    @patch('finances.cli.flow.create_flow_archive')  # Patch where it's imported
-    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
-    def test_flow_archive_context_properly_constructed(self, mock_execute_flow, mock_create_archive, mock_get_config):
+    @patch("finances.core.config.get_config")
+    @patch("finances.cli.flow.create_flow_archive")  # Patch where it's imported
+    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
+    def test_flow_archive_context_properly_constructed(
+        self, mock_execute_flow, mock_create_archive, mock_get_config
+    ):
         """Test that flow_context passed to archive has all required fields including execution_order."""
         # Mock config
         mock_config = MagicMock()
@@ -241,10 +246,10 @@ class TestFlowCLIIntegration:
         ynab_dir.mkdir(parents=True)
         (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
         (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
-        (ynab_dir / "transactions.json").write_text('[]')
+        (ynab_dir / "transactions.json").write_text("[]")
 
         # Run to trigger archive creation
-        result = self.runner.invoke(flow, ['go', '--non-interactive', '--force'])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--force"])
 
         # Debug: print the output to see what happened
         if result.exit_code != 0:
@@ -256,17 +261,19 @@ class TestFlowCLIIntegration:
         call_args = mock_create_archive.call_args
 
         # Check that flow_context has required fields
-        flow_context = call_args[1]['flow_context']
-        assert 'execution_order' in flow_context
-        assert isinstance(flow_context['execution_order'], list)
-        assert 'change_summary' in flow_context
-        assert 'interactive' in flow_context
-        assert 'force' in flow_context
+        flow_context = call_args[1]["flow_context"]
+        assert "execution_order" in flow_context
+        assert isinstance(flow_context["execution_order"], list)
+        assert "change_summary" in flow_context
+        assert "interactive" in flow_context
+        assert "force" in flow_context
 
-    @patch('finances.core.config.get_config')
-    @patch('finances.cli.flow.create_flow_archive')  # Patch where it's imported
-    @patch('finances.core.flow_engine.FlowExecutionEngine.execute_flow')
-    def test_flow_archive_creation_failure_handling(self, mock_execute_flow, mock_create_archive, mock_get_config):
+    @patch("finances.core.config.get_config")
+    @patch("finances.cli.flow.create_flow_archive")  # Patch where it's imported
+    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
+    def test_flow_archive_creation_failure_handling(
+        self, mock_execute_flow, mock_create_archive, mock_get_config
+    ):
         """Test flow handles archive creation failure gracefully."""
         # Mock config
         mock_config = MagicMock()
@@ -284,10 +291,12 @@ class TestFlowCLIIntegration:
         ynab_dir.mkdir(parents=True)
         (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
         (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
-        (ynab_dir / "transactions.json").write_text('[]')
+        (ynab_dir / "transactions.json").write_text("[]")
 
         # Run to trigger archive creation failure (interactive mode to get confirm prompt)
-        result = self.runner.invoke(flow, ['go', '--force'], input='y\ny\n')  # Answer yes to proceed and yes to continue without archive
+        result = self.runner.invoke(
+            flow, ["go", "--force"], input="y\ny\n"
+        )  # Answer yes to proceed and yes to continue without archive
 
         # Should handle the error and ask to continue
         assert "Archive creation failed" in result.output
@@ -305,6 +314,7 @@ class TestArchiveIntegration:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def test_archive_manager_creation(self):
@@ -356,7 +366,7 @@ class TestArchiveIntegration:
         (ynab_dir / "cache.json").write_text('{"test": true}')
 
         archive_manager = ArchiveManager(self.temp_dir)
-        session = archive_manager.create_transaction_archive("test_trigger")
+        archive_manager.create_transaction_archive("test_trigger")
 
         # List recent archives
         recent_archives = archive_manager.list_recent_archives()
@@ -394,6 +404,7 @@ class TestChangeDetectionIntegration:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def test_change_detectors_creation(self):
@@ -401,8 +412,12 @@ class TestChangeDetectionIntegration:
         detectors = create_change_detectors(self.temp_dir)
 
         expected_detectors = [
-            "ynab_sync", "amazon_unzip", "amazon_matching",
-            "apple_email_fetch", "apple_matching", "retirement_update"
+            "ynab_sync",
+            "amazon_unzip",
+            "amazon_matching",
+            "apple_email_fetch",
+            "apple_matching",
+            "retirement_update",
         ]
 
         for detector_name in expected_detectors:
@@ -483,9 +498,10 @@ class TestEndToEndFlow:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_complete_flow_dry_run(self, mock_get_config):
         """Test complete flow execution in dry run mode."""
         # Mock config
@@ -510,11 +526,7 @@ class TestEndToEndFlow:
         assert validation_errors == []
 
         # Create context
-        context = FlowContext(
-            start_time=datetime.now(),
-            dry_run=True,
-            verbose=True
-        )
+        context = FlowContext(start_time=datetime.now(), dry_run=True, verbose=True)
 
         # Execute flow
         executions = engine.execute_flow(context)
@@ -537,15 +549,12 @@ class TestEndToEndFlow:
         ynab_cache_dir = self.temp_dir / "ynab" / "cache"
         ynab_cache_dir.mkdir(parents=True)
 
-        accounts_data = {
-            "server_knowledge": 12345,
-            "accounts": [{"id": "account1", "name": "Test Account"}]
-        }
+        accounts_data = {"server_knowledge": 12345, "accounts": [{"id": "account1", "name": "Test Account"}]}
         (ynab_cache_dir / "accounts.json").write_text(json.dumps(accounts_data))
 
         categories_data = {
             "server_knowledge": 67890,
-            "category_groups": [{"id": "group1", "name": "Test Group"}]
+            "category_groups": [{"id": "group1", "name": "Test Group"}],
         }
         (ynab_cache_dir / "categories.json").write_text(json.dumps(categories_data))
 
@@ -567,7 +576,7 @@ class TestEndToEndFlow:
         export_dir.mkdir()
         (export_dir / "receipts.json").write_text('{"receipts": []}')
 
-    @patch('finances.core.config.get_config')
+    @patch("finances.core.config.get_config")
     def test_flow_execution_with_archive(self, mock_get_config):
         """Test flow execution creates archives."""
         # Mock config
@@ -586,7 +595,7 @@ class TestEndToEndFlow:
 
         # Execute with archive creation
         runner = CliRunner()
-        result = runner.invoke(flow, ['go', '--dry-run', '--verbose'])
+        result = runner.invoke(flow, ["go", "--dry-run", "--verbose"])
 
         assert result.exit_code == 0
         # In dry run mode, archives are not created, so we just check it runs successfully
@@ -600,17 +609,11 @@ class TestEndToEndFlow:
             return FlowResult(success=True, items_processed=100)
 
         flow_registry.register_function_node(
-            "test_node",
-            test_node_func,
-            dependencies=[],
-            change_detector=lambda ctx: (True, ["Test change"])
+            "test_node", test_node_func, dependencies=[], change_detector=lambda ctx: (True, ["Test change"])
         )
 
         engine = FlowExecutionEngine()
-        context = FlowContext(
-            start_time=datetime.now(),
-            performance_tracking=True
-        )
+        context = FlowContext(start_time=datetime.now(), performance_tracking=True)
 
         executions = engine.execute_flow(context)
 

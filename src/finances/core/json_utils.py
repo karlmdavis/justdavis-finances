@@ -13,10 +13,7 @@ from typing import Any, Union
 
 
 def write_json(
-    filepath: Union[str, Path],
-    data: Any,
-    ensure_ascii: bool = False,
-    sort_keys: bool = False
+    filepath: Union[str, Path], data: Any, ensure_ascii: bool = False, sort_keys: bool = False
 ) -> None:
     """
     Write data to a JSON file with standard pretty-printing.
@@ -30,7 +27,7 @@ def write_json(
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(filepath, 'w', encoding='utf-8') as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=ensure_ascii, sort_keys=sort_keys)
 
 
@@ -44,7 +41,7 @@ def read_json(filepath: Union[str, Path]) -> Any:
     Returns:
         The parsed JSON data
     """
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -63,11 +60,7 @@ def format_json(data: Any, ensure_ascii: bool = False, sort_keys: bool = False) 
     return json.dumps(data, indent=2, ensure_ascii=ensure_ascii, sort_keys=sort_keys)
 
 
-def write_json_with_defaults(
-    filepath: Union[str, Path],
-    data: Any,
-    default: Any = str
-) -> None:
+def write_json_with_defaults(filepath: Union[str, Path], data: Any, default: Any = str) -> None:
     """
     Write data to a JSON file with a custom default serializer for non-JSON types.
 
@@ -79,5 +72,5 @@ def write_json_with_defaults(
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(filepath, 'w', encoding='utf-8') as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False, default=default)

@@ -1,0 +1,107 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Finances: Flow Execute",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "finances.cli.main",
+      "args": ["flow", "execute", "--dry-run", "--verbose"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Finances: Amazon Match",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "finances.cli.main",
+      "args": ["amazon", "match", "--start", "2024-07-01", "--end", "2024-07-31"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Finances: Apple Fetch Emails",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "finances.cli.main",
+      "args": ["apple", "fetch-emails", "--days-back", "30"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Finances: Cash Flow Analyze",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "finances.cli.main",
+      "args": ["cashflow", "analyze", "--start", "2024-01-01", "--end", "2024-12-31"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Finances: YNAB Sync",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "finances.cli.main",
+      "args": ["ynab", "sync-cache"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Pytest: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Pytest: All Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/",
+        "-v"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
+  ]
+}

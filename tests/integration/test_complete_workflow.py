@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Integration tests for complete workflows."""
 
-import pytest
 import json
+
 import pandas as pd
-from pathlib import Path
+import pytest
+
 from finances.amazon import SimplifiedMatcher
+from finances.analysis import CashFlowAnalyzer, CashFlowConfig
 from finances.apple import AppleMatcher, normalize_apple_receipt_data
 from finances.ynab import calculate_amazon_splits, calculate_apple_splits
-from finances.analysis import CashFlowAnalyzer, CashFlowConfig
-from finances.core.config import get_config
 
 
 class TestAmazonWorkflow:
@@ -28,15 +28,15 @@ class TestAmazonWorkflow:
         # Sample order data - using actual Amazon CSV column names
         orders = [
             {
-                'Order ID': '111-2223334-5556667',
-                'Order Date': '2024-08-15',
-                'Ship Date': '2024-08-15',
-                'Total Owed': '$45.99',
-                'Title': 'Echo Dot (4th Gen)',
-                'Quantity': 1,
-                'ASIN/ISBN': 'B084J4KNDS',
-                'Item Subtotal': '$45.99',
-                'Item Tax': '$0.00'
+                "Order ID": "111-2223334-5556667",
+                "Order Date": "2024-08-15",
+                "Ship Date": "2024-08-15",
+                "Total Owed": "$45.99",
+                "Title": "Echo Dot (4th Gen)",
+                "Quantity": 1,
+                "ASIN/ISBN": "B084J4KNDS",
+                "Item Subtotal": "$45.99",
+                "Item Tax": "$0.00",
             }
         ]
 
@@ -47,18 +47,18 @@ class TestAmazonWorkflow:
         """Sample YNAB transactions for matching."""
         return [
             {
-                'id': 'test-txn-123',
-                'date': '2024-08-15',
-                'amount': -45990,  # $45.99 expense
-                'payee_name': 'AMZN Mktp US*TEST123',
-                'account_name': 'Chase Credit Card'
+                "id": "test-txn-123",
+                "date": "2024-08-15",
+                "amount": -45990,  # $45.99 expense
+                "payee_name": "AMZN Mktp US*TEST123",
+                "account_name": "Chase Credit Card",
             }
         ]
 
     @pytest.mark.integration
     def test_amazon_end_to_end_workflow(self, sample_amazon_data, sample_ynab_transactions):
         """Test complete Amazon matching and splitting workflow."""
-        orders, amazon_dir = sample_amazon_data
+        orders, _amazon_dir = sample_amazon_data
         transactions = sample_ynab_transactions
 
         # Step 1: Match transactions to orders
@@ -67,53 +67,50 @@ class TestAmazonWorkflow:
 
         # Convert orders to account_data format with proper date handling
         orders_df = pd.DataFrame(orders)
-        orders_df['Order Date'] = pd.to_datetime(orders_df['Order Date'])
-        orders_df['Ship Date'] = pd.to_datetime(orders_df['Ship Date'])
-        account_data = {'test_account': (orders_df, pd.DataFrame())}
+        orders_df["Order Date"] = pd.to_datetime(orders_df["Order Date"])
+        orders_df["Ship Date"] = pd.to_datetime(orders_df["Ship Date"])
+        account_data = {"test_account": (orders_df, pd.DataFrame())}
 
         for transaction in transactions:
             result = matcher.match_transaction(transaction, account_data)
-            if result['matches']:
-                best_match = result['best_match']
-                matches.append({
-                    'transaction': transaction,
-                    'match': best_match
-                })
+            if result["matches"]:
+                best_match = result["best_match"]
+                matches.append({"transaction": transaction, "match": best_match})
 
         assert len(matches) > 0
 
         # Step 2: Generate splits for matched transactions
         splits_results = []
         for match_data in matches:
-            transaction = match_data['transaction']
-            amazon_orders = match_data['match']['amazon_orders']
+            transaction = match_data["transaction"]
+            amazon_orders = match_data["match"]["amazon_orders"]
 
             # Convert order items to split format
             items = []
             for order in amazon_orders:
-                for item in order['items']:
-                    items.append({
-                        'name': item['name'],
-                        'amount': item['amount'],
-                        'quantity': item['quantity'],
-                        'unit_price': item['amount'] // item['quantity']
-                    })
+                for item in order["items"]:
+                    items.append(
+                        {
+                            "name": item["name"],
+                            "amount": item["amount"],
+                            "quantity": item["quantity"],
+                            "unit_price": item["amount"] // item["quantity"],
+                        }
+                    )
 
-            splits = calculate_amazon_splits(transaction['amount'], items)
-            splits_results.append({
-                'transaction_id': transaction['id'],
-                'splits': splits,
-                'order_id': order['order_id']
-            })
+            splits = calculate_amazon_splits(transaction["amount"], items)
+            splits_results.append(
+                {"transaction_id": transaction["id"], "splits": splits, "order_id": order["order_id"]}
+            )
 
         assert len(splits_results) > 0
-        assert len(splits_results[0]['splits']) > 0
+        assert len(splits_results[0]["splits"]) > 0
 
         # Step 3: Validate split calculations
         for result in splits_results:
-            transaction = next(t for t in transactions if t['id'] == result['transaction_id'])
-            total_split_amount = sum(split['amount'] for split in result['splits'])
-            assert total_split_amount == transaction['amount']
+            transaction = next(t for t in transactions if t["id"] == result["transaction_id"])
+            total_split_amount = sum(split["amount"] for split in result["splits"])
+            assert total_split_amount == transaction["amount"]
 
 
 class TestAppleWorkflow:
@@ -132,18 +129,13 @@ class TestAppleWorkflow:
         # Sample receipt data (amounts in cents)
         receipts = [
             {
-                'order_id': 'ML7PQ2XYZ',
-                'receipt_date': 'Aug 15, 2024',  # Proper Apple date format
-                'apple_id': 'test@example.com',
-                'subtotal': 2999,  # $29.99 in cents
-                'tax': 298,  # $2.98 in cents
-                'total': 3297,  # $32.97 in cents
-                'items': [
-                    {
-                        'title': 'Procreate',
-                        'cost': 2999  # $29.99 in cents
-                    }
-                ]
+                "order_id": "ML7PQ2XYZ",
+                "receipt_date": "Aug 15, 2024",  # Proper Apple date format
+                "apple_id": "test@example.com",
+                "subtotal": 2999,  # $29.99 in cents
+                "tax": 298,  # $2.98 in cents
+                "total": 3297,  # $32.97 in cents
+                "items": [{"title": "Procreate", "cost": 2999}],  # $29.99 in cents
             }
         ]
 
@@ -154,18 +146,18 @@ class TestAppleWorkflow:
         """Sample YNAB transactions for Apple matching."""
         return [
             {
-                'id': 'apple-txn-123',
-                'date': '2024-08-15',
-                'amount': -32970,  # $32.97 expense
-                'payee_name': 'Apple Store',
-                'account_name': 'Chase Credit Card'
+                "id": "apple-txn-123",
+                "date": "2024-08-15",
+                "amount": -32970,  # $32.97 expense
+                "payee_name": "Apple Store",
+                "account_name": "Chase Credit Card",
             }
         ]
 
     @pytest.mark.integration
     def test_apple_end_to_end_workflow(self, sample_apple_data, sample_apple_transactions):
         """Test complete Apple matching and splitting workflow."""
-        receipts, apple_dir = sample_apple_data
+        receipts, _apple_dir = sample_apple_data
         transactions = sample_apple_transactions
 
         # Step 1: Match transactions to receipts
@@ -178,18 +170,15 @@ class TestAppleWorkflow:
         for transaction in transactions:
             result = matcher.match_single_transaction(transaction, receipts_df)
             if result.receipts:  # If match found
-                matches.append({
-                    'transaction': transaction,
-                    'match': result
-                })
+                matches.append({"transaction": transaction, "match": result})
 
         assert len(matches) > 0
 
         # Step 2: Generate splits for matched transactions
         splits_results = []
         for match_data in matches:
-            transaction = match_data['transaction']
-            match_result = match_data['match']
+            transaction = match_data["transaction"]
+            match_result = match_data["match"]
             # Get the first matched receipt from the MatchResult object
             receipt = match_result.receipts[0] if match_result.receipts else None
 
@@ -198,36 +187,40 @@ class TestAppleWorkflow:
                 # Transform Apple item format to expected format
                 transformed_items = []
                 for item in receipt.items:
-                    transformed_items.append({
-                        'name': item['title'],  # Apple uses 'title'
-                        'price': item['cost']   # Apple uses 'cost'
-                    })
+                    transformed_items.append(
+                        {
+                            "name": item["title"],  # Apple uses 'title'
+                            "price": item["cost"],  # Apple uses 'cost'
+                        }
+                    )
 
                 splits = calculate_apple_splits(
-                    transaction_amount=transaction['amount'],
+                    transaction_amount=transaction["amount"],
                     apple_items=transformed_items,
                     receipt_subtotal=receipt.subtotal,
-                    receipt_tax=receipt.tax_amount
+                    receipt_tax=receipt.tax_amount,
                 )
                 receipt_id = receipt.id
             else:
                 splits = []
                 receipt_id = None
 
-            splits_results.append({
-                'transaction_id': transaction['id'],
-                'splits': splits,
-                'receipt_id': receipt_id,
-                'apple_id': receipt.customer_id if receipt else None
-            })
+            splits_results.append(
+                {
+                    "transaction_id": transaction["id"],
+                    "splits": splits,
+                    "receipt_id": receipt_id,
+                    "apple_id": receipt.customer_id if receipt else None,
+                }
+            )
 
         assert len(splits_results) > 0
-        assert len(splits_results[0]['splits']) > 0
+        assert len(splits_results[0]["splits"]) > 0
 
         # Step 3: Validate Apple ID attribution
         for result in splits_results:
-            assert 'apple_id' in result
-            assert result['apple_id'] == 'test@example.com'
+            assert "apple_id" in result
+            assert result["apple_id"] == "test@example.com"
 
 
 class TestCashFlowWorkflow:
@@ -249,64 +242,69 @@ class TestCashFlowWorkflow:
                     "id": "checking-1",
                     "name": "Chase Checking",
                     "balance": 25000000,  # $25,000
-                    "type": "checking"
+                    "type": "checking",
                 },
                 {
                     "id": "credit-1",
                     "name": "Chase Credit Card",
                     "balance": -5000000,  # -$5,000 debt
-                    "type": "creditCard"
-                }
+                    "type": "creditCard",
+                },
             ],
-            "server_knowledge": 123
+            "server_knowledge": 123,
         }
 
         # 90 days of transaction history
         transactions_data = []
         from datetime import date
+
         import pandas as pd
 
         base_date = date(2024, 6, 1)
         for day in range(90):
             transaction_date = base_date + pd.Timedelta(days=day)
-            date_str = transaction_date.strftime('%Y-%m-%d')
+            date_str = transaction_date.strftime("%Y-%m-%d")
 
             # Daily expenses
-            transactions_data.extend([
-                {
-                    "id": f"grocery-{day}",
-                    "date": date_str,
-                    "amount": -15000,  # $15 groceries
-                    "account_name": "Chase Credit Card",
-                    "payee_name": "Grocery Store",
-                    "category_name": "Groceries"
-                },
-                {
-                    "id": f"gas-{day}",
-                    "date": date_str,
-                    "amount": -8000 if day % 3 == 0 else 0,  # $8 gas every 3 days
-                    "account_name": "Chase Credit Card",
-                    "payee_name": "Gas Station",
-                    "category_name": "Transportation"
-                }
-            ])
+            transactions_data.extend(
+                [
+                    {
+                        "id": f"grocery-{day}",
+                        "date": date_str,
+                        "amount": -15000,  # $15 groceries
+                        "account_name": "Chase Credit Card",
+                        "payee_name": "Grocery Store",
+                        "category_name": "Groceries",
+                    },
+                    {
+                        "id": f"gas-{day}",
+                        "date": date_str,
+                        "amount": -8000 if day % 3 == 0 else 0,  # $8 gas every 3 days
+                        "account_name": "Chase Credit Card",
+                        "payee_name": "Gas Station",
+                        "category_name": "Transportation",
+                    },
+                ]
+            )
 
             # Bi-weekly income
             if day % 14 == 0:
-                transactions_data.append({
-                    "id": f"salary-{day}",
-                    "date": date_str,
-                    "amount": 150000,  # $1,500 bi-weekly salary
-                    "account_name": "Chase Checking",
-                    "payee_name": "Employer",
-                    "category_name": "Salary"
-                })
+                transactions_data.append(
+                    {
+                        "id": f"salary-{day}",
+                        "date": date_str,
+                        "amount": 150000,  # $1,500 bi-weekly salary
+                        "account_name": "Chase Checking",
+                        "payee_name": "Employer",
+                        "category_name": "Salary",
+                    }
+                )
 
         # Write YNAB data
-        with open(ynab_dir / "accounts.json", 'w') as f:
+        with open(ynab_dir / "accounts.json", "w") as f:
             json.dump(accounts_data, f, indent=2)
 
-        with open(ynab_dir / "transactions.json", 'w') as f:
+        with open(ynab_dir / "transactions.json", "w") as f:
             json.dump(transactions_data, f, indent=2)
 
         return ynab_dir, cash_flow_dir
@@ -318,9 +316,9 @@ class TestCashFlowWorkflow:
 
         # Step 1: Configure analyzer
         config = CashFlowConfig(
-            cash_accounts=['Chase Checking', 'Chase Credit Card'],
-            start_date='2024-06-01',
-            output_format='png'
+            cash_accounts=["Chase Checking", "Chase Credit Card"],
+            start_date="2024-06-01",
+            output_format="png",
         )
 
         analyzer = CashFlowAnalyzer(config)
@@ -330,35 +328,35 @@ class TestCashFlowWorkflow:
 
         assert analyzer.df is not None
         assert len(analyzer.df) > 0
-        assert 'Chase Checking' in analyzer.df.columns
-        assert 'Chase Credit Card' in analyzer.df.columns
+        assert "Chase Checking" in analyzer.df.columns
+        assert "Chase Credit Card" in analyzer.df.columns
 
         # Step 3: Generate dashboard
         charts_dir = cash_flow_dir / "charts"
         dashboard_file = analyzer.generate_dashboard(charts_dir)
 
         assert dashboard_file.exists()
-        assert dashboard_file.suffix == '.png'
+        assert dashboard_file.suffix == ".png"
 
         # Step 4: Get summary statistics
         summary = analyzer.get_summary_statistics()
 
-        assert 'current_balance' in summary
-        assert 'monthly_trend' in summary
-        assert 'trend_direction' in summary
-        assert summary['trend_direction'] in ['positive', 'negative']
+        assert "current_balance" in summary
+        assert "monthly_trend" in summary
+        assert "trend_direction" in summary
+        assert summary["trend_direction"] in ["positive", "negative"]
 
         # Step 5: Validate trend analysis
-        assert 'trend_confidence' in summary
-        assert 0 <= summary['trend_confidence'] <= 1
+        assert "trend_confidence" in summary
+        assert 0 <= summary["trend_confidence"] <= 1
 
         # Step 6: Check moving averages are calculated
-        assert 'MA_7' in analyzer.df.columns
-        assert 'MA_30' in analyzer.df.columns
-        assert 'MA_90' in analyzer.df.columns
+        assert "MA_7" in analyzer.df.columns
+        assert "MA_30" in analyzer.df.columns
+        assert "MA_90" in analyzer.df.columns
 
         # Verify data consistency
-        assert not analyzer.df['MA_7'].isna().all()
+        assert not analyzer.df["MA_7"].isna().all()
         assert analyzer.monthly_df is not None
         assert len(analyzer.monthly_df) > 0
 
@@ -371,109 +369,86 @@ class TestCrossSystemIntegration:
         """Test Amazon matches -> YNAB edits workflow."""
         # Sample Amazon match result
         amazon_match = {
-            'transaction': {
-                'id': 'ynab-txn-123',
-                'amount': -89990,  # $899.90
-                'date': '2024-08-15'
+            "transaction": {"id": "ynab-txn-123", "amount": -89990, "date": "2024-08-15"},  # $899.90
+            "order": {
+                "order_id": "111-2223334-5556667",
+                "total": 8999,  # $89.99 in cents
+                "items": [
+                    {"name": "Laptop Stand", "amount": 4999, "quantity": 1},
+                    {"name": "USB Hub", "amount": 4000, "quantity": 1},
+                ],
             },
-            'order': {
-                'order_id': '111-2223334-5556667',
-                'total': 8999,  # $89.99 in cents
-                'items': [
-                    {
-                        'name': 'Laptop Stand',
-                        'amount': 4999,
-                        'quantity': 1
-                    },
-                    {
-                        'name': 'USB Hub',
-                        'amount': 4000,
-                        'quantity': 1
-                    }
-                ]
-            },
-            'confidence': 0.95
+            "confidence": 0.95,
         }
 
         # Generate splits
         items = []
-        for item in amazon_match['order']['items']:
-            items.append({
-                'name': item['name'],
-                'amount': item['amount'],
-                'quantity': item['quantity'],
-                'unit_price': item['amount'] // item['quantity']
-            })
+        for item in amazon_match["order"]["items"]:
+            items.append(
+                {
+                    "name": item["name"],
+                    "amount": item["amount"],
+                    "quantity": item["quantity"],
+                    "unit_price": item["amount"] // item["quantity"],
+                }
+            )
 
-        splits = calculate_amazon_splits(amazon_match['transaction']['amount'], items)
+        splits = calculate_amazon_splits(amazon_match["transaction"]["amount"], items)
 
         # Validate edit structure
         assert len(splits) == 2
-        assert sum(split['amount'] for split in splits) == amazon_match['transaction']['amount']
+        assert sum(split["amount"] for split in splits) == amazon_match["transaction"]["amount"]
 
         # Check memo format
         for split in splits:
-            assert 'memo' in split
-            assert any(item['name'] in split['memo'] for item in items)
+            assert "memo" in split
+            assert any(item["name"] in split["memo"] for item in items)
 
     @pytest.mark.integration
     def test_apple_to_ynab_edit_workflow(self):
         """Test Apple matches -> YNAB edits workflow."""
         # Sample Apple match result
         apple_match = {
-            'transaction': {
-                'id': 'ynab-txn-456',
-                'amount': -699960,  # $699.96 (299.99+299.99+49.99+49.99)
-                'date': '2024-08-15'
+            "transaction": {
+                "id": "ynab-txn-456",
+                "amount": -699960,  # $699.96 (299.99+299.99+49.99+49.99)
+                "date": "2024-08-15",
             },
-            'receipt': {
-                'order_id': 'ML7PQ2XYZ',
-                'apple_id': 'user@example.com',
-                'total': 69996,  # $699.96 in cents
-                'items': [
-                    {
-                        'title': 'Final Cut Pro',
-                        'cost': 29999  # $299.99 in cents
-                    },
-                    {
-                        'title': 'Logic Pro',
-                        'cost': 29999  # $299.99 in cents
-                    },
-                    {
-                        'title': 'Motion',
-                        'cost': 4999  # $49.99 in cents
-                    },
-                    {
-                        'title': 'Compressor',
-                        'cost': 4999  # $49.99 in cents
-                    }
-                ]
+            "receipt": {
+                "order_id": "ML7PQ2XYZ",
+                "apple_id": "user@example.com",
+                "total": 69996,  # $699.96 in cents
+                "items": [
+                    {"title": "Final Cut Pro", "cost": 29999},  # $299.99 in cents
+                    {"title": "Logic Pro", "cost": 29999},  # $299.99 in cents
+                    {"title": "Motion", "cost": 4999},  # $49.99 in cents
+                    {"title": "Compressor", "cost": 4999},  # $49.99 in cents
+                ],
             },
-            'confidence': 1.0
+            "confidence": 1.0,
         }
 
         # Generate splits
         # Transform Apple item format to expected format
         transformed_items = []
-        for item in apple_match['receipt']['items']:
-            transformed_items.append({
-                'name': item['title'],  # Apple uses 'title'
-                'price': item['cost']   # Apple uses 'cost'
-            })
+        for item in apple_match["receipt"]["items"]:
+            transformed_items.append(
+                {"name": item["title"], "price": item["cost"]}  # Apple uses 'title'  # Apple uses 'cost'
+            )
 
         splits = calculate_apple_splits(
-            apple_match['transaction']['amount'],
+            apple_match["transaction"]["amount"],
             transformed_items,
-            receipt_subtotal=apple_match['receipt']['total']
+            receipt_subtotal=apple_match["receipt"]["total"],
         )
 
         # Validate edit structure
         assert len(splits) == 4
-        assert sum(split['amount'] for split in splits) == apple_match['transaction']['amount']
+        assert sum(split["amount"] for split in splits) == apple_match["transaction"]["amount"]
 
         # Check that splits have the expected item names as memos
-        expected_titles = ['Final Cut Pro', 'Logic Pro', 'Motion', 'Compressor']
-        actual_memos = [split['memo'] for split in splits]
+        expected_titles = ["Final Cut Pro", "Logic Pro", "Motion", "Compressor"]
+        actual_memos = [split["memo"] for split in splits]
         for title in expected_titles:
             assert title in actual_memos
 
@@ -482,11 +457,13 @@ class TestCrossSystemIntegration:
         """Test that all components use consistent configuration."""
         # Set up test environment
         import os
-        os.environ['FINANCES_ENV'] = 'test'
-        os.environ['FINANCES_DATA_DIR'] = str(temp_dir)
+
+        os.environ["FINANCES_ENV"] = "test"
+        os.environ["FINANCES_DATA_DIR"] = str(temp_dir)
 
         # Get config instance
         from finances.core.config import reload_config
+
         config = reload_config()
 
         # Verify all components use the same data structure
@@ -506,7 +483,7 @@ class TestCrossSystemIntegration:
 
         accounts_data = {
             "accounts": [{"id": "1", "name": "Test", "balance": 1000000}],
-            "server_knowledge": 123
+            "server_knowledge": 123,
         }
         transactions_data = [
             {
@@ -515,13 +492,13 @@ class TestCrossSystemIntegration:
                 "amount": -1000,
                 "account_name": "Test",
                 "payee_name": "Test",
-                "category_name": "Test"
+                "category_name": "Test",
             }
         ]
 
-        with open(ynab_cache_dir / "accounts.json", 'w') as f:
+        with open(ynab_cache_dir / "accounts.json", "w") as f:
             json.dump(accounts_data, f, indent=2)
-        with open(ynab_cache_dir / "transactions.json", 'w') as f:
+        with open(ynab_cache_dir / "transactions.json", "w") as f:
             json.dump(transactions_data, f, indent=2)
 
         # Test that analyzer can load from configured location
@@ -543,36 +520,36 @@ def test_performance_integration(temp_dir):
 
     # 2 years of data, 5 accounts, ~10 transactions per day
     accounts_data = {
-        "accounts": [
-            {"id": f"acc-{i}", "name": f"Account {i}", "balance": 10000000}
-            for i in range(5)
-        ],
-        "server_knowledge": 123
+        "accounts": [{"id": f"acc-{i}", "name": f"Account {i}", "balance": 10000000} for i in range(5)],
+        "server_knowledge": 123,
     }
 
     transactions_data = []
     from datetime import date
+
     import pandas as pd
 
     base_date = date(2023, 1, 1)
     for day in range(730):  # 2 years
         transaction_date = base_date + pd.Timedelta(days=day)
-        date_str = transaction_date.strftime('%Y-%m-%d')
+        date_str = transaction_date.strftime("%Y-%m-%d")
 
         for txn_num in range(10):  # 10 transactions per day
-            transactions_data.append({
-                "id": f"txn-{day}-{txn_num}",
-                "date": date_str,
-                "amount": -1000 * (txn_num + 1),
-                "account_name": f"Account {txn_num % 5}",
-                "payee_name": f"Payee {txn_num}",
-                "category_name": f"Category {txn_num}"
-            })
+            transactions_data.append(
+                {
+                    "id": f"txn-{day}-{txn_num}",
+                    "date": date_str,
+                    "amount": -1000 * (txn_num + 1),
+                    "account_name": f"Account {txn_num % 5}",
+                    "payee_name": f"Payee {txn_num}",
+                    "category_name": f"Category {txn_num}",
+                }
+            )
 
-    with open(ynab_dir / "accounts.json", 'w') as f:
+    with open(ynab_dir / "accounts.json", "w") as f:
         json.dump(accounts_data, f, indent=2)
 
-    with open(ynab_dir / "transactions.json", 'w') as f:
+    with open(ynab_dir / "transactions.json", "w") as f:
         json.dump(transactions_data, f, indent=2)
 
     # Test performance
@@ -580,10 +557,7 @@ def test_performance_integration(temp_dir):
 
     start_time = time.time()
 
-    config = CashFlowConfig(
-        cash_accounts=[f"Account {i}" for i in range(5)],
-        start_date='2023-01-01'
-    )
+    config = CashFlowConfig(cash_accounts=[f"Account {i}" for i in range(5)], start_date="2023-01-01")
     analyzer = CashFlowAnalyzer(config)
     analyzer.load_data(ynab_dir)
 
