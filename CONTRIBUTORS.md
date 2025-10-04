@@ -157,6 +157,9 @@ uv sync --dev
 # Install package in development mode
 uv pip install -e .
 
+# Install pre-commit hooks for automatic code quality checks
+uv run pre-commit install
+
 # Verify installation
 finances --help
 ```
