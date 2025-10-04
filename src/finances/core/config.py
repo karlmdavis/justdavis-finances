@@ -245,13 +245,13 @@ class Config:
 
     def to_dict(self, include_sensitive: bool = False) -> dict[str, Any]:
         """Convert configuration to dictionary, optionally excluding sensitive data."""
-        result = {}
+        result: dict[str, Any] = {}
 
         # Convert dataclass fields to dict
         for field_name, field_value in self.__dict__.items():
             if hasattr(field_value, "__dict__"):
                 # Nested dataclass
-                nested_dict = {}
+                nested_dict: dict[str, Any] = {}
                 for nested_name, nested_value in field_value.__dict__.items():
                     full_field_name = f"{field_name}.{nested_name}"
 

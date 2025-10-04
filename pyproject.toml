@@ -140,10 +140,13 @@ select = [
 ]
 ignore = [
     "E501",  # line too long, handled by black
+    "E722",  # bare except - used sparingly for validation functions
     "B008",  # do not perform function calls in argument defaults
     "S101",  # allow assert statements (tests use them)
+    "S108",  # hardcoded /tmp usage - safe for test environments
     "B904",  # raise from err - can be addressed in future PR
     "UP007", # X | Y syntax - requires Python 3.10+, keeping Optional for 3.9 compat
+    "PERF203",  # try-except in loop - acceptable for robustness in some cases
     "PERF401",  # list comprehension performance - minor optimization, can be addressed later
     "SIM117",  # combine with statements - style preference, can be addressed later
 ]

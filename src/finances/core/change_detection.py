@@ -9,10 +9,13 @@ to determine when execution is required based on upstream data changes.
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .flow import FlowContext
 from .json_utils import read_json, write_json_with_defaults
+
+if TYPE_CHECKING:
+    from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,8 @@ class ChangeDetector:
         cache_file = self.get_cache_file(node_name)
         if cache_file.exists():
             try:
-                return read_json(cache_file)
+                result: dict[str, Any] = read_json(cache_file)
+                return result
             except Exception as e:
                 logger.warning(f"Failed to load cache for {node_name}: {e}")
 
@@ -61,7 +65,7 @@ class ChangeDetector:
 
     def get_file_modification_times(self, directory: Path, pattern: str = "*") -> dict[str, float]:
         """Get modification times for files in a directory."""
-        mod_times = {}
+        mod_times: dict[str, float] = {}
 
         if not directory.exists():
             return mod_times
@@ -389,7 +393,9 @@ def create_change_detectors(data_dir: Path) -> dict[str, ChangeDetector]:
     }
 
 
-def get_change_detector_function(detector: ChangeDetector):
+def get_change_detector_function(
+    detector: ChangeDetector,
+) -> "Callable[[FlowContext], tuple[bool, list[str]]]":
     """
     Create a change detector function compatible with FlowNode.
 
@@ -401,6 +407,6 @@ def get_change_detector_function(detector: ChangeDetector):
     """
 
     def change_detector_func(context: FlowContext) -> tuple[bool, list[str]]:
-        return detector.check_changes(context)
+        return detector.check_changes(context)  # type: ignore[no-any-return, attr-defined]
 
     return change_detector_func

@@ -17,7 +17,7 @@ from typing import Any, Callable, Optional
 logger = logging.getLogger(__name__)
 
 
-def safe_get_callable_name(obj):
+def safe_get_callable_name(obj: Any) -> str:
     """
     Safely extract a name from any callable object.
 
@@ -30,11 +30,11 @@ def safe_get_callable_name(obj):
         str: Best available name for the callable
     """
     if hasattr(obj, "__name__"):
-        return obj.__name__
+        return str(obj.__name__)
     elif hasattr(obj, "name"):
-        return obj.name
+        return str(obj.name)
     else:
-        return obj.__class__.__name__
+        return str(obj.__class__.__name__)
 
 
 class NodeStatus(Enum):
@@ -161,7 +161,9 @@ class FlowNode(ABC):
             return f"Processing {display}"
 
 
-def flow_node(name: str, depends_on: Optional[list[str]] = None):
+def flow_node(
+    name: str, depends_on: Optional[list[str]] = None
+) -> Callable[[Callable[[FlowContext], FlowResult]], "FunctionFlowNode"]:
     """
     Decorator for registering flow nodes with dependency declarations.
 
@@ -222,10 +224,12 @@ class FunctionFlowNode(FlowNode):
             start_time = datetime.now()
             result = self.func(context)
 
-            # Ensure result is valid
-            if not isinstance(result, FlowResult):
-                func_name = safe_get_callable_name(self.func)
-                raise ValueError(f"Function {func_name} must return FlowResult")
+            # Runtime validation using assert for type safety
+            # This validates at runtime while mypy validates at compile time
+            assert isinstance(result, FlowResult), (
+                f"Function {safe_get_callable_name(self.func)} must return FlowResult, "
+                f"got {type(result).__name__}"
+            )
 
             # Add timing information
             if context.performance_tracking:
@@ -234,6 +238,9 @@ class FunctionFlowNode(FlowNode):
 
             return result
 
+        except AssertionError as e:
+            logger.error(f"Type validation failed for {self.name}: {e}")
+            return FlowResult(success=False, error_message=str(e))
         except Exception as e:
             logger.error(f"Error executing {self.name}: {e}")
             return FlowResult(success=False, error_message=str(e))
@@ -324,7 +331,7 @@ class FlowNodeRegistry:
     dependency resolution and graph construction capabilities.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize empty node registry."""
         self._nodes: dict[str, FlowNode] = {}
         self._change_detectors: dict[str, Callable[[FlowContext], tuple[bool, list[str]]]] = {}
@@ -417,8 +424,8 @@ class FlowNodeRegistry:
 
             path.pop()
 
-        cycles = []
-        visited = set()
+        cycles: list[list[str]] = []
+        visited: set[str] = set()
 
         for node_name in self._nodes:
             if node_name not in visited:

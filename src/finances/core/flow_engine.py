@@ -92,8 +92,8 @@ class DependencyGraph:
             nodes_to_execute = set(self.nodes.keys())
 
         # Kahn's algorithm for topological sorting
-        in_degree = defaultdict(int)
-        graph = defaultdict(set)
+        in_degree: dict[str, int] = defaultdict(int)
+        graph: dict[str, set[str]] = defaultdict(set)
 
         # Build subgraph for nodes to execute
         for node_name in nodes_to_execute:
@@ -139,7 +139,7 @@ class DependencyGraph:
 
         levels = []
         remaining_nodes = nodes_to_execute.copy()
-        processed = set()
+        processed: set[str] = set()
 
         while remaining_nodes:
             # Find nodes with no unprocessed dependencies
@@ -412,8 +412,8 @@ class FlowExecutionEngine:
 
         # Dynamic execution state
         executions = {}
-        completed_nodes = set()
-        failed_nodes = set()
+        completed_nodes: set[str] = set()
+        failed_nodes: set[str] = set()
         remaining_nodes = nodes_needing_execution.copy()
         execution_count = 0
 

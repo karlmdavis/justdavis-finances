@@ -56,17 +56,18 @@ class Transaction:
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Normalize data after initialization."""
         # Convert string dates to date objects
         if isinstance(self.date, str):
+            date_str = self.date
             try:
-                self.date = datetime.strptime(self.date, "%Y-%m-%d").date()
+                self.date = datetime.strptime(date_str, "%Y-%m-%d").date()
             except ValueError:
                 # Try other common formats
                 for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
                     try:
-                        self.date = datetime.strptime(self.date, fmt).date()
+                        self.date = datetime.strptime(date_str, fmt).date()
                         break
                     except ValueError:
                         continue
@@ -124,17 +125,18 @@ class Receipt:
     created_at: Optional[datetime] = None
     raw_data: Optional[dict[str, Any]] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Normalize data after initialization."""
         # Convert string dates to date objects
         if isinstance(self.date, str):
+            date_str = self.date
             try:
-                self.date = datetime.strptime(self.date, "%Y-%m-%d").date()
+                self.date = datetime.strptime(date_str, "%Y-%m-%d").date()
             except ValueError:
                 # Try other common formats
                 for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
                     try:
-                        self.date = datetime.strptime(self.date, fmt).date()
+                        self.date = datetime.strptime(date_str, fmt).date()
                         break
                     except ValueError:
                         continue

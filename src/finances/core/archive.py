@@ -366,13 +366,13 @@ class ArchiveManager:
             archive_files = list(archiver.archive_dir.glob("*.tar.gz"))
             domain_size = sum(f.stat().st_size for f in archive_files)
 
-            usage["domains"][domain_name] = {
+            usage["domains"][domain_name] = {  # type: ignore[index]
                 "archive_count": len(archive_files),
                 "total_size_bytes": domain_size,
             }
 
-            usage["total_archives"] += len(archive_files)
-            usage["total_size_bytes"] += domain_size
+            usage["total_archives"] += len(archive_files)  # type: ignore[operator]
+            usage["total_size_bytes"] += domain_size  # type: ignore[operator]
 
         return usage
 

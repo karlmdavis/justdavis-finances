@@ -221,7 +221,7 @@ def validate_sum_equals_total(
     """
     split_sum = sum(split["amount"] for split in splits)
     difference = abs(split_sum - total_milliunits)
-    return difference <= tolerance
+    return bool(difference <= tolerance)
 
 
 def allocate_remainder(amounts: list[int], total: int) -> list[int]:
