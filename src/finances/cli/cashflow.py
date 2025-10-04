@@ -16,7 +16,7 @@ from ..core.config import get_config
 
 
 @click.group()
-def cashflow():
+def cashflow() -> None:
     """Cash flow analysis and reporting commands."""
     pass
 

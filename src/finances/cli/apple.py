@@ -17,7 +17,7 @@ from ..core.json_utils import format_json, write_json
 
 
 @click.group()
-def apple():
+def apple() -> None:
     """Apple transaction matching commands."""
     pass
 

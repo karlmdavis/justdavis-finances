@@ -5,6 +5,7 @@ YNAB CLI - Transaction Updates and Edit Management
 Professional command-line interface for YNAB transaction updates.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -17,7 +18,7 @@ from ..ynab import calculate_amazon_splits, calculate_apple_splits
 
 
 @click.group()
-def ynab():
+def ynab() -> None:
     """YNAB transaction update and edit management commands."""
     pass
 
@@ -91,16 +92,31 @@ def generate_splits(
         for match in match_results.get("matches", []):
             confidence = match.get("confidence", 0.0)
 
+            # Extract transaction amount in milliunits from the match
+            ynab_transaction = match.get("ynab_transaction", {})
+            transaction_amount_cents = ynab_transaction.get("amount", 0)
+            # Convert cents to milliunits (YNAB's format)
+            transaction_amount = transaction_amount_cents * 10
+
             if match_type == "amazon":
-                splits = calculate_amazon_splits(match)
+                # Extract Amazon items from the first order
+                amazon_orders = match.get("amazon_orders", [])
+                if amazon_orders:
+                    amazon_items = amazon_orders[0].get("items", [])
+                    splits = calculate_amazon_splits(transaction_amount, amazon_items)
+                else:
+                    click.echo(f"⚠️  No Amazon orders in match, skipping: {ynab_transaction.get('id', 'unknown')}")
+                    continue
             elif match_type == "apple":
-                splits = calculate_apple_splits(match)
+                # Extract Apple items
+                apple_items = match.get("items", [])
+                splits = calculate_apple_splits(transaction_amount, apple_items)
             else:
-                click.echo(f"⚠️  Unknown match type, skipping: {match.get('transaction_id', 'unknown')}")
+                click.echo(f"⚠️  Unknown match type, skipping: {ynab_transaction.get('id', 'unknown')}")
                 continue
 
             edit = {
-                "transaction_id": match.get("transaction_id"),
+                "transaction_id": ynab_transaction.get("id"),
                 "confidence": confidence,
                 "auto_approved": confidence >= confidence_threshold,
                 "splits": splits,

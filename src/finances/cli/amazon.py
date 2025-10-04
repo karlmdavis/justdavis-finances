@@ -18,7 +18,7 @@ from ..core.json_utils import format_json, write_json
 
 
 @click.group()
-def amazon():
+def amazon() -> None:
     """Amazon transaction matching commands."""
     pass
 

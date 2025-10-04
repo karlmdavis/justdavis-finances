@@ -19,7 +19,7 @@ from ..ynab.retirement import YnabRetirementService
 
 
 @click.group()
-def retirement():
+def retirement() -> None:
     """Retirement account balance tracking commands."""
     pass
 

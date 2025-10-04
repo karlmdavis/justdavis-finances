@@ -6,30 +6,35 @@ Professional command-line interface for orchestrating the complete Financial
 Flow System with dependency resolution and change detection.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import click
 
 from ..core.archive import create_flow_archive
 from ..core.change_detection import create_change_detectors, get_change_detector_function
 from ..core.config import get_config
-from ..core.flow import FlowContext, flow_registry
+from ..core.flow import FlowContext, FlowResult, flow_registry
 from ..core.flow_engine import FlowExecutionEngine
+
+if TYPE_CHECKING:
+    from ..core.flow import FlowResult
 
 logger = logging.getLogger(__name__)
 
 
 @click.group()
-def flow():
+def flow() -> None:
     """Financial Flow System orchestration commands."""
     pass
 
 
-def safe_get_callable_name(obj):
+def safe_get_callable_name(obj: Any) -> str:
     """
     Safely extract a name from any callable object.
 
@@ -42,14 +47,14 @@ def safe_get_callable_name(obj):
         str: Best available name for the callable
     """
     if hasattr(obj, "__name__"):
-        return obj.__name__
+        return str(obj.__name__)
     elif hasattr(obj, "name"):
-        return obj.name
+        return str(obj.name)
     else:
         return obj.__class__.__name__
 
 
-def setup_flow_nodes():
+def setup_flow_nodes() -> None:
     """
     Register all flow nodes with their dependencies and change detectors.
 
@@ -77,7 +82,7 @@ def setup_flow_nodes():
     from .ynab import generate_splits as ynab_splits_cmd
     from .ynab import sync_cache as ynab_sync_cmd
 
-    def create_cli_executor(cli_func, **default_kwargs):
+    def create_cli_executor(cli_func: Callable[..., Any], **default_kwargs: Any) -> Callable[[FlowContext], FlowResult]:
         """
         Create a flow executor that wraps a CLI command function.
 
@@ -86,7 +91,7 @@ def setup_flow_nodes():
             **default_kwargs: Default parameters to pass to the CLI function
         """
 
-        def executor(context: FlowContext):
+        def executor(context: FlowContext) -> FlowResult:
             from ..core.flow import FlowResult
 
             try:
@@ -155,7 +160,7 @@ def setup_flow_nodes():
     )
 
     # Register Amazon Order History Request Node (manual step)
-    def amazon_order_history_request_executor(context: FlowContext):
+    def amazon_order_history_request_executor(context: FlowContext) -> "FlowResult":
         """Manual step - prompts user to download Amazon order history."""
         from ..core.flow import FlowResult
 
@@ -185,7 +190,7 @@ def setup_flow_nodes():
     )
 
     # Register Amazon Unzip Node
-    def amazon_unzip_executor(context: FlowContext):
+    def amazon_unzip_executor(context: FlowContext) -> "FlowResult":
         """Execute Amazon unzip with automatic download directory detection."""
         from pathlib import Path
 
@@ -226,7 +231,7 @@ def setup_flow_nodes():
     )
 
     # Register Apple Receipt Parsing Node
-    def apple_receipt_parsing_executor(context: FlowContext):
+    def apple_receipt_parsing_executor(context: FlowContext) -> "FlowResult":
         """Execute Apple receipt parsing using the email fetch output directory."""
 
         from ..core.flow import FlowResult
@@ -256,7 +261,7 @@ def setup_flow_nodes():
     )
 
     # Register Split Generation Node
-    def split_generation_executor(context: FlowContext):
+    def split_generation_executor(context: FlowContext) -> "FlowResult":
         """Generate splits from Amazon, Apple, and retirement updates."""
 
         from ..core.flow import FlowResult
@@ -325,7 +330,7 @@ def setup_flow_nodes():
     )
 
     # Register YNAB Apply Node
-    def ynab_apply_executor(context: FlowContext):
+    def ynab_apply_executor(context: FlowContext) -> "FlowResult":
         """Apply the most recent YNAB edit files."""
 
         from ..core.flow import FlowResult
