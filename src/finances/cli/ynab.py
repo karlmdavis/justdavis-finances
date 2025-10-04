@@ -105,7 +105,9 @@ def generate_splits(
                     amazon_items = amazon_orders[0].get("items", [])
                     splits = calculate_amazon_splits(transaction_amount, amazon_items)
                 else:
-                    click.echo(f"⚠️  No Amazon orders in match, skipping: {ynab_transaction.get('id', 'unknown')}")
+                    click.echo(
+                        f"⚠️  No Amazon orders in match, skipping: {ynab_transaction.get('id', 'unknown')}"
+                    )
                     continue
             elif match_type == "apple":
                 # Extract Apple items

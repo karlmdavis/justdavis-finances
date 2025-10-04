@@ -209,7 +209,9 @@ class TestFlowExecutorParameterBinding:
                             assert result.success is False or result.success is True
                         except TypeError as e:
                             if "'Context' object is not iterable" in str(e):
-                                raise AssertionError("Context iteration error should be fixed but still occurs")
+                                raise AssertionError(
+                                    "Context iteration error should be fixed but still occurs"
+                                )
                             else:
                                 # Different error, re-raise
                                 raise

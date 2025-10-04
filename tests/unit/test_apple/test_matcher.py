@@ -234,7 +234,16 @@ class TestAppleMatcher:
         }
 
         # Add receipt with different Apple ID but same amount/date
-        additional_receipts = [*sample_apple_receipts, {"order_id": "ZZ9YY8XXX", "receipt_date": "Aug 15, 2024", "apple_id": "another@example.com", "total": 32.97, "items": [{"title": "Different App", "cost": 32.97}]}]
+        additional_receipts = [
+            *sample_apple_receipts,
+            {
+                "order_id": "ZZ9YY8XXX",
+                "receipt_date": "Aug 15, 2024",
+                "apple_id": "another@example.com",
+                "total": 32.97,
+                "items": [{"title": "Different App", "cost": 32.97}],
+            },
+        ]
 
         # Normalize receipts data like the real system does
         receipts_df = normalize_apple_receipt_data(additional_receipts)
@@ -256,7 +265,6 @@ class TestAppleMatchingStrategies:
     def test_exact_match_strategy(self, matcher):
         """Test exact match strategy (same date + exact amount)."""
 
-
         # This would test exact match logic specifically
         # Implementation depends on matcher's internal structure
         pass
@@ -264,7 +272,6 @@ class TestAppleMatchingStrategies:
     @pytest.mark.apple
     def test_date_window_strategy(self, matcher):
         """Test date window matching strategy."""
-
 
         # Should match with reduced confidence
         # Implementation would test date window logic

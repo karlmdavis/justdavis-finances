@@ -618,7 +618,11 @@ class AppleReceiptParser:
             return match.group(1) if match else None
 
         elif pattern_type in ["subtotal_pattern", "tax_pattern", "total_pattern"]:
-            if (pattern_type == "subtotal_pattern" and "subtotal" in text.lower()) or (pattern_type == "tax_pattern" and "tax" in text.lower()) or (pattern_type == "total_pattern" and ("total" in text.lower() or "grand" in text.lower())):
+            if (
+                (pattern_type == "subtotal_pattern" and "subtotal" in text.lower())
+                or (pattern_type == "tax_pattern" and "tax" in text.lower())
+                or (pattern_type == "total_pattern" and ("total" in text.lower() or "grand" in text.lower()))
+            ):
                 return self._parse_currency(text)
             return None
 

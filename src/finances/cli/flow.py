@@ -82,7 +82,9 @@ def setup_flow_nodes() -> None:
     from .ynab import generate_splits as ynab_splits_cmd
     from .ynab import sync_cache as ynab_sync_cmd
 
-    def create_cli_executor(cli_func: Callable[..., Any], **default_kwargs: Any) -> Callable[[FlowContext], FlowResult]:
+    def create_cli_executor(
+        cli_func: Callable[..., Any], **default_kwargs: Any
+    ) -> Callable[[FlowContext], FlowResult]:
         """
         Create a flow executor that wraps a CLI command function.
 
@@ -160,7 +162,7 @@ def setup_flow_nodes() -> None:
     )
 
     # Register Amazon Order History Request Node (manual step)
-    def amazon_order_history_request_executor(context: FlowContext) -> "FlowResult":
+    def amazon_order_history_request_executor(context: FlowContext) -> FlowResult:
         """Manual step - prompts user to download Amazon order history."""
         from ..core.flow import FlowResult
 
@@ -190,7 +192,7 @@ def setup_flow_nodes() -> None:
     )
 
     # Register Amazon Unzip Node
-    def amazon_unzip_executor(context: FlowContext) -> "FlowResult":
+    def amazon_unzip_executor(context: FlowContext) -> FlowResult:
         """Execute Amazon unzip with automatic download directory detection."""
         from pathlib import Path
 
@@ -231,7 +233,7 @@ def setup_flow_nodes() -> None:
     )
 
     # Register Apple Receipt Parsing Node
-    def apple_receipt_parsing_executor(context: FlowContext) -> "FlowResult":
+    def apple_receipt_parsing_executor(context: FlowContext) -> FlowResult:
         """Execute Apple receipt parsing using the email fetch output directory."""
 
         from ..core.flow import FlowResult
@@ -261,7 +263,7 @@ def setup_flow_nodes() -> None:
     )
 
     # Register Split Generation Node
-    def split_generation_executor(context: FlowContext) -> "FlowResult":
+    def split_generation_executor(context: FlowContext) -> FlowResult:
         """Generate splits from Amazon, Apple, and retirement updates."""
 
         from ..core.flow import FlowResult
@@ -330,7 +332,7 @@ def setup_flow_nodes() -> None:
     )
 
     # Register YNAB Apply Node
-    def ynab_apply_executor(context: FlowContext) -> "FlowResult":
+    def ynab_apply_executor(context: FlowContext) -> FlowResult:
         """Apply the most recent YNAB edit files."""
 
         from ..core.flow import FlowResult
@@ -742,7 +744,10 @@ def graph(ctx: click.Context, output_format: str, verbose: bool) -> None:
 
         if output_format == "json":
             # JSON output
-            graph_data: dict[str, Any] = {"nodes": {}, "execution_levels": dependency_graph.get_execution_levels()}
+            graph_data: dict[str, Any] = {
+                "nodes": {},
+                "execution_levels": dependency_graph.get_execution_levels(),
+            }
 
             for node_name, node in all_nodes.items():
                 graph_data["nodes"][node_name] = {

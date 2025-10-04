@@ -282,7 +282,6 @@ class TestMatchingStrategies:
     def test_complete_match_strategy(self, matcher):
         """Test complete order matching (exact amount + date)."""
 
-
         # This would test the complete match strategy specifically
         # Implementation depends on matcher's internal structure
         pass
@@ -290,7 +289,6 @@ class TestMatchingStrategies:
     @pytest.mark.amazon
     def test_fuzzy_match_strategy(self, matcher):
         """Test fuzzy matching with amount tolerance."""
-
 
         # Should match with lower confidence due to amount difference
         # Implementation would test fuzzy matching logic
