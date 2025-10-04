@@ -62,7 +62,7 @@ class ParsedReceipt:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
-    def add_item(self, title: str, cost: float, **kwargs) -> None:
+    def add_item(self, title: str, cost: float, **kwargs: Any) -> None:
         """Add an item to the receipt."""
         item = ParsedItem(title=title, cost=cost, **kwargs)
         self.items.append(item)
@@ -76,7 +76,7 @@ class AppleReceiptParser:
     robust extraction and proper financial data handling.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.selectors_tried: list[str] = []
         self.selectors_successful: list[str] = []
 
@@ -245,7 +245,8 @@ class AppleReceiptParser:
             {"selector": "span, div, td", "method": "email_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "Apple ID")
+        result = self._try_selectors(soup, selectors, "Apple ID")
+        return str(result) if result is not None else None
 
     def _extract_receipt_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract receipt date."""
@@ -276,7 +277,8 @@ class AppleReceiptParser:
             {"selector": "span, div, td", "method": "order_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "order ID")
+        result = self._try_selectors(soup, selectors, "order ID")
+        return str(result) if result is not None else None
 
     def _extract_document_number(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract document number."""
@@ -286,7 +288,8 @@ class AppleReceiptParser:
             {"selector": "span, div, td", "method": "document_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "document number")
+        result = self._try_selectors(soup, selectors, "document number")
+        return str(result) if result is not None else None
 
     def _extract_subtotal(self, soup: BeautifulSoup) -> Optional[float]:
         """Extract subtotal amount."""
@@ -296,7 +299,8 @@ class AppleReceiptParser:
             {"selector": "span, div, td", "method": "subtotal_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "subtotal")
+        result = self._try_selectors(soup, selectors, "subtotal")
+        return float(result) if result is not None and not isinstance(result, str) else None
 
     def _extract_tax(self, soup: BeautifulSoup) -> Optional[float]:
         """Extract tax amount."""
@@ -306,7 +310,8 @@ class AppleReceiptParser:
             {"selector": "span, div, td", "method": "tax_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "tax")
+        result = self._try_selectors(soup, selectors, "tax")
+        return float(result) if result is not None and not isinstance(result, str) else None
 
     def _extract_total(self, soup: BeautifulSoup) -> Optional[float]:
         """Extract total amount."""
@@ -320,7 +325,8 @@ class AppleReceiptParser:
             {"selector": "span, div, td", "method": "total_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "total")
+        result = self._try_selectors(soup, selectors, "total")
+        return float(result) if result is not None and not isinstance(result, str) else None
 
     def _extract_payment_method(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract payment method."""
@@ -330,7 +336,8 @@ class AppleReceiptParser:
             {"selector": "span, div, td", "method": "payment_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "payment method")
+        result = self._try_selectors(soup, selectors, "payment method")
+        return str(result) if result is not None else None
 
     def _extract_items(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """Extract purchased items from the receipt."""
@@ -527,10 +534,17 @@ class AppleReceiptParser:
                 elif method == "attr":
                     elem = soup.select_one(selector)
                     if elem:
-                        result = elem.get(selector_config["attr"])
-                        if result:
+                        attr_result = elem.get(selector_config["attr"])
+                        if attr_result:
                             self.selectors_successful.append(f"{field_name}:{selector}")
-                            return result
+                            # Return string if it's a string or list, otherwise return as is
+                            if isinstance(attr_result, (str, list)):
+                                return (
+                                    str(attr_result)
+                                    if isinstance(attr_result, str)
+                                    else str(attr_result[0]) if attr_result else None
+                                )
+                            return str(attr_result)
 
                 elif method == "sibling":
                     elem = soup.select_one(selector)
@@ -560,10 +574,10 @@ class AppleReceiptParser:
                         else:
                             continue
 
-                    result = self._parse_currency(text)
-                    if result is not None:
+                    currency_result: Optional[float] = self._parse_currency(text)
+                    if currency_result is not None:
                         self.selectors_successful.append(f"{field_name}:{selector}")
-                        return result
+                        return currency_result
 
                 # Pattern-based extraction methods
                 elif method.endswith("_pattern"):

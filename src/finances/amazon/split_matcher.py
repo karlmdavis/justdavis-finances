@@ -9,7 +9,7 @@ Tracks which items have been matched to prevent double-counting.
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -33,14 +33,16 @@ class SplitPaymentMatcher:
                        If None (default), uses in-memory storage only.
         """
         self.cache_file = cache_file
-        self.matched_items = defaultdict(set)  # {order_id: set of matched item indices}
-        self.transaction_matches = {}  # {transaction_id: match_details}
+        self.matched_items: defaultdict[str, set[int]] = defaultdict(
+            set
+        )  # {order_id: set of matched item indices}
+        self.transaction_matches: dict[str, dict[str, Any]] = {}  # {transaction_id: match_details}
 
         # Only load cache if file is specified AND exists
         if self.cache_file and os.path.exists(self.cache_file):
             self.load_cache()
 
-    def load_cache(self):
+    def load_cache(self) -> None:
         """Load previous matching state from cache file."""
         if not self.cache_file:
             return
@@ -48,14 +50,14 @@ class SplitPaymentMatcher:
         try:
             data = read_json(self.cache_file)
             # Convert lists back to sets
-            self.matched_items = {
-                order_id: set(items) for order_id, items in data.get("matched_items", {}).items()
-            }
+            self.matched_items = defaultdict(
+                set, {order_id: set(items) for order_id, items in data.get("matched_items", {}).items()}
+            )
             self.transaction_matches = data.get("transaction_matches", {})
         except Exception as e:
             print(f"Warning: Could not load cache: {e}")
 
-    def save_cache(self):
+    def save_cache(self) -> None:
         """Save current matching state to cache file (only if cache file specified)."""
         if not self.cache_file:
             return  # In-memory mode, no saving needed
@@ -128,7 +130,7 @@ class SplitPaymentMatcher:
 
         return results
 
-    def _find_subset_sum(self, items: list[dict], target: int, tolerance: int) -> list[list[int]]:
+    def _find_subset_sum(self, items: list[dict[str, Any]], target: int, tolerance: int) -> list[list[int]]:
         """
         Dynamic programming solution for subset sum with tolerance.
 
@@ -311,7 +313,7 @@ class SplitPaymentMatcher:
 
         return match_result
 
-    def record_match(self, transaction_id: str, order_id: str, item_indices: list[int]):
+    def record_match(self, transaction_id: str, order_id: str, item_indices: list[int]) -> None:
         """
         Record that certain items from an order have been matched.
 

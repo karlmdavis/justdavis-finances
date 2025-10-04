@@ -70,7 +70,7 @@ class AppleEmailFetcher:
                 username=app_config.email.username or "",
                 password=app_config.email.password or "",
                 use_oauth=app_config.email.use_oauth,
-                search_folders=app_config.email.email_search_folders,
+                search_folders=app_config.email.search_folders,
             )
         else:
             self.config = config
@@ -140,7 +140,10 @@ class AppleEmailFetcher:
                 logger.info(f"Searching folder: {folder}")
 
                 try:
-                    # Select folder
+                    # Select folder - check connection exists
+                    if not self.connection:
+                        logger.warning("Connection lost")
+                        break
                     result, _ = self.connection.select(folder, readonly=True)
                     if result != "OK":
                         logger.warning(f"Cannot select folder {folder}")
@@ -170,7 +173,7 @@ class AppleEmailFetcher:
         self, folder: str, days_back: int, max_emails: Optional[int]
     ) -> list[AppleReceiptEmail]:
         """Search for Apple receipts in a specific folder."""
-        receipts = []
+        receipts: list[AppleReceiptEmail] = []
 
         try:
             # Calculate date range for search
@@ -182,7 +185,10 @@ class AppleEmailFetcher:
 
             logger.debug(f"Search criteria: {search_criteria}")
 
-            # Search for emails
+            # Search for emails - check connection exists
+            if not self.connection:
+                logger.warning("Connection lost")
+                return receipts
             result, message_numbers = self.connection.search(None, *search_criteria)
 
             if result != "OK":
@@ -241,14 +247,21 @@ class AppleEmailFetcher:
     def _fetch_and_parse_email(self, msg_num: str, folder: str) -> Optional[AppleReceiptEmail]:
         """Fetch and parse a single email."""
         try:
-            # Fetch email data
+            # Fetch email data - check connection exists
+            if not self.connection:
+                logger.warning("Connection lost")
+                return None
             result, msg_data = self.connection.fetch(msg_num, "(RFC822)")
 
             if result != "OK" or not msg_data or not msg_data[0]:
                 return None
 
             # Parse email message
-            raw_email = msg_data[0][1]
+            raw_email_data = msg_data[0][1]
+            if not isinstance(raw_email_data, bytes):
+                logger.warning(f"Expected bytes but got {type(raw_email_data)}")
+                return None
+            raw_email = raw_email_data
             msg = email.message_from_bytes(raw_email)
 
             # Extract basic information
@@ -302,12 +315,12 @@ class AppleEmailFetcher:
 
                     if content_type == "text/html":
                         html_payload = part.get_payload(decode=True)
-                        if html_payload:
+                        if html_payload and isinstance(html_payload, bytes):
                             html_content = html_payload.decode("utf-8", errors="ignore")
 
                     elif content_type == "text/plain":
                         text_payload = part.get_payload(decode=True)
-                        if text_payload:
+                        if text_payload and isinstance(text_payload, bytes):
                             text_content = text_payload.decode("utf-8", errors="ignore")
 
             else:
@@ -315,7 +328,7 @@ class AppleEmailFetcher:
                 content_type = msg.get_content_type()
                 payload = msg.get_payload(decode=True)
 
-                if payload:
+                if payload and isinstance(payload, bytes):
                     content = payload.decode("utf-8", errors="ignore")
 
                     if content_type == "text/html":
@@ -447,7 +460,12 @@ class AppleEmailFetcher:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        stats = {"total_emails": len(emails), "saved_successfully": 0, "save_errors": 0, "files_created": []}
+        stats: dict[str, Any] = {
+            "total_emails": len(emails),
+            "saved_successfully": 0,
+            "save_errors": 0,
+            "files_created": [],
+        }
 
         for i, email_obj in enumerate(emails):
             try:
@@ -460,20 +478,23 @@ class AppleEmailFetcher:
                     html_file = output_dir / f"{base_name}-formatted-simple.html"
                     with open(html_file, "w", encoding="utf-8") as f:
                         f.write(email_obj.html_content)
-                    stats["files_created"].append(str(html_file))
+                    files_list: list[Any] = stats["files_created"]  # type: ignore[assignment]
+                    files_list.append(str(html_file))
 
                 # Save text content if available
                 if email_obj.text_content:
                     text_file = output_dir / f"{base_name}.txt"
                     with open(text_file, "w", encoding="utf-8") as f:
                         f.write(email_obj.text_content)
-                    stats["files_created"].append(str(text_file))
+                    files_list = stats["files_created"]  # type: ignore[assignment]
+                    files_list.append(str(text_file))
 
                 # Save raw email
                 raw_file = output_dir / f"{base_name}.eml"
                 with open(raw_file, "w", encoding="utf-8") as f:
                     f.write(email_obj.raw_content or "")
-                stats["files_created"].append(str(raw_file))
+                files_list = stats["files_created"]  # type: ignore[assignment]
+                files_list.append(str(raw_file))
 
                 # Save metadata
                 metadata_file = output_dir / f"{base_name}_metadata.json"
@@ -487,13 +508,16 @@ class AppleEmailFetcher:
                 }
 
                 write_json(metadata_file, metadata)
-                stats["files_created"].append(str(metadata_file))
+                files_list = stats["files_created"]  # type: ignore[assignment]
+                files_list.append(str(metadata_file))
 
-                stats["saved_successfully"] += 1
+                saved_count: int = stats["saved_successfully"]  # type: ignore[assignment]
+                stats["saved_successfully"] = saved_count + 1
 
             except Exception as e:
                 logger.error(f"Error saving email {i}: {e}")
-                stats["save_errors"] += 1
+                error_count: int = stats["save_errors"]  # type: ignore[assignment]
+                stats["save_errors"] = error_count + 1
 
         logger.info(f"Saved {stats['saved_successfully']}/{stats['total_emails']} emails to {output_dir}")
         return stats

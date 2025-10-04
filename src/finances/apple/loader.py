@@ -81,10 +81,10 @@ def load_apple_receipts(export_path: Optional[str] = None) -> list[dict[str, Any
         raise FileNotFoundError(f"Receipt file not found: {receipts_file}")
 
     with open(receipts_file) as f:
-        receipts = json.load(f)
+        receipts_data: list[dict[str, Any]] = json.load(f)
 
-    print(f"Loaded {len(receipts)} Apple receipts from {export_path}")
-    return receipts
+    print(f"Loaded {len(receipts_data)} Apple receipts from {export_path}")
+    return receipts_data
 
 
 def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame:

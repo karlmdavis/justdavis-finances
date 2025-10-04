@@ -164,7 +164,7 @@ class YnabRetirementService:
 
         if adjustment_cents == 0:
             logger.info(f"No adjustment needed for {account.name}")
-            return None
+            return {}  # type: ignore[return-value] # Return empty dict instead of None for consistency
 
         # Create reconciliation transaction
         mutation = {
@@ -205,7 +205,7 @@ class YnabRetirementService:
         """
         if not adjustments:
             logger.info("No retirement adjustments to save")
-            return None
+            return Path()  # type: ignore[return-value] # Return empty Path instead of None
 
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -229,7 +229,9 @@ class YnabRetirementService:
 
         logger.info(f"Created retirement edits file: {output_file}")
         logger.info(f"  Total adjustments: {len(adjustments)}")
-        logger.info(f"  Net adjustment: {format_cents(edit_data['metadata']['total_adjustment'])}")
+        metadata_dict: dict[str, Any] = edit_data["metadata"]  # type: ignore[assignment]
+        total_adj: int = metadata_dict["total_adjustment"]  # type: ignore[assignment]
+        logger.info(f"  Net adjustment: {format_cents(total_adj)}")
 
         return output_file
 

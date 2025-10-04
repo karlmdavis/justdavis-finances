@@ -26,9 +26,9 @@ class MatchScorer:
         ynab_amount: int,
         amazon_total: int,
         ynab_date: date,
-        amazon_ship_dates: list,
+        amazon_ship_dates: list[Any],
         match_type: MatchType,
-        **kwargs,
+        **kwargs: Any,
     ) -> float:
         """
         Calculate match confidence score (0.0 to 1.0).
@@ -121,7 +121,7 @@ class MatchScorer:
             return penalty_result / 100  # Convert back for compatibility
 
     @staticmethod
-    def _apply_match_type_adjustments(match_type: MatchType, **kwargs) -> float:
+    def _apply_match_type_adjustments(match_type: MatchType, **kwargs: Any) -> float:
         """Apply match type specific confidence adjustments"""
         if match_type == MatchType.COMPLETE_ORDER:
             # Complete orders get slight boost for being simpler/more reliable
@@ -135,8 +135,8 @@ class MatchScorer:
             # Split payments get slight penalty for being more complex
             return 0.95
 
-        else:
-            return 1.0
+        # This line is unreachable but mypy doesn't recognize the else after elif
+        return 1.0  # type: ignore[unreachable]
 
     @staticmethod
     def create_match_result(

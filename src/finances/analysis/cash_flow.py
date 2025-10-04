@@ -16,11 +16,11 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats
+from scipy import stats  # type: ignore[import-untyped]
 
 from ..core.config import get_config
 
@@ -116,7 +116,7 @@ class CashFlowAnalyzer:
             raise ValueError(f"No transactions found for cash accounts after {self.config.start_date}")
 
         # Calculate daily balances by working backwards from current balances
-        daily_balances = defaultdict(lambda: defaultdict(float))
+        daily_balances: defaultdict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
         end_date = max(t["date"] for t in cash_transactions)
 
         # Start with current balances
@@ -151,7 +151,7 @@ class CashFlowAnalyzer:
             if date_str in daily_balances:
                 for account in self.config.cash_accounts:
                     if account in daily_balances[date_str]:
-                        last_balances[account] = daily_balances[date_str][account]
+                        last_balances[account] = float(daily_balances[date_str][account])
             complete_balances[date_str] = last_balances.copy()
 
         # Convert to DataFrame
@@ -266,8 +266,10 @@ class CashFlowAnalyzer:
 
         return output_file
 
-    def _create_main_trend_panel(self, ax) -> None:
+    def _create_main_trend_panel(self, ax: Any) -> None:
         """Create main trend panel with moving averages."""
+        assert self.df is not None, "df must not be None"
+        assert self.trend_stats is not None, "trend_stats must not be None"
         ax.plot(
             self.df.index, self.df["Total"], alpha=0.3, color="gray", linewidth=0.5, label="Daily Balance"
         )
@@ -284,8 +286,9 @@ class CashFlowAnalyzer:
         ax.grid(True, alpha=0.3)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1000:.0f}k"))
 
-    def _create_monthly_flow_panel(self, ax) -> None:
+    def _create_monthly_flow_panel(self, ax: Any) -> None:
         """Create monthly cash flow bar chart."""
+        assert self.monthly_df is not None, "monthly_df must not be None"
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()
         colors = ["green" if x > 0 else "red" for x in self.monthly_df["Net_Change"]]
 
@@ -305,8 +308,9 @@ class CashFlowAnalyzer:
         ax.grid(True, alpha=0.3, axis="y")
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1000:.0f}k"))
 
-    def _create_volatility_panel(self, ax) -> None:
+    def _create_volatility_panel(self, ax: Any) -> None:
         """Create monthly volatility range panel."""
+        assert self.monthly_df is not None, "monthly_df must not be None"
         ax.fill_between(
             self.monthly_df.index,
             self.monthly_df["Min_Balance"],
@@ -337,8 +341,9 @@ class CashFlowAnalyzer:
         ax.grid(True, alpha=0.3)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1000:.0f}k"))
 
-    def _create_velocity_panel(self, ax) -> None:
+    def _create_velocity_panel(self, ax: Any) -> None:
         """Create cash flow velocity panel."""
+        assert self.df is not None, "df must not be None"
         rolling_change = self.df["Total"].diff().rolling(window=30, min_periods=1).sum()
 
         ax.plot(self.df.index, rolling_change, color="#6A994E", linewidth=1.5)
@@ -368,8 +373,9 @@ class CashFlowAnalyzer:
         ax.grid(True, alpha=0.3)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1000:.0f}k"))
 
-    def _create_composition_panel(self, ax) -> None:
+    def _create_composition_panel(self, ax: Any) -> None:
         """Create account composition panel."""
+        assert self.df is not None, "df must not be None"
         # Separate positive and negative accounts
         positive_accounts = []
         negative_accounts = []
@@ -402,8 +408,11 @@ class CashFlowAnalyzer:
         ax.grid(True, alpha=0.3)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1000:.0f}k"))
 
-    def _create_statistics_panel(self, ax) -> None:
+    def _create_statistics_panel(self, ax: Any) -> None:
         """Create statistical summary panel."""
+        assert self.df is not None, "df must not be None"
+        assert self.monthly_df is not None, "monthly_df must not be None"
+        assert self.trend_stats is not None, "trend_stats must not be None"
         ax.axis("off")
 
         # Calculate statistics
@@ -412,8 +421,8 @@ class CashFlowAnalyzer:
         std_balance = self.df["Total"].std()
         min_balance = self.df["Total"].min()
         max_balance = self.df["Total"].max()
-        days_positive = (self.df["Daily_Change"] > 0).sum()
-        days_negative = (self.df["Daily_Change"] < 0).sum()
+        days_positive: int = (self.df["Daily_Change"] > 0).sum()  # type: ignore[assignment]
+        days_negative: int = (self.df["Daily_Change"] < 0).sum()  # type: ignore[assignment]
         avg_daily_change = self.df["Daily_Change"].mean()
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()
 
@@ -435,8 +444,8 @@ CURRENT STATUS:
 HISTORICAL ANALYSIS:
 • Average Balance: ${avg_balance:,.0f}
 • Standard Deviation: ${std_balance:,.0f}
-• Minimum: ${min_balance:,.0f} ({self.df['Total'].idxmin().strftime('%Y-%m-%d')})
-• Maximum: ${max_balance:,.0f} ({self.df['Total'].idxmax().strftime('%Y-%m-%d')})
+• Minimum: ${min_balance:,.0f} ({pd.to_datetime(self.df['Total'].idxmin()).strftime('%Y-%m-%d')})  # type: ignore[union-attr]
+• Maximum: ${max_balance:,.0f} ({pd.to_datetime(self.df['Total'].idxmax()).strftime('%Y-%m-%d')})
 
 CASH FLOW PATTERNS:
 • Days with Positive Flow: {days_positive} ({days_positive/len(self.df)*100:.1f}%)
@@ -471,6 +480,7 @@ VOLATILITY METRICS:
         """Get summary statistics for programmatic use."""
         if self.df is None or self.trend_stats is None:
             raise RuntimeError("Data not loaded or processed. Call load_data() first.")
+        assert self.monthly_df is not None, "monthly_df must not be None"
 
         current_total = self.df["Total"].iloc[-1]
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()

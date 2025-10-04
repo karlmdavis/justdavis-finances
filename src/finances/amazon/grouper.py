@@ -52,10 +52,16 @@ def group_orders(
 
 def _group_by_order_id(orders_df: pd.DataFrame) -> dict[str, dict[str, Any]]:
     """Group orders by Order ID and calculate totals."""
-    grouped = {}
+    grouped: dict[str, dict[str, Any]] = {}
 
     for order_id, group in orders_df.groupby("Order ID"):
-        order_summary = {"order_id": order_id, "items": [], "total": 0, "order_date": None, "ship_dates": []}
+        order_summary: dict[str, Any] = {
+            "order_id": order_id,
+            "items": [],
+            "total": 0,
+            "order_date": None,
+            "ship_dates": [],
+        }
 
         for _, row in group.iterrows():
             # Use Total Owed directly instead of calculating from unit price
@@ -73,17 +79,21 @@ def _group_by_order_id(orders_df: pd.DataFrame) -> dict[str, dict[str, Any]]:
                 "quantity": quantity,
                 "asin": row.get("ASIN", ""),
             }
-            order_summary["items"].append(item)
-            order_summary["total"] += item_amount
+            items_list: list[Any] = order_summary["items"]  # type: ignore[assignment]
+            items_list.append(item)
+            total_val: int = order_summary["total"]  # type: ignore[assignment]
+            order_summary["total"] = total_val + item_amount
 
             # Track unique ship dates
             ship_date = row.get("Ship Date")
-            if ship_date and ship_date not in order_summary["ship_dates"]:
-                order_summary["ship_dates"].append(ship_date)
+            ship_dates_list: list[Any] = order_summary["ship_dates"]  # type: ignore[assignment]
+            if ship_date and ship_date not in ship_dates_list:
+                ship_dates_list.append(ship_date)
 
         # Set order date (should be same for all items in order)
         order_summary["order_date"] = group.iloc[0].get("Order Date")
-        order_summary["ship_dates"] = sorted(order_summary["ship_dates"])
+        ship_dates_list = order_summary["ship_dates"]  # type: ignore[assignment]
+        order_summary["ship_dates"] = sorted(ship_dates_list)  # type: ignore[type-var]
 
         grouped[order_id] = order_summary
 

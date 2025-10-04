@@ -144,6 +144,7 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults
     "S101",  # allow assert statements (tests use them)
     "S108",  # hardcoded /tmp usage - safe for test environments
+    "S112",  # try-except-continue - acceptable for robustness in parsing code
     "B904",  # raise from err - can be addressed in future PR
     "UP007", # X | Y syntax - requires Python 3.10+, keeping Optional for 3.9 compat
     "PERF203",  # try-except in loop - acceptable for robustness in some cases

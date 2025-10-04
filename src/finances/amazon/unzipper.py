@@ -9,7 +9,7 @@ import logging
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class AmazonUnzipper:
 
         return sorted(zip_files)
 
-    def extract_zip_file(self, zip_path: Path, account_name: Optional[str] = None) -> dict[str, any]:
+    def extract_zip_file(self, zip_path: Path, account_name: Optional[str] = None) -> dict[str, Any]:
         """
         Extract a single ZIP file to organized directory structure.
 
@@ -136,7 +136,7 @@ class AmazonUnzipper:
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 
-    def batch_extract(self, download_dir: Path, account_filter: Optional[list[str]] = None) -> dict[str, any]:
+    def batch_extract(self, download_dir: Path, account_filter: Optional[list[str]] = None) -> dict[str, Any]:
         """
         Extract all ZIP files found in download directory.
 
@@ -208,7 +208,7 @@ class AmazonUnzipper:
 
 def extract_amazon_zip_files(
     download_dir: Path, raw_data_dir: Path, account_filter: Optional[list[str]] = None
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """
     Convenience function for extracting Amazon ZIP files.
 

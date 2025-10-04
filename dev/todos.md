@@ -14,6 +14,7 @@
 
 ## Major Items
 
+- [ ] Remove the error ignores in pyproject.toml and resolve any resulting issues.
 - [ ] Implement @dev/specs/2025-09-21-code-quality.md, to add lints and CI and such.
 - [ ] Ensure there's one canonical end-to-end test that covers all major functionality.
       As the human overseer of a project mostly written by Claude Code,

@@ -6,7 +6,7 @@ Core logic for matching Apple receipts to YNAB transactions.
 Implements a simplified 2-strategy system optimized for Apple's 1:1 transaction model.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
 
@@ -140,7 +140,8 @@ class AppleMatcher:
                 print(
                     f"  Found exact match: Receipt {receipt['order_id']} for {format_cents(receipt['total'])}"
                 )
-                return receipt.to_dict()
+                receipt_dict: dict[str, Any] = receipt.to_dict()  # type: ignore[assignment]
+                return receipt_dict
 
         return None
 
@@ -233,11 +234,15 @@ class AppleMatcher:
         Returns:
             Receipt object
         """
-        receipt_date = receipt_data.get("receipt_date")
-        if isinstance(receipt_date, str):
-            receipt_date = datetime.strptime(receipt_date, "%Y-%m-%d").date()
-        elif hasattr(receipt_date, "date"):
-            receipt_date = receipt_date.date()
+        receipt_date_raw = receipt_data.get("receipt_date")
+        receipt_date: date | str
+        if isinstance(receipt_date_raw, str):
+            receipt_date = datetime.strptime(receipt_date_raw, "%Y-%m-%d").date()
+        elif receipt_date_raw is not None and hasattr(receipt_date_raw, "date"):
+            receipt_date = receipt_date_raw.date()  # type: ignore[union-attr]
+        else:
+            # Fallback to empty string if date is None
+            receipt_date = ""
 
         return Receipt(
             id=receipt_data.get("order_id", ""),
@@ -313,7 +318,7 @@ def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
     avg_confidence = sum(matched_confidences) / len(matched_confidences) if matched_confidences else 0
 
     # Strategy breakdown
-    strategy_counts = {}
+    strategy_counts: dict[str, int] = {}
     for result in results:
         if result.match_method and result.receipts:
             strategy_counts[result.match_method] = strategy_counts.get(result.match_method, 0) + 1
