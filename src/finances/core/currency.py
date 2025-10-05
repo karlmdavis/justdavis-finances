@@ -77,7 +77,7 @@ def _format_integer_with_commas(num: int) -> str:
         return s
 
     # Build groups of 3 digits from right to left
-    groups = []
+    groups: list[str] = []
     while s:
         groups.insert(0, s[-3:])
         s = s[:-3]
