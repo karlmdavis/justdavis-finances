@@ -26,8 +26,8 @@
     - [X] Renovate bot configuration for automated dependency updates.
     - [X] Status badges in README.md.
     - [X] Documentation updated with setup instructions.
-    - [ ] Fix 2 failing tests in retirement service.
-    - [ ] Increase test coverage from 56% to 60% threshold.
+    - [X] Fix 2 failing tests in retirement service.
+    - [X] Increase test coverage from 56% to 60% threshold (currently at 74%).
 - [ ] Ensure there's one canonical end-to-end test that covers all major functionality.
       As the human overseer of a project mostly written by Claude Code,
         I'll keep an eye on this test case to ensure things haven't gone off the rails.
@@ -72,5 +72,5 @@ These items require refactoring to enable proper unit testing:
       (currently tightly coupled to CLI at src/finances/cli/flow.py).
 - [ ] Make flow node registry inspectable and resettable for testing
       (currently uses module-level state that's difficult to test).
-- [ ] Remove placeholder in CLICommandNode.execute()
-      (src/finances/core/flow.py:303 - needs actual CLI command invocation).
+- [X] Remove placeholder in CLICommandNode.execute()
+      (CLICommandNode class no longer exists - refactored to use create_cli_executor pattern).
