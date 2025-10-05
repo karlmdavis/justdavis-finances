@@ -213,7 +213,7 @@ Establish practical code quality standards for the personal finance management p
 
 ### Tool Configuration
 
-**Black**: 110 character line length, Python 3.9+ target, format-on-save IDE integration
+**Black**: 110 character line length, Python 3.13+ target, format-on-save IDE integration
 
 **Ruff**: Comprehensive rule set for style/bugs/security, auto-fix enabled, incremental
   mode

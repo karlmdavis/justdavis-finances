@@ -140,7 +140,7 @@ The `data/` directory is automatically created and managed by the package:
 
 ### Prerequisites
 
-- **Python 3.9+**: Required for modern type annotations and language features.
+- **Python 3.13+**: Required for modern type annotations and language features.
 - **uv**: Package manager for dependency management and virtual environments.
 - **Git**: Version control system.
 
@@ -284,7 +284,7 @@ uv run black --check src/ tests/
 
 Configuration in `pyproject.toml`:
 - **Line length**: 110 characters (optimized for modern displays).
-- **Target Python**: 3.9+ for compatibility.
+- **Target Python**: 3.13+ for compatibility.
 - **Consistent style**: Automatic quote normalization and formatting.
 
 #### Import Organization

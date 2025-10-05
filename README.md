@@ -2,7 +2,7 @@
 
 [![Code Quality](https://github.com/karlmdavis/justdavis-finances/actions/workflows/quality.yml/badge.svg)](https://github.com/karlmdavis/justdavis-finances/actions/workflows/quality.yml)
 [![codecov](https://codecov.io/gh/karlmdavis/justdavis-finances/branch/main/graph/badge.svg)](https://codecov.io/gh/karlmdavis/justdavis-finances)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Professional personal finance management system with automated transaction matching,
