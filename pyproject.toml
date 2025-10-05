@@ -153,7 +153,13 @@ ignore = [
 keep-runtime-typing = true
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101"]  # allow assert statements in tests
+"tests/**/*" = [
+    "S101",     # allow assert statements in tests
+    "S110",     # try-except-pass acceptable in tests
+    "B904",     # exception chaining not critical in tests
+    "PERF401",  # list comprehensions not required for test readability
+    "SIM117",   # nested with statements acceptable in tests
+]
 "src/finances/cli/main.py" = ["E402"]  # imports after setup code for CLI initialization
 
 # MyPy configuration
