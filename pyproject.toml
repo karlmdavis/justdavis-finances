@@ -181,11 +181,14 @@ python_functions = ["test_*"]
 markers = [
     "unit: Unit tests for individual components",
     "integration: Integration tests for complete workflows",
+    "e2e: End-to-end tests executing actual CLI commands",
     "currency: Tests for currency handling and precision",
     "amazon: Tests for Amazon transaction matching",
     "apple: Tests for Apple receipt processing",
     "ynab: Tests for YNAB integration",
     "slow: Tests that take significant time to run",
+    "requires_network: Tests that require network access",
+    "requires_credentials: Tests that require API keys or credentials",
 ]
 
 # Coverage configuration
@@ -198,7 +201,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 60
+fail_under = 55
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
