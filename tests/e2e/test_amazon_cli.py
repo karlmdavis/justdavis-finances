@@ -474,9 +474,10 @@ def test_amazon_complete_workflow():
 
         # Step 5: Run `finances amazon match` on extracted data
         # Extract account name from extracted directory
+        # Pattern: YYYY-MM-DD_accountname_amazon_data
         account_name = extracted_dirs[0].name.split("_")[
-            2
-        ]  # Gets "unknown" or "testuser" from directory name
+            1
+        ]  # Gets "testuser" from "YYYY-MM-DD_testuser_amazon_data"
         match_output_dir = tmpdir / "amazon" / "transaction_matches"
 
         result = subprocess.run(

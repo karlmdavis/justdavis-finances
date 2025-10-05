@@ -174,10 +174,73 @@ def update(
                     click.echo("  ❌ Invalid balance format. Please enter a number (e.g., 123456.78)")
 
     else:
-        # Non-interactive mode would need to read from a file or accept parameters
-        click.echo("⚠️  Non-interactive mode requires additional implementation")
-        click.echo("For now, use interactive mode: finances retirement update")
-        return
+        # Non-interactive mode - read from input file
+        if not output_file:
+            raise click.ClickException("--output-file is required in non-interactive mode for input data")
+
+        # For non-interactive mode, use --output-file as input file path
+        input_file_path = Path(output_file)
+        if not input_file_path.exists():
+            raise click.ClickException(f"Input file not found: {input_file_path}")
+
+        # Read balance updates from file (JSON or YAML format)
+        import json
+
+        try:
+            with open(input_file_path) as f:
+                if input_file_path.suffix == ".yaml" or input_file_path.suffix == ".yml":
+                    try:
+                        import yaml  # type: ignore  # Optional dependency
+
+                        balance_updates = yaml.safe_load(f)
+                    except ImportError as e:
+                        raise click.ClickException(
+                            "PyYAML not installed. Install with: pip install pyyaml"
+                        ) from e
+                else:
+                    balance_updates = json.load(f)
+        except Exception as e:
+            raise click.ClickException(f"Error reading input file: {e}") from e
+
+        # Expected format: {"account_name": new_balance, ...}
+        if not isinstance(balance_updates, dict):
+            raise click.ClickException("Input file must contain a dictionary of account names to balances")
+
+        if verbose:
+            click.echo(f"Loaded {len(balance_updates)} balance updates from {input_file_path}")
+
+        # Process each balance update
+        for account_name, new_balance in balance_updates.items():
+            # Find matching account
+            matching_accounts = [acc for acc in accounts if acc.name == account_name]
+            if not matching_accounts:
+                click.echo(f"⚠️  Account not found: {account_name}, skipping")
+                continue
+
+            account = matching_accounts[0]
+
+            # Parse balance (handle both numeric and string formats)
+            if isinstance(new_balance, str):
+                balance_str = new_balance.replace("$", "").replace(",", "")
+                try:
+                    balance_decimal = Decimal(balance_str)
+                    new_balance_cents = int(balance_decimal * 100)
+                except (ValueError, TypeError):
+                    click.echo(f"❌ Invalid balance format for {account_name}: {new_balance}")
+                    continue
+            else:
+                # Numeric value
+                new_balance_cents = int(Decimal(str(new_balance)) * 100)
+
+            # Generate adjustment
+            mutation = service.generate_balance_adjustment(account, new_balance_cents, update_date)
+
+            if mutation:
+                adjustments.append(mutation)
+                adjustment_cents = mutation["metadata"]["adjustment_cents"]
+                adjustment_sign = "+" if adjustment_cents > 0 else ""
+                if verbose:
+                    click.echo(f"  {account_name}: {adjustment_sign}{format_cents(adjustment_cents)}")
 
     if not adjustments:
         click.echo("\nNo balance adjustments to process.")

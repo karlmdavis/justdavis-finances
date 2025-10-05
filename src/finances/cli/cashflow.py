@@ -184,27 +184,80 @@ def report(
         click.echo()
 
     try:
+        # Use existing analyzer to get data
+        from ..analysis import CashFlowAnalyzer, CashFlowConfig
+
+        analyzer_config = CashFlowConfig.default()
+        analyzer = CashFlowAnalyzer(analyzer_config)
+
+        # Load YNAB data
+        ynab_cache_dir = config.data_dir / "ynab" / "cache"
+        analyzer.load_data(ynab_cache_dir)
+
         click.echo("📋 Generating cash flow report...")
-        click.echo("⚠️  Full implementation requires migration of existing analysis logic")
+
+        # Get summary statistics
+        stats = analyzer.get_summary_statistics()
 
         # Generate output filename
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_file = output_path / f"{timestamp}_{period}_cashflow_report.{format}"
 
-        # Placeholder report structure
-        report_sections = [
-            f"{period.title()} income/expense breakdown",
-            "Category-wise spending analysis",
-            "Account balance changes",
-            "Trend indicators",
-            "Variance from historical averages",
-        ]
+        # Build report data
+        report_data = {
+            "metadata": {
+                "generated_at": timestamp,
+                "period": period,
+                "start_date": start or stats.get("data_start_date", "N/A"),
+                "end_date": end or datetime.now().strftime("%Y-%m-%d"),
+                "categories": list(categories) if categories else "all",
+            },
+            "summary": stats,
+            "sections": {
+                "income_expense": {
+                    "current_balance": stats["current_balance"],
+                    "monthly_trend": stats["monthly_trend"],
+                    "yearly_trend": stats["yearly_trend"],
+                },
+                "trends": {
+                    "direction": stats["trend_direction"],
+                    "confidence": stats["trend_confidence"],
+                    "volatility": stats["volatility"],
+                },
+                "projections": {
+                    "monthly_burn_rate": stats["monthly_burn_rate"],
+                },
+            },
+        }
 
-        click.echo("\n[REPORT] Sections:")
-        for section in report_sections:
-            click.echo(f"  • {section}")
+        # Write to file based on format
+        if format == "json":
+            from ..core.json_utils import write_json
 
-        click.echo(f"\n✅ Report would be saved to: {output_file}")
+            write_json(output_file, report_data)
+        elif format == "csv":
+            import csv
+
+            with open(output_file, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Metric", "Value"])
+                for key, value in stats.items():
+                    writer.writerow([key, value])
+        elif format == "xlsx":
+            # XLSX requires openpyxl - provide fallback to JSON
+            click.echo("⚠️  XLSX format not yet supported, using JSON instead")
+            output_file = output_file.with_suffix(".json")
+            from ..core.json_utils import write_json
+
+            write_json(output_file, report_data)
+
+        click.echo(f"✅ Report saved to: {output_file}")
+
+        # Display key metrics
+        click.echo("\n[SUMMARY] Key Metrics:")
+        click.echo(f"   Current Balance: ${stats['current_balance']:,.0f}")
+        click.echo(f"   Monthly Trend: ${stats['monthly_trend']:,.0f}/month")
+        click.echo(f"   Yearly Trend: ${stats['yearly_trend']:,.0f}/year")
 
     except Exception as e:
         click.echo(f"❌ Error generating report: {e}", err=True)
@@ -234,29 +287,73 @@ def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, ve
         click.echo()
 
     try:
+        # Use existing analyzer to get trend data
+        from ..analysis import CashFlowAnalyzer, CashFlowConfig
+
+        config = get_config()
+        analyzer_config = CashFlowConfig.default()
+        analyzer = CashFlowAnalyzer(analyzer_config)
+
+        # Load YNAB data
+        ynab_cache_dir = config.data_dir / "ynab" / "cache"
+        analyzer.load_data(ynab_cache_dir)
+
         click.echo("🔮 Generating cash flow forecast...")
-        click.echo("⚠️  Full implementation requires migration of existing analysis logic")
 
-        # Forecast components
-        forecast_metrics = [
-            "30-day cash flow projection",
-            "60-day cash flow projection",
-            "90-day cash flow projection",
-            "Confidence intervals",
-            "Trend strength indicators",
-            "Seasonality adjustments",
-            "Risk assessment",
-        ]
+        # Get current statistics
+        stats = analyzer.get_summary_statistics()
 
-        click.echo("\n🎯 Forecast Metrics:")
-        for metric in forecast_metrics:
-            click.echo(f"  • {metric}")
+        # Calculate projections based on monthly trend
+        current_balance = stats["current_balance"]
+        monthly_trend = stats["monthly_trend"]
+        volatility = stats["volatility"]
+        confidence = stats["trend_confidence"]
 
-        click.echo("\n[FORECAST] Summary:")
-        click.echo("   30-day projection: $X,XXX ± $XXX")
-        click.echo("   60-day projection: $X,XXX ± $XXX")
-        click.echo("   90-day projection: $X,XXX ± $XXX")
-        click.echo("   Trend confidence: XX%")
+        # Simple linear projections with confidence intervals
+        # Confidence interval = volatility * (1 - confidence)
+        margin = volatility * (1 - confidence)
+
+        projections = {
+            "30_day": {
+                "days": 30,
+                "projected_balance": current_balance + monthly_trend,
+                "lower_bound": current_balance + monthly_trend - margin,
+                "upper_bound": current_balance + monthly_trend + margin,
+                "change": monthly_trend,
+            },
+            "60_day": {
+                "days": 60,
+                "projected_balance": current_balance + (monthly_trend * 2),
+                "lower_bound": current_balance + (monthly_trend * 2) - (margin * 1.5),
+                "upper_bound": current_balance + (monthly_trend * 2) + (margin * 1.5),
+                "change": monthly_trend * 2,
+            },
+            "90_day": {
+                "days": 90,
+                "projected_balance": current_balance + (monthly_trend * 3),
+                "lower_bound": current_balance + (monthly_trend * 3) - (margin * 2),
+                "upper_bound": current_balance + (monthly_trend * 3) + (margin * 2),
+                "change": monthly_trend * 3,
+            },
+        }
+
+        click.echo("\n🎯 Forecast Summary:")
+        click.echo(f"   Current Balance: ${current_balance:,.0f}")
+        click.echo(f"   Monthly Trend: ${monthly_trend:,.0f}/month ({stats['trend_direction']})")
+        click.echo(f"   Trend Confidence: {confidence*100:.1f}%")
+        click.echo(f"   Volatility: ${volatility:,.0f}")
+        click.echo()
+
+        for projection in projections.values():
+            click.echo(f"   {projection['days']}-day projection:")
+            click.echo(f"      Balance: ${projection['projected_balance']:,.0f}")
+            click.echo(f"      Range: ${projection['lower_bound']:,.0f} - ${projection['upper_bound']:,.0f}")
+            click.echo(f"      Change: ${projection['change']:,.0f}")
+
+        # Display risk assessment
+        risk_level = "LOW" if confidence > 0.8 else "MEDIUM" if confidence > 0.5 else "HIGH"
+        click.echo(f"\n   Risk Assessment: {risk_level}")
+        click.echo(f"      Based on trend confidence of {confidence*100:.1f}%")
 
     except Exception as e:
         click.echo(f"❌ Error generating forecast: {e}", err=True)
