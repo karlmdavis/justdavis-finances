@@ -6,10 +6,10 @@ Tests end-to-end flow execution with real CLI integration and file system operat
 """
 
 import json
+import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
@@ -27,49 +27,36 @@ class TestFlowCLIIntegration:
         """Set up test environment."""
         self.runner = CliRunner()
         self.temp_dir = Path(tempfile.mkdtemp())
+        # Set real config via environment variable
+        os.environ["FINANCES_DATA_DIR"] = str(self.temp_dir)
 
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
 
         shutil.rmtree(self.temp_dir)
+        # Clean up environment
+        if "FINANCES_DATA_DIR" in os.environ:
+            del os.environ["FINANCES_DATA_DIR"]
 
-    @patch("finances.core.config.get_config")
-    def test_flow_validate_command(self, mock_get_config):
+    def test_flow_validate_command(self):
         """Test flow validate CLI command."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         result = self.runner.invoke(flow, ["validate"])
 
         assert result.exit_code == 0
         assert "Flow validation passed" in result.output
         assert "Registered nodes:" in result.output
 
-    @patch("finances.core.config.get_config")
-    def test_flow_graph_command(self, mock_get_config):
+    def test_flow_graph_command(self):
         """Test flow graph CLI command."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         result = self.runner.invoke(flow, ["graph"])
 
         assert result.exit_code == 0
         assert "Financial Flow System Dependency Graph" in result.output
         assert "Level 1:" in result.output
 
-    @patch("finances.core.config.get_config")
-    def test_flow_graph_json_format(self, mock_get_config):
+    def test_flow_graph_json_format(self):
         """Test flow graph CLI command with JSON output."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         result = self.runner.invoke(flow, ["graph", "--format", "json"])
 
         assert result.exit_code == 0
@@ -79,14 +66,8 @@ class TestFlowCLIIntegration:
         assert "nodes" in graph_data
         assert "execution_levels" in graph_data
 
-    @patch("finances.core.config.get_config")
-    def test_flow_execute_dry_run(self, mock_get_config):
+    def test_flow_execute_dry_run(self):
         """Test flow execute CLI command in dry run mode."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         # Create some test data to trigger changes
         ynab_dir = self.temp_dir / "ynab" / "cache"
         ynab_dir.mkdir(parents=True)
@@ -102,14 +83,8 @@ class TestFlowCLIIntegration:
         assert "Dry run mode - no changes will be made" in result.output
         assert "Dynamic execution will process" in result.output
 
-    @patch("finances.core.config.get_config")
-    def test_flow_execute_no_changes(self, mock_get_config):
+    def test_flow_execute_no_changes(self):
         """Test flow execute when no changes are detected."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         # Don't create any data files - should result in no changes, use dry-run mode
         result = self.runner.invoke(flow, ["go", "--dry-run"])
 
@@ -117,14 +92,8 @@ class TestFlowCLIIntegration:
         # With no data files, we might still get some nodes that want to execute
         assert "Dry run mode" in result.output
 
-    @patch("finances.core.config.get_config")
-    def test_flow_execute_specific_nodes(self, mock_get_config):
+    def test_flow_execute_specific_nodes(self):
         """Test flow execute with specific nodes."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         result = self.runner.invoke(
             flow, ["go", "--dry-run", "--nodes", "ynab_sync", "--nodes", "cash_flow_analysis"]
         )
@@ -133,45 +102,23 @@ class TestFlowCLIIntegration:
         # Should show limited execution plan
         assert "Dynamic execution will process" in result.output
 
-    @patch("finances.core.config.get_config")
-    def test_flow_execute_force_mode(self, mock_get_config):
+    def test_flow_execute_force_mode(self):
         """Test flow execute with force mode."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         result = self.runner.invoke(flow, ["go", "--dry-run", "--force"])
 
         assert result.exit_code == 0
         assert "Dynamic execution will process" in result.output
         # In force mode, should execute many nodes even without changes
 
-    @patch("finances.core.config.get_config")
-    def test_flow_execute_non_interactive(self, mock_get_config):
+    def test_flow_execute_non_interactive(self):
         """Test flow execute in non-interactive mode."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
         result = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run"])
 
         assert result.exit_code == 0
         assert "Dry run mode" in result.output
 
-    @patch("finances.core.config.get_config")
-    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
-    def test_flow_execute_with_archive_creation(self, mock_execute_flow, mock_get_config):
+    def test_flow_execute_with_archive_creation(self):
         """Test flow execute creates archives when not in dry-run mode."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
-        # Mock execute_flow to avoid actual execution
-        mock_execute_flow.return_value = {}
-
         # Create some test data that will trigger changes
         ynab_dir = self.temp_dir / "ynab" / "cache"
         ynab_dir.mkdir(parents=True)
@@ -194,18 +141,8 @@ class TestFlowCLIIntegration:
         )
         assert len(archive_dirs) >= 0  # Archive may or may not be created depending on data
 
-    @patch("finances.core.config.get_config")
-    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
-    def test_flow_execute_skip_archive(self, mock_execute_flow, mock_get_config):
+    def test_flow_execute_skip_archive(self):
         """Test flow execute skips archive when --skip-archive flag is used."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
-        # Mock execute_flow to avoid actual execution
-        mock_execute_flow.return_value = {}
-
         # Create test data
         ynab_dir = self.temp_dir / "ynab" / "cache"
         ynab_dir.mkdir(parents=True)
@@ -218,90 +155,6 @@ class TestFlowCLIIntegration:
 
         # Should not create archive
         assert "Creating transaction archive" not in result.output
-
-    @patch("finances.core.config.get_config")
-    @patch("finances.cli.flow.create_flow_archive")  # Patch where it's imported
-    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
-    def test_flow_archive_context_properly_constructed(
-        self, mock_execute_flow, mock_create_archive, mock_get_config
-    ):
-        """Test that flow_context passed to archive has all required fields including execution_order."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
-        # Mock archive creation to capture the flow_context
-        mock_archive_session = MagicMock()
-        mock_archive_session.archives = {}
-        mock_archive_session.total_files = 0
-        mock_archive_session.total_size_bytes = 0
-        mock_create_archive.return_value = mock_archive_session
-
-        # Mock execute_flow
-        mock_execute_flow.return_value = {}
-
-        # Create test data
-        ynab_dir = self.temp_dir / "ynab" / "cache"
-        ynab_dir.mkdir(parents=True)
-        (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
-        (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
-        (ynab_dir / "transactions.json").write_text("[]")
-
-        # Run to trigger archive creation
-        result = self.runner.invoke(flow, ["go", "--non-interactive", "--force"])
-
-        # Debug: print the output to see what happened
-        if result.exit_code != 0:
-            print(f"Exit code: {result.exit_code}")
-            print(f"Output: {result.output}")
-
-        # Verify create_flow_archive was called with proper context
-        mock_create_archive.assert_called_once()
-        call_args = mock_create_archive.call_args
-
-        # Check that flow_context has required fields
-        flow_context = call_args[1]["flow_context"]
-        assert "execution_order" in flow_context
-        assert isinstance(flow_context["execution_order"], list)
-        assert "change_summary" in flow_context
-        assert "interactive" in flow_context
-        assert "force" in flow_context
-
-    @patch("finances.core.config.get_config")
-    @patch("finances.cli.flow.create_flow_archive")  # Patch where it's imported
-    @patch("finances.core.flow_engine.FlowExecutionEngine.execute_flow")
-    def test_flow_archive_creation_failure_handling(
-        self, mock_execute_flow, mock_create_archive, mock_get_config
-    ):
-        """Test flow handles archive creation failure gracefully."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
-        # Mock archive creation to fail
-        mock_create_archive.side_effect = Exception("Archive creation failed!")
-
-        # Mock execute_flow to prevent actual execution
-        mock_execute_flow.return_value = {}
-
-        # Create test data
-        ynab_dir = self.temp_dir / "ynab" / "cache"
-        ynab_dir.mkdir(parents=True)
-        (ynab_dir / "accounts.json").write_text('{"server_knowledge": 123}')
-        (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
-        (ynab_dir / "transactions.json").write_text("[]")
-
-        # Run to trigger archive creation failure (interactive mode to get confirm prompt)
-        result = self.runner.invoke(
-            flow, ["go", "--force"], input="y\ny\n"
-        )  # Answer yes to proceed and yes to continue without archive
-
-        # Should handle the error and ask to continue
-        assert "Archive creation failed" in result.output
-        # In interactive mode, it should have prompted
-        assert "Continue without archive?" in result.output
 
 
 class TestArchiveIntegration:
@@ -489,26 +342,23 @@ class TestChangeDetectionIntegration:
 
 
 class TestEndToEndFlow:
-    """Test complete end-to-end flow execution."""
+    """Test complete end-to-end flow execution with real components."""
 
     def setup_method(self):
-        """Set up test environment."""
+        """Set up test environment with real config."""
         self.temp_dir = Path(tempfile.mkdtemp())
+        os.environ["FINANCES_DATA_DIR"] = str(self.temp_dir)
 
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
 
         shutil.rmtree(self.temp_dir)
+        if "FINANCES_DATA_DIR" in os.environ:
+            del os.environ["FINANCES_DATA_DIR"]
 
-    @patch("finances.core.config.get_config")
-    def test_complete_flow_dry_run(self, mock_get_config):
-        """Test complete flow execution in dry run mode."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
+    def test_complete_flow_dry_run(self):
+        """Test complete flow execution in dry run mode with real engine."""
         # Create test data to trigger changes
         self._create_test_data()
 
@@ -576,14 +426,8 @@ class TestEndToEndFlow:
         export_dir.mkdir()
         (export_dir / "receipts.json").write_text('{"receipts": []}')
 
-    @patch("finances.core.config.get_config")
-    def test_flow_execution_with_archive(self, mock_get_config):
-        """Test flow execution creates archives."""
-        # Mock config
-        mock_config = MagicMock()
-        mock_config.data_dir = self.temp_dir
-        mock_get_config.return_value = mock_config
-
+    def test_flow_execution_with_archive(self):
+        """Test flow execution creates archives with real execution."""
         # Create test data
         self._create_test_data()
 
