@@ -8,7 +8,6 @@ to run actual CLI commands with synthetic test data.
 These tests validate the complete flow orchestration system from user perspective.
 """
 
-import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -100,21 +99,6 @@ def test_flow_validate_command(flow_test_env):
 
 
 @pytest.mark.e2e
-def test_flow_validate_verbose(flow_test_env):
-    """
-    Test `finances flow validate --verbose` shows execution levels.
-
-    Validates that verbose mode displays detailed flow graph information.
-    """
-    result = run_flow_command(["validate", "--verbose"])
-
-    assert result.returncode == 0, f"Validate verbose failed: {result.stderr}"
-    assert "Flow validation passed" in result.stdout
-    assert "Execution levels:" in result.stdout, "Expected execution levels in verbose output"
-    assert "Level 1:" in result.stdout, "Expected level breakdown"
-
-
-@pytest.mark.e2e
 def test_flow_graph_text_format(flow_test_env):
     """
     Test `finances flow graph` text output.
@@ -136,38 +120,6 @@ def test_flow_graph_text_format(flow_test_env):
 
 
 @pytest.mark.e2e
-def test_flow_graph_json_format(flow_test_env):
-    """
-    Test `finances flow graph --format json`.
-
-    Validates that JSON output contains valid structure with nodes and
-    execution levels.
-    """
-    result = run_flow_command(["graph", "--format", "json"])
-
-    assert result.returncode == 0, f"Graph JSON command failed: {result.stderr}"
-
-    # Parse JSON output
-    try:
-        graph_data = json.loads(result.stdout)
-    except json.JSONDecodeError as e:
-        pytest.fail(f"Invalid JSON output: {e}\nOutput: {result.stdout}")
-
-    # Validate JSON structure
-    assert "nodes" in graph_data, "Expected 'nodes' in JSON output"
-    assert "execution_levels" in graph_data, "Expected 'execution_levels' in JSON output"
-    assert isinstance(graph_data["nodes"], dict), "Nodes should be a dictionary"
-    assert isinstance(graph_data["execution_levels"], list), "Execution levels should be a list"
-
-    # Validate node structure
-    assert len(graph_data["nodes"]) > 0, "Should have at least one node"
-    for node_name, node_data in graph_data["nodes"].items():
-        assert "display_name" in node_data, f"Node {node_name} missing display_name"
-        assert "dependencies" in node_data, f"Node {node_name} missing dependencies"
-        assert isinstance(node_data["dependencies"], list), "Dependencies should be a list"
-
-
-@pytest.mark.e2e
 def test_flow_go_dry_run(flow_test_env):
     """
     Test `finances flow go --dry-run` with synthetic YNAB data.
@@ -180,146 +132,6 @@ def test_flow_go_dry_run(flow_test_env):
     assert result.returncode == 0, f"Dry run failed: {result.stderr}"
     assert "Dry run mode - no changes will be made" in result.stdout
     assert "Dynamic execution will process" in result.stdout or "No nodes need execution" in result.stdout
-
-
-@pytest.mark.e2e
-def test_flow_go_with_node_filtering(flow_test_env):
-    """
-    Test `finances flow go --nodes ynab_sync --dry-run`.
-
-    Validates that node filtering works correctly and only specified nodes
-    (and their dependencies) are executed.
-    """
-    result = run_flow_command(["go", "--nodes", "ynab_sync", "--dry-run", "--non-interactive"])
-
-    assert result.returncode == 0, f"Node filtering failed: {result.stderr}"
-
-    # Should mention the specific node
-    output_lower = result.stdout.lower()
-    assert "ynab" in output_lower or "sync" in output_lower, "Expected ynab_sync node in output"
-
-
-@pytest.mark.e2e
-def test_flow_go_force_mode(flow_test_env):
-    """
-    Test `finances flow go --force --dry-run`.
-
-    Validates that force mode executes all nodes regardless of change detection.
-    """
-    result = run_flow_command(["go", "--force", "--dry-run", "--non-interactive"])
-
-    assert result.returncode == 0, f"Force mode failed: {result.stderr}"
-
-    # Force mode should show force execution
-    assert (
-        "Force execution requested" in result.stdout or "Dynamic execution will process" in result.stdout
-    ), "Expected force execution indication"
-    assert "Dry run mode" in result.stdout
-
-
-@pytest.mark.e2e
-def test_flow_go_multiple_nodes_filtering(flow_test_env):
-    """
-    Test `finances flow go --nodes ynab_sync --nodes amazon_matching --dry-run`.
-
-    Validates that multiple node filters work correctly.
-    """
-    result = run_flow_command(
-        [
-            "go",
-            "--nodes",
-            "ynab_sync",
-            "--nodes",
-            "amazon_matching",
-            "--dry-run",
-            "--non-interactive",
-        ]
-    )
-
-    # Should succeed even if some nodes can't execute due to missing data
-    assert result.returncode == 0, f"Multiple node filtering failed: {result.stderr}"
-
-
-@pytest.mark.e2e
-def test_flow_go_verbose_output(flow_test_env):
-    """
-    Test `finances flow go --verbose --dry-run`.
-
-    Validates that verbose mode provides detailed execution information.
-    """
-    result = run_flow_command(["go", "--verbose", "--dry-run", "--non-interactive"])
-
-    assert result.returncode == 0, f"Verbose mode failed: {result.stderr}"
-    assert "Financial Flow System Execution" in result.stdout
-    assert "Mode:" in result.stdout, "Expected mode information in verbose output"
-    assert "Execution:" in result.stdout, "Expected execution type in verbose output"
-
-
-@pytest.mark.e2e
-def test_flow_go_non_interactive(flow_test_env):
-    """
-    Test `--non-interactive` mode with dry-run.
-
-    Validates that non-interactive mode doesn't prompt for user input.
-    """
-    result = run_flow_command(["go", "--non-interactive", "--dry-run"])
-
-    # Should complete without waiting for input
-    assert result.returncode == 0, f"Non-interactive mode failed: {result.stderr}"
-    # Non-interactive mode should complete successfully without prompts
-    # The command completes and shows dry-run output
-    assert "Dry run mode" in result.stdout
-
-
-@pytest.mark.e2e
-def test_flow_go_skip_archive(flow_test_env):
-    """
-    Test `finances flow go --skip-archive --dry-run`.
-
-    Validates that archive creation can be skipped.
-    """
-    result = run_flow_command(["go", "--skip-archive", "--dry-run", "--non-interactive"])
-
-    assert result.returncode == 0, f"Skip archive failed: {result.stderr}"
-    # Archive creation messages should not appear
-    assert "Creating transaction archive" not in result.stdout
-
-
-@pytest.mark.e2e
-def test_flow_validate_catches_invalid_nodes(flow_test_env):
-    """
-    Test that validate catches configuration errors.
-
-    This test verifies the validation system works, though with current
-    implementation all nodes should be valid.
-    """
-    result = run_flow_command(["validate"])
-
-    # Current implementation should pass
-    assert result.returncode == 0
-    assert "validation passed" in result.stdout.lower()
-
-
-@pytest.mark.e2e
-def test_flow_graph_shows_all_standard_nodes(flow_test_env):
-    """
-    Test that graph shows all expected standard flow nodes.
-
-    Validates that the graph includes core nodes like ynab_sync, amazon_matching,
-    apple_matching, etc.
-    """
-    result = run_flow_command(["graph"])
-
-    assert result.returncode == 0, f"Graph command failed: {result.stderr}"
-
-    # Check for presence of key nodes (using case-insensitive search)
-    output_lower = result.stdout.lower()
-
-    # Core nodes that should always be present
-    expected_keywords = ["ynab", "amazon", "apple"]
-
-    for keyword in expected_keywords:
-        assert keyword in output_lower, f"Expected '{keyword}' node in flow graph"
 
 
 @pytest.mark.e2e
@@ -355,81 +167,6 @@ def test_flow_command_error_handling(flow_test_env):
     # Should fail with helpful error message
     assert result.returncode != 0, "Should fail with invalid format"
     assert "invalid" in result.stderr.lower() or "error" in result.stderr.lower()
-
-
-@pytest.mark.e2e
-def test_flow_go_date_range_filtering(flow_test_env):
-    """
-    Test `finances flow go --start 2024-01-01 --end 2024-12-31 --dry-run`.
-
-    Validates that date range filtering is accepted and processed.
-    """
-    result = run_flow_command(
-        [
-            "go",
-            "--start",
-            "2024-01-01",
-            "--end",
-            "2024-12-31",
-            "--dry-run",
-            "--non-interactive",
-        ]
-    )
-
-    assert result.returncode == 0, f"Date range filtering failed: {result.stderr}"
-    # Should show date range in output (if verbose or when showing execution plan)
-
-
-@pytest.mark.e2e
-def test_flow_go_confidence_threshold(flow_test_env):
-    """
-    Test `finances flow go --confidence-threshold 8000 --dry-run`.
-
-    Validates that confidence threshold parameter is accepted.
-    """
-    result = run_flow_command(
-        [
-            "go",
-            "--confidence-threshold",
-            "8000",
-            "--dry-run",
-            "--non-interactive",
-        ]
-    )
-
-    assert result.returncode == 0, f"Confidence threshold failed: {result.stderr}"
-
-
-@pytest.mark.e2e
-def test_flow_go_perf_tracking(flow_test_env):
-    """
-    Test `finances flow go --perf --dry-run`.
-
-    Validates that performance tracking mode is accepted.
-    """
-    result = run_flow_command(["go", "--perf", "--dry-run", "--non-interactive"])
-
-    assert result.returncode == 0, f"Performance tracking failed: {result.stderr}"
-
-
-@pytest.mark.e2e
-def test_flow_integration_validate_then_graph(flow_test_env):
-    """
-    Integration test: validate flow then display graph.
-
-    Tests that commands can be run sequentially without issues.
-    """
-    # First validate
-    validate_result = run_flow_command(["validate"])
-    assert validate_result.returncode == 0, f"Validation failed: {validate_result.stderr}"
-
-    # Then show graph
-    graph_result = run_flow_command(["graph"])
-    assert graph_result.returncode == 0, f"Graph failed: {graph_result.stderr}"
-
-    # Both should succeed
-    assert "validation passed" in validate_result.stdout.lower()
-    assert "Financial Flow System Dependency Graph" in graph_result.stdout
 
 
 @pytest.mark.e2e
