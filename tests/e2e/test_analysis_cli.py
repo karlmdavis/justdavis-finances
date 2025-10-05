@@ -70,13 +70,16 @@ class TestCashFlowAnalysisCLI:
     def test_cashflow_analyze_command(self):
         """Test finances cashflow analyze with synthetic transactions."""
         # Setup synthetic YNAB data with 90 days of transactions
-        self._setup_synthetic_ynab_data(num_transactions=150, days_back=90)
+        data = self._setup_synthetic_ynab_data(num_transactions=150, days_back=90)
 
         # Calculate date range
         start_date = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
         end_date = date.today().strftime("%Y-%m-%d")
 
-        # Run command
+        # Get account names from synthetic data to pass to CLI
+        account_names = [acc["name"] for acc in data["accounts"]["accounts"]]
+
+        # Run command with explicit account names from synthetic data
         result = subprocess.run(
             [
                 "uv",
@@ -90,6 +93,10 @@ class TestCashFlowAnalysisCLI:
                 start_date,
                 "--end",
                 end_date,
+                "--accounts",
+                *account_names,  # Pass all synthetic account names
+                "--exclude-before",
+                start_date,  # Exclude data before our synthetic range
                 "--output-dir",
                 str(self.charts_dir),
             ],
