@@ -379,17 +379,16 @@ class TestAppleEdgeCases:
         }
 
         # Generate large collection of receipts
-        large_receipts = []
-        for i in range(500):
-            large_receipts.append(
-                {
-                    "order_id": f"receipt-{i}",
-                    "receipt_date": "Aug 15, 2024",
-                    "apple_id": f"user{i}@example.com",
-                    "total": 10.00 + i * 0.01,  # Varying amounts
-                    "items": [{"title": f"App {i}", "cost": 10.00 + i * 0.01}],
-                }
-            )
+        large_receipts = [
+            {
+                "order_id": f"receipt-{i}",
+                "receipt_date": "Aug 15, 2024",
+                "apple_id": f"user{i}@example.com",
+                "total": 10.00 + i * 0.01,  # Varying amounts
+                "items": [{"title": f"App {i}", "cost": 10.00 + i * 0.01}],
+            }
+            for i in range(500)
+        ]
 
         # Should complete in reasonable time
         import time
@@ -440,5 +439,5 @@ def test_integration_with_fixtures(sample_ynab_transaction, sample_apple_receipt
     # Verify match result structure
     assert hasattr(result, "confidence")
     assert hasattr(result, "match_method")
-    assert isinstance(result.confidence, (int, float))
+    assert isinstance(result.confidence, int | float)
     assert 0 <= result.confidence <= 1

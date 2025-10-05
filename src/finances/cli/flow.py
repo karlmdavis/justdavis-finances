@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -413,8 +414,8 @@ def setup_flow_nodes() -> None:
 def go(
     ctx: click.Context,
     interactive: bool,
-    start: Optional[str],
-    end: Optional[str],
+    start: str | None,
+    end: str | None,
     confidence_threshold: int,
     perf: bool,
     dry_run: bool,

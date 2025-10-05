@@ -5,9 +5,9 @@ Unit tests for core flow system components.
 Tests the fundamental flow infrastructure including nodes, contexts, and registries.
 """
 
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 from finances.core.flow import (
     FlowContext,
@@ -39,7 +39,8 @@ class TestFlowResult:
 
     def test_complete_result_creation(self):
         """Test creating a complete FlowResult with all fields."""
-        outputs = [Path("/tmp/test1.json"), Path("/tmp/test2.json")]
+        temp_dir = Path(tempfile.gettempdir())
+        outputs = [temp_dir / "test1.json", temp_dir / "test2.json"]
         metadata = {"test_key": "test_value"}
 
         result = FlowResult(
@@ -97,7 +98,8 @@ class TestFlowContext:
         """Test creating a complete FlowContext with all fields."""
         start_time = datetime.now()
         date_range = (date(2024, 1, 1), date(2024, 12, 31))
-        archive_manifest = {"domain1": Path("/tmp/archive1.tar.gz")}
+        temp_dir = Path(tempfile.gettempdir())
+        archive_manifest = {"domain1": temp_dir / "archive1.tar.gz"}
 
         context = FlowContext(
             start_time=start_time,
@@ -128,7 +130,7 @@ class MockFlowNode(FlowNode):
     def __init__(
         self,
         name: str,
-        dependencies: Optional[list[str]] = None,
+        dependencies: list[str] | None = None,
         check_changes_result: tuple[bool, list[str]] = (False, []),
         execute_result: FlowResult = None,
     ):

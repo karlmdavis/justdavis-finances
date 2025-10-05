@@ -9,7 +9,7 @@ Tracks which items have been matched to prevent double-counting.
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -24,7 +24,7 @@ class SplitPaymentMatcher:
     By default uses in-memory storage. Optionally can persist to file cache.
     """
 
-    def __init__(self, cache_file: Optional[str] = None):
+    def __init__(self, cache_file: str | None = None):
         """
         Initialize the matcher with optional persistent cache.
 
@@ -185,7 +185,7 @@ class SplitPaymentMatcher:
 
         return unique_results
 
-    def match_split_payment(self, ynab_tx: dict, order_data: dict, account_name: str) -> Optional[dict]:
+    def match_split_payment(self, ynab_tx: dict, order_data: dict, account_name: str) -> dict | None:
         """
         Attempt to match a YNAB transaction to part of an order.
 

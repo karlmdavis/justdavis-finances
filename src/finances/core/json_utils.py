@@ -9,12 +9,10 @@ and consistent formatting for better debugging and searchability.
 
 import json
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 
-def write_json(
-    filepath: Union[str, Path], data: Any, ensure_ascii: bool = False, sort_keys: bool = False
-) -> None:
+def write_json(filepath: str | Path, data: Any, ensure_ascii: bool = False, sort_keys: bool = False) -> None:
     """
     Write data to a JSON file with standard pretty-printing.
 
@@ -31,7 +29,7 @@ def write_json(
         json.dump(data, f, indent=2, ensure_ascii=ensure_ascii, sort_keys=sort_keys)
 
 
-def read_json(filepath: Union[str, Path]) -> Any:
+def read_json(filepath: str | Path) -> Any:
     """
     Read data from a JSON file.
 
@@ -60,7 +58,7 @@ def format_json(data: Any, ensure_ascii: bool = False, sort_keys: bool = False) 
     return json.dumps(data, indent=2, ensure_ascii=ensure_ascii, sort_keys=sort_keys)
 
 
-def write_json_with_defaults(filepath: Union[str, Path], data: Any, default: Any = str) -> None:
+def write_json_with_defaults(filepath: str | Path, data: Any, default: Any = str) -> None:
     """
     Write data to a JSON file with a custom default serializer for non-JSON types.
 

@@ -9,7 +9,7 @@ These models provide type safety and consistent interfaces for financial data.
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any
 
 
 class TransactionType(Enum):
@@ -39,22 +39,22 @@ class Transaction:
     """
 
     id: str
-    date: Union[date, str]
+    date: date | str
     amount: int  # In milliunits (YNAB standard)
     description: str
     account_name: str
 
     # Optional fields
-    payee_name: Optional[str] = None
-    category_name: Optional[str] = None
-    memo: Optional[str] = None
+    payee_name: str | None = None
+    category_name: str | None = None
+    memo: str | None = None
     cleared: bool = True
     approved: bool = True
 
     # Metadata
     source: str = "unknown"
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Normalize data after initialization."""
@@ -107,23 +107,23 @@ class Receipt:
     """
 
     id: str
-    date: Union[date, str]
+    date: date | str
     vendor: str
     total_amount: int  # In cents
 
     # Optional fields
-    subtotal: Optional[int] = None  # In cents
-    tax_amount: Optional[int] = None  # In cents
-    customer_id: Optional[str] = None
-    order_number: Optional[str] = None
+    subtotal: int | None = None  # In cents
+    tax_amount: int | None = None  # In cents
+    customer_id: str | None = None
+    order_number: str | None = None
 
     # Items
     items: list[dict[str, Any]] = field(default_factory=list)
 
     # Metadata
     source: str = "unknown"
-    created_at: Optional[datetime] = None
-    raw_data: Optional[dict[str, Any]] = None
+    created_at: datetime | None = None
+    raw_data: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Normalize data after initialization."""
@@ -169,15 +169,15 @@ class MatchResult:
     match_method: str
 
     # Optional fields
-    date_difference: Optional[int] = None  # Days between transaction and receipt
-    amount_difference: Optional[int] = None  # Difference in cents
+    date_difference: int | None = None  # Days between transaction and receipt
+    amount_difference: int | None = None  # Difference in cents
     unmatched_amount: int = 0  # Amount not covered by receipts
 
     # Processing metadata
-    processing_time: Optional[float] = None
-    strategy_used: Optional[str] = None
-    notes: Optional[str] = None
-    created_at: Optional[datetime] = field(default_factory=datetime.now)
+    processing_time: float | None = None
+    strategy_used: str | None = None
+    notes: str | None = None
+    created_at: datetime | None = field(default_factory=datetime.now)
 
     @property
     def confidence_level(self) -> MatchConfidence:
@@ -220,14 +220,14 @@ class Account:
     type: str
 
     # Optional fields
-    institution: Optional[str] = None
-    balance: Optional[int] = None  # In milliunits
+    institution: str | None = None
+    balance: int | None = None  # In milliunits
     currency: str = "USD"
     active: bool = True
 
     # Metadata
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @property
     def balance_dollars(self) -> str:
@@ -252,15 +252,15 @@ class Category:
     name: str
 
     # Optional fields
-    parent_id: Optional[str] = None
-    parent_name: Optional[str] = None
-    group_name: Optional[str] = None
-    budgeted: Optional[int] = None  # In milliunits
-    activity: Optional[int] = None  # In milliunits
+    parent_id: str | None = None
+    parent_name: str | None = None
+    group_name: str | None = None
+    budgeted: int | None = None  # In milliunits
+    activity: int | None = None  # In milliunits
 
     # Metadata
     active: bool = True
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     @property
     def full_name(self) -> str:
@@ -284,9 +284,9 @@ class ProcessingResult:
     errors: list[str] = field(default_factory=list)
 
     # Timing information
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    processing_time: Optional[float] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    processing_time: float | None = None
 
     # Results
     results: list[Any] = field(default_factory=list)

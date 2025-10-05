@@ -308,16 +308,15 @@ def test_integration_with_fixtures(sample_ynab_transaction, sample_amazon_order)
     items = sample_amazon_order["items"]
 
     # Convert order format to items format expected by calculator
-    formatted_items = []
-    for item in items:
-        formatted_items.append(
-            {
-                "name": item["name"],
-                "amount": item["amount"],
-                "quantity": item["quantity"],
-                "unit_price": item["amount"] // item["quantity"],
-            }
-        )
+    formatted_items = [
+        {
+            "name": item["name"],
+            "amount": item["amount"],
+            "quantity": item["quantity"],
+            "unit_price": item["amount"] // item["quantity"],
+        }
+        for item in items
+    ]
 
     splits = calculate_amazon_splits(transaction_amount, formatted_items)
 

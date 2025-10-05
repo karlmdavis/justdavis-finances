@@ -8,11 +8,12 @@ orchestration for the Financial Flow System.
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +59,10 @@ class FlowResult:
     updated_items: int = 0
     outputs: list[Path] = field(default_factory=list)
     requires_review: bool = False
-    review_instructions: Optional[str] = None
-    execution_time_seconds: Optional[float] = None
+    review_instructions: str | None = None
+    execution_time_seconds: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -72,7 +73,7 @@ class FlowContext:
     interactive: bool = True
     performance_tracking: bool = False
     confidence_threshold: int = 10000  # 100.00% in basis points
-    date_range: Optional[tuple[date, date]] = None
+    date_range: tuple[date, date] | None = None
     archive_manifest: dict[str, Path] = field(default_factory=dict)
     execution_history: list["NodeExecution"] = field(default_factory=list)
     dry_run: bool = False
@@ -86,9 +87,9 @@ class NodeExecution:
 
     node_name: str
     status: NodeStatus
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    result: Optional[FlowResult] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    result: FlowResult | None = None
     changes_detected: bool = False
     change_reasons: list[str] = field(default_factory=list)
 
@@ -162,7 +163,7 @@ class FlowNode(ABC):
 
 
 def flow_node(
-    name: str, depends_on: Optional[list[str]] = None
+    name: str, depends_on: list[str] | None = None
 ) -> Callable[[Callable[[FlowContext], FlowResult]], "FunctionFlowNode"]:
     """
     Decorator for registering flow nodes with dependency declarations.
@@ -204,7 +205,7 @@ class FunctionFlowNode(FlowNode):
         super().__init__(name)
         self._dependencies = set(dependencies)
         self.func = func
-        self._change_detector: Optional[Callable[[FlowContext], tuple[bool, list[str]]]] = None
+        self._change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None
 
     def set_change_detector(self, detector: Callable[[FlowContext], tuple[bool, list[str]]]) -> None:
         """Set custom change detection function."""
@@ -224,12 +225,13 @@ class FunctionFlowNode(FlowNode):
             start_time = datetime.now()
             result = self.func(context)
 
-            # Runtime validation using assert for type safety
+            # Runtime validation for type safety
             # This validates at runtime while mypy validates at compile time
-            assert isinstance(result, FlowResult), (
-                f"Function {safe_get_callable_name(self.func)} must return FlowResult, "
-                f"got {type(result).__name__}"
-            )
+            if not isinstance(result, FlowResult):
+                raise TypeError(
+                    f"Function {safe_get_callable_name(self.func)} must return FlowResult, "
+                    f"got {type(result).__name__}"
+                )
 
             # Add timing information
             if context.performance_tracking:
@@ -258,8 +260,8 @@ class CLIAdapterNode(FlowNode):
         self,
         name: str,
         cli_command: Callable,
-        dependencies: Optional[list[str]] = None,
-        change_detector: Optional[Callable[[FlowContext], tuple[bool, list[str]]]] = None,
+        dependencies: list[str] | None = None,
+        change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None,
     ):
         """
         Initialize CLI adapter node.
@@ -353,8 +355,8 @@ class FlowNodeRegistry:
         self,
         name: str,
         func: Callable[[FlowContext], FlowResult],
-        dependencies: Optional[list[str]] = None,
-        change_detector: Optional[Callable[[FlowContext], tuple[bool, list[str]]]] = None,
+        dependencies: list[str] | None = None,
+        change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None,
     ) -> None:
         """
         Register a function as a flow node.
@@ -371,7 +373,7 @@ class FlowNodeRegistry:
 
         self.register_node(node)
 
-    def get_node(self, name: str) -> Optional[FlowNode]:
+    def get_node(self, name: str) -> FlowNode | None:
         """Get a registered node by name."""
         return self._nodes.get(name)
 

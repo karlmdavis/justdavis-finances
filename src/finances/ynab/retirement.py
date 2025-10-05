@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..core.currency import format_cents
 from ..core.json_utils import read_json, write_json
@@ -26,7 +26,7 @@ class RetirementAccount:
     name: str
     balance_milliunits: int
     cleared_balance_milliunits: int
-    last_reconciled_at: Optional[str]
+    last_reconciled_at: str | None
 
     @property
     def balance_cents(self) -> int:
@@ -140,7 +140,7 @@ class YnabRetirementService:
             return []
 
     def generate_balance_adjustment(
-        self, account: RetirementAccount, new_balance_cents: int, adjustment_date: Optional[date] = None
+        self, account: RetirementAccount, new_balance_cents: int, adjustment_date: date | None = None
     ) -> dict[str, Any]:
         """
         Generate a YNAB balance adjustment transaction.
@@ -248,7 +248,7 @@ def discover_retirement_accounts(data_dir: Path) -> list[RetirementAccount]:
     return service.discover_retirement_accounts()
 
 
-def generate_retirement_edits(data_dir: Path, balance_updates: dict[str, int]) -> Optional[Path]:
+def generate_retirement_edits(data_dir: Path, balance_updates: dict[str, int]) -> Path | None:
     """
     Generate YNAB edits for retirement balance updates.
 

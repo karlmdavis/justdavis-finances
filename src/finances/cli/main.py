@@ -5,7 +5,6 @@ Main CLI Entry Point for Davis Family Finances
 Provides unified command-line interface for all financial management tools.
 """
 
-from typing import Optional
 
 import click
 
@@ -20,7 +19,7 @@ from ..core.config import get_config
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def main(ctx: click.Context, config_env: Optional[str], verbose: bool) -> None:
+def main(ctx: click.Context, config_env: str | None, verbose: bool) -> None:
     """
     Davis Family Finances - Professional Financial Management System
 
@@ -71,12 +70,12 @@ def config(ctx: click.Context) -> None:
 
 
 # Import subcommands
-from .amazon import amazon
-from .apple import apple
-from .cashflow import cashflow
-from .flow import flow
-from .retirement import retirement
-from .ynab import ynab
+from .amazon import amazon  # noqa: E402
+from .apple import apple  # noqa: E402
+from .cashflow import cashflow  # noqa: E402
+from .flow import flow  # noqa: E402
+from .retirement import retirement  # noqa: E402
+from .ynab import ynab  # noqa: E402
 
 # Register subcommands
 main.add_command(amazon)

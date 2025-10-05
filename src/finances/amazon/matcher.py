@@ -11,7 +11,7 @@ All matches require penny-perfect amounts - no tolerance for differences.
 """
 
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -27,7 +27,7 @@ class SimplifiedMatcher:
     Focuses on exact matches only for reliability.
     """
 
-    def __init__(self, split_cache_file: Optional[str] = None):
+    def __init__(self, split_cache_file: str | None = None):
         """
         Initialize the matcher.
 
@@ -184,7 +184,7 @@ class SimplifiedMatcher:
 
         return matches
 
-    def _select_best_match(self, matches: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    def _select_best_match(self, matches: list[dict[str, Any]]) -> dict[str, Any] | None:
         """Select the best match from available options."""
         if not matches:
             return None

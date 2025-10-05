@@ -184,37 +184,39 @@ class TestFlowExecutorParameterBinding:
             apple_emails_dir = temp_path / "apple" / "emails"
             apple_emails_dir.mkdir(parents=True, exist_ok=True)
 
-            with patch("finances.cli.flow.get_config", return_value=mock_config):
-                with patch("finances.core.change_detection.create_change_detectors", return_value={}):
-                    with patch(
-                        "finances.cli.flow.get_change_detector_function",
-                        return_value=lambda ctx: (True, ["Test"]),
-                    ):
-                        # Setup flow nodes (this creates the apple_receipt_parsing node)
-                        setup_flow_nodes()
+            with (
+                patch("finances.cli.flow.get_config", return_value=mock_config),
+                patch("finances.core.change_detection.create_change_detectors", return_value={}),
+                patch(
+                    "finances.cli.flow.get_change_detector_function",
+                    return_value=lambda ctx: (True, ["Test"]),
+                ),
+            ):
+                # Setup flow nodes (this creates the apple_receipt_parsing node)
+                setup_flow_nodes()
 
-                        # Get the apple_receipt_parsing node
-                        node = flow_registry.get_node("apple_receipt_parsing")
-                        assert node is not None
+                # Get the apple_receipt_parsing node
+                node = flow_registry.get_node("apple_receipt_parsing")
+                assert node is not None
 
-                        # Create flow context
-                        flow_context = FlowContext(start_time=datetime.now(), verbose=True)
+                # Create flow context
+                flow_context = FlowContext(start_time=datetime.now(), verbose=True)
 
-                        # This should reproduce the "'Context' object is not iterable" error
-                        # when the node tries to execute
-                        try:
-                            result = node.execute(flow_context)
-                            # If no error, the bug may be fixed or not reproduced
-                            # We'll check if it failed for the expected reason
-                            assert result.success is False or result.success is True
-                        except TypeError as e:
-                            if "'Context' object is not iterable" in str(e):
-                                raise AssertionError(
-                                    "Context iteration error should be fixed but still occurs"
-                                )
-                            else:
-                                # Different error, re-raise
-                                raise
+                # This should reproduce the "'Context' object is not iterable" error
+                # when the node tries to execute
+                try:
+                    result = node.execute(flow_context)
+                    # If no error, the bug may be fixed or not reproduced
+                    # We'll check if it failed for the expected reason
+                    assert result.success is False or result.success is True
+                except TypeError as e:
+                    if "'Context' object is not iterable" in str(e):
+                        raise AssertionError(
+                            "Context iteration error should be fixed but still occurs"
+                        ) from e
+                    else:
+                        # Different error, re-raise
+                        raise
 
     def test_callback_function_exists_on_click_commands(self):
         """Test that Click commands have callback attribute (used by our fix)."""

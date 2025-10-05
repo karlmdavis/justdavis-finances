@@ -7,7 +7,7 @@ name = "finances"
 version = "0.2.0"
 description = "Professional personal finance management system with automated transaction matching"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "Karl Davis", email = "karl@justdavis.com"},
@@ -18,7 +18,6 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -96,7 +95,7 @@ dev = [
 # Black configuration
 [tool.black]
 line-length = 110
-target-version = ['py39']
+target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -116,7 +115,7 @@ extend-exclude = '''
 
 # Ruff configuration
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 110
 extend-exclude = [
     ".venv",
@@ -140,31 +139,14 @@ select = [
 ]
 ignore = [
     "E501",  # line too long, handled by black
-    "E722",  # bare except - used sparingly for validation functions
-    "S101",  # allow assert statements (tests use them)
-    "S108",  # hardcoded /tmp usage - safe for test environments
-    "UP007", # X | Y syntax - requires Python 3.10+, keeping Optional for 3.9 compat
-    "PERF203",  # try-except in loop - acceptable for robustness in some cases
 ]
-
-[tool.ruff.lint.pyupgrade]
-# Keep runtime typing (Optional, Union) for Python 3.9 compatibility
-# even when __future__ annotations are present
-keep-runtime-typing = true
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = [
-    "S101",     # allow assert statements in tests
-    "S110",     # try-except-pass acceptable in tests
-    "B904",     # exception chaining not critical in tests
-    "PERF401",  # list comprehensions not required for test readability
-    "SIM117",   # nested with statements acceptable in tests
-]
-"src/finances/cli/main.py" = ["E402"]  # imports after setup code for CLI initialization
+"tests/**/*" = ["S101"]  # allow assert statements in tests
 
 # MyPy configuration
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

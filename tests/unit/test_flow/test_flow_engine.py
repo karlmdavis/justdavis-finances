@@ -6,7 +6,6 @@ Tests dependency resolution, execution orchestration, and change detection integ
 """
 
 from datetime import datetime
-from typing import Optional
 
 from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NodeExecution, NodeStatus
 from finances.core.flow_engine import DependencyGraph, FlowExecutionEngine
@@ -18,7 +17,7 @@ class MockFlowNode(FlowNode):
     def __init__(
         self,
         name: str,
-        dependencies: Optional[list[str]] = None,
+        dependencies: list[str] | None = None,
         check_changes_result: tuple[bool, list[str]] = (False, []),
         execute_result: FlowResult = None,
         execution_callback=None,

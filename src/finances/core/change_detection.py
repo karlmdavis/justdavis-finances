@@ -15,7 +15,7 @@ from .flow import FlowContext
 from .json_utils import read_json, write_json_with_defaults
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

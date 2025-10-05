@@ -9,14 +9,14 @@ Provides data normalization and filtering functionality.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
 from ..core.config import get_config
 
 
-def find_latest_apple_export(base_path: Optional[str] = None) -> Optional[str]:
+def find_latest_apple_export(base_path: str | None = None) -> str | None:
     """
     Find the most recent Apple receipt export directory.
 
@@ -59,7 +59,7 @@ def find_latest_apple_export(base_path: Optional[str] = None) -> Optional[str]:
     return str(latest_dir)
 
 
-def load_apple_receipts(export_path: Optional[str] = None) -> list[dict[str, Any]]:
+def load_apple_receipts(export_path: str | None = None) -> list[dict[str, Any]]:
     """
     Load Apple receipts from the latest export.
 
@@ -152,7 +152,7 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
     return df
 
 
-def parse_apple_date(date_str: str) -> Optional[datetime]:
+def parse_apple_date(date_str: str) -> datetime | None:
     """
     Parse Apple receipt date string into datetime object.
 

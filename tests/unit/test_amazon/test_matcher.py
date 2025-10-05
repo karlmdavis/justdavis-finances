@@ -10,22 +10,20 @@ from finances.amazon import SimplifiedMatcher
 
 def convert_test_data_to_amazon_format(orders):
     """Convert simplified test data to Amazon CSV format expected by the matcher."""
-    amazon_rows = []
-    for order in orders:
-        for item in order["items"]:
-            amazon_rows.append(
-                {
-                    "Order ID": order["order_id"],
-                    "Order Date": pd.to_datetime(order["order_date"]),
-                    "Ship Date": pd.to_datetime(order["ship_date"]),
-                    "Product Name": item["name"],
-                    "Total Owed": f"${item['amount']/100:.2f}",  # Convert cents to dollars
-                    "Unit Price": f"${item.get('unit_price', item['amount'])/100:.2f}",
-                    "Quantity": item.get("quantity", 1),
-                    "ASIN": item.get("asin", ""),
-                }
-            )
-    return amazon_rows
+    return [
+        {
+            "Order ID": order["order_id"],
+            "Order Date": pd.to_datetime(order["order_date"]),
+            "Ship Date": pd.to_datetime(order["ship_date"]),
+            "Product Name": item["name"],
+            "Total Owed": f"${item['amount']/100:.2f}",  # Convert cents to dollars
+            "Unit Price": f"${item.get('unit_price', item['amount'])/100:.2f}",
+            "Quantity": item.get("quantity", 1),
+            "ASIN": item.get("asin", ""),
+        }
+        for order in orders
+        for item in order["items"]
+    ]
 
 
 class TestSimplifiedMatcher:
@@ -380,17 +378,16 @@ class TestEdgeCases:
         }
 
         # Generate large list of orders
-        large_order_list = []
-        for i in range(1000):
-            large_order_list.append(
-                {
-                    "order_id": f"order-{i}",
-                    "order_date": "2024-08-15",
-                    "ship_date": "2024-08-15",
-                    "total": 1000 + i,  # Varying amounts
-                    "items": [{"name": f"Item {i}", "amount": 1000 + i}],
-                }
-            )
+        large_order_list = [
+            {
+                "order_id": f"order-{i}",
+                "order_date": "2024-08-15",
+                "ship_date": "2024-08-15",
+                "total": 1000 + i,  # Varying amounts
+                "items": [{"name": f"Item {i}", "amount": 1000 + i}],
+            }
+            for i in range(1000)
+        ]
 
         # Should complete in reasonable time
         import time
@@ -424,5 +421,5 @@ def test_integration_with_fixtures(sample_ynab_transaction, sample_amazon_order)
         assert "amazon_orders" in match
         assert "confidence" in match
         assert "match_method" in match
-        assert isinstance(match["confidence"], (int, float))
+        assert isinstance(match["confidence"], int | float)
         assert 0 <= match["confidence"] <= 1

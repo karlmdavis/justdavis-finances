@@ -8,7 +8,7 @@ Implements a simplified 2-strategy system optimized for Apple's 1:1 transaction 
 
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any
 
 import pandas as pd
 
@@ -112,7 +112,7 @@ class AppleMatcher:
 
     def _find_exact_match(
         self, tx_date: datetime, tx_amount: int, receipts_df: pd.DataFrame
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Find receipts that match exactly on date and amount.
 
@@ -147,7 +147,7 @@ class AppleMatcher:
 
     def _find_date_window_match(
         self, tx_date: datetime, tx_amount: int, receipts_df: pd.DataFrame
-    ) -> tuple[Optional[dict[str, Any]], int]:
+    ) -> tuple[dict[str, Any] | None, int]:
         """
         Find receipts within the date window that match the amount.
 
@@ -235,7 +235,7 @@ class AppleMatcher:
             Receipt object
         """
         receipt_date_raw = receipt_data.get("receipt_date")
-        receipt_date: Union[date, str]
+        receipt_date: date | str
         if isinstance(receipt_date_raw, str):
             receipt_date = datetime.strptime(receipt_date_raw, "%Y-%m-%d").date()
         elif receipt_date_raw is not None and hasattr(receipt_date_raw, "date"):
@@ -262,7 +262,7 @@ class AppleMatcher:
 def batch_match_transactions(
     ynab_transactions_df: pd.DataFrame,
     apple_receipts_df: pd.DataFrame,
-    matcher: Optional[AppleMatcher] = None,
+    matcher: AppleMatcher | None = None,
 ) -> list[MatchResult]:
     """
     Match a batch of YNAB transactions to Apple receipts.

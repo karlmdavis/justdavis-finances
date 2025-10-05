@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..core.config import get_config
 from ..core.json_utils import write_json
@@ -44,9 +44,9 @@ class AppleReceiptEmail:
     subject: str
     sender: str
     date: datetime
-    html_content: Optional[str] = None
-    text_content: Optional[str] = None
-    raw_content: Optional[str] = None
+    html_content: str | None = None
+    text_content: str | None = None
+    raw_content: str | None = None
     folder: str = "INBOX"
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -59,7 +59,7 @@ class AppleEmailFetcher:
     to identify Apple Store, iTunes, and App Store receipts.
     """
 
-    def __init__(self, config: Optional[EmailConfig] = None):
+    def __init__(self, config: EmailConfig | None = None):
         """Initialize with email configuration."""
         if config is None:
             # Load from application config
@@ -75,7 +75,7 @@ class AppleEmailFetcher:
         else:
             self.config = config
 
-        self.connection: Optional[imaplib.IMAP4_SSL] = None
+        self.connection: imaplib.IMAP4_SSL | None = None
 
     def connect(self) -> bool:
         """
@@ -117,7 +117,7 @@ class AppleEmailFetcher:
                 self.connection = None
 
     def fetch_apple_receipts(
-        self, days_back: int = 90, max_emails: Optional[int] = None
+        self, days_back: int = 90, max_emails: int | None = None
     ) -> list[AppleReceiptEmail]:
         """
         Fetch Apple receipt emails from configured folders.
@@ -170,7 +170,7 @@ class AppleEmailFetcher:
         return all_receipts
 
     def _search_apple_receipts_in_folder(
-        self, folder: str, days_back: int, max_emails: Optional[int]
+        self, folder: str, days_back: int, max_emails: int | None
     ) -> list[AppleReceiptEmail]:
         """Search for Apple receipts in a specific folder."""
         receipts: list[AppleReceiptEmail] = []
@@ -209,7 +209,8 @@ class AppleEmailFetcher:
                         receipt = self._fetch_and_parse_email(msg_num.decode(), folder)
                         if receipt and self._is_apple_receipt(receipt):
                             receipts.append(receipt)
-                    except Exception as e:
+                    except Exception as e:  # noqa: PERF203
+                        # PERF203: try-except in loop necessary for robust email processing
                         logger.warning(f"Error processing email {msg_num}: {e}")
 
         except Exception as e:
@@ -240,7 +241,7 @@ class AppleEmailFetcher:
 
         return criteria
 
-    def _fetch_and_parse_email(self, msg_num: str, folder: str) -> Optional[AppleReceiptEmail]:
+    def _fetch_and_parse_email(self, msg_num: str, folder: str) -> AppleReceiptEmail | None:
         """Fetch and parse a single email."""
         try:
             # Fetch email data - check connection exists
@@ -294,7 +295,7 @@ class AppleEmailFetcher:
             logger.error(f"Error fetching email {msg_num}: {e}")
             return None
 
-    def _extract_email_content(self, msg: email.message.Message) -> tuple[Optional[str], Optional[str]]:
+    def _extract_email_content(self, msg: email.message.Message) -> tuple[str | None, str | None]:
         """Extract HTML and text content from email message."""
         html_content = None
         text_content = None
@@ -510,7 +511,8 @@ class AppleEmailFetcher:
                 saved_count: int = stats["saved_successfully"]
                 stats["saved_successfully"] = saved_count + 1
 
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
+                # PERF203: try-except in loop necessary for robust file I/O operations
                 logger.error(f"Error saving email {i}: {e}")
                 error_count: int = stats["save_errors"]
                 stats["save_errors"] = error_count + 1
@@ -520,7 +522,7 @@ class AppleEmailFetcher:
 
 
 def fetch_apple_receipts_cli(
-    days_back: int = 90, output_dir: Optional[Path] = None, max_emails: Optional[int] = None
+    days_back: int = 90, output_dir: Path | None = None, max_emails: int | None = None
 ) -> None:
     """
     CLI function to fetch Apple receipts.

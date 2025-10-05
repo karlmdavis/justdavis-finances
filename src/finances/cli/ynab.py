@@ -8,7 +8,6 @@ Professional command-line interface for YNAB transaction updates.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -40,7 +39,7 @@ def generate_splits(
     input_file: str,
     confidence_threshold: float,
     dry_run: bool,
-    output_dir: Optional[str],
+    output_dir: str | None,
     verbose: bool,
 ) -> None:
     """

@@ -18,7 +18,7 @@ All type: ignore comments are marked with specific error codes and explanations.
 
 from datetime import date
 from enum import Enum
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 
@@ -35,7 +35,7 @@ class GroupingLevel(Enum):
 
 def group_orders(
     orders_df: pd.DataFrame, level: GroupingLevel = GroupingLevel.ORDER
-) -> Union[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+) -> dict[str, dict[str, Any]] | list[dict[str, Any]]:
     """
     Universal order grouping function.
 

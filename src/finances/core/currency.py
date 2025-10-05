@@ -18,7 +18,7 @@ Key Principles:
 """
 
 from decimal import Decimal, InvalidOperation
-from typing import Any, Union
+from typing import Any
 
 
 def milliunits_to_cents(milliunits: int) -> int:
@@ -79,7 +79,7 @@ def cents_to_dollars_str(cents: int) -> str:
         return f"{dollars}.{remainder:02d}"
 
 
-def safe_currency_to_cents(currency_str: Union[str, int, float]) -> int:
+def safe_currency_to_cents(currency_str: str | int | float) -> int:
     """
     Safely convert currency string to integer cents using decimal arithmetic.
 
@@ -98,7 +98,7 @@ def safe_currency_to_cents(currency_str: Union[str, int, float]) -> int:
     """
     try:
         # Handle non-string input
-        if isinstance(currency_str, (int, float)):
+        if isinstance(currency_str, int | float):
             return int(currency_str * 100) if isinstance(currency_str, float) else currency_str * 100
 
         # Clean the string
@@ -115,7 +115,7 @@ def safe_currency_to_cents(currency_str: Union[str, int, float]) -> int:
         return 0
 
 
-def dollars_to_cents(dollars: Union[float, str]) -> int:
+def dollars_to_cents(dollars: float | str) -> int:
     """
     Convert dollars (float or string) to cents.
 
@@ -174,7 +174,7 @@ def parse_dollars_to_cents(dollars_str: str) -> int:
     return -total if is_negative else total
 
 
-def dollars_to_milliunits(dollars: Union[float, str]) -> int:
+def dollars_to_milliunits(dollars: float | str) -> int:
     """
     Convert dollars to YNAB milliunits.
 

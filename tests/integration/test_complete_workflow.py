@@ -86,21 +86,24 @@ class TestAmazonWorkflow:
             amazon_orders = match_data["match"]["amazon_orders"]
 
             # Convert order items to split format
-            items = []
-            for order in amazon_orders:
-                for item in order["items"]:
-                    items.append(
-                        {
-                            "name": item["name"],
-                            "amount": item["amount"],
-                            "quantity": item["quantity"],
-                            "unit_price": item["amount"] // item["quantity"],
-                        }
-                    )
+            items = [
+                {
+                    "name": item["name"],
+                    "amount": item["amount"],
+                    "quantity": item["quantity"],
+                    "unit_price": item["amount"] // item["quantity"],
+                }
+                for order in amazon_orders
+                for item in order["items"]
+            ]
 
             splits = calculate_amazon_splits(transaction["amount"], items)
             splits_results.append(
-                {"transaction_id": transaction["id"], "splits": splits, "order_id": order["order_id"]}
+                {
+                    "transaction_id": transaction["id"],
+                    "splits": splits,
+                    "order_id": amazon_orders[0]["order_id"] if amazon_orders else None,
+                }
             )
 
         assert len(splits_results) > 0
@@ -185,14 +188,13 @@ class TestAppleWorkflow:
             # Convert Receipt object to the format expected by calculate_apple_splits
             if receipt:
                 # Transform Apple item format to expected format
-                transformed_items = []
-                for item in receipt.items:
-                    transformed_items.append(
-                        {
-                            "name": item["title"],  # Apple uses 'title'
-                            "price": item["cost"],  # Apple uses 'cost'
-                        }
-                    )
+                transformed_items = [
+                    {
+                        "name": item["title"],  # Apple uses 'title'
+                        "price": item["cost"],  # Apple uses 'cost'
+                    }
+                    for item in receipt.items
+                ]
 
                 splits = calculate_apple_splits(
                     transaction_amount=transaction["amount"],
@@ -382,16 +384,15 @@ class TestCrossSystemIntegration:
         }
 
         # Generate splits
-        items = []
-        for item in amazon_match["order"]["items"]:
-            items.append(
-                {
-                    "name": item["name"],
-                    "amount": item["amount"],
-                    "quantity": item["quantity"],
-                    "unit_price": item["amount"] // item["quantity"],
-                }
-            )
+        items = [
+            {
+                "name": item["name"],
+                "amount": item["amount"],
+                "quantity": item["quantity"],
+                "unit_price": item["amount"] // item["quantity"],
+            }
+            for item in amazon_match["order"]["items"]
+        ]
 
         splits = calculate_amazon_splits(amazon_match["transaction"]["amount"], items)
 
@@ -430,11 +431,10 @@ class TestCrossSystemIntegration:
 
         # Generate splits
         # Transform Apple item format to expected format
-        transformed_items = []
-        for item in apple_match["receipt"]["items"]:
-            transformed_items.append(
-                {"name": item["title"], "price": item["cost"]}  # Apple uses 'title'  # Apple uses 'cost'
-            )
+        transformed_items = [
+            {"name": item["title"], "price": item["cost"]}  # Apple uses 'title' and 'cost'
+            for item in apple_match["receipt"]["items"]
+        ]
 
         splits = calculate_apple_splits(
             apple_match["transaction"]["amount"],
@@ -502,12 +502,10 @@ class TestCrossSystemIntegration:
             json.dump(transactions_data, f, indent=2)
 
         # Test that analyzer can load from configured location
-        try:
-            analyzer.load_data()  # Should use config default
-            assert analyzer.df is not None
-        except Exception:
-            # May fail if data doesn't meet requirements, but should not fail due to paths
-            pass
+        # Note: This may fail if data doesn't meet minimum requirements, which is acceptable
+        # The test verifies configuration paths are correct
+        analyzer.load_data()  # Should use config default
+        assert analyzer.df is not None
 
 
 @pytest.mark.slow
@@ -524,27 +522,23 @@ def test_performance_integration(temp_dir):
         "server_knowledge": 123,
     }
 
-    transactions_data = []
     from datetime import date
 
     import pandas as pd
 
     base_date = date(2023, 1, 1)
-    for day in range(730):  # 2 years
-        transaction_date = base_date + pd.Timedelta(days=day)
-        date_str = transaction_date.strftime("%Y-%m-%d")
-
-        for txn_num in range(10):  # 10 transactions per day
-            transactions_data.append(
-                {
-                    "id": f"txn-{day}-{txn_num}",
-                    "date": date_str,
-                    "amount": -1000 * (txn_num + 1),
-                    "account_name": f"Account {txn_num % 5}",
-                    "payee_name": f"Payee {txn_num}",
-                    "category_name": f"Category {txn_num}",
-                }
-            )
+    transactions_data = [
+        {
+            "id": f"txn-{day}-{txn_num}",
+            "date": (base_date + pd.Timedelta(days=day)).strftime("%Y-%m-%d"),
+            "amount": -1000 * (txn_num + 1),
+            "account_name": f"Account {txn_num % 5}",
+            "payee_name": f"Payee {txn_num}",
+            "category_name": f"Category {txn_num}",
+        }
+        for day in range(730)  # 2 years
+        for txn_num in range(10)  # 10 transactions per day
+    ]
 
     with open(ynab_dir / "accounts.json", "w") as f:
         json.dump(accounts_data, f, indent=2)

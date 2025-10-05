@@ -9,7 +9,7 @@ of the Financial Flow System.
 import logging
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from .flow import (
     FlowContext,
@@ -77,7 +77,7 @@ class DependencyGraph:
 
         return errors
 
-    def topological_sort(self, nodes_to_execute: Optional[set[str]] = None) -> list[str]:
+    def topological_sort(self, nodes_to_execute: set[str] | None = None) -> list[str]:
         """
         Get topologically sorted execution order for nodes.
 
@@ -123,7 +123,7 @@ class DependencyGraph:
 
         return result
 
-    def get_execution_levels(self, nodes_to_execute: Optional[set[str]] = None) -> list[list[str]]:
+    def get_execution_levels(self, nodes_to_execute: set[str] | None = None) -> list[list[str]]:
         """
         Get nodes grouped by execution level for potential parallel execution.
 
@@ -192,7 +192,7 @@ class FlowExecutionEngine:
     and coordinated execution of all flow nodes.
     """
 
-    def __init__(self, registry: Optional[FlowNodeRegistry] = None):
+    def __init__(self, registry: FlowNodeRegistry | None = None):
         """
         Initialize flow execution engine.
 
@@ -212,7 +212,7 @@ class FlowExecutionEngine:
         return self.dependency_graph.validate()
 
     def detect_changes(
-        self, context: FlowContext, nodes_to_check: Optional[set[str]] = None
+        self, context: FlowContext, nodes_to_check: set[str] | None = None
     ) -> dict[str, tuple[bool, list[str]]]:
         """
         Detect changes across all specified nodes.
@@ -243,7 +243,7 @@ class FlowExecutionEngine:
         return changes
 
     def plan_execution(
-        self, context: FlowContext, target_nodes: Optional[set[str]] = None
+        self, context: FlowContext, target_nodes: set[str] | None = None
     ) -> tuple[list[str], dict[str, list[str]]]:
         """
         Plan the execution order and determine which nodes need to run.
@@ -360,7 +360,7 @@ class FlowExecutionEngine:
         return ready_nodes
 
     def execute_flow(
-        self, context: FlowContext, target_nodes: Optional[set[str]] = None
+        self, context: FlowContext, target_nodes: set[str] | None = None
     ) -> dict[str, NodeExecution]:
         """
         Execute the complete flow with dynamic dependency resolution.

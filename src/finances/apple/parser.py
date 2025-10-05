@@ -11,7 +11,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -26,7 +26,7 @@ class ParsedItem:
     cost: float
     quantity: int = 1
     subscription: bool = False
-    item_type: Optional[str] = None
+    item_type: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -35,28 +35,28 @@ class ParsedReceipt:
     """Represents a parsed Apple receipt with standardized data structure."""
 
     # Core metadata
-    format_detected: Optional[str] = None
-    apple_id: Optional[str] = None
-    receipt_date: Optional[str] = None
-    order_id: Optional[str] = None
-    document_number: Optional[str] = None
+    format_detected: str | None = None
+    apple_id: str | None = None
+    receipt_date: str | None = None
+    order_id: str | None = None
+    document_number: str | None = None
 
     # Financial data
-    subtotal: Optional[float] = None
-    tax: Optional[float] = None
-    total: Optional[float] = None
+    subtotal: float | None = None
+    tax: float | None = None
+    total: float | None = None
     currency: str = "USD"
 
     # Billing information
-    payment_method: Optional[str] = None
-    billed_to: Optional[dict[str, str]] = None
+    payment_method: str | None = None
+    billed_to: dict[str, str] | None = None
 
     # Purchase items
     items: list[ParsedItem] = field(default_factory=list)
 
     # Parsing metadata
     parsing_metadata: dict[str, Any] = field(default_factory=dict)
-    base_name: Optional[str] = None
+    base_name: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -232,7 +232,7 @@ class AppleReceiptParser:
         # Extract payment method
         receipt.payment_method = self._extract_payment_method(soup)
 
-    def _extract_apple_id(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_apple_id(self, soup: BeautifulSoup) -> str | None:
         """Extract Apple ID from various locations in the receipt."""
         selectors = [
             # Legacy formats
@@ -248,7 +248,7 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "Apple ID")
         return str(result) if result is not None else None
 
-    def _extract_receipt_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_receipt_date(self, soup: BeautifulSoup) -> str | None:
         """Extract receipt date."""
         selectors = [
             # Legacy formats
@@ -265,7 +265,7 @@ class AppleReceiptParser:
             return self._normalize_date(date_text)
         return None
 
-    def _extract_order_id(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_order_id(self, soup: BeautifulSoup) -> str | None:
         """Extract order ID."""
         selectors = [
             # Legacy formats
@@ -280,7 +280,7 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "order ID")
         return str(result) if result is not None else None
 
-    def _extract_document_number(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_document_number(self, soup: BeautifulSoup) -> str | None:
         """Extract document number."""
         selectors = [
             {"selector": 'td:contains("Document No"), th:contains("Document No")', "method": "sibling"},
@@ -291,7 +291,7 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "document number")
         return str(result) if result is not None else None
 
-    def _extract_subtotal(self, soup: BeautifulSoup) -> Optional[float]:
+    def _extract_subtotal(self, soup: BeautifulSoup) -> float | None:
         """Extract subtotal amount."""
         selectors = [
             {"selector": ".aapl-subtotal, .subtotal", "method": "currency"},
@@ -302,7 +302,7 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "subtotal")
         return float(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_tax(self, soup: BeautifulSoup) -> Optional[float]:
+    def _extract_tax(self, soup: BeautifulSoup) -> float | None:
         """Extract tax amount."""
         selectors = [
             {"selector": ".aapl-tax, .tax", "method": "currency"},
@@ -313,7 +313,7 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "tax")
         return float(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_total(self, soup: BeautifulSoup) -> Optional[float]:
+    def _extract_total(self, soup: BeautifulSoup) -> float | None:
         """Extract total amount."""
         selectors = [
             {"selector": ".aapl-total, .total, .grand-total", "method": "currency"},
@@ -328,7 +328,7 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "total")
         return float(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_payment_method(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_payment_method(self, soup: BeautifulSoup) -> str | None:
         """Extract payment method."""
         selectors = [
             {"selector": ".aapl-payment, .payment-method", "method": "text"},
@@ -572,7 +572,7 @@ class AppleReceiptParser:
                         else:
                             continue
 
-                    currency_result: Optional[float] = self._parse_currency(text)
+                    currency_result: float | None = self._parse_currency(text)
                     if currency_result is not None:
                         self.selectors_successful.append(f"{field_name}:{selector}")
                         return currency_result
@@ -651,7 +651,7 @@ class AppleReceiptParser:
         currency_pattern = r"[\$£€¥]\s*\d+\.?\d*"
         return bool(re.search(currency_pattern, text))
 
-    def _parse_currency(self, text: str) -> Optional[float]:
+    def _parse_currency(self, text: str) -> float | None:
         """Parse currency string to float value."""
         if not text:
             return None

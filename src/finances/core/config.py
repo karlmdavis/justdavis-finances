@@ -9,10 +9,11 @@ security measures for each.
 
 import logging
 import os
+import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class Environment(Enum):
@@ -37,7 +38,7 @@ class DatabaseConfig:
 class YNABConfig:
     """YNAB API configuration."""
 
-    api_token: Optional[str] = None
+    api_token: str | None = None
     base_url: str = "https://api.youneedabudget.com/v1"
     timeout: int = 30
     rate_limit_delay: float = 0.5  # Seconds between API calls
@@ -50,8 +51,8 @@ class EmailConfig:
     # Apple receipt email settings
     imap_server: str = "imap.gmail.com"
     imap_port: int = 993
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
     use_oauth: bool = False
     search_folders: list[str] = field(default_factory=lambda: ["INBOX", "[Gmail]/All Mail"])
 
@@ -120,7 +121,8 @@ class Config:
 
         # Base directories
         if env == Environment.TEST:
-            base_dir = Path(os.getenv("FINANCES_DATA_DIR", "/tmp/test_finances"))
+            default_test_dir = Path(tempfile.gettempdir()) / "test_finances"
+            base_dir = Path(os.getenv("FINANCES_DATA_DIR", str(default_test_dir)))
         else:
             base_dir = Path(os.getenv("FINANCES_DATA_DIR", "./data")).expanduser().resolve()
 
@@ -284,7 +286,7 @@ def _parse_list(value: str, delimiter: str = ",") -> list:
 
 
 # Global configuration instance
-_config: Optional[Config] = None
+_config: Config | None = None
 
 
 def get_config() -> Config:

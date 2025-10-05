@@ -16,7 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -70,14 +70,14 @@ class CashFlowAnalyzer:
     - Comprehensive dashboard generation with 6 panels
     """
 
-    def __init__(self, config: Optional[CashFlowConfig] = None):
+    def __init__(self, config: CashFlowConfig | None = None):
         """Initialize analyzer with configuration."""
         self.config = config or CashFlowConfig.default()
-        self.df: Optional[pd.DataFrame] = None
-        self.monthly_df: Optional[pd.DataFrame] = None
-        self.trend_stats: Optional[dict] = None
+        self.df: pd.DataFrame | None = None
+        self.monthly_df: pd.DataFrame | None = None
+        self.trend_stats: dict | None = None
 
-    def load_data(self, ynab_cache_dir: Optional[Path] = None) -> None:
+    def load_data(self, ynab_cache_dir: Path | None = None) -> None:
         """Load YNAB data from cache directory."""
         if ynab_cache_dir is None:
             config = get_config()
@@ -217,7 +217,7 @@ class CashFlowAnalyzer:
             "yearly_trend": slope * 365,
         }
 
-    def generate_dashboard(self, output_dir: Optional[Path] = None) -> Path:
+    def generate_dashboard(self, output_dir: Path | None = None) -> Path:
         """
         Generate comprehensive 6-panel cash flow dashboard.
 
@@ -268,8 +268,10 @@ class CashFlowAnalyzer:
 
     def _create_main_trend_panel(self, ax: Any) -> None:
         """Create main trend panel with moving averages."""
-        assert self.df is not None, "df must not be None"
-        assert self.trend_stats is not None, "trend_stats must not be None"
+        if self.df is None:
+            raise RuntimeError("df must not be None")
+        if self.trend_stats is None:
+            raise RuntimeError("trend_stats must not be None")
         ax.plot(
             self.df.index, self.df["Total"], alpha=0.3, color="gray", linewidth=0.5, label="Daily Balance"
         )
@@ -288,7 +290,8 @@ class CashFlowAnalyzer:
 
     def _create_monthly_flow_panel(self, ax: Any) -> None:
         """Create monthly cash flow bar chart."""
-        assert self.monthly_df is not None, "monthly_df must not be None"
+        if self.monthly_df is None:
+            raise RuntimeError("monthly_df must not be None")
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()
         colors = ["green" if x > 0 else "red" for x in self.monthly_df["Net_Change"]]
 
@@ -310,7 +313,8 @@ class CashFlowAnalyzer:
 
     def _create_volatility_panel(self, ax: Any) -> None:
         """Create monthly volatility range panel."""
-        assert self.monthly_df is not None, "monthly_df must not be None"
+        if self.monthly_df is None:
+            raise RuntimeError("monthly_df must not be None")
         ax.fill_between(
             self.monthly_df.index,
             self.monthly_df["Min_Balance"],
@@ -343,7 +347,8 @@ class CashFlowAnalyzer:
 
     def _create_velocity_panel(self, ax: Any) -> None:
         """Create cash flow velocity panel."""
-        assert self.df is not None, "df must not be None"
+        if self.df is None:
+            raise RuntimeError("df must not be None")
         rolling_change = self.df["Total"].diff().rolling(window=30, min_periods=1).sum()
 
         ax.plot(self.df.index, rolling_change, color="#6A994E", linewidth=1.5)
@@ -375,7 +380,8 @@ class CashFlowAnalyzer:
 
     def _create_composition_panel(self, ax: Any) -> None:
         """Create account composition panel."""
-        assert self.df is not None, "df must not be None"
+        if self.df is None:
+            raise RuntimeError("df must not be None")
         # Separate positive and negative accounts
         positive_accounts = []
         negative_accounts = []
@@ -410,9 +416,12 @@ class CashFlowAnalyzer:
 
     def _create_statistics_panel(self, ax: Any) -> None:
         """Create statistical summary panel."""
-        assert self.df is not None, "df must not be None"
-        assert self.monthly_df is not None, "monthly_df must not be None"
-        assert self.trend_stats is not None, "trend_stats must not be None"
+        if self.df is None:
+            raise RuntimeError("df must not be None")
+        if self.monthly_df is None:
+            raise RuntimeError("monthly_df must not be None")
+        if self.trend_stats is None:
+            raise RuntimeError("trend_stats must not be None")
         ax.axis("off")
 
         # Calculate statistics
@@ -480,7 +489,8 @@ VOLATILITY METRICS:
         """Get summary statistics for programmatic use."""
         if self.df is None or self.trend_stats is None:
             raise RuntimeError("Data not loaded or processed. Call load_data() first.")
-        assert self.monthly_df is not None, "monthly_df must not be None"
+        if self.monthly_df is None:
+            raise RuntimeError("monthly_df must not be None")
 
         current_total = self.df["Total"].iloc[-1]
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()

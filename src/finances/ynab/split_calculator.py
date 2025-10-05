@@ -12,7 +12,7 @@ Key Features:
 - Sum verification for exact total matching
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from ..core.currency import (
     allocate_remainder,
@@ -29,7 +29,7 @@ class SplitCalculationError(Exception):
 
 
 def calculate_amazon_splits(
-    transaction_amount: int, amazon_items: list[dict[str, Any]], category_id: Optional[str] = None
+    transaction_amount: int, amazon_items: list[dict[str, Any]], category_id: str | None = None
 ) -> list[dict[str, Any]]:
     """
     Calculate splits for Amazon transaction using pre-allocated item totals.
@@ -81,9 +81,9 @@ def calculate_amazon_splits(
 def calculate_apple_splits(
     transaction_amount: int,
     apple_items: list[dict[str, Any]],
-    receipt_subtotal: Optional[int] = None,
-    receipt_tax: Optional[int] = None,
-    category_id: Optional[str] = None,
+    receipt_subtotal: int | None = None,
+    receipt_tax: int | None = None,
+    category_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Calculate splits for Apple transaction with proportional tax allocation.
@@ -159,7 +159,7 @@ def calculate_apple_splits(
 
 
 def calculate_generic_splits(
-    transaction_amount: int, items: list[dict[str, Any]], category_id: Optional[str] = None
+    transaction_amount: int, items: list[dict[str, Any]], category_id: str | None = None
 ) -> list[dict[str, Any]]:
     """
     Calculate splits for generic transaction with simple item amounts.

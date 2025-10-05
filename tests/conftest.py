@@ -75,7 +75,8 @@ def setup_test_environment(monkeypatch):
     """Set up test environment variables."""
     # Ensure tests don't use production data
     monkeypatch.setenv("FINANCES_ENV", "test")
-    monkeypatch.setenv("FINANCES_DATA_DIR", "/tmp/test_finances_data")
+    test_data_dir = str(Path(tempfile.gettempdir()) / "test_finances_data")
+    monkeypatch.setenv("FINANCES_DATA_DIR", test_data_dir)
 
     # Mock sensitive environment variables
     monkeypatch.setenv("YNAB_API_TOKEN", "test-token")

@@ -11,7 +11,7 @@ import tarfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .json_utils import read_json, write_json
 
@@ -122,14 +122,15 @@ class DomainArchiver:
                 name_parts = archive_path.stem.split("-")
                 if len(name_parts) >= 4:
                     sequence_numbers.append(int(name_parts[3]))
-            except (ValueError, IndexError):
+            except (ValueError, IndexError):  # noqa: PERF203
+                # PERF203: try-except in loop necessary for robust filename parsing
                 continue
 
         return max(sequence_numbers, default=0) + 1
 
     def create_archive(
-        self, trigger_reason: str, flow_context: Optional[dict[str, Any]] = None
-    ) -> Optional[ArchiveManifest]:
+        self, trigger_reason: str, flow_context: dict[str, Any] | None = None
+    ) -> ArchiveManifest | None:
         """
         Create compressed archive of current domain data.
 
@@ -242,8 +243,8 @@ class ArchiveManager:
     def create_transaction_archive(
         self,
         trigger_reason: str,
-        domains: Optional[list[str]] = None,
-        flow_context: Optional[dict[str, Any]] = None,
+        domains: list[str] | None = None,
+        flow_context: dict[str, Any] | None = None,
     ) -> ArchiveSession:
         """
         Create transactional archive across specified domains.
@@ -309,7 +310,7 @@ class ArchiveManager:
 
         return archive_session
 
-    def list_recent_archives(self, domain: Optional[str] = None, limit: int = 10) -> list[dict[str, Any]]:
+    def list_recent_archives(self, domain: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
         """
         List recent archives for a domain or all domains.
 
@@ -348,7 +349,8 @@ class ArchiveManager:
                 try:
                     session_data = read_json(session_file)
                     archives.append(session_data)
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
+                    # PERF203: try-except in loop necessary for robust JSON file reading
                     logger.warning(f"Failed to read session {session_file}: {e}")
 
         return archives
@@ -412,14 +414,15 @@ class ArchiveManager:
                 deleted_count += 1
                 logger.info(f"Deleted old archive: {archive_path}")
 
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
+                # PERF203: try-except in loop necessary for robust file deletion
                 logger.error(f"Failed to delete {archive_path}: {e}")
 
         return deleted_count
 
 
 def create_flow_archive(
-    data_dir: Path, trigger_reason: str, flow_context: Optional[dict[str, Any]] = None
+    data_dir: Path, trigger_reason: str, flow_context: dict[str, Any] | None = None
 ) -> ArchiveSession:
     """
     Convenience function for creating archives before flow execution.

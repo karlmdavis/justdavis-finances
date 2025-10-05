@@ -7,7 +7,6 @@ Professional command-line interface for cash flow analysis and reporting.
 
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -34,11 +33,11 @@ def cashflow() -> None:
 @click.pass_context
 def analyze(
     ctx: click.Context,
-    start: Optional[str],
-    end: Optional[str],
+    start: str | None,
+    end: str | None,
     accounts: tuple,
-    exclude_before: Optional[str],
-    output_dir: Optional[str],
+    exclude_before: str | None,
+    output_dir: str | None,
     format: str,
     verbose: bool,
 ) -> None:
@@ -150,10 +149,10 @@ def analyze(
 def report(
     ctx: click.Context,
     period: str,
-    start: Optional[str],
-    end: Optional[str],
+    start: str | None,
+    end: str | None,
     categories: tuple,
-    output_dir: Optional[str],
+    output_dir: str | None,
     format: str,
     verbose: bool,
 ) -> None:

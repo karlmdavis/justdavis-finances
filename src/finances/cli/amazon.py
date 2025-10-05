@@ -7,7 +7,7 @@ Professional command-line interface for Amazon transaction matching.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import click
 
@@ -37,7 +37,7 @@ def match(
     end: str,
     accounts: tuple,
     disable_split: bool,
-    output_dir: Optional[str],
+    output_dir: str | None,
     verbose: bool,
 ) -> None:
     """
@@ -197,7 +197,7 @@ def match_single(
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def unzip(
-    ctx: click.Context, download_dir: str, accounts: tuple, output_dir: Optional[str], verbose: bool
+    ctx: click.Context, download_dir: str, accounts: tuple, output_dir: str | None, verbose: bool
 ) -> None:
     """
     Extract Amazon order history ZIP files to structured directories.

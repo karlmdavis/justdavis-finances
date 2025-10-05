@@ -7,7 +7,7 @@ Professional command-line interface for Apple transaction matching.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import click
 
@@ -30,7 +30,7 @@ def apple() -> None:
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def match(
-    ctx: click.Context, start: str, end: str, apple_ids: tuple, output_dir: Optional[str], verbose: bool
+    ctx: click.Context, start: str, end: str, apple_ids: tuple, output_dir: str | None, verbose: bool
 ) -> None:
     """
     Match YNAB transactions to Apple receipts in a date range.
@@ -186,7 +186,7 @@ def match_single(
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def fetch_emails(
-    ctx: click.Context, days_back: int, max_emails: Optional[int], output_dir: Optional[str], verbose: bool
+    ctx: click.Context, days_back: int, max_emails: int | None, output_dir: str | None, verbose: bool
 ) -> None:
     """
     Fetch Apple receipt emails from IMAP server.
@@ -230,7 +230,7 @@ def fetch_emails(
 @click.option("--output-dir", help="Override output directory")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def parse_receipts(ctx: click.Context, input_dir: str, output_dir: Optional[str], verbose: bool) -> None:
+def parse_receipts(ctx: click.Context, input_dir: str, output_dir: str | None, verbose: bool) -> None:
     """
     Parse Apple receipt emails to extract purchase data.
 
@@ -291,7 +291,8 @@ def parse_receipts(ctx: click.Context, input_dir: str, output_dir: Optional[str]
                     if verbose:
                         click.echo(f"  ❌ {base_name}: Failed to extract data")
 
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
+                # PERF203: try-except in loop necessary for robust HTML parsing
                 failed_parses += 1
                 if verbose:
                     click.echo(f"  ❌ {html_file.name}: {e}")

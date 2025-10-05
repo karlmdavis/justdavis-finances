@@ -9,7 +9,6 @@ using YNAB as the single source of truth.
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -90,7 +89,7 @@ def list(ctx: click.Context, verbose: bool) -> None:
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def update(
-    ctx: click.Context, interactive: bool, date_str: Optional[str], output_file: Optional[str], verbose: bool
+    ctx: click.Context, interactive: bool, date_str: str | None, output_file: str | None, verbose: bool
 ) -> None:
     """
     Update retirement account balances and generate YNAB adjustment transactions.

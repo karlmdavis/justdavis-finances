@@ -90,8 +90,9 @@ class MatchScorer:
                     ship_date = datetime.strptime(ship_date, "%Y-%m-%d").date()
 
                 date_diffs.append(abs((ynab_date - ship_date).days))
-            except (ValueError, TypeError, AttributeError):
+            except (ValueError, TypeError, AttributeError):  # noqa: PERF203
                 # Skip malformed dates - fall back to minimum from valid dates or default penalty
+                # PERF203: try-except in loop necessary for robust date parsing of user data
                 continue
 
         return min(date_diffs) if date_diffs else 7
