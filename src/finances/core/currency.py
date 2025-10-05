@@ -279,9 +279,12 @@ def format_milliunits(milliunits: int) -> str:
 def is_valid_currency_string(currency_str: str) -> bool:
     """Check if a string represents a valid currency amount."""
     try:
-        safe_currency_to_cents(currency_str)
+        clean_str = str(currency_str).replace("$", "").replace(",", "").strip()
+        if not clean_str:
+            return False
+        Decimal(clean_str)  # This will raise InvalidOperation for invalid input
         return True
-    except:
+    except (ValueError, TypeError, InvalidOperation):
         return False
 
 
