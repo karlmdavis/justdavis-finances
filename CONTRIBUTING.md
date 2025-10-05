@@ -120,7 +120,7 @@ finances/                           # Repository root
 ├── pyproject.toml                  # Package configuration and dependencies
 ├── uv.lock                         # Dependency lock file
 ├── README.md                       # User-facing documentation
-├── CONTRIBUTORS.md                 # This file - developer documentation
+├── CONTRIBUTING.md                 # This file - developer documentation
 ├── CLAUDE.md                       # Claude Code guidance
 ├── .env.template                   # Environment variable template
 ├── .gitignore                      # Git ignore patterns
@@ -525,7 +525,7 @@ The Amazon Transaction Matching System creates automated linkage between Amazon 
 
 When referencing this formatting standard in other documentation, use:
 ```markdown
-See [Markdown Formatting Guidelines](CONTRIBUTORS.md#markdown-formatting-guidelines) for details.
+See [Markdown Formatting Guidelines](CONTRIBUTING.md#markdown-formatting-guidelines) for details.
 ```
 
 #### Documentation Requirements

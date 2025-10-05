@@ -2,7 +2,7 @@
 
 ## Minor Items
 
-- [X] Add additional Markdown formatting rules to @CONTRIBUTORS.md and @CLAUDE.md,
+- [X] Add additional Markdown formatting rules to @CONTRIBUTING.md and @CLAUDE.md,
         then apply them to all existing Markdown files:
     - [X] Every sentence, list item, or other full sentence-like line should end with a period.
     - [X] Trailing whitespace should be removed from lines,

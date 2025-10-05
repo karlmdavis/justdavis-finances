@@ -168,8 +168,8 @@ Establish practical code quality standards for the personal finance management p
 - **Logging Safety**: Prevention of sensitive data in log outputs
 
 #### Dependency Security
-- **Renovate Bot**: Automated dependency updates with security patch prioritization
-- **GitHub Dependabot**: Vulnerability alerts and automated security updates
+- **Renovate Bot**: Automated dependency updates with security patch prioritization,
+  vulnerability detection, and update management
 - **License Compliance**: Verification of compatible open source licenses via
   dependency review
 - **Supply Chain Security**: GitHub dependency graph and security advisories
@@ -180,7 +180,9 @@ Establish practical code quality standards for the personal finance management p
 - **Insights Dashboard**: Use GitHub's repository insights for code frequency and commit
   activity
 - **Coverage Integration**: Coverage reports integrated into PR checks and comments
-- **Security Alerts**: GitHub Dependabot for vulnerability detection and updates
+- **Security Alerts**: Renovate bot for dependency vulnerability detection and automated
+  security updates
+- **Secret Scanning**: GitHub's native secret scanning for credential detection
 - **Code Scanning**: GitHub Advanced Security for code quality and security analysis
 
 ### Quality Monitoring

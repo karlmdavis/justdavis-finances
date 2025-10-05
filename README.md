@@ -25,7 +25,7 @@ Features high-accuracy transaction matching for Amazon and Apple purchases, cash
 
 ## For Developers
 
-See [CONTRIBUTORS.md](CONTRIBUTORS.md) for comprehensive development documentation including project
+See [CONTRIBUTING.md](CONTRIBUTING.md) for comprehensive development documentation including project
   architecture, testing framework, code quality standards, and development workflow.
 
 ## Quick Start
