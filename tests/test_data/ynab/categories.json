@@ -1,0 +1,131 @@
+{
+  "category_groups": [
+    {
+      "id": "group-001",
+      "name": "Test Group 1",
+      "hidden": false,
+      "categories": [
+        {
+          "id": "category-001-01",
+          "name": "Groceries",
+          "hidden": false,
+          "budgeted": 480249,
+          "activity": -205705,
+          "balance": 92776
+        },
+        {
+          "id": "category-001-02",
+          "name": "Transportation",
+          "hidden": false,
+          "budgeted": 259380,
+          "activity": -288716,
+          "balance": 77068
+        },
+        {
+          "id": "category-001-03",
+          "name": "Dining Out",
+          "hidden": false,
+          "budgeted": 174302,
+          "activity": -329376,
+          "balance": 63776
+        },
+        {
+          "id": "category-001-04",
+          "name": "Healthcare",
+          "hidden": false,
+          "budgeted": 149850,
+          "activity": -258566,
+          "balance": 46590
+        },
+        {
+          "id": "category-001-05",
+          "name": "Home Improvement",
+          "hidden": false,
+          "budgeted": 89463,
+          "activity": -306605,
+          "balance": 47172
+        },
+        {
+          "id": "category-001-06",
+          "name": "Shopping",
+          "hidden": false,
+          "budgeted": 211803,
+          "activity": -441949,
+          "balance": 564
+        },
+        {
+          "id": "category-001-07",
+          "name": "Entertainment",
+          "hidden": false,
+          "budgeted": 176905,
+          "activity": -358752,
+          "balance": 88519
+        }
+      ]
+    },
+    {
+      "id": "group-002",
+      "name": "Test Group 2",
+      "hidden": false,
+      "categories": [
+        {
+          "id": "category-002-01",
+          "name": "Groceries",
+          "hidden": false,
+          "budgeted": 395207,
+          "activity": -156513,
+          "balance": 44817
+        },
+        {
+          "id": "category-002-02",
+          "name": "Transportation",
+          "hidden": false,
+          "budgeted": 477870,
+          "activity": -212755,
+          "balance": 9891
+        },
+        {
+          "id": "category-002-03",
+          "name": "Dining Out",
+          "hidden": false,
+          "budgeted": 130500,
+          "activity": -62517,
+          "balance": 66489
+        },
+        {
+          "id": "category-002-04",
+          "name": "Healthcare",
+          "hidden": false,
+          "budgeted": 312278,
+          "activity": -186238,
+          "balance": 40669
+        },
+        {
+          "id": "category-002-05",
+          "name": "Home Improvement",
+          "hidden": false,
+          "budgeted": 463304,
+          "activity": -162429,
+          "balance": 55407
+        },
+        {
+          "id": "category-002-06",
+          "name": "Shopping",
+          "hidden": false,
+          "budgeted": 445720,
+          "activity": -333165,
+          "balance": 82895
+        },
+        {
+          "id": "category-002-07",
+          "name": "Entertainment",
+          "hidden": false,
+          "budgeted": 304840,
+          "activity": -296949,
+          "balance": 32171
+        }
+      ]
+    }
+  ],
+  "server_knowledge": 67890
+}

@@ -140,6 +140,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101", "S603"]  # allow assert statements and subprocess calls in tests
+"tests/fixtures/synthetic_data.py" = ["S311"]  # allow standard random for test data generation
 
 # MyPy configuration
 [tool.mypy]
