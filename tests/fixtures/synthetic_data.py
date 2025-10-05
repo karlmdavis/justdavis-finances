@@ -16,6 +16,8 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+from finances.core.currency import cents_to_dollars_str
+
 # Synthetic names and categories
 SYNTHETIC_PAYEES = [
     "Generic Grocery Store",
@@ -172,25 +174,26 @@ def generate_synthetic_amazon_orders(num_orders: int = 10) -> list[dict[str, Any
         ship_date = order_date + timedelta(days=random.randint(1, 3))
         order_id = f"{random.randint(100, 999)}-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
 
-        # Generate 1-3 items per order
+        # Generate 1-3 items per order (prices in cents for integer arithmetic)
         num_items = random.randint(1, 3)
-        item_prices = [random.uniform(5.0, 100.0) for _ in range(num_items)]
-        total = sum(item_prices)
+        item_prices_cents = [random.randint(500, 10000) for _ in range(num_items)]
+        total_cents = sum(item_prices_cents)
 
-        for j, (item, price) in enumerate(
-            zip(random.sample(SYNTHETIC_AMAZON_ITEMS, num_items), item_prices, strict=False)
+        for j, (item, price_cents) in enumerate(
+            zip(random.sample(SYNTHETIC_AMAZON_ITEMS, num_items), item_prices_cents, strict=False)
         ):
+            tax_cents = price_cents * 8 // 100  # 8% tax using integer arithmetic
             orders.append(
                 {
                     "Order ID": order_id,
                     "Order Date": order_date.strftime("%m/%d/%Y"),
                     "Ship Date": ship_date.strftime("%m/%d/%Y"),
-                    "Total Owed": f"${total:.2f}" if j == 0 else "",
+                    "Total Owed": f"${cents_to_dollars_str(total_cents)}" if j == 0 else "",
                     "Title": item,
                     "Quantity": 1,
                     "ASIN/ISBN": f"B0{random.randint(10000000, 99999999)}",
-                    "Item Subtotal": f"${price:.2f}",
-                    "Item Tax": f"${price * 0.08:.2f}",
+                    "Item Subtotal": f"${cents_to_dollars_str(price_cents)}",
+                    "Item Tax": f"${cents_to_dollars_str(tax_cents)}",
                 }
             )
 
@@ -230,7 +233,7 @@ def generate_synthetic_apple_receipt_html(
             f"""
         <tr>
             <td class="item-title">{item['title']}</td>
-            <td class="item-price">${item['price'] / 100:.2f}</td>
+            <td class="item-price">${cents_to_dollars_str(item['price'])}</td>
         </tr>
         """
             for item in items
@@ -266,15 +269,15 @@ def generate_synthetic_apple_receipt_html(
         <table class="totals">
             <tr>
                 <td>Subtotal:</td>
-                <td>${subtotal / 100:.2f}</td>
+                <td>${cents_to_dollars_str(subtotal)}</td>
             </tr>
             <tr>
                 <td>Tax:</td>
-                <td>${tax / 100:.2f}</td>
+                <td>${cents_to_dollars_str(tax)}</td>
             </tr>
             <tr class="total">
                 <td>Total:</td>
-                <td>${total / 100:.2f}</td>
+                <td>${cents_to_dollars_str(total)}</td>
             </tr>
         </table>
     </div>
