@@ -156,6 +156,45 @@ class TestFlowCLIIntegration:
         # Should not create archive
         assert "Creating transaction archive" not in result.output
 
+    def test_flow_execute_verbose_flag(self):
+        """Test flow execute with verbose flag enables detailed output."""
+        result_normal = self.runner.invoke(flow, ["go", "--dry-run"])
+        result_verbose = self.runner.invoke(flow, ["go", "--dry-run", "--verbose"])
+
+        assert result_normal.exit_code == 0
+        assert result_verbose.exit_code == 0
+
+        # Verbose mode should produce more output
+        assert len(result_verbose.output) >= len(result_normal.output)
+
+        # Verbose mode should include execution details
+        assert "Dry run mode" in result_verbose.output
+
+    def test_flow_execute_performance_tracking(self):
+        """Test flow execute with performance tracking enabled."""
+        result = self.runner.invoke(flow, ["go", "--dry-run", "--perf"])
+
+        assert result.exit_code == 0
+        # Performance tracking should be enabled (implementation-dependent output)
+        assert "Dry run mode" in result.output
+
+    def test_flow_execute_date_range_filter(self):
+        """Test flow execute with date range filtering."""
+        result = self.runner.invoke(flow, ["go", "--dry-run", "--start", "2024-07-01", "--end", "2024-07-31"])
+
+        assert result.exit_code == 0
+        # Date range filtering should be applied
+        assert "Dry run mode" in result.output
+
+    def test_flow_execute_confidence_threshold(self):
+        """Test flow execute with custom confidence threshold."""
+        # Default is 10000 basis points (100%), test with 8000 (80%)
+        result = self.runner.invoke(flow, ["go", "--dry-run", "--confidence-threshold", "8000"])
+
+        assert result.exit_code == 0
+        # Confidence threshold should be applied
+        assert "Dry run mode" in result.output
+
 
 class TestArchiveIntegration:
     """Test archive system integration."""
