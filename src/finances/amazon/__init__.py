@@ -23,6 +23,11 @@ from .grouper import (
     get_order_candidates,
     group_orders,
 )
+from .loader import (
+    find_latest_amazon_export,
+    get_account_summary,
+    load_amazon_data,
+)
 from .matcher import (
     SimplifiedMatcher,
 )
@@ -46,6 +51,10 @@ __all__ = [
     "SimplifiedMatcher",
     # Split payment matching
     "SplitPaymentMatcher",
+    # Data loading
+    "find_latest_amazon_export",
+    "get_account_summary",
     "get_order_candidates",
     "group_orders",
+    "load_amazon_data",
 ]

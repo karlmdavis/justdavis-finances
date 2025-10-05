@@ -25,6 +25,12 @@ Safety Features:
 - Manual review workflow for complex cases
 """
 
+from .loader import (
+    filter_transactions,
+    load_ynab_accounts,
+    load_ynab_categories,
+    load_ynab_transactions,
+)
 from .retirement import (
     RetirementAccount,
     YnabRetirementService,
@@ -52,7 +58,12 @@ __all__ = [
     "calculate_generic_splits",
     "create_split_summary",
     "discover_retirement_accounts",
+    # Data loading
+    "filter_transactions",
     "generate_retirement_edits",
+    "load_ynab_accounts",
+    "load_ynab_categories",
+    "load_ynab_transactions",
     "sort_splits_for_stability",
     "validate_split_calculation",
 ]
