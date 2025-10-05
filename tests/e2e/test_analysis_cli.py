@@ -79,27 +79,37 @@ class TestCashFlowAnalysisCLI:
         # Get account names from synthetic data to pass to CLI
         account_names = [acc["name"] for acc in data["accounts"]["accounts"]]
 
-        # Run command with explicit account names from synthetic data
-        result = subprocess.run(
+        # Build command args with --accounts flag for each account (multiple=True)
+        cmd_args = [
+            "uv",
+            "run",
+            "finances",
+            "--config-env",
+            "test",
+            "cashflow",
+            "analyze",
+            "--start",
+            start_date,
+            "--end",
+            end_date,
+        ]
+
+        # Add each account with its own --accounts flag
+        for account_name in account_names:
+            cmd_args.extend(["--accounts", account_name])
+
+        cmd_args.extend(
             [
-                "uv",
-                "run",
-                "finances",
-                "--config-env",
-                "test",
-                "cashflow",
-                "analyze",
-                "--start",
-                start_date,
-                "--end",
-                end_date,
-                "--accounts",
-                *account_names,  # Pass all synthetic account names
                 "--exclude-before",
                 start_date,  # Exclude data before our synthetic range
                 "--output-dir",
                 str(self.charts_dir),
-            ],
+            ]
+        )
+
+        # Run command with explicit account names from synthetic data
+        result = subprocess.run(
+            cmd_args,
             capture_output=True,
             text=True,
             timeout=30,
