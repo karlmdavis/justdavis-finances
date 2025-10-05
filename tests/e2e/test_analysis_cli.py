@@ -6,7 +6,6 @@ End-to-end tests that execute actual CLI commands via subprocess.
 Uses synthetic YNAB data to test real command execution without mocking.
 """
 
-import json
 import subprocess
 import tempfile
 from datetime import date, timedelta
@@ -14,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from finances.core.json_utils import write_json
 from tests.fixtures.synthetic_data import generate_synthetic_ynab_cache
 
 
@@ -61,14 +61,9 @@ class TestCashFlowAnalysisCLI:
         )
 
         # Write to cache directory
-        with open(self.ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(data["accounts"], f, indent=2)
-
-        with open(self.ynab_cache_dir / "categories.json", "w") as f:
-            json.dump(data["categories"], f, indent=2)
-
-        with open(self.ynab_cache_dir / "transactions.json", "w") as f:
-            json.dump(data["transactions"], f, indent=2)
+        write_json(self.ynab_cache_dir / "accounts.json", data["accounts"])
+        write_json(self.ynab_cache_dir / "categories.json", data["categories"])
+        write_json(self.ynab_cache_dir / "transactions.json", data["transactions"])
 
         return data
 
@@ -224,8 +219,7 @@ class TestRetirementCLI:
         # Create accounts fixture
         accounts_data = self._create_retirement_accounts_fixture()
 
-        with open(self.ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(accounts_data, f, indent=2)
+        write_json(self.ynab_cache_dir / "accounts.json", accounts_data)
 
         result = subprocess.run(
             [
@@ -261,8 +255,7 @@ class TestRetirementCLI:
         # Create accounts fixture
         accounts_data = self._create_retirement_accounts_fixture()
 
-        with open(self.ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(accounts_data, f, indent=2)
+        write_json(self.ynab_cache_dir / "accounts.json", accounts_data)
 
         result = subprocess.run(
             [
@@ -293,8 +286,7 @@ class TestRetirementCLI:
         # Create accounts fixture
         accounts_data = self._create_retirement_accounts_fixture()
 
-        with open(self.ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(accounts_data, f, indent=2)
+        write_json(self.ynab_cache_dir / "accounts.json", accounts_data)
 
         # Update both accounts:
         # First account ($100k): Update to $102,000 (+$2,000)
@@ -357,8 +349,7 @@ class TestRetirementCLI:
             "server_knowledge": 123,
         }
 
-        with open(self.ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(accounts_data, f, indent=2)
+        write_json(self.ynab_cache_dir / "accounts.json", accounts_data)
 
         result = subprocess.run(
             [
@@ -387,8 +378,7 @@ class TestRetirementCLI:
         # Create accounts fixture
         accounts_data = self._create_retirement_accounts_fixture()
 
-        with open(self.ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(accounts_data, f, indent=2)
+        write_json(self.ynab_cache_dir / "accounts.json", accounts_data)
 
         # Update one account but decline to generate edits
         user_input = "101000\n\nn\n"  # Update first, skip second, decline generation

@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 
+from finances.core.json_utils import write_json
 from tests.fixtures.synthetic_data import (
     generate_synthetic_apple_receipt_html,
     save_synthetic_ynab_data,
@@ -46,8 +47,9 @@ class TestAppleParseReceiptsCLI:
 
             # Copy sample receipt with correct naming pattern
             receipt_html = email_dir / "receipt001-formatted-simple.html"
+            sample_receipt_path = Path(__file__).parent.parent / "test_data" / "apple" / "sample_receipt.html"
             shutil.copy(
-                "/Users/karl/workspaces/justdavis/personal/justdavis-finances/tests/test_data/apple/sample_receipt.html",
+                sample_receipt_path,
                 receipt_html,
             )
 
@@ -307,8 +309,7 @@ class TestAppleMatchCLI:
             }
 
             receipt_file = apple_exports / "test_receipts.json"
-            with open(receipt_file, "w") as f:
-                json.dump(receipt_data, f, indent=2)
+            write_json(receipt_file, receipt_data)
 
             # Calculate date range
             start_date = (date.today() - timedelta(days=10)).strftime("%Y-%m-%d")
@@ -530,37 +531,33 @@ class TestAppleCompleteWorkflow:
                 )
 
             # Save YNAB cache files
-            with open(ynab_cache / "accounts.json", "w") as f:
-                json.dump({"accounts": accounts, "server_knowledge": 12345}, f, indent=2)
+            write_json(ynab_cache / "accounts.json", {"accounts": accounts, "server_knowledge": 12345})
 
-            with open(ynab_cache / "categories.json", "w") as f:
-                json.dump(
-                    {
-                        "category_groups": [
-                            {
-                                "id": "group-001",
-                                "name": "Test Group",
-                                "hidden": False,
-                                "categories": [
-                                    {
-                                        "id": "category-001",
-                                        "name": "Shopping",
-                                        "hidden": False,
-                                        "budgeted": 100000,
-                                        "activity": -50000,
-                                        "balance": 50000,
-                                    }
-                                ],
-                            }
-                        ],
-                        "server_knowledge": 67890,
-                    },
-                    f,
-                    indent=2,
-                )
+            write_json(
+                ynab_cache / "categories.json",
+                {
+                    "category_groups": [
+                        {
+                            "id": "group-001",
+                            "name": "Test Group",
+                            "hidden": False,
+                            "categories": [
+                                {
+                                    "id": "category-001",
+                                    "name": "Shopping",
+                                    "hidden": False,
+                                    "budgeted": 100000,
+                                    "activity": -50000,
+                                    "balance": 50000,
+                                }
+                            ],
+                        }
+                    ],
+                    "server_knowledge": 67890,
+                },
+            )
 
-            with open(ynab_cache / "transactions.json", "w") as f:
-                json.dump(transactions, f, indent=2)
+            write_json(ynab_cache / "transactions.json", transactions)
 
             # Step 5: Run apple match on parsed data
             match_dir = tmpdir / "apple" / "matches"
@@ -664,8 +661,7 @@ class TestAppleCompleteWorkflow:
             }
 
             receipt_file = apple_exports / "test_receipts.json"
-            with open(receipt_file, "w") as f:
-                json.dump(receipt_data, f, indent=2)
+            write_json(receipt_file, receipt_data)
 
             # Step 2: Setup YNAB transactions from date range B (non-overlapping, older)
             ynab_cache = tmpdir / "ynab" / "cache"
@@ -705,37 +701,33 @@ class TestAppleCompleteWorkflow:
             ]
 
             # Save YNAB cache
-            with open(ynab_cache / "accounts.json", "w") as f:
-                json.dump({"accounts": accounts, "server_knowledge": 12345}, f, indent=2)
+            write_json(ynab_cache / "accounts.json", {"accounts": accounts, "server_knowledge": 12345})
 
-            with open(ynab_cache / "categories.json", "w") as f:
-                json.dump(
-                    {
-                        "category_groups": [
-                            {
-                                "id": "group-001",
-                                "name": "Test Group",
-                                "hidden": False,
-                                "categories": [
-                                    {
-                                        "id": "category-001",
-                                        "name": "Shopping",
-                                        "hidden": False,
-                                        "budgeted": 100000,
-                                        "activity": -50000,
-                                        "balance": 50000,
-                                    }
-                                ],
-                            }
-                        ],
-                        "server_knowledge": 67890,
-                    },
-                    f,
-                    indent=2,
-                )
+            write_json(
+                ynab_cache / "categories.json",
+                {
+                    "category_groups": [
+                        {
+                            "id": "group-001",
+                            "name": "Test Group",
+                            "hidden": False,
+                            "categories": [
+                                {
+                                    "id": "category-001",
+                                    "name": "Shopping",
+                                    "hidden": False,
+                                    "budgeted": 100000,
+                                    "activity": -50000,
+                                    "balance": 50000,
+                                }
+                            ],
+                        }
+                    ],
+                    "server_knowledge": 67890,
+                },
+            )
 
-            with open(ynab_cache / "transactions.json", "w") as f:
-                json.dump(transactions, f, indent=2)
+            write_json(ynab_cache / "transactions.json", transactions)
 
             # Step 3: Run match command on recent receipt date range
             match_dir = tmpdir / "apple" / "matches"

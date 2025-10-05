@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 
+from finances.core.json_utils import write_json
 from tests.fixtures.synthetic_data import (
     generate_synthetic_amazon_orders,
     save_synthetic_ynab_data,
@@ -467,14 +468,9 @@ def test_amazon_complete_workflow():
         }
 
         # Write YNAB cache files
-        with open(ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(ynab_accounts, f, indent=2)
-
-        with open(ynab_cache_dir / "categories.json", "w") as f:
-            json.dump(ynab_categories, f, indent=2)
-
-        with open(ynab_cache_dir / "transactions.json", "w") as f:
-            json.dump(ynab_transactions, f, indent=2)
+        write_json(ynab_cache_dir / "accounts.json", ynab_accounts)
+        write_json(ynab_cache_dir / "categories.json", ynab_categories)
+        write_json(ynab_cache_dir / "transactions.json", ynab_transactions)
 
         # Step 5: Run `finances amazon match` on extracted data
         # Extract account name from extracted directory
@@ -633,14 +629,9 @@ def test_amazon_match_no_matches_found():
             "server_knowledge": 67890,
         }
 
-        with open(ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(ynab_accounts, f, indent=2)
-
-        with open(ynab_cache_dir / "categories.json", "w") as f:
-            json.dump(ynab_categories, f, indent=2)
-
-        with open(ynab_cache_dir / "transactions.json", "w") as f:
-            json.dump(ynab_transactions, f, indent=2)
+        write_json(ynab_cache_dir / "accounts.json", ynab_accounts)
+        write_json(ynab_cache_dir / "categories.json", ynab_categories)
+        write_json(ynab_cache_dir / "transactions.json", ynab_transactions)
 
         # Step 3: Run match command
         env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}

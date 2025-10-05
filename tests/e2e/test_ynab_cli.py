@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from finances.core.currency import milliunits_to_cents
+from finances.core.json_utils import write_json
 from tests.fixtures.synthetic_data import generate_synthetic_ynab_cache
 
 
@@ -40,19 +42,14 @@ def test_ynab_generate_splits_from_amazon():
 
         cache_data = generate_synthetic_ynab_cache(num_transactions=10)
 
-        with open(ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(cache_data["accounts"], f, indent=2)
-
-        with open(ynab_cache_dir / "categories.json", "w") as f:
-            json.dump(cache_data["categories"], f, indent=2)
-
-        with open(ynab_cache_dir / "transactions.json", "w") as f:
-            json.dump(cache_data["transactions"], f, indent=2)
+        write_json(ynab_cache_dir / "accounts.json", cache_data["accounts"])
+        write_json(ynab_cache_dir / "categories.json", cache_data["categories"])
+        write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
 
         # Create synthetic Amazon match result
         # Using transaction from synthetic data
         transaction = cache_data["transactions"][0]
-        transaction_amount_cents = abs(transaction["amount"] // 10)  # milliunits to cents
+        transaction_amount_cents = milliunits_to_cents(transaction["amount"])
 
         # Create Amazon items that sum to transaction amount
         item1_amount = transaction_amount_cents // 2
@@ -97,8 +94,7 @@ def test_ynab_generate_splits_from_amazon():
 
         # Write match results to temp file
         match_file = tmpdir_path / "amazon_matches.json"
-        with open(match_file, "w") as f:
-            json.dump(amazon_match_result, f, indent=2)
+        write_json(match_file, amazon_match_result)
 
         # Run generate-splits command
         output_dir = tmpdir_path / "ynab" / "edits"
@@ -185,18 +181,13 @@ def test_ynab_generate_splits_from_apple():
 
         cache_data = generate_synthetic_ynab_cache(num_transactions=10)
 
-        with open(ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(cache_data["accounts"], f, indent=2)
-
-        with open(ynab_cache_dir / "categories.json", "w") as f:
-            json.dump(cache_data["categories"], f, indent=2)
-
-        with open(ynab_cache_dir / "transactions.json", "w") as f:
-            json.dump(cache_data["transactions"], f, indent=2)
+        write_json(ynab_cache_dir / "accounts.json", cache_data["accounts"])
+        write_json(ynab_cache_dir / "categories.json", cache_data["categories"])
+        write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
 
         # Create synthetic Apple match result
         transaction = cache_data["transactions"][1]
-        transaction_amount_cents = abs(transaction["amount"] // 10)  # milliunits to cents
+        transaction_amount_cents = milliunits_to_cents(transaction["amount"])
 
         # For Apple, the CLI doesn't pass receipt_subtotal/tax to the calculator
         # So we need to create items such that when proportional tax is calculated,
@@ -229,8 +220,7 @@ def test_ynab_generate_splits_from_apple():
 
         # Write match results to temp file
         match_file = tmpdir_path / "apple_matches.json"
-        with open(match_file, "w") as f:
-            json.dump(apple_match_result, f, indent=2)
+        write_json(match_file, apple_match_result)
 
         # Run generate-splits command
         output_dir = tmpdir_path / "ynab" / "edits"
@@ -298,20 +288,15 @@ def test_ynab_generate_splits_with_confidence_threshold():
 
         cache_data = generate_synthetic_ynab_cache(num_transactions=10)
 
-        with open(ynab_cache_dir / "accounts.json", "w") as f:
-            json.dump(cache_data["accounts"], f, indent=2)
-
-        with open(ynab_cache_dir / "categories.json", "w") as f:
-            json.dump(cache_data["categories"], f, indent=2)
-
-        with open(ynab_cache_dir / "transactions.json", "w") as f:
-            json.dump(cache_data["transactions"], f, indent=2)
+        write_json(ynab_cache_dir / "accounts.json", cache_data["accounts"])
+        write_json(ynab_cache_dir / "categories.json", cache_data["categories"])
+        write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
 
         # Create match results with varying confidence levels
         matches = []
         for i in range(3):
             transaction = cache_data["transactions"][i]
-            transaction_amount_cents = abs(transaction["amount"] // 10)
+            transaction_amount_cents = milliunits_to_cents(transaction["amount"])
 
             # Vary confidence: 0.95 (high), 0.75 (low), 0.85 (medium)
             confidence_values = [0.95, 0.75, 0.85]
@@ -349,8 +334,7 @@ def test_ynab_generate_splits_with_confidence_threshold():
 
         # Write match results to temp file
         match_file = tmpdir_path / "amazon_matches.json"
-        with open(match_file, "w") as f:
-            json.dump(match_result, f, indent=2)
+        write_json(match_file, match_result)
 
         # Run generate-splits with 0.8 threshold
         output_dir = tmpdir_path / "ynab" / "edits"
@@ -482,8 +466,7 @@ def test_ynab_generate_splits_empty_matches():
         match_result = {"matches": []}
 
         match_file = tmpdir_path / "amazon_matches.json"
-        with open(match_file, "w") as f:
-            json.dump(match_result, f, indent=2)
+        write_json(match_file, match_result)
 
         # Run generate-splits
         output_dir = tmpdir_path / "ynab" / "edits"

@@ -17,7 +17,7 @@ import pytest
 from tests.fixtures.synthetic_data import save_synthetic_ynab_data
 
 # Working directory for all subprocess calls
-REPO_ROOT = "/Users/karl/workspaces/justdavis/personal/justdavis-finances"
+REPO_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture
@@ -287,3 +287,80 @@ def test_flow_complete_orchestration(flow_test_env):
 
     # Should have executed at least some nodes
     assert len(execution_lines) > 0, "Should have executed at least one node"
+
+
+@pytest.mark.e2e
+def test_flow_go_invalid_date_format(flow_test_env):
+    """
+    Test error handling for invalid date format in flow go command.
+
+    Validates that malformed date strings are rejected with helpful error messages.
+    """
+    # Test with invalid month
+    result = run_flow_command(["go", "--start", "2024-13-01", "--end", "2024-12-31", "--dry-run"])
+
+    # Should fail with error about invalid date format
+    assert result.returncode != 0, "Should fail with invalid date format"
+    assert "Invalid date format" in result.stderr or "does not match format" in result.stderr.lower()
+
+    # Test with completely invalid date string
+    result = run_flow_command(["go", "--start", "not-a-date", "--end", "2024-12-31", "--dry-run"])
+
+    assert result.returncode != 0, "Should fail with invalid date string"
+    assert "Invalid date format" in result.stderr or "does not match format" in result.stderr.lower()
+
+
+@pytest.mark.e2e
+def test_flow_go_missing_end_date(flow_test_env):
+    """
+    Test error handling when only --start is provided without --end.
+
+    Validates that both date parameters must be provided together.
+    """
+    result = run_flow_command(["go", "--start", "2024-07-01", "--dry-run"])
+
+    # Should fail with error about missing --end
+    assert result.returncode != 0, "Should fail when only --start is provided"
+    assert (
+        "Both --start and --end must be provided together" in result.stderr
+        or "must be provided together" in result.stderr
+    ), "Should indicate both parameters required"
+
+
+@pytest.mark.e2e
+def test_flow_go_missing_start_date(flow_test_env):
+    """
+    Test error handling when only --end is provided without --start.
+
+    Validates that both date parameters must be provided together.
+    """
+    result = run_flow_command(["go", "--end", "2024-12-31", "--dry-run"])
+
+    # Should fail with error about missing --start
+    assert result.returncode != 0, "Should fail when only --end is provided"
+    assert (
+        "Both --start and --end must be provided together" in result.stderr
+        or "must be provided together" in result.stderr
+    ), "Should indicate both parameters required"
+
+
+@pytest.mark.e2e
+def test_flow_go_inverted_date_range(flow_test_env):
+    """
+    Test that inverted date range (end < start) results in no-op execution.
+
+    When user provides a backwards date range, the system should succeed
+    but execute no nodes since the date filter excludes everything.
+    """
+    result = run_flow_command(
+        ["go", "--start", "2024-12-31", "--end", "2024-01-01", "--dry-run", "--non-interactive"]
+    )
+
+    # Should succeed (not an error condition)
+    assert result.returncode == 0, f"Should succeed with inverted date range: {result.stderr}"
+
+    # Should indicate no execution needed
+    assert (
+        "No nodes need execution" in result.stdout
+        or "Dry run mode - no changes will be made" in result.stdout
+    ), "Should indicate no-op execution"
