@@ -139,7 +139,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101"]  # allow assert statements in tests
+"tests/**/*" = ["S101", "S603"]  # allow assert statements and subprocess calls in tests
 
 # MyPy configuration
 [tool.mypy]
