@@ -251,12 +251,14 @@ class SplitPaymentMatcher:
                 elif isinstance(ship_date, str):
                     try:
                         ship_date = datetime.strptime(ship_date, "%Y-%m-%d").date()
-                    except:
+                    except (ValueError, TypeError):
+                        # Skip malformed date strings - continue to next ship date
                         continue
 
                 try:
                     date_diffs.append(abs((ynab_date - ship_date).days))
-                except:
+                except (TypeError, AttributeError):
+                    # Skip date calculation errors - continue to next ship date
                     continue
 
             min_date_diff = min(date_diffs) if date_diffs else 7

@@ -45,10 +45,11 @@ def find_latest_apple_export(base_path: Optional[str] = None) -> Optional[str]:
         return None
 
     # Find all export directories with timestamp pattern
-    export_dirs = []
-    for item in export_path.iterdir():
-        if item.is_dir() and item.name.startswith("20") and "apple_receipts_export" in item.name:
-            export_dirs.append(item)
+    export_dirs = [
+        item
+        for item in export_path.iterdir()
+        if item.is_dir() and item.name.startswith("20") and "apple_receipts_export" in item.name
+    ]
 
     if not export_dirs:
         return None

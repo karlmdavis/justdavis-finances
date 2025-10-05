@@ -386,12 +386,12 @@ class FlowNodeRegistry:
         Returns:
             List of validation error messages
         """
-        errors = []
-
-        for node_name, node in self._nodes.items():
-            for dep_name in node.dependencies:
-                if dep_name not in self._nodes:
-                    errors.append(f"Node '{node_name}' depends on unknown node '{dep_name}'")
+        errors = [
+            f"Node '{node_name}' depends on unknown node '{dep_name}'"
+            for node_name, node in self._nodes.items()
+            for dep_name in node.dependencies
+            if dep_name not in self._nodes
+        ]
 
         return errors
 

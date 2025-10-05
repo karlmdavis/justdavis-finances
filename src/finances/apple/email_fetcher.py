@@ -225,9 +225,7 @@ class AppleEmailFetcher:
         criteria = [f"(SINCE {since_date})"]
 
         # Add sender criteria for Apple domains
-        from_criteria = []
-        for domain in apple_domains:
-            from_criteria.append(f"(FROM {domain})")
+        from_criteria = [f"(FROM {domain})" for domain in apple_domains]
 
         if from_criteria:
             criteria.append(f'(OR {" ".join(from_criteria)})')
@@ -235,9 +233,7 @@ class AppleEmailFetcher:
         # Add subject criteria for receipt-related terms
         receipt_terms = ["receipt", "Your receipt from Apple", "iTunes Store", "App Store", "Apple Store"]
 
-        subject_criteria = []
-        for term in receipt_terms:
-            subject_criteria.append(f'(SUBJECT "{term}")')
+        subject_criteria = [f'(SUBJECT "{term}")' for term in receipt_terms]
 
         if subject_criteria:
             criteria.append(f'(OR {" ".join(subject_criteria)})')

@@ -112,24 +112,22 @@ class YnabRetirementService:
             data = read_json(accounts_file)
             accounts = data.get("accounts", [])
 
-            retirement_accounts = []
-            for account in accounts:
-                # Filter for retirement accounts (off-budget assets)
+            # Filter for retirement accounts (off-budget assets)
+            retirement_accounts = [
+                RetirementAccount(
+                    id=account["id"],
+                    name=account["name"],
+                    balance_milliunits=account.get("balance", 0),
+                    cleared_balance_milliunits=account.get("cleared_balance", 0),
+                    last_reconciled_at=account.get("last_reconciled_at"),
+                )
+                for account in accounts
                 if (
                     account.get("type") == "otherAsset"
                     and not account.get("on_budget", True)
                     and not account.get("closed", False)
-                ):
-
-                    retirement_accounts.append(
-                        RetirementAccount(
-                            id=account["id"],
-                            name=account["name"],
-                            balance_milliunits=account.get("balance", 0),
-                            cleared_balance_milliunits=account.get("cleared_balance", 0),
-                            last_reconciled_at=account.get("last_reconciled_at"),
-                        )
-                    )
+                )
+            ]
 
             # Sort by name for consistent ordering
             retirement_accounts.sort(key=lambda a: a.name)

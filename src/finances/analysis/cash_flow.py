@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats  # type: ignore[import-untyped]
+from scipy import stats
 
 from ..core.config import get_config
 
