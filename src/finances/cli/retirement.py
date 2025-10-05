@@ -84,7 +84,7 @@ def list(ctx: click.Context, verbose: bool) -> None:
     default=True,
     help="Interactive mode with prompts (default) or non-interactive",
 )
-@click.option("--date", help="Balance date (YYYY-MM-DD, default: today)")
+@click.option("--date", "date_str", help="Balance date (YYYY-MM-DD, default: today)")
 @click.option("--output-file", help="Save YNAB edits to specific file")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
