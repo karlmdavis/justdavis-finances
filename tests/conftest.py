@@ -88,6 +88,7 @@ def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line("markers", "unit: Unit tests for individual components")
     config.addinivalue_line("markers", "integration: Integration tests for complete workflows")
+    config.addinivalue_line("markers", "e2e: End-to-end tests with real CLI execution")
     config.addinivalue_line("markers", "currency: Tests for currency handling and precision")
     config.addinivalue_line("markers", "amazon: Tests for Amazon transaction matching")
     config.addinivalue_line("markers", "apple: Tests for Apple receipt processing")
