@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from finances.core.json_utils import write_json
+from tests.fixtures.e2e_helpers import get_test_environment
 from tests.fixtures.synthetic_data import generate_synthetic_ynab_cache
 
 
@@ -113,10 +114,7 @@ class TestCashFlowAnalysisCLI:
             capture_output=True,
             text=True,
             timeout=30,
-            env={
-                **dict(subprocess.os.environ),
-                "FINANCES_DATA_DIR": str(self.temp_dir),
-            },
+            env=get_test_environment(self.temp_dir),
         )
 
         # Verify command succeeded
@@ -161,10 +159,7 @@ class TestCashFlowAnalysisCLI:
             capture_output=True,
             text=True,
             timeout=30,
-            env={
-                **dict(subprocess.os.environ),
-                "FINANCES_DATA_DIR": str(self.temp_dir),
-            },
+            env=get_test_environment(self.temp_dir),
         )
 
         # Command should fail gracefully
@@ -251,10 +246,7 @@ class TestRetirementCLI:
             capture_output=True,
             text=True,
             timeout=10,
-            env={
-                **dict(subprocess.os.environ),
-                "FINANCES_DATA_DIR": str(self.temp_dir),
-            },
+            env=get_test_environment(self.temp_dir),
         )
 
         assert result.returncode == 0
@@ -289,10 +281,7 @@ class TestRetirementCLI:
             capture_output=True,
             text=True,
             timeout=10,
-            env={
-                **dict(subprocess.os.environ),
-                "FINANCES_DATA_DIR": str(self.temp_dir),
-            },
+            env=get_test_environment(self.temp_dir),
         )
 
         assert result.returncode != 0
@@ -325,10 +314,7 @@ class TestRetirementCLI:
             capture_output=True,
             text=True,
             timeout=10,
-            env={
-                **dict(subprocess.os.environ),
-                "FINANCES_DATA_DIR": str(self.temp_dir),
-            },
+            env=get_test_environment(self.temp_dir),
         )
 
         assert result.returncode == 0
@@ -381,10 +367,7 @@ class TestRetirementCLI:
             capture_output=True,
             text=True,
             timeout=10,
-            env={
-                **dict(subprocess.os.environ),
-                "FINANCES_DATA_DIR": str(self.temp_dir),
-            },
+            env=get_test_environment(self.temp_dir),
         )
 
         assert result.returncode == 0
@@ -414,10 +397,7 @@ class TestRetirementCLI:
             capture_output=True,
             text=True,
             timeout=10,
-            env={
-                **dict(subprocess.os.environ),
-                "FINANCES_DATA_DIR": str(self.temp_dir),
-            },
+            env=get_test_environment(self.temp_dir),
         )
 
         assert result.returncode == 0

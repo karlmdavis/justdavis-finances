@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 
 from finances.core.json_utils import write_json
+from tests.fixtures.e2e_helpers import get_test_environment
 from tests.fixtures.synthetic_data import (
     generate_synthetic_apple_receipt_html,
     save_synthetic_ynab_data,
@@ -583,7 +584,7 @@ class TestAppleCompleteWorkflow:
                 capture_output=True,
                 text=True,
                 timeout=30,
-                env={**subprocess.os.environ, "DATA_DIR": str(tmpdir)},
+                env=get_test_environment(tmpdir),
             )
 
             # Step 6: Verify match results JSON structure
@@ -753,7 +754,7 @@ class TestAppleCompleteWorkflow:
                 capture_output=True,
                 text=True,
                 timeout=30,
-                env={**subprocess.os.environ, "DATA_DIR": str(tmpdir)},
+                env=get_test_environment(tmpdir),
             )
 
             # Step 4: Verify success exit code but 0 matches

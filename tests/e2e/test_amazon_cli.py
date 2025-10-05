@@ -11,7 +11,6 @@ CLI commands work correctly from the user's perspective.
 
 import csv
 import json
-import os
 import shutil
 import subprocess
 import tempfile
@@ -21,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from finances.core.json_utils import write_json
+from tests.fixtures.e2e_helpers import get_test_environment
 from tests.fixtures.synthetic_data import (
     generate_synthetic_amazon_orders,
     save_synthetic_ynab_data,
@@ -58,7 +58,7 @@ def test_amazon_unzip_command():
         output_dir = tmpdir / "amazon" / "raw"
 
         # Set environment variable for data directory
-        env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}
+        env = get_test_environment(tmpdir)
 
         # Run unzip command
         result = subprocess.run(
@@ -118,7 +118,7 @@ def test_amazon_match_command():
         output_dir.mkdir(parents=True)
 
         # Set environment variable for data directory
-        env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}
+        env = get_test_environment(tmpdir)
 
         # Run match command
         result = subprocess.run(
@@ -179,7 +179,7 @@ def test_amazon_match_multiple_accounts():
             shutil.copy(test_data_path, amazon_dir / "Retail.OrderHistory.1.csv")
 
         # Set environment variable for data directory
-        env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}
+        env = get_test_environment(tmpdir)
 
         # Run match with specific accounts
         result = subprocess.run(
@@ -234,7 +234,7 @@ def test_amazon_match_error_missing_data():
         shutil.copy(test_data_path, amazon_dir / "Retail.OrderHistory.1.csv")
 
         # Set environment variable for data directory
-        env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}
+        env = get_test_environment(tmpdir)
 
         # Run match command - should succeed but may have warnings
         # (The CLI currently creates a placeholder result even without full data)
@@ -281,7 +281,7 @@ def test_amazon_unzip_corrupted_file():
         output_dir = tmpdir / "amazon" / "raw"
 
         # Set environment variable for data directory
-        env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}
+        env = get_test_environment(tmpdir)
 
         # Run unzip command - should handle error gracefully
         result = subprocess.run(
@@ -366,7 +366,7 @@ def test_amazon_complete_workflow():
 
         # Step 2: Run `finances amazon unzip` to extract data
         output_dir = tmpdir / "amazon" / "raw"
-        env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}
+        env = get_test_environment(tmpdir)
 
         result = subprocess.run(
             [
@@ -634,7 +634,7 @@ def test_amazon_match_no_matches_found():
         write_json(ynab_cache_dir / "transactions.json", ynab_transactions)
 
         # Step 3: Run match command
-        env = {**os.environ, "FINANCES_DATA_DIR": str(tmpdir)}
+        env = get_test_environment(tmpdir)
         match_output_dir = tmpdir / "amazon" / "transaction_matches"
 
         result = subprocess.run(
