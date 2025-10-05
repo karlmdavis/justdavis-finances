@@ -6,8 +6,9 @@ Tests the specific integration issue where the flow system calls CLI functions
 without required parameters.
 """
 
-import pytest
 import inspect
+
+import pytest
 
 from finances.cli.cashflow import analyze as cashflow_analyze_cmd
 
@@ -30,12 +31,12 @@ class TestCashFlowFlowIntegration:
         sig = inspect.signature(actual_function)
 
         # Verify that start and end are required parameters (no defaults)
-        assert 'start' in sig.parameters
-        assert 'end' in sig.parameters
+        assert "start" in sig.parameters
+        assert "end" in sig.parameters
 
         # Verify they don't have default values
-        start_param = sig.parameters['start']
-        end_param = sig.parameters['end']
+        start_param = sig.parameters["start"]
+        end_param = sig.parameters["end"]
 
         assert start_param.default == inspect.Parameter.empty, "start parameter has no default value"
         assert end_param.default == inspect.Parameter.empty, "end parameter has no default value"
@@ -55,16 +56,16 @@ class TestCashFlowFlowIntegration:
         # This is what the flow system does when no date range is provided:
         # It calls the function with the default_kwargs but no start/end
         default_kwargs = {
-            'ctx': MagicMock(),  # Flow system provides a mock context
-            'accounts': (),
-            'exclude_before': None,
-            'output_dir': None,
-            'format': 'png'
+            "ctx": MagicMock(),  # Flow system provides a mock context
+            "accounts": (),
+            "exclude_before": None,
+            "output_dir": None,
+            "format": "png",
         }
 
         # Add the parameters the flow system adds
         flow_kwargs = default_kwargs.copy()
-        flow_kwargs['verbose'] = False
+        flow_kwargs["verbose"] = False
 
         # Try to create a bound call - this will fail because start/end are missing
         sig = inspect.signature(actual_function)
@@ -75,8 +76,10 @@ class TestCashFlowFlowIntegration:
 
         # Verify this is the exact error we see in the flow system
         error_message = str(exc_info.value)
-        assert "missing a required argument: 'start'" in error_message or \
-               "missing a required argument: 'end'" in error_message
+        assert (
+            "missing a required argument: 'start'" in error_message
+            or "missing a required argument: 'end'" in error_message
+        )
 
     def test_solution_works_with_default_values(self):
         """
@@ -91,14 +94,14 @@ class TestCashFlowFlowIntegration:
 
         # This is what the flow system should do: provide default values
         flow_kwargs_with_defaults = {
-            'ctx': MagicMock(),  # Flow system provides a mock context
-            'accounts': (),
-            'exclude_before': None,
-            'output_dir': None,
-            'format': 'png',
-            'verbose': False,
-            'start': None,  # Provide default value
-            'end': None     # Provide default value
+            "ctx": MagicMock(),  # Flow system provides a mock context
+            "accounts": (),
+            "exclude_before": None,
+            "output_dir": None,
+            "format": "png",
+            "verbose": False,
+            "start": None,  # Provide default value
+            "end": None,  # Provide default value
         }
 
         # This should work without TypeError
@@ -106,8 +109,7 @@ class TestCashFlowFlowIntegration:
         assert bound_args is not None
 
         # The bound arguments should include start and end
-        assert 'start' in bound_args.arguments
-        assert 'end' in bound_args.arguments
-        assert bound_args.arguments['start'] is None
-        assert bound_args.arguments['end'] is None
-
+        assert "start" in bound_args.arguments
+        assert "end" in bound_args.arguments
+        assert bound_args.arguments["start"] is None
+        assert bound_args.arguments["end"] is None

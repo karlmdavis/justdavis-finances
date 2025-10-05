@@ -230,7 +230,7 @@ This repository maintains strict integer-only arithmetic for all financial calcu
     - String formatting: Use `format_json(data)` instead of `json.dumps()`.
     - **Never use** direct `json.dump()` or `json.dumps()` calls without `indent=2`.
 12. **Markdown formatting**: All markdown files follow standardized formatting rules.
-    See [Markdown Formatting Guidelines](CONTRIBUTORS.md#markdown-formatting-guidelines) for
+    See [Markdown Formatting Guidelines](CONTRIBUTING.md#markdown-formatting-guidelines) for
       complete details:
     - One sentence per line for better version control
     - 110-character line wrap limit at natural break points

@@ -5,14 +5,17 @@ Unit tests for core flow system components.
 Tests the fundamental flow infrastructure including nodes, contexts, and registries.
 """
 
-import pytest
-from datetime import datetime, date
+import tempfile
+from datetime import date, datetime
 from pathlib import Path
-from typing import List, Tuple
 
 from finances.core.flow import (
-    FlowNode, FlowContext, FlowResult, NodeExecution, NodeStatus,
-    FunctionFlowNode, CLIAdapterNode, FlowNodeRegistry, flow_node
+    FlowContext,
+    FlowNode,
+    FlowNodeRegistry,
+    FlowResult,
+    FunctionFlowNode,
+    flow_node,
 )
 
 
@@ -36,7 +39,8 @@ class TestFlowResult:
 
     def test_complete_result_creation(self):
         """Test creating a complete FlowResult with all fields."""
-        outputs = [Path("/tmp/test1.json"), Path("/tmp/test2.json")]
+        temp_dir = Path(tempfile.gettempdir())
+        outputs = [temp_dir / "test1.json", temp_dir / "test2.json"]
         metadata = {"test_key": "test_value"}
 
         result = FlowResult(
@@ -49,7 +53,7 @@ class TestFlowResult:
             review_instructions="Review the generated splits",
             execution_time_seconds=15.5,
             metadata=metadata,
-            error_message=None
+            error_message=None,
         )
 
         assert result.success is True
@@ -65,10 +69,7 @@ class TestFlowResult:
 
     def test_failure_result(self):
         """Test creating a failure FlowResult."""
-        result = FlowResult(
-            success=False,
-            error_message="Test error occurred"
-        )
+        result = FlowResult(success=False, error_message="Test error occurred")
 
         assert result.success is False
         assert result.error_message == "Test error occurred"
@@ -97,7 +98,8 @@ class TestFlowContext:
         """Test creating a complete FlowContext with all fields."""
         start_time = datetime.now()
         date_range = (date(2024, 1, 1), date(2024, 12, 31))
-        archive_manifest = {"domain1": Path("/tmp/archive1.tar.gz")}
+        temp_dir = Path(tempfile.gettempdir())
+        archive_manifest = {"domain1": temp_dir / "archive1.tar.gz"}
 
         context = FlowContext(
             start_time=start_time,
@@ -108,7 +110,7 @@ class TestFlowContext:
             archive_manifest=archive_manifest,
             dry_run=True,
             force=True,
-            verbose=True
+            verbose=True,
         )
 
         assert context.start_time == start_time
@@ -125,16 +127,20 @@ class TestFlowContext:
 class MockFlowNode(FlowNode):
     """Mock flow node for testing."""
 
-    def __init__(self, name: str, dependencies: List[str] = None,
-                 check_changes_result: Tuple[bool, List[str]] = (False, []),
-                 execute_result: FlowResult = None):
+    def __init__(
+        self,
+        name: str,
+        dependencies: list[str] | None = None,
+        check_changes_result: tuple[bool, list[str]] = (False, []),
+        execute_result: FlowResult = None,
+    ):
         super().__init__(name)
         if dependencies:
             self._dependencies = set(dependencies)
         self.check_changes_result = check_changes_result
         self.execute_result = execute_result or FlowResult(success=True)
 
-    def check_changes(self, context: FlowContext) -> Tuple[bool, List[str]]:
+    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         return self.check_changes_result
 
     def execute(self, context: FlowContext) -> FlowResult:
@@ -209,6 +215,7 @@ class TestFunctionFlowNode:
 
     def test_function_node_creation(self):
         """Test creating a function-based flow node."""
+
         def test_func(context: FlowContext) -> FlowResult:
             return FlowResult(success=True, items_processed=5)
 
@@ -220,6 +227,7 @@ class TestFunctionFlowNode:
 
     def test_function_node_execution(self):
         """Test executing a function node."""
+
         def test_func(context: FlowContext) -> FlowResult:
             return FlowResult(success=True, items_processed=10, metadata={"test": True})
 
@@ -234,6 +242,7 @@ class TestFunctionFlowNode:
 
     def test_function_node_with_performance_tracking(self):
         """Test function node with performance tracking enabled."""
+
         def test_func(context: FlowContext) -> FlowResult:
             return FlowResult(success=True, items_processed=1)
 
@@ -248,6 +257,7 @@ class TestFunctionFlowNode:
 
     def test_function_node_error_handling(self):
         """Test function node error handling."""
+
         def failing_func(context: FlowContext) -> FlowResult:
             raise ValueError("Test error")
 
@@ -261,6 +271,7 @@ class TestFunctionFlowNode:
 
     def test_function_node_invalid_return(self):
         """Test function node with invalid return type."""
+
         def invalid_func(context: FlowContext) -> str:  # Wrong return type
             return "not a FlowResult"
 
@@ -274,10 +285,11 @@ class TestFunctionFlowNode:
 
     def test_custom_change_detector(self):
         """Test function node with custom change detector."""
+
         def test_func(context: FlowContext) -> FlowResult:
             return FlowResult(success=True)
 
-        def change_detector(context: FlowContext) -> Tuple[bool, List[str]]:
+        def change_detector(context: FlowContext) -> tuple[bool, list[str]]:
             return True, ["Custom change detected"]
 
         node = FunctionFlowNode("test_func", test_func, [])
@@ -330,7 +342,7 @@ class TestFlowNodeRegistry:
         def test_func(context: FlowContext) -> FlowResult:
             return FlowResult(success=True)
 
-        def change_detector(context: FlowContext) -> Tuple[bool, List[str]]:
+        def change_detector(context: FlowContext) -> tuple[bool, list[str]]:
             return True, ["Test change"]
 
         registry.register_function_node("test_func", test_func, change_detector=change_detector)
@@ -419,6 +431,7 @@ class TestFlowNodeDecorator:
 
     def test_decorator_basic(self):
         """Test basic decorator usage."""
+
         @flow_node("decorated_node")
         def test_function(context: FlowContext) -> FlowResult:
             return FlowResult(success=True, items_processed=1)
@@ -429,6 +442,7 @@ class TestFlowNodeDecorator:
 
     def test_decorator_with_dependencies(self):
         """Test decorator with dependencies."""
+
         @flow_node("decorated_node", depends_on=["dep1", "dep2"])
         def test_function(context: FlowContext) -> FlowResult:
             return FlowResult(success=True, items_processed=1)
@@ -439,6 +453,7 @@ class TestFlowNodeDecorator:
 
     def test_decorator_execution(self):
         """Test executing a decorated function."""
+
         @flow_node("decorated_node")
         def test_function(context: FlowContext) -> FlowResult:
             return FlowResult(success=True, items_processed=42, metadata={"decorated": True})

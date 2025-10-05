@@ -17,8 +17,8 @@ Key Principles:
 - Validate calculations with sum checks
 """
 
-from typing import Union, List, Dict, Any
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 
 def milliunits_to_cents(milliunits: int) -> int:
@@ -79,7 +79,7 @@ def cents_to_dollars_str(cents: int) -> str:
         return f"{dollars}.{remainder:02d}"
 
 
-def safe_currency_to_cents(currency_str: Union[str, int, float]) -> int:
+def safe_currency_to_cents(currency_str: str | int | float) -> int:
     """
     Safely convert currency string to integer cents using decimal arithmetic.
 
@@ -98,14 +98,14 @@ def safe_currency_to_cents(currency_str: Union[str, int, float]) -> int:
     """
     try:
         # Handle non-string input
-        if isinstance(currency_str, (int, float)):
+        if isinstance(currency_str, int | float):
             return int(currency_str * 100) if isinstance(currency_str, float) else currency_str * 100
 
         # Clean the string
-        clean_str = str(currency_str).replace('$', '').replace(',', '').strip()
+        clean_str = str(currency_str).replace("$", "").replace(",", "").strip()
 
         # Handle empty or special strings
-        if not clean_str or clean_str.lower() in ['0', 'nan', 'none', 'free', '']:
+        if not clean_str or clean_str.lower() in ["0", "nan", "none", "free", ""]:
             return 0
 
         # Use Decimal for precise arithmetic
@@ -115,7 +115,7 @@ def safe_currency_to_cents(currency_str: Union[str, int, float]) -> int:
         return 0
 
 
-def dollars_to_cents(dollars: Union[float, str]) -> int:
+def dollars_to_cents(dollars: float | str) -> int:
     """
     Convert dollars (float or string) to cents.
 
@@ -151,21 +151,21 @@ def parse_dollars_to_cents(dollars_str: str) -> int:
         parse_dollars_to_cents("12.5") -> 1250
     """
     # Remove $ and commas
-    clean = dollars_str.replace('$', '').replace(',', '').strip()
+    clean = dollars_str.replace("$", "").replace(",", "").strip()
 
     if not clean:
         return 0
 
     # Handle negative amounts
-    is_negative = clean.startswith('-')
+    is_negative = clean.startswith("-")
     if is_negative:
         clean = clean[1:]
 
-    if '.' in clean:
-        parts = clean.split('.')
+    if "." in clean:
+        parts = clean.split(".")
         dollars = int(parts[0]) if parts[0] else 0
         # Handle fractional cents: pad to 2 digits, truncate beyond 2
-        cents_str = parts[1].ljust(2, '0')[:2]
+        cents_str = parts[1].ljust(2, "0")[:2]
         cents = int(cents_str)
         total = dollars * 100 + cents
     else:
@@ -174,7 +174,7 @@ def parse_dollars_to_cents(dollars_str: str) -> int:
     return -total if is_negative else total
 
 
-def dollars_to_milliunits(dollars: Union[float, str]) -> int:
+def dollars_to_milliunits(dollars: float | str) -> int:
     """
     Convert dollars to YNAB milliunits.
 
@@ -205,7 +205,9 @@ def format_amount_with_context(amount_milliunits: int, context: str = "") -> str
     return amount_str
 
 
-def validate_sum_equals_total(splits: List[Dict[str, Any]], total_milliunits: int, tolerance: int = 0) -> bool:
+def validate_sum_equals_total(
+    splits: list[dict[str, Any]], total_milliunits: int, tolerance: int = 0
+) -> bool:
     """
     Validate that split amounts sum exactly to the transaction total.
 
@@ -217,12 +219,12 @@ def validate_sum_equals_total(splits: List[Dict[str, Any]], total_milliunits: in
     Returns:
         True if sum matches within tolerance
     """
-    split_sum = sum(split['amount'] for split in splits)
+    split_sum = sum(split["amount"] for split in splits)
     difference = abs(split_sum - total_milliunits)
-    return difference <= tolerance
+    return bool(difference <= tolerance)
 
 
-def allocate_remainder(amounts: List[int], total: int) -> List[int]:
+def allocate_remainder(amounts: list[int], total: int) -> list[int]:
     """
     Allocate remainder from integer division to ensure exact sum.
 
@@ -277,13 +279,16 @@ def format_milliunits(milliunits: int) -> str:
 def is_valid_currency_string(currency_str: str) -> bool:
     """Check if a string represents a valid currency amount."""
     try:
-        safe_currency_to_cents(currency_str)
+        clean_str = str(currency_str).replace("$", "").replace(",", "").strip()
+        if not clean_str:
+            return False
+        Decimal(clean_str)  # This will raise InvalidOperation for invalid input
         return True
-    except:
+    except (ValueError, TypeError, InvalidOperation):
         return False
 
 
-def normalize_currency_precision(amounts: List[int], total: int) -> List[int]:
+def normalize_currency_precision(amounts: list[int], total: int) -> list[int]:
     """
     Normalize a list of amounts to ensure they sum exactly to the total.
 

@@ -6,15 +6,18 @@ Provides dependency resolution, change detection, and orchestrated execution
 of the Financial Flow System.
 """
 
+import logging
 from collections import defaultdict, deque
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Set, Optional, Tuple, Any
-import logging
+from typing import Any
 
 from .flow import (
-    FlowNode, FlowContext, FlowResult, NodeExecution, NodeStatus,
-    FlowNodeRegistry, flow_registry
+    FlowContext,
+    FlowNodeRegistry,
+    FlowResult,
+    NodeExecution,
+    NodeStatus,
+    flow_registry,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,8 +42,8 @@ class DependencyGraph:
         self.nodes = registry.get_all_nodes()
 
         # Build adjacency lists
-        self.dependents: Dict[str, Set[str]] = defaultdict(set)  # nodes that depend on this node
-        self.dependencies: Dict[str, Set[str]] = defaultdict(set)  # nodes this node depends on
+        self.dependents: dict[str, set[str]] = defaultdict(set)  # nodes that depend on this node
+        self.dependencies: dict[str, set[str]] = defaultdict(set)  # nodes this node depends on
 
         self._build_graph()
 
@@ -53,7 +56,7 @@ class DependencyGraph:
             for dep_name in node.dependencies:
                 self.dependents[dep_name].add(node_name)
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """
         Validate the dependency graph for errors.
 
@@ -74,7 +77,7 @@ class DependencyGraph:
 
         return errors
 
-    def topological_sort(self, nodes_to_execute: Optional[Set[str]] = None) -> List[str]:
+    def topological_sort(self, nodes_to_execute: set[str] | None = None) -> list[str]:
         """
         Get topologically sorted execution order for nodes.
 
@@ -89,8 +92,8 @@ class DependencyGraph:
             nodes_to_execute = set(self.nodes.keys())
 
         # Kahn's algorithm for topological sorting
-        in_degree = defaultdict(int)
-        graph = defaultdict(set)
+        in_degree: dict[str, int] = defaultdict(int)
+        graph: dict[str, set[str]] = defaultdict(set)
 
         # Build subgraph for nodes to execute
         for node_name in nodes_to_execute:
@@ -120,7 +123,7 @@ class DependencyGraph:
 
         return result
 
-    def get_execution_levels(self, nodes_to_execute: Optional[Set[str]] = None) -> List[List[str]]:
+    def get_execution_levels(self, nodes_to_execute: set[str] | None = None) -> list[list[str]]:
         """
         Get nodes grouped by execution level for potential parallel execution.
 
@@ -136,7 +139,7 @@ class DependencyGraph:
 
         levels = []
         remaining_nodes = nodes_to_execute.copy()
-        processed = set()
+        processed: set[str] = set()
 
         while remaining_nodes:
             # Find nodes with no unprocessed dependencies
@@ -156,7 +159,7 @@ class DependencyGraph:
 
         return levels
 
-    def find_changed_subgraph(self, changed_nodes: Set[str]) -> Set[str]:
+    def find_changed_subgraph(self, changed_nodes: set[str]) -> set[str]:
         """
         Find all nodes that need execution due to upstream changes.
 
@@ -189,7 +192,7 @@ class FlowExecutionEngine:
     and coordinated execution of all flow nodes.
     """
 
-    def __init__(self, registry: Optional[FlowNodeRegistry] = None):
+    def __init__(self, registry: FlowNodeRegistry | None = None):
         """
         Initialize flow execution engine.
 
@@ -199,7 +202,7 @@ class FlowExecutionEngine:
         self.registry = registry or flow_registry
         self.dependency_graph = DependencyGraph(self.registry)
 
-    def validate_flow(self) -> List[str]:
+    def validate_flow(self) -> list[str]:
         """
         Validate the entire flow for errors.
 
@@ -208,8 +211,9 @@ class FlowExecutionEngine:
         """
         return self.dependency_graph.validate()
 
-    def detect_changes(self, context: FlowContext,
-                      nodes_to_check: Optional[Set[str]] = None) -> Dict[str, Tuple[bool, List[str]]]:
+    def detect_changes(
+        self, context: FlowContext, nodes_to_check: set[str] | None = None
+    ) -> dict[str, tuple[bool, list[str]]]:
         """
         Detect changes across all specified nodes.
 
@@ -238,8 +242,9 @@ class FlowExecutionEngine:
 
         return changes
 
-    def plan_execution(self, context: FlowContext,
-                      target_nodes: Optional[Set[str]] = None) -> Tuple[List[str], Dict[str, List[str]]]:
+    def plan_execution(
+        self, context: FlowContext, target_nodes: set[str] | None = None
+    ) -> tuple[list[str], dict[str, list[str]]]:
         """
         Plan the execution order and determine which nodes need to run.
 
@@ -251,10 +256,7 @@ class FlowExecutionEngine:
             Tuple of (execution_order, change_summary)
         """
         # Determine nodes to consider
-        if target_nodes is None:
-            all_nodes = set(self.registry.get_all_nodes().keys())
-        else:
-            all_nodes = target_nodes
+        all_nodes = set(self.registry.get_all_nodes().keys()) if target_nodes is None else target_nodes
 
         # Detect changes
         changes = self.detect_changes(context, all_nodes)
@@ -268,7 +270,7 @@ class FlowExecutionEngine:
                 changed_nodes.add(node_name)
                 if context.force:
                     # In force mode, prepend force reason
-                    change_summary[node_name] = ["Force execution requested"] + reasons
+                    change_summary[node_name] = ["Force execution requested", *reasons]
                 else:
                     change_summary[node_name] = reasons
 
@@ -283,10 +285,7 @@ class FlowExecutionEngine:
         execution_nodes = self.dependency_graph.find_changed_subgraph(changed_nodes)
 
         # Get execution order
-        if execution_nodes:
-            execution_order = self.dependency_graph.topological_sort(execution_nodes)
-        else:
-            execution_order = []
+        execution_order = self.dependency_graph.topological_sort(execution_nodes) if execution_nodes else []
 
         return execution_order, change_summary
 
@@ -305,11 +304,7 @@ class FlowExecutionEngine:
         if not node:
             raise ValueError(f"Unknown node: {node_name}")
 
-        execution = NodeExecution(
-            node_name=node_name,
-            status=NodeStatus.RUNNING,
-            start_time=datetime.now()
-        )
+        execution = NodeExecution(node_name=node_name, status=NodeStatus.RUNNING, start_time=datetime.now())
 
         try:
             logger.info(f"Executing node: {node_name}")
@@ -327,10 +322,7 @@ class FlowExecutionEngine:
 
         except Exception as e:
             execution.status = NodeStatus.FAILED
-            execution.result = FlowResult(
-                success=False,
-                error_message=str(e)
-            )
+            execution.result = FlowResult(success=False, error_message=str(e))
             logger.error(f"Exception executing node {node_name}: {e}")
 
         finally:
@@ -338,7 +330,7 @@ class FlowExecutionEngine:
 
         return execution
 
-    def find_ready_nodes(self, remaining_nodes: Set[str], completed_nodes: Set[str]) -> Set[str]:
+    def find_ready_nodes(self, remaining_nodes: set[str], completed_nodes: set[str]) -> set[str]:
         """
         Find nodes that are ready to execute (all dependencies satisfied).
 
@@ -367,8 +359,9 @@ class FlowExecutionEngine:
 
         return ready_nodes
 
-    def execute_flow(self, context: FlowContext,
-                    target_nodes: Optional[Set[str]] = None) -> Dict[str, NodeExecution]:
+    def execute_flow(
+        self, context: FlowContext, target_nodes: set[str] | None = None
+    ) -> dict[str, NodeExecution]:
         """
         Execute the complete flow with dynamic dependency resolution.
 
@@ -388,10 +381,7 @@ class FlowExecutionEngine:
             raise ValueError(f"Flow validation failed: {validation_errors}")
 
         # Determine initial nodes to consider
-        if target_nodes is None:
-            all_nodes = set(self.registry.get_all_nodes().keys())
-        else:
-            all_nodes = target_nodes
+        all_nodes = set(self.registry.get_all_nodes().keys()) if target_nodes is None else target_nodes
 
         # Initial change detection to find starting nodes
         changes = self.detect_changes(context, all_nodes)
@@ -402,7 +392,7 @@ class FlowExecutionEngine:
             if has_changes or context.force:
                 initially_changed.add(node_name)
                 if context.force:
-                    change_summary[node_name] = ["Force execution requested"] + reasons
+                    change_summary[node_name] = ["Force execution requested", *reasons]
                 else:
                     change_summary[node_name] = reasons
 
@@ -422,8 +412,8 @@ class FlowExecutionEngine:
 
         # Dynamic execution state
         executions = {}
-        completed_nodes = set()
-        failed_nodes = set()
+        completed_nodes: set[str] = set()
+        failed_nodes: set[str] = set()
         remaining_nodes = nodes_needing_execution.copy()
         execution_count = 0
 
@@ -451,7 +441,7 @@ class FlowExecutionEngine:
                         status=NodeStatus.SKIPPED,
                         start_time=datetime.now(),
                         end_time=datetime.now(),
-                        result=FlowResult(success=True, metadata={"dry_run": True})
+                        result=FlowResult(success=True, metadata={"dry_run": True}),
                     )
                     logger.info(f"Skipped {node_name} (dry run mode)")
                     completed_nodes.add(node_name)
@@ -479,17 +469,19 @@ class FlowExecutionEngine:
                             status=NodeStatus.SKIPPED,
                             start_time=datetime.now(),
                             end_time=datetime.now(),
-                            result=FlowResult(success=True, metadata={"skipped_due_to_failure": node_name})
+                            result=FlowResult(success=True, metadata={"skipped_due_to_failure": node_name}),
                         )
                         executions[remaining_node] = skip_execution
                         context.execution_history.append(skip_execution)
                     remaining_nodes.clear()
                     break
 
-        logger.info(f"Dynamic execution completed: {len(completed_nodes)} completed, {len(failed_nodes)} failed")
+        logger.info(
+            f"Dynamic execution completed: {len(completed_nodes)} completed, {len(failed_nodes)} failed"
+        )
         return executions
 
-    def get_execution_summary(self, executions: Dict[str, NodeExecution]) -> Dict[str, Any]:
+    def get_execution_summary(self, executions: dict[str, NodeExecution]) -> dict[str, Any]:
         """
         Generate summary statistics for a flow execution.
 
@@ -505,12 +497,12 @@ class FlowExecutionEngine:
         skipped = sum(1 for e in executions.values() if e.status == NodeStatus.SKIPPED)
 
         total_items_processed = sum(
-            e.result.items_processed for e in executions.values()
-            if e.result and e.result.success
+            e.result.items_processed for e in executions.values() if e.result and e.result.success
         )
 
         total_execution_time = sum(
-            e.result.execution_time_seconds for e in executions.values()
+            e.result.execution_time_seconds
+            for e in executions.values()
             if e.result and e.result.execution_time_seconds
         )
 
@@ -521,5 +513,5 @@ class FlowExecutionEngine:
             "skipped": skipped,
             "success_rate": completed / total_nodes if total_nodes > 0 else 0,
             "total_items_processed": total_items_processed,
-            "total_execution_time_seconds": total_execution_time
+            "total_execution_time_seconds": total_execution_time,
         }

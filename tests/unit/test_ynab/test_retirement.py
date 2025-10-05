@@ -3,16 +3,16 @@
 Unit tests for YNAB-based retirement account management.
 """
 
-import pytest
-from pathlib import Path
 from datetime import date
-from unittest.mock import Mock, patch
+from pathlib import Path
+
+import pytest
 
 from finances.ynab.retirement import (
     RetirementAccount,
     YnabRetirementService,
     discover_retirement_accounts,
-    generate_retirement_edits
+    generate_retirement_edits,
 )
 
 
@@ -26,7 +26,7 @@ class TestRetirementAccount:
             name="Test Account",
             balance_milliunits=1234560,  # milliunits
             cleared_balance_milliunits=1234560,
-            last_reconciled_at=None
+            last_reconciled_at=None,
         )
 
         # milliunits / 10 = cents
@@ -48,7 +48,7 @@ class TestRetirementAccount:
                 name=name,
                 balance_milliunits=0,
                 cleared_balance_milliunits=0,
-                last_reconciled_at=None
+                last_reconciled_at=None,
             )
             assert account.provider == expected_provider
 
@@ -69,7 +69,7 @@ class TestRetirementAccount:
                 name=name,
                 balance_milliunits=0,
                 cleared_balance_milliunits=0,
-                last_reconciled_at=None
+                last_reconciled_at=None,
             )
             assert account.account_type == expected_type
 
@@ -98,7 +98,7 @@ class TestYnabRetirementService:
                     "closed": False,
                     "balance": 1000000,  # $100 in milliunits
                     "cleared_balance": 1000000,
-                    "last_reconciled_at": "2024-01-01T00:00:00Z"
+                    "last_reconciled_at": "2024-01-01T00:00:00Z",
                 },
                 {
                     "id": "retirement-2",
@@ -108,7 +108,7 @@ class TestYnabRetirementService:
                     "closed": False,
                     "balance": 2000000,  # $200 in milliunits
                     "cleared_balance": 2000000,
-                    "last_reconciled_at": None
+                    "last_reconciled_at": None,
                 },
                 {
                     "id": "checking-1",
@@ -118,8 +118,8 @@ class TestYnabRetirementService:
                     "closed": False,
                     "balance": 500000,
                     "cleared_balance": 500000,
-                    "last_reconciled_at": None
-                }
+                    "last_reconciled_at": None,
+                },
             ]
         }
 
@@ -129,7 +129,7 @@ class TestYnabRetirementService:
 
         # Write sample data
         accounts_file = temp_data_dir / "ynab" / "cache" / "accounts.json"
-        with open(accounts_file, 'w') as f:
+        with open(accounts_file, "w") as f:
             json.dump(sample_accounts_data, f)
 
         service = YnabRetirementService(temp_data_dir)
@@ -151,15 +151,11 @@ class TestYnabRetirementService:
             name="Test Account",
             balance_milliunits=1000000,  # Current: 100000 cents = $1000
             cleared_balance_milliunits=1000000,
-            last_reconciled_at=None
+            last_reconciled_at=None,
         )
 
         # Increase balance to $1500
-        mutation = service.generate_balance_adjustment(
-            account,
-            150000,  # $1500 in cents
-            date(2024, 1, 1)
-        )
+        mutation = service.generate_balance_adjustment(account, 150000, date(2024, 1, 1))  # $1500 in cents
 
         assert mutation is not None
         assert mutation["account_id"] == "test-id"
@@ -176,15 +172,11 @@ class TestYnabRetirementService:
             name="Test Account",
             balance_milliunits=2000000,  # Current: 200000 cents = $2000
             cleared_balance_milliunits=2000000,
-            last_reconciled_at=None
+            last_reconciled_at=None,
         )
 
         # Decrease balance to $1500
-        mutation = service.generate_balance_adjustment(
-            account,
-            150000,  # $1500 in cents
-            date(2024, 1, 1)
-        )
+        mutation = service.generate_balance_adjustment(account, 150000, date(2024, 1, 1))  # $1500 in cents
 
         assert mutation is not None
         assert mutation["amount_milliunits"] == -500000  # $500 decrease in milliunits
@@ -199,17 +191,15 @@ class TestYnabRetirementService:
             name="Test Account",
             balance_milliunits=1000000,  # Current: 100000 cents = $1000
             cleared_balance_milliunits=1000000,
-            last_reconciled_at=None
+            last_reconciled_at=None,
         )
 
         # Same balance
         mutation = service.generate_balance_adjustment(
-            account,
-            100000,  # $1000 in cents (same as current)
-            date(2024, 1, 1)
+            account, 100000, date(2024, 1, 1)  # $1000 in cents (same as current)
         )
 
-        assert mutation is None
+        assert mutation == {}
 
     def test_create_retirement_edits(self, temp_data_dir):
         """Test creating YNAB edits file."""
@@ -221,15 +211,15 @@ class TestYnabRetirementService:
                 "account_name": "Account 1",
                 "action": "create_reconciliation",
                 "amount_milliunits": 100000,
-                "metadata": {"adjustment_cents": 10000}
+                "metadata": {"adjustment_cents": 10000},
             },
             {
                 "account_id": "acc2",
                 "account_name": "Account 2",
                 "action": "create_reconciliation",
                 "amount_milliunits": -50000,
-                "metadata": {"adjustment_cents": -5000}
-            }
+                "metadata": {"adjustment_cents": -5000},
+            },
         ]
 
         output_file = service.create_retirement_edits(adjustments)
@@ -240,7 +230,8 @@ class TestYnabRetirementService:
 
         # Verify file contents
         import json
-        with open(output_file, 'r') as f:
+
+        with open(output_file) as f:
             data = json.load(f)
 
         assert data["metadata"]["total_mutations"] == 2
@@ -249,10 +240,10 @@ class TestYnabRetirementService:
         assert len(data["mutations"]) == 2
 
     def test_empty_edits_returns_none(self, temp_data_dir):
-        """Test that empty adjustments returns None."""
+        """Test that empty adjustments returns empty Path."""
         service = YnabRetirementService(temp_data_dir)
         result = service.create_retirement_edits([])
-        assert result is None
+        assert result == Path()
 
 
 class TestConvenienceFunctions:
@@ -265,8 +256,9 @@ class TestConvenienceFunctions:
 
         # Write empty accounts file
         import json
+
         accounts_file = data_dir / "ynab" / "cache" / "accounts.json"
-        with open(accounts_file, 'w') as f:
+        with open(accounts_file, "w") as f:
             json.dump({"accounts": []}, f)
 
         accounts = discover_retirement_accounts(data_dir)
@@ -280,6 +272,7 @@ class TestConvenienceFunctions:
 
         # Write accounts file with one retirement account
         import json
+
         accounts_file = data_dir / "ynab" / "cache" / "accounts.json"
         accounts_data = {
             "accounts": [
@@ -291,18 +284,15 @@ class TestConvenienceFunctions:
                     "closed": False,
                     "balance": 1000000,
                     "cleared_balance": 1000000,
-                    "last_reconciled_at": None
+                    "last_reconciled_at": None,
                 }
             ]
         }
-        with open(accounts_file, 'w') as f:
+        with open(accounts_file, "w") as f:
             json.dump(accounts_data, f)
 
         # Generate edits with balance update
-        result = generate_retirement_edits(
-            data_dir,
-            {"ret1": 15000}  # Update to $150
-        )
+        result = generate_retirement_edits(data_dir, {"ret1": 15000})  # Update to $150
 
         assert result is not None
         assert result.exists()

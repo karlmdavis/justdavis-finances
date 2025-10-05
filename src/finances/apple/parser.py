@@ -6,16 +6,14 @@ Professional Apple receipt parsing with support for multiple HTML formats.
 Handles both legacy and modern Apple receipt email formats with robust extraction.
 """
 
-import json
-import re
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, field, asdict
-from bs4 import BeautifulSoup
-from datetime import datetime
 import logging
+import re
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from ..core.currency import safe_currency_to_cents
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +21,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ParsedItem:
     """Represents a single purchased item from an Apple receipt."""
+
     title: str
     cost: float
     quantity: int = 1
     subscription: bool = False
-    item_type: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    item_type: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -36,34 +35,34 @@ class ParsedReceipt:
     """Represents a parsed Apple receipt with standardized data structure."""
 
     # Core metadata
-    format_detected: Optional[str] = None
-    apple_id: Optional[str] = None
-    receipt_date: Optional[str] = None
-    order_id: Optional[str] = None
-    document_number: Optional[str] = None
+    format_detected: str | None = None
+    apple_id: str | None = None
+    receipt_date: str | None = None
+    order_id: str | None = None
+    document_number: str | None = None
 
     # Financial data
-    subtotal: Optional[float] = None
-    tax: Optional[float] = None
-    total: Optional[float] = None
+    subtotal: float | None = None
+    tax: float | None = None
+    total: float | None = None
     currency: str = "USD"
 
     # Billing information
-    payment_method: Optional[str] = None
-    billed_to: Optional[Dict[str, str]] = None
+    payment_method: str | None = None
+    billed_to: dict[str, str] | None = None
 
     # Purchase items
-    items: List[ParsedItem] = field(default_factory=list)
+    items: list[ParsedItem] = field(default_factory=list)
 
     # Parsing metadata
-    parsing_metadata: Dict[str, Any] = field(default_factory=dict)
-    base_name: Optional[str] = None
+    parsing_metadata: dict[str, Any] = field(default_factory=dict)
+    base_name: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
-    def add_item(self, title: str, cost: float, **kwargs) -> None:
+    def add_item(self, title: str, cost: float, **kwargs: Any) -> None:
         """Add an item to the receipt."""
         item = ParsedItem(title=title, cost=cost, **kwargs)
         self.items.append(item)
@@ -77,9 +76,9 @@ class AppleReceiptParser:
     robust extraction and proper financial data handling.
     """
 
-    def __init__(self):
-        self.selectors_tried: List[str] = []
-        self.selectors_successful: List[str] = []
+    def __init__(self) -> None:
+        self.selectors_tried: list[str] = []
+        self.selectors_successful: list[str] = []
 
     def parse_receipt(self, base_name: str, content_dir: Path) -> ParsedReceipt:
         """
@@ -96,15 +95,15 @@ class AppleReceiptParser:
 
         html_path = content_dir / f"{base_name}-formatted-simple.html"
         if not html_path.exists():
-            receipt.parsing_metadata['errors'] = ['HTML file not found']
+            receipt.parsing_metadata["errors"] = ["HTML file not found"]
             logger.error(f"HTML file not found: {html_path}")
             return receipt
 
         try:
-            with open(html_path, 'r', encoding='utf-8') as f:
+            with open(html_path, encoding="utf-8") as f:
                 content = f.read()
 
-            soup = BeautifulSoup(content, 'lxml')
+            soup = BeautifulSoup(content, "lxml")
 
             # Reset tracking
             self.selectors_tried = []
@@ -121,19 +120,19 @@ class AppleReceiptParser:
 
             # Store parsing metadata
             receipt.parsing_metadata = {
-                'selectors_successful': self.selectors_successful.copy(),
-                'selectors_failed': [s for s in self.selectors_tried if s not in self.selectors_successful],
-                'fallback_used': False,
-                'extraction_method': 'enhanced_html_parser',
-                'total_selectors_tried': len(self.selectors_tried),
-                'success_rate': len(self.selectors_successful) / max(len(self.selectors_tried), 1)
+                "selectors_successful": self.selectors_successful.copy(),
+                "selectors_failed": [s for s in self.selectors_tried if s not in self.selectors_successful],
+                "fallback_used": False,
+                "extraction_method": "enhanced_html_parser",
+                "total_selectors_tried": len(self.selectors_tried),
+                "success_rate": len(self.selectors_successful) / max(len(self.selectors_tried), 1),
             }
 
             logger.info(f"Successfully parsed receipt: {receipt.order_id or base_name}")
 
         except Exception as e:
             logger.error(f"Error parsing receipt {base_name}: {e}")
-            receipt.parsing_metadata['errors'] = [str(e)]
+            receipt.parsing_metadata["errors"] = [str(e)]
 
         return receipt
 
@@ -151,7 +150,7 @@ class AppleReceiptParser:
         receipt = ParsedReceipt(base_name=receipt_id)
 
         try:
-            soup = BeautifulSoup(html_content, 'lxml')
+            soup = BeautifulSoup(html_content, "lxml")
 
             # Reset tracking
             self.selectors_tried = []
@@ -165,16 +164,16 @@ class AppleReceiptParser:
 
             # Store parsing metadata
             receipt.parsing_metadata = {
-                'selectors_successful': self.selectors_successful.copy(),
-                'selectors_failed': [s for s in self.selectors_tried if s not in self.selectors_successful],
-                'extraction_method': 'html_content_parser',
-                'total_selectors_tried': len(self.selectors_tried),
-                'success_rate': len(self.selectors_successful) / max(len(self.selectors_tried), 1)
+                "selectors_successful": self.selectors_successful.copy(),
+                "selectors_failed": [s for s in self.selectors_tried if s not in self.selectors_successful],
+                "extraction_method": "html_content_parser",
+                "total_selectors_tried": len(self.selectors_tried),
+                "success_rate": len(self.selectors_successful) / max(len(self.selectors_tried), 1),
             }
 
         except Exception as e:
             logger.error(f"Error parsing HTML content for {receipt_id}: {e}")
-            receipt.parsing_metadata['errors'] = [str(e)]
+            receipt.parsing_metadata["errors"] = [str(e)]
 
         return receipt
 
@@ -182,21 +181,24 @@ class AppleReceiptParser:
         """Detect the HTML format type of the receipt."""
         try:
             # Check for legacy format indicators
-            if soup.find(class_=re.compile(r'^aapl-')):
+            if soup.find(class_=re.compile(r"^aapl-")):
                 return "legacy_aapl"
 
             # Check for modern custom format
-            if soup.find(class_=re.compile(r'^custom-')):
+            if soup.find(class_=re.compile(r"^custom-")):
                 return "modern_custom"
 
             # Check for table-based format
-            if soup.find('table'):
+            if soup.find("table"):
                 return "table_based"
 
             # Check for specific Apple receipt indicators
             apple_indicators = [
-                'Apple Store', 'iTunes Store', 'App Store',
-                'apple.com', 'Your receipt from Apple'
+                "Apple Store",
+                "iTunes Store",
+                "App Store",
+                "apple.com",
+                "Your receipt from Apple",
             ]
 
             text_content = soup.get_text().lower()
@@ -230,35 +232,32 @@ class AppleReceiptParser:
         # Extract payment method
         receipt.payment_method = self._extract_payment_method(soup)
 
-    def _extract_apple_id(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_apple_id(self, soup: BeautifulSoup) -> str | None:
         """Extract Apple ID from various locations in the receipt."""
         selectors = [
             # Legacy formats
-            {'selector': '.aapl-text-large, .aapl-apple-id', 'method': 'text'},
-            {'selector': '[data-apple-id]', 'method': 'attr', 'attr': 'data-apple-id'},
-
+            {"selector": ".aapl-text-large, .aapl-apple-id", "method": "text"},
+            {"selector": "[data-apple-id]", "method": "attr", "attr": "data-apple-id"},
             # Modern formats
-            {'selector': '.custom-apple-id, .apple-id', 'method': 'text'},
-            {'selector': 'td:contains("Apple ID"), th:contains("Apple ID")', 'method': 'sibling'},
-
+            {"selector": ".custom-apple-id, .apple-id", "method": "text"},
+            {"selector": 'td:contains("Apple ID"), th:contains("Apple ID")', "method": "sibling"},
             # Generic patterns
-            {'selector': 'span, div, td', 'method': 'email_pattern'},
+            {"selector": "span, div, td", "method": "email_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "Apple ID")
+        result = self._try_selectors(soup, selectors, "Apple ID")
+        return str(result) if result is not None else None
 
-    def _extract_receipt_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_receipt_date(self, soup: BeautifulSoup) -> str | None:
         """Extract receipt date."""
         selectors = [
             # Legacy formats
-            {'selector': '.aapl-receipt-date, .aapl-date', 'method': 'text'},
-
+            {"selector": ".aapl-receipt-date, .aapl-date", "method": "text"},
             # Modern formats
-            {'selector': '.custom-date, .receipt-date', 'method': 'text'},
-            {'selector': 'td:contains("Date"), th:contains("Date")', 'method': 'sibling'},
-
+            {"selector": ".custom-date, .receipt-date", "method": "text"},
+            {"selector": 'td:contains("Date"), th:contains("Date")', "method": "sibling"},
             # Generic patterns
-            {'selector': 'span, div, td', 'method': 'date_pattern'},
+            {"selector": "span, div, td", "method": "date_pattern"},
         ]
 
         date_text = self._try_selectors(soup, selectors, "receipt date")
@@ -266,72 +265,79 @@ class AppleReceiptParser:
             return self._normalize_date(date_text)
         return None
 
-    def _extract_order_id(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_order_id(self, soup: BeautifulSoup) -> str | None:
         """Extract order ID."""
         selectors = [
             # Legacy formats
-            {'selector': '.aapl-order-id, .aapl-order', 'method': 'text'},
-
+            {"selector": ".aapl-order-id, .aapl-order", "method": "text"},
             # Modern formats
-            {'selector': '.custom-order-id, .order-id', 'method': 'text'},
-            {'selector': 'td:contains("Order ID"), th:contains("Order ID")', 'method': 'sibling'},
-
+            {"selector": ".custom-order-id, .order-id", "method": "text"},
+            {"selector": 'td:contains("Order ID"), th:contains("Order ID")', "method": "sibling"},
             # Generic patterns
-            {'selector': 'span, div, td', 'method': 'order_pattern'},
+            {"selector": "span, div, td", "method": "order_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "order ID")
+        result = self._try_selectors(soup, selectors, "order ID")
+        return str(result) if result is not None else None
 
-    def _extract_document_number(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_document_number(self, soup: BeautifulSoup) -> str | None:
         """Extract document number."""
         selectors = [
-            {'selector': 'td:contains("Document No"), th:contains("Document No")', 'method': 'sibling'},
-            {'selector': '.document-number, .doc-number', 'method': 'text'},
-            {'selector': 'span, div, td', 'method': 'document_pattern'},
+            {"selector": 'td:contains("Document No"), th:contains("Document No")', "method": "sibling"},
+            {"selector": ".document-number, .doc-number", "method": "text"},
+            {"selector": "span, div, td", "method": "document_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "document number")
+        result = self._try_selectors(soup, selectors, "document number")
+        return str(result) if result is not None else None
 
-    def _extract_subtotal(self, soup: BeautifulSoup) -> Optional[float]:
+    def _extract_subtotal(self, soup: BeautifulSoup) -> float | None:
         """Extract subtotal amount."""
         selectors = [
-            {'selector': '.aapl-subtotal, .subtotal', 'method': 'currency'},
-            {'selector': 'td:contains("Subtotal"), th:contains("Subtotal")', 'method': 'sibling_currency'},
-            {'selector': 'span, div, td', 'method': 'subtotal_pattern'},
+            {"selector": ".aapl-subtotal, .subtotal", "method": "currency"},
+            {"selector": 'td:contains("Subtotal"), th:contains("Subtotal")', "method": "sibling_currency"},
+            {"selector": "span, div, td", "method": "subtotal_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "subtotal")
+        result = self._try_selectors(soup, selectors, "subtotal")
+        return float(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_tax(self, soup: BeautifulSoup) -> Optional[float]:
+    def _extract_tax(self, soup: BeautifulSoup) -> float | None:
         """Extract tax amount."""
         selectors = [
-            {'selector': '.aapl-tax, .tax', 'method': 'currency'},
-            {'selector': 'td:contains("Tax"), th:contains("Tax")', 'method': 'sibling_currency'},
-            {'selector': 'span, div, td', 'method': 'tax_pattern'},
+            {"selector": ".aapl-tax, .tax", "method": "currency"},
+            {"selector": 'td:contains("Tax"), th:contains("Tax")', "method": "sibling_currency"},
+            {"selector": "span, div, td", "method": "tax_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "tax")
+        result = self._try_selectors(soup, selectors, "tax")
+        return float(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_total(self, soup: BeautifulSoup) -> Optional[float]:
+    def _extract_total(self, soup: BeautifulSoup) -> float | None:
         """Extract total amount."""
         selectors = [
-            {'selector': '.aapl-total, .total, .grand-total', 'method': 'currency'},
-            {'selector': 'td:contains("Total"), th:contains("Total")', 'method': 'sibling_currency'},
-            {'selector': 'td:contains("Grand Total"), th:contains("Grand Total")', 'method': 'sibling_currency'},
-            {'selector': 'span, div, td', 'method': 'total_pattern'},
+            {"selector": ".aapl-total, .total, .grand-total", "method": "currency"},
+            {"selector": 'td:contains("Total"), th:contains("Total")', "method": "sibling_currency"},
+            {
+                "selector": 'td:contains("Grand Total"), th:contains("Grand Total")',
+                "method": "sibling_currency",
+            },
+            {"selector": "span, div, td", "method": "total_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "total")
+        result = self._try_selectors(soup, selectors, "total")
+        return float(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_payment_method(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_payment_method(self, soup: BeautifulSoup) -> str | None:
         """Extract payment method."""
         selectors = [
-            {'selector': '.aapl-payment, .payment-method', 'method': 'text'},
-            {'selector': 'td:contains("Payment Method"), th:contains("Payment Method")', 'method': 'sibling'},
-            {'selector': 'span, div, td', 'method': 'payment_pattern'},
+            {"selector": ".aapl-payment, .payment-method", "method": "text"},
+            {"selector": 'td:contains("Payment Method"), th:contains("Payment Method")', "method": "sibling"},
+            {"selector": "span, div, td", "method": "payment_pattern"},
         ]
 
-        return self._try_selectors(soup, selectors, "payment method")
+        result = self._try_selectors(soup, selectors, "payment method")
+        return str(result) if result is not None else None
 
     def _extract_items(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """Extract purchased items from the receipt."""
@@ -359,17 +365,17 @@ class AppleReceiptParser:
         if not items_found:
             logger.warning("No items found using any extraction strategy")
 
-    def _extract_items_table_based(self, soup: BeautifulSoup) -> List[ParsedItem]:
+    def _extract_items_table_based(self, soup: BeautifulSoup) -> list[ParsedItem]:
         """Extract items from table-based format."""
         items = []
 
         # Look for tables containing item data
-        tables = soup.find_all('table')
+        tables = soup.find_all("table")
         for table in tables:
-            rows = table.find_all('tr')
+            rows = table.find_all("tr")
 
             for row in rows:
-                cells = row.find_all(['td', 'th'])
+                cells = row.find_all(["td", "th"])
                 if len(cells) >= 2:
                     # Try to identify item name and cost
                     text_cells = [cell.get_text().strip() for cell in cells]
@@ -377,102 +383,102 @@ class AppleReceiptParser:
                     # Look for currency patterns
                     for i, text in enumerate(text_cells):
                         if self._is_currency(text) and i > 0:
-                            item_name = text_cells[i-1]
+                            item_name = text_cells[i - 1]
                             cost = self._parse_currency(text)
 
                             if item_name and cost is not None and len(item_name) > 2:
-                                items.append(ParsedItem(
-                                    title=item_name,
-                                    cost=cost,
-                                    metadata={'extraction_method': 'table_based'}
-                                ))
+                                items.append(
+                                    ParsedItem(
+                                        title=item_name,
+                                        cost=cost,
+                                        metadata={"extraction_method": "table_based"},
+                                    )
+                                )
 
         return items
 
-    def _extract_items_list_based(self, soup: BeautifulSoup) -> List[ParsedItem]:
+    def _extract_items_list_based(self, soup: BeautifulSoup) -> list[ParsedItem]:
         """Extract items from list-based format."""
         items = []
 
         # Look for list elements
-        lists = soup.find_all(['ul', 'ol'])
+        lists = soup.find_all(["ul", "ol"])
         for list_elem in lists:
-            list_items = list_elem.find_all('li')
+            list_items = list_elem.find_all("li")
 
             for li in list_items:
                 text = li.get_text().strip()
                 # Try to extract item name and cost from list item text
-                match = re.search(r'(.+?)\s*[\$£€¥]\s*(\d+\.?\d*)', text)
+                match = re.search(r"(.+?)\s*[\$£€¥]\s*(\d+\.?\d*)", text)
                 if match:
                     item_name = match.group(1).strip()
                     cost = float(match.group(2))
 
-                    items.append(ParsedItem(
-                        title=item_name,
-                        cost=cost,
-                        metadata={'extraction_method': 'list_based'}
-                    ))
+                    items.append(
+                        ParsedItem(title=item_name, cost=cost, metadata={"extraction_method": "list_based"})
+                    )
 
         return items
 
-    def _extract_items_legacy_format(self, soup: BeautifulSoup) -> List[ParsedItem]:
+    def _extract_items_legacy_format(self, soup: BeautifulSoup) -> list[ParsedItem]:
         """Extract items from legacy aapl-* format."""
         items = []
 
         # Look for legacy item containers
-        item_containers = soup.find_all(class_=re.compile(r'aapl-item|aapl-product'))
+        item_containers = soup.find_all(class_=re.compile(r"aapl-item|aapl-product"))
 
         for container in item_containers:
             item_name = None
             item_cost = None
 
             # Try to find item name
-            name_elem = container.find(class_=re.compile(r'aapl-item-name|aapl-product-name'))
+            name_elem = container.find(class_=re.compile(r"aapl-item-name|aapl-product-name"))
             if name_elem:
                 item_name = name_elem.get_text().strip()
 
             # Try to find item cost
-            cost_elem = container.find(class_=re.compile(r'aapl-item-cost|aapl-price'))
+            cost_elem = container.find(class_=re.compile(r"aapl-item-cost|aapl-price"))
             if cost_elem:
                 cost_text = cost_elem.get_text().strip()
                 item_cost = self._parse_currency(cost_text)
 
             if item_name and item_cost is not None:
-                items.append(ParsedItem(
-                    title=item_name,
-                    cost=item_cost,
-                    metadata={'extraction_method': 'legacy_format'}
-                ))
+                items.append(
+                    ParsedItem(
+                        title=item_name, cost=item_cost, metadata={"extraction_method": "legacy_format"}
+                    )
+                )
 
         return items
 
-    def _extract_items_modern_format(self, soup: BeautifulSoup) -> List[ParsedItem]:
+    def _extract_items_modern_format(self, soup: BeautifulSoup) -> list[ParsedItem]:
         """Extract items from modern custom-* format."""
         items = []
 
         # Look for modern item containers
-        item_containers = soup.find_all(class_=re.compile(r'custom-item|custom-product|item-row'))
+        item_containers = soup.find_all(class_=re.compile(r"custom-item|custom-product|item-row"))
 
         for container in item_containers:
             item_name = None
             item_cost = None
 
             # Try to find item name
-            name_elem = container.find(class_=re.compile(r'custom-item-name|item-name|product-name'))
+            name_elem = container.find(class_=re.compile(r"custom-item-name|item-name|product-name"))
             if name_elem:
                 item_name = name_elem.get_text().strip()
 
             # Try to find item cost
-            cost_elem = container.find(class_=re.compile(r'custom-item-cost|item-cost|price'))
+            cost_elem = container.find(class_=re.compile(r"custom-item-cost|item-cost|price"))
             if cost_elem:
                 cost_text = cost_elem.get_text().strip()
                 item_cost = self._parse_currency(cost_text)
 
             if item_name and item_cost is not None:
-                items.append(ParsedItem(
-                    title=item_name,
-                    cost=item_cost,
-                    metadata={'extraction_method': 'modern_format'}
-                ))
+                items.append(
+                    ParsedItem(
+                        title=item_name, cost=item_cost, metadata={"extraction_method": "modern_format"}
+                    )
+                )
 
         return items
 
@@ -482,25 +488,25 @@ class AppleReceiptParser:
 
         # Look for billing address
         address_selectors = [
-            '.aapl-billing-address, .billing-address',
-            '.aapl-billed-to, .billed-to',
+            ".aapl-billing-address, .billing-address",
+            ".aapl-billed-to, .billed-to",
             'td:contains("Billed to"), th:contains("Billed to")',
         ]
 
         for selector in address_selectors:
             try:
-                if ':contains(' in selector:
+                if ":contains(" in selector:
                     elem = soup.select_one(selector)
                     if elem:
                         # Get next sibling or cell
-                        sibling = elem.find_next_sibling(['td', 'div', 'span'])
+                        sibling = elem.find_next_sibling(["td", "div", "span"])
                         if sibling:
-                            billing_info['address'] = sibling.get_text().strip()
+                            billing_info["address"] = sibling.get_text().strip()
                             break
                 else:
                     elem = soup.select_one(selector)
                     if elem:
-                        billing_info['address'] = elem.get_text().strip()
+                        billing_info["address"] = elem.get_text().strip()
                         break
             except Exception as e:
                 logger.debug(f"Error extracting billing info with selector {selector}: {e}")
@@ -508,16 +514,16 @@ class AppleReceiptParser:
         if billing_info:
             receipt.billed_to = billing_info
 
-    def _try_selectors(self, soup: BeautifulSoup, selectors: List[Dict], field_name: str) -> Any:
+    def _try_selectors(self, soup: BeautifulSoup, selectors: list[dict], field_name: str) -> Any:
         """Try multiple selectors and return first successful result."""
         for selector_config in selectors:
             try:
-                selector = selector_config['selector']
-                method = selector_config['method']
+                selector = selector_config["selector"]
+                method = selector_config["method"]
 
                 self.selectors_tried.append(f"{field_name}:{selector}")
 
-                if method == 'text':
+                if method == "text":
                     elem = soup.select_one(selector)
                     if elem:
                         result = elem.get_text().strip()
@@ -525,29 +531,34 @@ class AppleReceiptParser:
                             self.selectors_successful.append(f"{field_name}:{selector}")
                             return result
 
-                elif method == 'attr':
+                elif method == "attr":
                     elem = soup.select_one(selector)
                     if elem:
-                        result = elem.get(selector_config['attr'])
-                        if result:
+                        attr_result = elem.get(selector_config["attr"])
+                        if attr_result:
                             self.selectors_successful.append(f"{field_name}:{selector}")
-                            return result
+                            # BeautifulSoup elem.get() returns str or list[str]
+                            if isinstance(attr_result, str):
+                                return attr_result
+                            else:
+                                # Must be a list
+                                return str(attr_result[0]) if attr_result else None
 
-                elif method == 'sibling':
+                elif method == "sibling":
                     elem = soup.select_one(selector)
                     if elem:
-                        sibling = elem.find_next_sibling(['td', 'div', 'span'])
+                        sibling = elem.find_next_sibling(["td", "div", "span"])
                         if sibling:
                             result = sibling.get_text().strip()
                             if result:
                                 self.selectors_successful.append(f"{field_name}:{selector}")
                                 return result
 
-                elif method == 'currency' or method == 'sibling_currency':
-                    if method == 'sibling_currency':
+                elif method == "currency" or method == "sibling_currency":
+                    if method == "sibling_currency":
                         elem = soup.select_one(selector)
                         if elem:
-                            sibling = elem.find_next_sibling(['td', 'div', 'span'])
+                            sibling = elem.find_next_sibling(["td", "div", "span"])
                             if sibling:
                                 text = sibling.get_text().strip()
                             else:
@@ -561,13 +572,13 @@ class AppleReceiptParser:
                         else:
                             continue
 
-                    result = self._parse_currency(text)
-                    if result is not None:
+                    currency_result: float | None = self._parse_currency(text)
+                    if currency_result is not None:
                         self.selectors_successful.append(f"{field_name}:{selector}")
-                        return result
+                        return currency_result
 
                 # Pattern-based extraction methods
-                elif method.endswith('_pattern'):
+                elif method.endswith("_pattern"):
                     elements = soup.select(selector)
                     for elem in elements:
                         text = elem.get_text().strip()
@@ -583,17 +594,17 @@ class AppleReceiptParser:
 
     def _extract_by_pattern(self, text: str, pattern_type: str) -> Any:
         """Extract data using regex patterns."""
-        if pattern_type == 'email_pattern':
-            match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
+        if pattern_type == "email_pattern":
+            match = re.search(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", text)
             return match.group(0) if match else None
 
-        elif pattern_type == 'date_pattern':
+        elif pattern_type == "date_pattern":
             # Try various date formats
             date_patterns = [
-                r'\b\d{1,2}/\d{1,2}/\d{4}\b',
-                r'\b\d{4}-\d{2}-\d{2}\b',
-                r'\b[A-Za-z]{3}\s+\d{1,2},\s+\d{4}\b',
-                r'\b\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\b',
+                r"\b\d{1,2}/\d{1,2}/\d{4}\b",
+                r"\b\d{4}-\d{2}-\d{2}\b",
+                r"\b[A-Za-z]{3}\s+\d{1,2},\s+\d{4}\b",
+                r"\b\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\b",
             ]
             for pattern in date_patterns:
                 match = re.search(pattern, text)
@@ -601,12 +612,12 @@ class AppleReceiptParser:
                     return match.group(0)
             return None
 
-        elif pattern_type == 'order_pattern':
+        elif pattern_type == "order_pattern":
             # Look for order ID patterns
             patterns = [
-                r'\b[A-Z0-9]{8,15}\b',  # Generic alphanumeric ID
-                r'\bOrder\s*#?\s*([A-Z0-9]+)\b',
-                r'\bID\s*:?\s*([A-Z0-9]+)\b',
+                r"\b[A-Z0-9]{8,15}\b",  # Generic alphanumeric ID
+                r"\bOrder\s*#?\s*([A-Z0-9]+)\b",
+                r"\bID\s*:?\s*([A-Z0-9]+)\b",
             ]
             for pattern in patterns:
                 match = re.search(pattern, text, re.IGNORECASE)
@@ -614,21 +625,21 @@ class AppleReceiptParser:
                     return match.group(1) if len(match.groups()) > 0 else match.group(0)
             return None
 
-        elif pattern_type == 'document_pattern':
-            match = re.search(r'\bDocument\s*No\.?\s*:?\s*([A-Z0-9]+)\b', text, re.IGNORECASE)
+        elif pattern_type == "document_pattern":
+            match = re.search(r"\bDocument\s*No\.?\s*:?\s*([A-Z0-9]+)\b", text, re.IGNORECASE)
             return match.group(1) if match else None
 
-        elif pattern_type in ['subtotal_pattern', 'tax_pattern', 'total_pattern']:
-            if pattern_type == 'subtotal_pattern' and 'subtotal' in text.lower():
-                return self._parse_currency(text)
-            elif pattern_type == 'tax_pattern' and 'tax' in text.lower():
-                return self._parse_currency(text)
-            elif pattern_type == 'total_pattern' and ('total' in text.lower() or 'grand' in text.lower()):
+        elif pattern_type in ["subtotal_pattern", "tax_pattern", "total_pattern"]:
+            if (
+                (pattern_type == "subtotal_pattern" and "subtotal" in text.lower())
+                or (pattern_type == "tax_pattern" and "tax" in text.lower())
+                or (pattern_type == "total_pattern" and ("total" in text.lower() or "grand" in text.lower()))
+            ):
                 return self._parse_currency(text)
             return None
 
-        elif pattern_type == 'payment_pattern':
-            payment_indicators = ['visa', 'mastercard', 'amex', 'apple pay', 'paypal', 'ending in']
+        elif pattern_type == "payment_pattern":
+            payment_indicators = ["visa", "mastercard", "amex", "apple pay", "paypal", "ending in"]
             if any(indicator in text.lower() for indicator in payment_indicators):
                 return text
             return None
@@ -637,19 +648,19 @@ class AppleReceiptParser:
 
     def _is_currency(self, text: str) -> bool:
         """Check if text contains currency information."""
-        currency_pattern = r'[\$£€¥]\s*\d+\.?\d*'
+        currency_pattern = r"[\$£€¥]\s*\d+\.?\d*"
         return bool(re.search(currency_pattern, text))
 
-    def _parse_currency(self, text: str) -> Optional[float]:
+    def _parse_currency(self, text: str) -> float | None:
         """Parse currency string to float value."""
         if not text:
             return None
 
         # Remove common currency symbols and whitespace
-        cleaned = re.sub(r'[\$£€¥,\s]', '', text)
+        cleaned = re.sub(r"[\$£€¥,\s]", "", text)
 
         # Extract numeric value
-        match = re.search(r'\d+\.?\d*', cleaned)
+        match = re.search(r"\d+\.?\d*", cleaned)
         if match:
             try:
                 return float(match.group())
@@ -665,10 +676,10 @@ class AppleReceiptParser:
 
         # Try to parse various date formats and normalize to YYYY-MM-DD
         date_patterns = [
-            ('%m/%d/%Y', r'\d{1,2}/\d{1,2}/\d{4}'),
-            ('%Y-%m-%d', r'\d{4}-\d{2}-\d{2}'),
-            ('%b %d, %Y', r'[A-Za-z]{3}\s+\d{1,2},\s+\d{4}'),
-            ('%d %b %Y', r'\d{1,2}\s+[A-Za-z]{3}\s+\d{4}'),
+            ("%m/%d/%Y", r"\d{1,2}/\d{1,2}/\d{4}"),
+            ("%Y-%m-%d", r"\d{4}-\d{2}-\d{2}"),
+            ("%b %d, %Y", r"[A-Za-z]{3}\s+\d{1,2},\s+\d{4}"),
+            ("%d %b %Y", r"\d{1,2}\s+[A-Za-z]{3}\s+\d{4}"),
         ]
 
         for date_format, pattern in date_patterns:
@@ -676,7 +687,7 @@ class AppleReceiptParser:
             if match:
                 try:
                     parsed_date = datetime.strptime(match.group(), date_format)
-                    return parsed_date.strftime('%Y-%m-%d')
+                    return parsed_date.strftime("%Y-%m-%d")
                 except ValueError:
                     continue
 

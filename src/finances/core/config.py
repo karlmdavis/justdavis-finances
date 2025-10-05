@@ -7,16 +7,18 @@ Supports multiple environments (development, test, production) with appropriate
 security measures for each.
 """
 
+import logging
 import os
-from typing import Optional, Dict, Any, Union
-from pathlib import Path
+import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
-import logging
+from pathlib import Path
+from typing import Any
 
 
 class Environment(Enum):
     """Application environment types."""
+
     DEVELOPMENT = "development"
     TEST = "test"
     PRODUCTION = "production"
@@ -25,6 +27,7 @@ class Environment(Enum):
 @dataclass
 class DatabaseConfig:
     """Database configuration settings."""
+
     # For local caching of YNAB data
     cache_dir: Path
     backup_enabled: bool = True
@@ -34,7 +37,8 @@ class DatabaseConfig:
 @dataclass
 class YNABConfig:
     """YNAB API configuration."""
-    api_token: Optional[str] = None
+
+    api_token: str | None = None
     base_url: str = "https://api.youneedabudget.com/v1"
     timeout: int = 30
     rate_limit_delay: float = 0.5  # Seconds between API calls
@@ -43,17 +47,20 @@ class YNABConfig:
 @dataclass
 class EmailConfig:
     """Email configuration for receipt fetching."""
+
     # Apple receipt email settings
     imap_server: str = "imap.gmail.com"
     imap_port: int = 993
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
     use_oauth: bool = False
+    search_folders: list[str] = field(default_factory=lambda: ["INBOX", "[Gmail]/All Mail"])
 
 
 @dataclass
 class AmazonConfig:
     """Amazon data processing configuration."""
+
     data_dir: Path
     account_names: list = field(default_factory=lambda: ["karl", "erica"])
     file_patterns: list = field(default_factory=lambda: ["Retail.OrderHistory.*.csv"])
@@ -62,6 +69,7 @@ class AmazonConfig:
 @dataclass
 class AppleConfig:
     """Apple data processing configuration."""
+
     data_dir: Path
     email_search_folders: list = field(default_factory=lambda: ["INBOX", "[Gmail]/All Mail"])
     receipt_cache_days: int = 90
@@ -70,6 +78,7 @@ class AppleConfig:
 @dataclass
 class AnalysisConfig:
     """Analysis and reporting configuration."""
+
     output_dir: Path
     chart_width: int = 12
     chart_height: int = 8
@@ -85,6 +94,7 @@ class Config:
     Loads configuration from environment variables with secure defaults
     and validation for each environment type.
     """
+
     environment: Environment
 
     # Core directories
@@ -111,7 +121,8 @@ class Config:
 
         # Base directories
         if env == Environment.TEST:
-            base_dir = Path(os.getenv("FINANCES_DATA_DIR", "/tmp/test_finances"))
+            default_test_dir = Path(tempfile.gettempdir()) / "test_finances"
+            base_dir = Path(os.getenv("FINANCES_DATA_DIR", str(default_test_dir)))
         else:
             base_dir = Path(os.getenv("FINANCES_DATA_DIR", "./data")).expanduser().resolve()
 
@@ -190,9 +201,8 @@ class Config:
                 errors.append(f"{name} does not exist: {path}")
 
         # Check YNAB configuration for production
-        if self.environment == Environment.PRODUCTION:
-            if not self.ynab.api_token:
-                errors.append("YNAB_API_TOKEN is required in production")
+        if self.environment == Environment.PRODUCTION and not self.ynab.api_token:
+            errors.append("YNAB_API_TOKEN is required in production")
 
         # Check email configuration if needed
         if self.email.username and not self.email.password and not self.email.use_oauth:
@@ -221,11 +231,7 @@ class Config:
         else:
             format_str = "%(asctime)s - %(levelname)s - %(message)s"
 
-        logging.basicConfig(
-            level=level,
-            format=format_str,
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
+        logging.basicConfig(level=level, format=format_str, datefmt="%Y-%m-%d %H:%M:%S")
 
         # Reduce noise from external libraries in production
         if self.environment == Environment.PRODUCTION:
@@ -240,15 +246,15 @@ class Config:
             "email.username",
         ]
 
-    def to_dict(self, include_sensitive: bool = False) -> Dict[str, Any]:
+    def to_dict(self, include_sensitive: bool = False) -> dict[str, Any]:
         """Convert configuration to dictionary, optionally excluding sensitive data."""
-        result = {}
+        result: dict[str, Any] = {}
 
         # Convert dataclass fields to dict
         for field_name, field_value in self.__dict__.items():
             if hasattr(field_value, "__dict__"):
                 # Nested dataclass
-                nested_dict = {}
+                nested_dict: dict[str, Any] = {}
                 for nested_name, nested_value in field_value.__dict__.items():
                     full_field_name = f"{field_name}.{nested_name}"
 
@@ -280,7 +286,7 @@ def _parse_list(value: str, delimiter: str = ",") -> list:
 
 
 # Global configuration instance
-_config: Optional[Config] = None
+_config: Config | None = None
 
 
 def get_config() -> Config:

@@ -6,13 +6,13 @@ Provides retirement account discovery and balance adjustment generation
 using YNAB as the single source of truth for account data.
 """
 
-from datetime import datetime, date
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any
 
-from ..core.currency import format_cents, milliunits_to_cents
+from ..core.currency import format_cents
 from ..core.json_utils import read_json, write_json
 
 logger = logging.getLogger(__name__)
@@ -21,11 +21,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RetirementAccount:
     """Represents a discovered retirement account from YNAB."""
+
     id: str
     name: str
     balance_milliunits: int
     cleared_balance_milliunits: int
-    last_reconciled_at: Optional[str]
+    last_reconciled_at: str | None
 
     @property
     def balance_cents(self) -> int:
@@ -89,7 +90,7 @@ class YnabRetirementService:
         self.edits_dir = data_dir / "ynab" / "edits"
         self.edits_dir.mkdir(parents=True, exist_ok=True)
 
-    def discover_retirement_accounts(self) -> List[RetirementAccount]:
+    def discover_retirement_accounts(self) -> list[RetirementAccount]:
         """
         Discover retirement accounts from YNAB cache.
 
@@ -111,20 +112,22 @@ class YnabRetirementService:
             data = read_json(accounts_file)
             accounts = data.get("accounts", [])
 
-            retirement_accounts = []
-            for account in accounts:
-                # Filter for retirement accounts (off-budget assets)
-                if (account.get("type") == "otherAsset" and
-                    not account.get("on_budget", True) and
-                    not account.get("closed", False)):
-
-                    retirement_accounts.append(RetirementAccount(
-                        id=account["id"],
-                        name=account["name"],
-                        balance_milliunits=account.get("balance", 0),
-                        cleared_balance_milliunits=account.get("cleared_balance", 0),
-                        last_reconciled_at=account.get("last_reconciled_at")
-                    ))
+            # Filter for retirement accounts (off-budget assets)
+            retirement_accounts = [
+                RetirementAccount(
+                    id=account["id"],
+                    name=account["name"],
+                    balance_milliunits=account.get("balance", 0),
+                    cleared_balance_milliunits=account.get("cleared_balance", 0),
+                    last_reconciled_at=account.get("last_reconciled_at"),
+                )
+                for account in accounts
+                if (
+                    account.get("type") == "otherAsset"
+                    and not account.get("on_budget", True)
+                    and not account.get("closed", False)
+                )
+            ]
 
             # Sort by name for consistent ordering
             retirement_accounts.sort(key=lambda a: a.name)
@@ -136,9 +139,9 @@ class YnabRetirementService:
             logger.error(f"Failed to load retirement accounts: {e}")
             return []
 
-    def generate_balance_adjustment(self, account: RetirementAccount,
-                                   new_balance_cents: int,
-                                   adjustment_date: Optional[date] = None) -> Dict[str, Any]:
+    def generate_balance_adjustment(
+        self, account: RetirementAccount, new_balance_cents: int, adjustment_date: date | None = None
+    ) -> dict[str, Any]:
         """
         Generate a YNAB balance adjustment transaction.
 
@@ -159,7 +162,7 @@ class YnabRetirementService:
 
         if adjustment_cents == 0:
             logger.info(f"No adjustment needed for {account.name}")
-            return None
+            return {}  # Return empty dict instead of None for consistency
 
         # Create reconciliation transaction
         mutation = {
@@ -181,14 +184,14 @@ class YnabRetirementService:
                 "account_type": account.account_type,
                 "previous_balance_cents": current_balance_cents,
                 "new_balance_cents": new_balance_cents,
-                "adjustment_cents": adjustment_cents
-            }
+                "adjustment_cents": adjustment_cents,
+            },
         }
 
         logger.info(f"Generated adjustment for {account.name}: {format_cents(adjustment_cents)}")
         return mutation
 
-    def create_retirement_edits(self, adjustments: List[Dict[str, Any]]) -> Path:
+    def create_retirement_edits(self, adjustments: list[dict[str, Any]]) -> Path:
         """
         Create a YNAB edits file for retirement balance adjustments.
 
@@ -200,7 +203,7 @@ class YnabRetirementService:
         """
         if not adjustments:
             logger.info("No retirement adjustments to save")
-            return None
+            return Path()  # Return empty Path instead of None
 
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -214,9 +217,9 @@ class YnabRetirementService:
                 "total_mutations": len(adjustments),
                 "total_adjustment": sum(m["metadata"]["adjustment_cents"] for m in adjustments),
                 "confidence_threshold": 1.0,
-                "auto_approved": len(adjustments)  # All retirement adjustments are auto-approved
+                "auto_approved": len(adjustments),  # All retirement adjustments are auto-approved
             },
-            "mutations": adjustments
+            "mutations": adjustments,
         }
 
         # Write to file
@@ -224,12 +227,14 @@ class YnabRetirementService:
 
         logger.info(f"Created retirement edits file: {output_file}")
         logger.info(f"  Total adjustments: {len(adjustments)}")
-        logger.info(f"  Net adjustment: {format_cents(edit_data['metadata']['total_adjustment'])}")
+        metadata_dict: dict[str, Any] = edit_data["metadata"]  # type: ignore[assignment]
+        total_adj: int = metadata_dict["total_adjustment"]
+        logger.info(f"  Net adjustment: {format_cents(total_adj)}")
 
         return output_file
 
 
-def discover_retirement_accounts(data_dir: Path) -> List[RetirementAccount]:
+def discover_retirement_accounts(data_dir: Path) -> list[RetirementAccount]:
     """
     Convenience function to discover retirement accounts.
 
@@ -243,8 +248,7 @@ def discover_retirement_accounts(data_dir: Path) -> List[RetirementAccount]:
     return service.discover_retirement_accounts()
 
 
-def generate_retirement_edits(data_dir: Path,
-                             balance_updates: Dict[str, int]) -> Optional[Path]:
+def generate_retirement_edits(data_dir: Path, balance_updates: dict[str, int]) -> Path | None:
     """
     Generate YNAB edits for retirement balance updates.
 

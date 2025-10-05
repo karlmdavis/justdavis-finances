@@ -12,101 +12,94 @@ Establish comprehensive code quality standards and automated development tooling
 
 ## Goals
 
-### Primary Objectives
-- **Automated Quality Enforcement**: Pre-commit hooks and CI/CD integration prevent
-    quality regressions
-- **Consistent Code Style**: Unified formatting and linting standards across entire
-    codebase
-- **Type Safety**: Comprehensive type annotations with static analysis validation
-- **Developer Productivity**: Seamless IDE integration and automated quality feedback
-- **Professional Standards**: Industry best practices for Python package development
+Establish practical code quality standards for the personal finance management package
+  using industry-standard Python tooling:
 
-### Secondary Objectives
-- **Onboarding Efficiency**: New contributors can immediately understand and follow
-    quality standards
-- **Maintainability**: Code quality tools reduce technical debt accumulation
-- **Documentation Quality**: Automated verification of docstring completeness and
-    formatting
-- **Performance Awareness**: Quality gates include performance regression detection
-- **Security Compliance**: Static analysis tools identify potential security
-    vulnerabilities
+- **Automated Quality Checks**: Fast pre-commit hooks for local development, comprehensive
+  CI/CD checks for pull requests
+- **Consistent Code Style**: Unified formatting (Black) and linting (Ruff) across entire
+  codebase
+- **Type Safety**: Complete type annotations for project code with pragmatic dependency
+  handling
+- **Test Quality**: 60% coverage focused on valuable, meaningful tests over metrics
+- **Security**: GitHub-native secret scanning and Renovate bot for dependency updates
+- **Developer Experience**: Fast feedback loops, clear error messages, minimal friction
 
 ## Quality Framework
 
 ### Code Formatting Standards
 
-#### Automated Formatting
-- **Black Integration**: Consistent code formatting with zero configuration approach
-- **Line Length**: 88 characters following Black's opinionated standard
-- **Import Organization**: Automated import sorting and grouping with isort/ruff
-- **Docstring Formatting**: Consistent docstring style with automated validation
+- **Black**: Automatic code formatting with 110 character line length
+- **Import Sorting**: Automated import organization with isort/ruff
+- **PEP 8 Compliance**: Enforced through Ruff linting
+- **Docstrings**: Consistent style with automated validation
 
-#### Style Consistency
-- **PEP 8 Compliance**: Full adherence to Python style guidelines
-- **Naming Conventions**: Consistent naming patterns across modules
-- **Code Structure**: Uniform organization within modules and classes
-- **Comment Standards**: Clear, concise comments following established patterns
+### Static Analysis
 
-### Static Analysis Framework
-
-#### Comprehensive Linting
-- **Ruff Integration**: Fast, comprehensive linting covering multiple rule sets
-- **Error Categories**: Syntax errors, logical issues, style violations, security
-    concerns
-- **Custom Rules**: Domain-specific rules for financial calculations and data
-    handling
-- **Incremental Analysis**: Efficient linting of changed code only
-
-#### Advanced Code Quality
-- **Complexity Analysis**: Cyclomatic complexity monitoring and enforcement
-- **Code Duplication**: Detection and prevention of duplicated logic
-- **Import Analysis**: Circular import detection and dependency validation
-- **Dead Code Detection**: Identification of unused functions and variables
+- **Ruff**: Fast, comprehensive linting for syntax, style, logic, and security issues
+- **Code Quality Checks**: Duplication detection, circular imports, dead code
+  identification
+- **Incremental Analysis**: Only check modified files for performance
 
 ### Type Safety Standards
 
-#### Comprehensive Type Coverage
-- **Mypy Integration**: Static type checking with strict configuration
-- **Annotation Requirements**: All public APIs must have type annotations
-- **Generic Types**: Proper use of generics for reusable components
-- **Protocol Definitions**: Type protocols for flexible interface definitions
+#### Type Coverage Goals
+- **Project Code**: Complete type annotation coverage for all project code
+- **Public APIs**: All public functions, classes, and methods must have type annotations
+- **Mypy Strict Mode**: Use strict mypy configuration for project code validation
+- **Pragmatic Boundaries**: Accept incomplete types at dependency boundaries
+  - Use type stubs where available from typeshed or package maintainers
+  - Use `type: ignore` with comments for unavoidable gaps in third-party code
+  - Don't create extensive custom stubs for untyped dependencies
 
 #### Financial Domain Types
 - **Currency Types**: Strict typing for milliunits, cents, and monetary calculations
-- **Transaction Models**: Comprehensive type definitions for financial data
-    structures
+- **Transaction Models**: Comprehensive type definitions for financial data structures
 - **API Contracts**: Type-safe interfaces for external service integration
 - **Configuration Types**: Typed configuration objects with validation
 
 ### Testing Quality Standards
 
 #### Test Coverage Requirements
-- **Minimum Coverage**: 90% line coverage for all production code
-- **Branch Coverage**: Critical paths must have 100% branch coverage
-- **Integration Coverage**: End-to-end workflow testing with realistic data
-- **Performance Testing**: Regression testing for critical performance paths
+- **Target Coverage**: 60% line and branch coverage for production code
+- **Quality Over Quantity**: Focus on valuable, meaningful tests over coverage metrics
+- **Critical Path Coverage**: 100% coverage for financial calculations and data integrity
+- **Integration Testing**: Comprehensive end-to-end tests with realistic data fixtures
 
-#### Test Quality Framework
-- **Test Organization**: Clear test structure mirroring source organization
-- **Fixture Management**: Shared test data and setup patterns
-- **Assertion Quality**: Specific, meaningful test assertions
-- **Test Documentation**: Clear test purpose and expected behavior
+#### Testing Philosophy
+- **Integration First**: Prefer end-to-end tests with canned mock data over excessive
+  unit testing
+- **Minimal Mocking**: Design code for testability without requiring heavy mock usage
+  - High mock usage often indicates poor design or low-value tests
+  - Use real implementations with test data when practical
+- **Meaningful Assertions**: Every test must validate real behavior, not implementation
+  details
+- **Test Maintainability**: Tests should be clear, focused, and easy to understand
+
+#### Test Organization
+- **Structure**: Test organization mirrors source code structure
+- **Fixtures**: Reusable test data and setup patterns in conftest.py
+- **Categories**: Unit tests for complex logic, integration tests for workflows
+- **Documentation**: Clear test names and docstrings explain purpose
 
 ## Development Workflow Integration
 
 ### Pre-Commit Quality Gates
 
-#### Automated Checks
-- **Formatting Validation**: Automatic Black formatting on commit
-- **Linting Enforcement**: Ruff checks preventing common errors
-- **Type Checking**: Mypy validation before code reaches repository
-- **Test Execution**: Fast unit test suite on relevant changes
+#### Fast Local Validation (<2 seconds)
+- **Formatting**: Automatic Black formatting on commit
+- **Import Sorting**: Automated import organization with isort/ruff
+- **Basic Linting**: Fast ruff checks for syntax errors and obvious issues
+- **File Hygiene**: Trailing whitespace, line endings, file size limits
 
 #### Quality Feedback Loop
 - **Immediate Feedback**: Pre-commit hooks provide instant quality assessment
-- **Fix Automation**: Automatic fixing of common formatting and import issues
-- **Clear Error Messages**: Helpful guidance for quality violations
-- **Bypass Mechanisms**: Controlled overrides for emergency situations
+- **Auto-Fix**: Automatic correction of formatting and import issues
+- **Minimal Friction**: Fast execution keeps development flow smooth
+- **Bypass Available**: Use `--no-verify` for legitimate exceptions
+
+**Note**: Comprehensive checks (full linting, type checking, tests) run in GitHub
+  Actions to maintain fast local workflow.
 
 ### IDE Integration Standards
 
@@ -122,6 +115,32 @@ Establish comprehensive code quality standards and automated development tooling
 - **Type Hints**: Real-time type checking and suggestion
 - **Auto-Formatting**: Format-on-save integration with Black
 - **Import Organization**: Automatic import sorting and cleanup
+
+### GitHub Actions CI/CD Pipeline
+
+#### Comprehensive Quality Checks
+- **Full Linting Suite**: Complete ruff rule set with all enabled checks
+- **Type Checking**: Strict mypy validation across entire codebase
+- **Test Suite**: Full test execution with coverage reporting
+- **Security Scanning**: Dependency vulnerability checks and secret detection
+
+#### Multi-Stage Validation
+- **On Push**: Fast validation (linting + type checking) for immediate feedback
+- **On PR**: Full quality suite including comprehensive tests and coverage analysis
+- **Scheduled**: Daily dependency security scans and update checks
+- **Manual Triggers**: On-demand quality checks and reports
+
+#### Quality Gates for PRs
+- **Required Checks**: All quality checks must pass before merge
+- **Coverage Requirements**: Coverage must not decrease below threshold
+- **Security Alerts**: Block merge on high/critical security vulnerabilities
+- **Review Requirements**: Code review required for all changes
+
+#### Automation Features
+- **Renovate Bot**: Automated dependency updates with security patches
+- **Coverage Reports**: Automatic coverage reporting and trend tracking
+- **Status Badges**: Real-time quality metrics visible in README
+- **Issue Creation**: Automatic issue creation for quality regressions
 
 ## Domain-Specific Quality Standards
 
@@ -142,93 +161,76 @@ Establish comprehensive code quality standards and automated development tooling
 ### Security Standards
 
 #### Data Protection
-- **Credential Detection**: Automated scanning for accidentally committed secrets
+- **GitHub Secret Scanning**: Built-in detection of accidentally committed credentials
+  and tokens
 - **PII Handling**: Standards for processing personally identifiable information
 - **API Security**: Secure patterns for external service integration
 - **Logging Safety**: Prevention of sensitive data in log outputs
 
 #### Dependency Security
-- **Vulnerability Scanning**: Automated detection of security issues in
-    dependencies
-- **License Compliance**: Verification of compatible open source licenses
-- **Supply Chain Security**: Monitoring of dependency provenance and integrity
-- **Update Policies**: Systematic approach to security updates
+- **Renovate Bot**: Automated dependency updates with security patch prioritization,
+  vulnerability detection, and update management
+- **License Compliance**: Verification of compatible open source licenses via
+  dependency review
+- **Supply Chain Security**: GitHub dependency graph and security advisories
 
-## Quality Metrics and Monitoring
+## Quality Metrics and Tracking
 
-### Automated Quality Measurement
+### Built-in GitHub Features
+- **Insights Dashboard**: Use GitHub's repository insights for code frequency and commit
+  activity
+- **Coverage Integration**: Coverage reports integrated into PR checks and comments
+- **Security Alerts**: Renovate bot for dependency vulnerability detection and automated
+  security updates
+- **Secret Scanning**: GitHub's native secret scanning for credential detection
+- **Code Scanning**: GitHub Advanced Security for code quality and security analysis
 
-#### Code Quality Metrics
-- **Complexity Trends**: Monitoring cyclomatic complexity over time
-- **Coverage Reporting**: Detailed test coverage analysis with trend tracking
-- **Duplication Detection**: Measurement and prevention of code duplication
-- **Maintainability Index**: Composite metric for code maintainability
-
-#### Performance Quality
-- **Execution Time Monitoring**: Performance regression detection for critical paths
-- **Memory Usage Tracking**: Memory efficiency monitoring for data processing
-- **CLI Responsiveness**: User experience metrics for command-line tools
-- **Test Execution Speed**: Optimization of test suite performance
+### Quality Monitoring
+- **PR Checks**: All quality metrics visible in pull request status checks
+- **Coverage Trends**: Track coverage changes over time through PR comments
+- **Dependency Health**: Renovate bot provides automated dependency updates
+- **Issue Tracking**: Use GitHub issues for quality improvements and technical debt
 
 ### Continuous Improvement
-
-#### Quality Dashboard
-- **Trend Visualization**: Historical quality metrics with actionable insights
-- **Regression Alerting**: Immediate notification of quality degradation
-- **Best Practice Sharing**: Documentation of quality improvements and patterns
-- **Goal Tracking**: Progress monitoring toward quality objectives
-
-#### Feedback Integration
-- **Developer Surveys**: Regular assessment of tooling effectiveness
-- **Process Refinement**: Continuous improvement of quality processes
-- **Tool Evaluation**: Regular assessment of development tool effectiveness
-- **Standard Evolution**: Periodic review and update of quality standards
+- **Regular Reviews**: Periodic assessment of quality standards and tool effectiveness
+- **Process Refinement**: Adjust quality gates based on team feedback and experience
+- **Tool Updates**: Keep quality tools current with latest versions via Renovate
+- **Standard Evolution**: Update standards as project and ecosystem evolve
 
 ## Implementation Features
 
 ### Pre-Commit Hook Configuration
 
-#### Hook Categories
-- **Formatting Hooks**: Black, isort, trailing whitespace, line ending
-    normalization
-- **Linting Hooks**: Ruff comprehensive linting with custom financial domain rules
-- **Type Checking**: Mypy validation with strict configuration
-- **Security Hooks**: Secret detection, dependency vulnerability scanning
+#### Lightweight Hook Set (Target: <2 seconds)
+- **Formatting**: Black code formatting with auto-fix
+- **Import Sorting**: isort/ruff import organization with auto-fix
+- **Basic Linting**: Fast ruff syntax and style checks
+- **File Hygiene**: Trailing whitespace, line endings, merge conflict markers
 
-#### Performance Optimization
-- **Incremental Execution**: Only check modified files for performance
-- **Parallel Processing**: Multi-threaded execution of independent checks
-- **Caching Strategy**: Intelligent caching of expensive analysis operations
-- **Selective Execution**: Different hook sets for different types of changes
+**Performance**: Hooks process only staged files with auto-fix for formatting, targeting
+  <2 second execution. Heavy analysis (type checking, full test suite) runs in GitHub
+  Actions.
 
-### Quality Tool Configuration
+### Tool Configuration
 
-#### Black Configuration
-- **Line Length**: 88 characters for optimal readability
-- **Python Version**: Target Python 3.9+ for modern language features
-- **Exclusion Patterns**: Proper exclusion of generated and third-party code
-- **IDE Integration**: Seamless format-on-save configuration
+**Black**: 110 character line length, Python 3.13+ target, format-on-save IDE integration
 
-#### Ruff Configuration
-- **Rule Selection**: Comprehensive rule set covering style, bugs, and security
-- **Custom Rules**: Financial domain-specific linting rules
-- **Severity Levels**: Appropriate error/warning classification
-- **Auto-Fix Capability**: Automatic correction of simple violations
+**Ruff**: Comprehensive rule set for style/bugs/security, auto-fix enabled, incremental
+  mode
 
-#### Mypy Configuration
-- **Strict Mode**: Comprehensive type checking with minimal exemptions
-- **Financial Types**: Custom type definitions for monetary calculations
-- **Third-Party Stubs**: Proper type stubs for external dependencies
-- **Incremental Checking**: Efficient type checking for large codebases
+**Mypy**: Strict mode for project code, custom financial types, pragmatic at dependency
+  boundaries
 
 ## Success Criteria
 
 ### Quality Gates
 - [ ] Zero formatting violations in codebase (Black compliance)
 - [ ] Zero linting errors or warnings (Ruff clean)
-- [ ] Complete type coverage for all public APIs (Mypy strict)
-- [ ] 90%+ test coverage with quality assertions
-- [ ] Pre-commit hooks functioning with <5 second execution time
+- [ ] Complete type annotations for all project code (strict mypy for project, pragmatic
+  for dependencies)
+- [ ] 60%+ test coverage focused on valuable, meaningful tests
+- [ ] Pre-commit hooks functioning with <2 second execution time
+- [ ] GitHub Actions CI/CD pipeline with comprehensive quality checks
 
 ### Developer Experience
 - [ ] One-command development environment setup
@@ -244,32 +246,51 @@ Establish comprehensive code quality standards and automated development tooling
 - [ ] Proactive identification of potential issues
 - [ ] Measurable improvement in code quality metrics
 
+## Future Improvements
+
+These enhancements may be valuable in the future but are not part of the initial
+  implementation:
+
+### Advanced Quality Analysis
+- **Cyclomatic Complexity Monitoring**: Track and enforce complexity thresholds for
+  functions and modules
+- **Custom Financial Linting Rules**: Domain-specific rules for financial calculations and
+  data handling
+  - Enforce integer-only arithmetic for currency operations
+  - Validate proper use of currency conversion utilities
+  - Detect potential precision loss in financial calculations
+- **Performance Regression Testing**: Automated detection of performance degradation in
+  critical paths
+- **Memory Usage Profiling**: Track memory efficiency for large data processing operations
+
+### Enhanced Tooling
+- **Custom Quality Dashboard**: Dedicated dashboard for quality metrics and trends
+  - Historical quality metric visualization
+  - Regression alerting and notifications
+  - Best practice sharing and documentation
+- **Advanced Code Duplication Detection**: Beyond basic pattern matching
+- **Architecture Validation**: Enforce architectural patterns and dependencies
+
+### Expanded Coverage
+- **Mutation Testing**: Assess test suite quality through mutation analysis
+- **Property-Based Testing**: Generate test cases for edge cases and invariants
+- **Fuzz Testing**: Security-focused input validation testing
+
 ## Considerations
 
-### Performance Impact
-- **Development Velocity**: Quality tools must enhance rather than hinder
-    productivity
-- **CI/CD Efficiency**: Quality checks integrated efficiently into build pipeline
-- **Local Development**: Minimal impact on local development workflow
-- **Scalability**: Quality tools scale effectively with codebase growth
+### Development Workflow
+- **Local Performance**: Pre-commit hooks must be <2 seconds to avoid friction
+- **CI/CD Efficiency**: GitHub Actions runs comprehensive checks without blocking
+  development
+- **Tool Maintenance**: Renovate bot automates dependency updates; manual review for
+  breaking changes
+- **Configuration**: Centralized in pyproject.toml and .pre-commit-config.yaml with
+  version control
 
-### Maintainability
-- **Tool Updates**: Systematic approach to updating quality tool versions
-- **Configuration Management**: Centralized configuration with proper version
-    control
-- **Standard Evolution**: Process for updating quality standards over time
-- **Documentation Currency**: Keeping quality documentation up-to-date
-
-### Team Adoption
-- **Learning Curve**: Gradual introduction of quality standards for team members
-- **Customization Needs**: Flexibility for legitimate quality standard variations
-- **Exception Handling**: Clear process for justified quality standard exceptions
-- **Feedback Integration**: Regular team feedback on quality tool effectiveness
-
-### Technical Debt Management
-- **Legacy Code**: Strategy for applying quality standards to existing code
-- **Incremental Improvement**: Gradual quality enhancement without disrupting
-    functionality
-- **Priority Ranking**: Focus quality efforts on highest-impact areas first
-- **Regression Prevention**: Quality gates prevent introduction of new technical
-    debt
+### Incremental Adoption
+- **Legacy Code**: Apply quality standards gradually to existing code through refactoring
+- **Quality Improvements**: Fix issues as you touch code, don't require perfect compliance
+  immediately
+- **Pragmatic Exceptions**: Use `# type: ignore`, `# noqa`, etc. with comments when
+  necessary
+- **Regression Prevention**: Quality gates prevent new issues from entering codebase

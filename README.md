@@ -1,5 +1,10 @@
 # Davis Family Finances
 
+[![Code Quality](https://github.com/karlmdavis/justdavis-finances/actions/workflows/quality.yml/badge.svg)](https://github.com/karlmdavis/justdavis-finances/actions/workflows/quality.yml)
+[![codecov](https://codecov.io/gh/karlmdavis/justdavis-finances/branch/main/graph/badge.svg)](https://codecov.io/gh/karlmdavis/justdavis-finances)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Professional personal finance management system with automated transaction matching,
   receipt processing, and financial analysis.
 
@@ -20,7 +25,7 @@ Features high-accuracy transaction matching for Amazon and Apple purchases, cash
 
 ## For Developers
 
-See [CONTRIBUTORS.md](CONTRIBUTORS.md) for comprehensive development documentation including project
+See [CONTRIBUTING.md](CONTRIBUTING.md) for comprehensive development documentation including project
   architecture, testing framework, code quality standards, and development workflow.
 
 ## Quick Start
@@ -37,6 +42,9 @@ uv sync
 
 # Install package in development mode
 uv pip install -e .
+
+# Install pre-commit hooks (for developers)
+uv run pre-commit install
 ```
 
 ### Basic Usage

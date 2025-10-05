@@ -5,24 +5,23 @@ Unit tests for flow execution engine.
 Tests dependency resolution, execution orchestration, and change detection integration.
 """
 
-import pytest
 from datetime import datetime
-from pathlib import Path
-from typing import List, Tuple, Set
 
-from finances.core.flow import (
-    FlowNode, FlowContext, FlowResult, NodeExecution, NodeStatus, FlowNodeRegistry
-)
+from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NodeExecution, NodeStatus
 from finances.core.flow_engine import DependencyGraph, FlowExecutionEngine
 
 
 class MockFlowNode(FlowNode):
     """Mock flow node for testing."""
 
-    def __init__(self, name: str, dependencies: List[str] = None,
-                 check_changes_result: Tuple[bool, List[str]] = (False, []),
-                 execute_result: FlowResult = None,
-                 execution_callback=None):
+    def __init__(
+        self,
+        name: str,
+        dependencies: list[str] | None = None,
+        check_changes_result: tuple[bool, list[str]] = (False, []),
+        execute_result: FlowResult = None,
+        execution_callback=None,
+    ):
         super().__init__(name)
         if dependencies:
             self._dependencies = set(dependencies)
@@ -31,7 +30,7 @@ class MockFlowNode(FlowNode):
         self.execution_callback = execution_callback
         self.execution_count = 0
 
-    def check_changes(self, context: FlowContext) -> Tuple[bool, List[str]]:
+    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         return self.check_changes_result
 
     def execute(self, context: FlowContext) -> FlowResult:
@@ -358,7 +357,9 @@ class TestFlowExecutionEngine:
 
         # Check that all nodes have force execution in their reasons
         for node_name, reasons in change_summary.items():
-            assert any("Force execution" in reason for reason in reasons), f"Node {node_name} missing force reason: {reasons}"
+            assert any(
+                "Force execution" in reason for reason in reasons
+            ), f"Node {node_name} missing force reason: {reasons}"
 
     def test_execute_node_success(self):
         """Test successful node execution."""
@@ -458,8 +459,11 @@ class TestFlowExecutionEngine:
         """Test flow execution stops on failure."""
         registry = FlowNodeRegistry()
 
-        node1 = MockFlowNode("node1", check_changes_result=(True, ["Changed"]),
-                           execute_result=FlowResult(success=False, error_message="Failed"))
+        node1 = MockFlowNode(
+            "node1",
+            check_changes_result=(True, ["Changed"]),
+            execute_result=FlowResult(success=False, error_message="Failed"),
+        )
         node2 = MockFlowNode("node2", dependencies=["node1"], check_changes_result=(False, []))
 
         registry.register_node(node1)
@@ -480,8 +484,11 @@ class TestFlowExecutionEngine:
         """Test flow execution continues on error with force flag."""
         registry = FlowNodeRegistry()
 
-        node1 = MockFlowNode("node1", check_changes_result=(True, ["Changed"]),
-                           execute_result=FlowResult(success=False, error_message="Failed"))
+        node1 = MockFlowNode(
+            "node1",
+            check_changes_result=(True, ["Changed"]),
+            execute_result=FlowResult(success=False, error_message="Failed"),
+        )
         node2 = MockFlowNode("node2", dependencies=["node1"], check_changes_result=(False, []))
 
         registry.register_node(node1)
@@ -511,11 +518,7 @@ class TestFlowExecutionEngine:
         execution3 = NodeExecution("node3", NodeStatus.SKIPPED)
         execution3.result = FlowResult(success=True, metadata={"dry_run": True})
 
-        executions = {
-            "node1": execution1,
-            "node2": execution2,
-            "node3": execution3
-        }
+        executions = {"node1": execution1, "node2": execution2, "node3": execution3}
 
         summary = engine.get_execution_summary(executions)
 
@@ -523,6 +526,6 @@ class TestFlowExecutionEngine:
         assert summary["completed"] == 1
         assert summary["failed"] == 1
         assert summary["skipped"] == 1
-        assert summary["success_rate"] == 1/3
+        assert summary["success_rate"] == 1 / 3
         assert summary["total_items_processed"] == 10
         assert summary["total_execution_time_seconds"] == 1.5

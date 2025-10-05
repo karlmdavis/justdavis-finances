@@ -120,7 +120,7 @@ finances/                           # Repository root
 ├── pyproject.toml                  # Package configuration and dependencies
 ├── uv.lock                         # Dependency lock file
 ├── README.md                       # User-facing documentation
-├── CONTRIBUTORS.md                 # This file - developer documentation
+├── CONTRIBUTING.md                 # This file - developer documentation
 ├── CLAUDE.md                       # Claude Code guidance
 ├── .env.template                   # Environment variable template
 ├── .gitignore                      # Git ignore patterns
@@ -140,7 +140,7 @@ The `data/` directory is automatically created and managed by the package:
 
 ### Prerequisites
 
-- **Python 3.9+**: Required for modern type annotations and language features.
+- **Python 3.13+**: Required for modern type annotations and language features.
 - **uv**: Package manager for dependency management and virtual environments.
 - **Git**: Version control system.
 
@@ -156,6 +156,9 @@ uv sync --dev
 
 # Install package in development mode
 uv pip install -e .
+
+# Install pre-commit hooks for automatic code quality checks
+uv run pre-commit install
 
 # Verify installation
 finances --help
@@ -259,6 +262,15 @@ def test_amazon_matching(sample_amazon_orders, sample_ynab_transactions):
 
 ## Code Quality Standards
 
+### Overview
+
+The project enforces comprehensive code quality standards through automated tooling:
+
+- **Zero tolerance**: All quality checks must pass in CI/CD pipeline.
+- **Pre-commit validation**: Lightweight hooks (<2s) for immediate feedback.
+- **Strategic pragmatism**: Type checking with industry-standard ignore patterns for known
+  library limitations.
+
 ### Automated Formatting
 
 #### Black Configuration
@@ -271,14 +283,14 @@ uv run black --check src/ tests/
 ```
 
 Configuration in `pyproject.toml`:
-- Line length: 88 characters.
-- Target Python: 3.9+.
-- Consistent quote style and formatting.
+- **Line length**: 110 characters (optimized for modern displays).
+- **Target Python**: 3.13+ for compatibility.
+- **Consistent style**: Automatic quote normalization and formatting.
 
 #### Import Organization
 ```bash
-# Organize imports
-uv run ruff --select I --fix src/ tests/
+# Organize imports (included in Ruff)
+uv run ruff check --select I --fix src/ tests/
 ```
 
 ### Comprehensive Linting
@@ -286,41 +298,67 @@ uv run ruff --select I --fix src/ tests/
 #### Ruff Configuration
 ```bash
 # Run all linting checks
-uv run ruff src/ tests/
+uv run ruff check src/ tests/
 
 # Auto-fix simple issues
-uv run ruff --fix src/ tests/
+uv run ruff check --fix src/ tests/
 ```
 
-Enabled rule categories:
+**Enabled rule categories:**
 - **E, W**: pycodestyle errors and warnings.
 - **F**: pyflakes for logical errors.
 - **I**: isort for import organization.
 - **B**: flake8-bugbear for likely bugs.
 - **C4**: flake8-comprehensions for better comprehensions.
 - **UP**: pyupgrade for modern Python patterns.
+- **S**: Security checks for common vulnerabilities.
+- **PERF**: Performance anti-pattern detection.
+- **SIM**: Code simplification suggestions.
 
-### Type Safety
+**Pragmatic ignore rules:**
+- `E722`: Bare except allowed with proper logging.
+- `S108`: Hardcoded temp directory paths allowed.
+- `S112`: try-except-continue patterns allowed.
+- `PERF203`: try-except in loops allowed (financial data processing).
 
-#### MyPy Configuration
+### Type Safety with MyPy
+
+#### Configuration and Usage
 ```bash
-# Type check all code
+# Type check all code (strict mode)
 uv run mypy src/
 
 # Type check specific module
 uv run mypy src/finances/amazon/
 ```
 
-Type checking requirements:
-- **Strict mode**: Comprehensive type checking with minimal exemptions.
-- **Public API coverage**: All public functions must have type annotations.
-- **Financial types**: Specialized types for currency and financial calculations.
-- **Protocol definitions**: Type protocols for flexible interfaces.
+**Type checking requirements:**
+- **Strict mode enabled**: Comprehensive checks with zero errors tolerance.
+- **Public API coverage**: All public functions require type annotations.
+- **Strategic ignores**: Documented type: ignore for known library limitations.
+- **Type stubs**: pandas-stubs, types-PyYAML, types-beautifulsoup4.
+
+#### Strategic Type Ignore Patterns
+
+When third-party library type stubs have limitations (especially pandas), use strategic
+  `# type: ignore[specific-code]` with documentation:
+
+```python
+# pandas-stubs limitation: groupby iterator returns overly broad Union type
+for order_id, order_group in orders_df.groupby("Order ID"):  # type: ignore[index]
+    # Process group...
+    pass
+```
+
+**Best practices:**
+- Always use specific error codes: `# type: ignore[union-attr]` not `# type: ignore`.
+- Add explanatory comments explaining why the ignore is necessary.
+- Document known library limitations at module level.
+- Prefer type guards and explicit annotations over ignores when possible.
 
 #### Type Annotation Examples
 ```python
-from typing import List, Optional, Protocol
-from decimal import Decimal
+from typing import Any, Optional, Protocol
 
 def milliunits_to_cents(milliunits: int) -> int:
     """Convert YNAB milliunits to integer cents."""
@@ -331,15 +369,15 @@ class Matcher(Protocol):
 
     def match_transactions(
         self,
-        transactions: List[Transaction],
-        orders: List[Order]
-    ) -> List[MatchResult]:
+        transactions: list[dict[str, Any]],
+        orders: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         ...
 ```
 
 ### Pre-Commit Hooks
 
-Pre-commit hooks ensure code quality before commits:
+Lightweight pre-commit hooks (<2 seconds) provide immediate feedback:
 
 ```bash
 # Install pre-commit hooks
@@ -352,11 +390,44 @@ uv run pre-commit run --all-files
 git commit --no-verify
 ```
 
-Hook categories:
-- **Formatting**: Black formatting, trailing whitespace cleanup.
-- **Linting**: Ruff comprehensive linting.
-- **Type Checking**: MyPy static analysis.
-- **Security**: Secret detection, dependency vulnerability scanning.
+**Hook configuration:**
+- **File formatting**: Trailing whitespace, EOF normalization, YAML/JSON validation.
+- **Code formatting**: Black formatting (fast check mode).
+- **Linting**: Ruff auto-fixable checks only.
+- **Performance**: Optimized for <2s execution on typical commits.
+
+**Note**: Heavy checks (mypy, pytest) run in CI/CD only to maintain fast commit workflow.
+
+### Continuous Integration (GitHub Actions)
+
+The `.github/workflows/quality.yml` workflow enforces all quality standards:
+
+```yaml
+# Runs on every push and pull request
+jobs:
+  format-check:   # Black formatting verification
+  lint:           # Ruff comprehensive linting
+  type-check:     # MyPy strict type checking (zero errors)
+  test-coverage:  # Pytest with 60% coverage threshold
+```
+
+**Quality gates:**
+- All formatting must match Black 110-character style.
+- Zero Ruff linting errors allowed.
+- Zero MyPy type checking errors allowed.
+- Minimum 60% test coverage required.
+
+**Viewing results:**
+```bash
+# Check workflow status locally before pushing
+uv run black --check src/ tests/
+uv run ruff check src/ tests/
+uv run mypy src/
+uv run pytest --cov=src/finances --cov-report=term
+
+# View CI results in GitHub
+gh pr checks  # When in PR branch
+```
 
 ## Development Workflow
 
@@ -454,7 +525,7 @@ The Amazon Transaction Matching System creates automated linkage between Amazon 
 
 When referencing this formatting standard in other documentation, use:
 ```markdown
-See [Markdown Formatting Guidelines](CONTRIBUTORS.md#markdown-formatting-guidelines) for details.
+See [Markdown Formatting Guidelines](CONTRIBUTING.md#markdown-formatting-guidelines) for details.
 ```
 
 #### Documentation Requirements

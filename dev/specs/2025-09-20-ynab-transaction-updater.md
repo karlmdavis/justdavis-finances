@@ -58,7 +58,7 @@ An automated system that:
   - Item names, quantities, amounts.
   - Tax and shipping information (where available).
 
-#### YNAB Cache Data  
+#### YNAB Cache Data
 - **Source**: Cached `transactions.json` from YNAB data workflow
 - **Required Fields**:
   - Transaction ID, date, amount.
@@ -126,52 +126,52 @@ for item in order['items']:
     })
 ```
 
-#### Apple Transactions  
+#### Apple Transactions
 Apple provides receipt-level tax that must be allocated proportionally across items.
 
 ```python
 def allocate_apple_tax(items, subtotal, tax, total_milliunits):
     """
     Allocate tax proportionally across items using integer arithmetic.
-    
+
     Args:
         items: List of receipt items with 'cost' field
         subtotal: Receipt subtotal in dollars
         tax: Receipt tax in dollars
         total_milliunits: Transaction total in milliunits (negative)
-    
+
     Returns:
         List of split dictionaries with amount and memo
     """
     # Convert to milliunits
     subtotal_milliunits = int(subtotal * 1000)
     tax_milliunits = int(tax * 1000)
-    
+
     # Sort items for stable ordering
     sorted_items = sorted(items, key=lambda x: (-x['cost'], x['title']))
-    
+
     splits = []
     allocated = 0
-    
+
     # Allocate proportionally to all items except last
     for item in sorted_items[:-1]:
         item_base = int(item['cost'] * 1000)
         item_tax = (item_base * tax_milliunits) // subtotal_milliunits
         item_total = item_base + item_tax
-        
+
         splits.append({
             'amount': -item_total,  # Negative for expense
             'memo': f"{item['title']} (incl. tax)"
         })
         allocated += item_total
-    
+
     # Last item gets remainder to ensure exact sum
     last_item_amount = abs(total_milliunits) - allocated
     splits.append({
         'amount': -last_item_amount,
         'memo': f"{sorted_items[-1]['title']} (incl. tax)"
     })
-    
+
     return splits
 ```
 
@@ -274,7 +274,7 @@ mutations:
         memo: "Phone Case Clear (1x @ $15.99)"
       - amount: -4510
         memo: "Screen Protector (1x @ $4.51)"
-    
+
   - transaction_id: "xyz-789-ghi"
     action: split
     confidence: 1.0
@@ -322,15 +322,15 @@ metadata:
   reviewed_at: "2025-09-20T14:45:00Z"
   reviewer: "user"
   source_mutations: "mutations.yaml"
-  
+
 approved:
   - transaction_id: "abc-123-def"
     approved: true
     notes: "Verified against Amazon order email"
-    
+
   - transaction_id: "xyz-789-ghi"
     approved: true
-    
+
   - transaction_id: "mno-456-pqr"
     approved: false
     reason: "Incorrect item - was actually different book"

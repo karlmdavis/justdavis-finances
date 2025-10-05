@@ -7,12 +7,13 @@ Provides match scoring for Amazon transaction matching with precise calculations
 """
 
 from datetime import date
-from typing import Dict, Any
 from enum import Enum
+from typing import Any
 
 
 class MatchType(Enum):
     """Types of matches for scoring"""
+
     COMPLETE_ORDER = "complete_order"
     SPLIT_PAYMENT = "split_payment"
 
@@ -21,12 +22,14 @@ class MatchScorer:
     """Unified match scoring system"""
 
     @staticmethod
-    def calculate_confidence(ynab_amount: int,
-                           amazon_total: int,
-                           ynab_date: date,
-                           amazon_ship_dates: list,
-                           match_type: MatchType,
-                           **kwargs) -> float:
+    def calculate_confidence(
+        ynab_amount: int,
+        amazon_total: int,
+        ynab_date: date,
+        amazon_ship_dates: list[Any],
+        match_type: MatchType,
+        **kwargs: Any,
+    ) -> float:
         """
         Calculate match confidence score (0.0 to 1.0).
 
@@ -79,14 +82,16 @@ class MatchScorer:
         for ship_date in amazon_ship_dates:
             # Handle various date formats
             try:
-                if hasattr(ship_date, 'date'):
+                if hasattr(ship_date, "date"):
                     ship_date = ship_date.date()
                 elif isinstance(ship_date, str):
                     from datetime import datetime
-                    ship_date = datetime.strptime(ship_date, '%Y-%m-%d').date()
+
+                    ship_date = datetime.strptime(ship_date, "%Y-%m-%d").date()
 
                 date_diffs.append(abs((ynab_date - ship_date).days))
-            except:
+            except (ValueError, TypeError, AttributeError):
+                # Skip malformed dates - fall back to minimum from valid dates or default penalty
                 continue
 
         return min(date_diffs) if date_diffs else 7
@@ -117,11 +122,11 @@ class MatchScorer:
             return penalty_result / 100  # Convert back for compatibility
 
     @staticmethod
-    def _apply_match_type_adjustments(match_type: MatchType, **kwargs) -> float:
+    def _apply_match_type_adjustments(match_type: MatchType, **kwargs: Any) -> float:
         """Apply match type specific confidence adjustments"""
         if match_type == MatchType.COMPLETE_ORDER:
             # Complete orders get slight boost for being simpler/more reliable
-            multi_day = kwargs.get('multi_day', False)
+            multi_day = kwargs.get("multi_day", False)
             if multi_day:
                 return 1.05  # Multi-day orders are more complex but reliable when matched
             else:
@@ -131,16 +136,18 @@ class MatchScorer:
             # Split payments get slight penalty for being more complex
             return 0.95
 
-        else:
-            return 1.0
+        # This line is unreachable but mypy doesn't recognize the else after elif
+        return 1.0  # type: ignore[unreachable]
 
     @staticmethod
-    def create_match_result(ynab_tx: Dict[str, Any],
-                          amazon_orders: list,
-                          match_method: str,
-                          confidence: float,
-                          account: str,
-                          unmatched_amount: int = 0) -> Dict[str, Any]:
+    def create_match_result(
+        ynab_tx: dict[str, Any],
+        amazon_orders: list,
+        match_method: str,
+        confidence: float,
+        account: str,
+        unmatched_amount: int = 0,
+    ) -> dict[str, Any]:
         """
         Create standardized match result structure.
 
@@ -155,15 +162,15 @@ class MatchScorer:
         Returns:
             Standardized match result dictionary
         """
-        total_match_amount = sum(order.get('total', 0) for order in amazon_orders)
+        total_match_amount = sum(order.get("total", 0) for order in amazon_orders)
 
         return {
-            'account': account,
-            'amazon_orders': amazon_orders,
-            'match_method': match_method,
-            'confidence': confidence,
-            'total_match_amount': total_match_amount,
-            'unmatched_amount': unmatched_amount
+            "account": account,
+            "amazon_orders": amazon_orders,
+            "match_method": match_method,
+            "confidence": confidence,
+            "total_match_amount": total_match_amount,
+            "unmatched_amount": unmatched_amount,
         }
 
 
@@ -183,7 +190,7 @@ class ConfidenceThresholds:
         """Check if confidence meets minimum threshold for match type"""
         thresholds = {
             MatchType.COMPLETE_ORDER: ConfidenceThresholds.COMPLETE_MATCH_MIN,
-            MatchType.SPLIT_PAYMENT: ConfidenceThresholds.SPLIT_PAYMENT_MIN
+            MatchType.SPLIT_PAYMENT: ConfidenceThresholds.SPLIT_PAYMENT_MIN,
         }
 
         return confidence >= thresholds.get(match_type, 0.60)

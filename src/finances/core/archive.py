@@ -6,16 +6,14 @@ Provides transactional archiving of financial data before flow execution
 to ensure data consistency and enable rollback capabilities.
 """
 
+import logging
 import tarfile
-import yaml
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Set
-from dataclasses import dataclass, asdict
-import logging
-import shutil
+from typing import Any
 
-from .json_utils import write_json, read_json
+from .json_utils import read_json, write_json
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +21,25 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ArchiveManifest:
     """Manifest describing the contents and metadata of an archive."""
+
     archive_path: str
     creation_time: str
     trigger_reason: str
-    domains: List[str]
+    domains: list[str]
     files_archived: int
     archive_size_bytes: int
     sequence_number: int
-    flow_context: Dict[str, Any]
+    flow_context: dict[str, Any]
 
 
 @dataclass
 class ArchiveSession:
     """Represents a complete archive session across all domains."""
+
     session_id: str
     creation_time: str
     trigger_reason: str
-    archives: Dict[str, ArchiveManifest]
+    archives: dict[str, ArchiveManifest]
     total_files: int
     total_size_bytes: int
 
@@ -68,7 +68,7 @@ class DomainArchiver:
         # Ensure archive directory exists
         self.archive_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_archivable_files(self) -> List[Path]:
+    def get_archivable_files(self) -> list[Path]:
         """
         Get list of files that should be archived for this domain.
 
@@ -81,13 +81,9 @@ class DomainArchiver:
         archivable_files = []
 
         # Common patterns to archive (exclude archive directory itself)
-        patterns_to_include = [
-            "*.json", "*.yaml", "*.yml", "*.csv", "*.png", "*.jpg", "*.jpeg"
-        ]
+        patterns_to_include = ["*.json", "*.yaml", "*.yml", "*.csv", "*.png", "*.jpg", "*.jpeg"]
 
-        patterns_to_exclude = [
-            "archive/**", "*.tmp", "*.log", "**/.DS_Store"
-        ]
+        patterns_to_exclude = ["archive/**", "*.tmp", "*.log", "**/.DS_Store"]
 
         try:
             for pattern in patterns_to_include:
@@ -96,8 +92,7 @@ class DomainArchiver:
                         # Check if file should be excluded
                         relative_path = file_path.relative_to(self.domain_dir)
                         should_exclude = any(
-                            relative_path.match(exclude_pattern)
-                            for exclude_pattern in patterns_to_exclude
+                            relative_path.match(exclude_pattern) for exclude_pattern in patterns_to_exclude
                         )
 
                         if not should_exclude:
@@ -124,16 +119,18 @@ class DomainArchiver:
         for archive_path in existing_archives:
             try:
                 # Extract sequence number from filename: YYYY-MM-DD-NNN.tar.gz
-                name_parts = archive_path.stem.split('-')
+                name_parts = archive_path.stem.split("-")
                 if len(name_parts) >= 4:
                     sequence_numbers.append(int(name_parts[3]))
             except (ValueError, IndexError):
+                # PERF203: try-except in loop necessary for robust filename parsing
                 continue
 
         return max(sequence_numbers, default=0) + 1
 
-    def create_archive(self, trigger_reason: str,
-                      flow_context: Optional[Dict[str, Any]] = None) -> Optional[ArchiveManifest]:
+    def create_archive(
+        self, trigger_reason: str, flow_context: dict[str, Any] | None = None
+    ) -> ArchiveManifest | None:
         """
         Create compressed archive of current domain data.
 
@@ -178,14 +175,16 @@ class DomainArchiver:
                 files_archived=len(files_to_archive),
                 archive_size_bytes=archive_size,
                 sequence_number=sequence_num,
-                flow_context=flow_context or {}
+                flow_context=flow_context or {},
             )
 
             # Save manifest alongside archive
-            manifest_path = archive_path.with_suffix('.json')
+            manifest_path = archive_path.with_suffix(".json")
             write_json(manifest_path, asdict(manifest))
 
-            logger.info(f"Created archive: {archive_path} ({len(files_to_archive)} files, {archive_size:,} bytes)")
+            logger.info(
+                f"Created archive: {archive_path} ({len(files_to_archive)} files, {archive_size:,} bytes)"
+            )
 
             return manifest
 
@@ -222,10 +221,10 @@ class ArchiveManager:
             "apple": DomainArchiver("apple", data_dir),
             "ynab": DomainArchiver("ynab", data_dir),
             "retirement": DomainArchiver("retirement", data_dir),
-            "cash_flow": DomainArchiver("cash_flow", data_dir)
+            "cash_flow": DomainArchiver("cash_flow", data_dir),
         }
 
-    def get_domains_with_data(self) -> List[str]:
+    def get_domains_with_data(self) -> list[str]:
         """
         Get list of domains that have data to archive.
 
@@ -241,9 +240,12 @@ class ArchiveManager:
 
         return domains_with_data
 
-    def create_transaction_archive(self, trigger_reason: str,
-                                 domains: Optional[List[str]] = None,
-                                 flow_context: Optional[Dict[str, Any]] = None) -> ArchiveSession:
+    def create_transaction_archive(
+        self,
+        trigger_reason: str,
+        domains: list[str] | None = None,
+        flow_context: dict[str, Any] | None = None,
+    ) -> ArchiveSession:
         """
         Create transactional archive across specified domains.
 
@@ -292,23 +294,23 @@ class ArchiveManager:
             trigger_reason=trigger_reason,
             archives=archives,
             total_files=total_files,
-            total_size_bytes=total_size
+            total_size_bytes=total_size,
         )
 
         # Save session manifest
         session_file = self.session_dir / f"{session_id}.json"
         session_data = asdict(archive_session)
         # Convert ArchiveManifest objects to dicts
-        session_data['archives'] = {
-            domain: asdict(manifest) for domain, manifest in archives.items()
-        }
+        session_data["archives"] = {domain: asdict(manifest) for domain, manifest in archives.items()}
         write_json(session_file, session_data)
 
-        logger.info(f"Archive session complete: {len(archives)} domains, {total_files} files, {total_size:,} bytes")
+        logger.info(
+            f"Archive session complete: {len(archives)} domains, {total_files} files, {total_size:,} bytes"
+        )
 
         return archive_session
 
-    def list_recent_archives(self, domain: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    def list_recent_archives(self, domain: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
         """
         List recent archives for a domain or all domains.
 
@@ -325,13 +327,11 @@ class ArchiveManager:
             # List archives for specific domain
             archiver = self.domain_archivers[domain]
             archive_files = sorted(
-                archiver.archive_dir.glob("*.tar.gz"),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True
+                archiver.archive_dir.glob("*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True
             )[:limit]
 
             for archive_path in archive_files:
-                manifest_path = archive_path.with_suffix('.json')
+                manifest_path = archive_path.with_suffix(".json")
                 if manifest_path.exists():
                     try:
                         manifest_data = read_json(manifest_path)
@@ -342,9 +342,7 @@ class ArchiveManager:
         else:
             # List recent archive sessions
             session_files = sorted(
-                self.session_dir.glob("*.json"),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True
+                self.session_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
             )[:limit]
 
             for session_file in session_files:
@@ -352,34 +350,31 @@ class ArchiveManager:
                     session_data = read_json(session_file)
                     archives.append(session_data)
                 except Exception as e:
+                    # PERF203: try-except in loop necessary for robust JSON file reading
                     logger.warning(f"Failed to read session {session_file}: {e}")
 
         return archives
 
-    def calculate_storage_usage(self) -> Dict[str, Any]:
+    def calculate_storage_usage(self) -> dict[str, Any]:
         """
         Calculate storage usage statistics for all archives.
 
         Returns:
             Dictionary with storage usage information
         """
-        usage = {
-            "domains": {},
-            "total_archives": 0,
-            "total_size_bytes": 0
-        }
+        usage = {"domains": {}, "total_archives": 0, "total_size_bytes": 0}
 
         for domain_name, archiver in self.domain_archivers.items():
             archive_files = list(archiver.archive_dir.glob("*.tar.gz"))
             domain_size = sum(f.stat().st_size for f in archive_files)
 
-            usage["domains"][domain_name] = {
+            usage["domains"][domain_name] = {  # type: ignore[index]
                 "archive_count": len(archive_files),
-                "total_size_bytes": domain_size
+                "total_size_bytes": domain_size,
             }
 
-            usage["total_archives"] += len(archive_files)
-            usage["total_size_bytes"] += domain_size
+            usage["total_archives"] += len(archive_files)  # type: ignore[operator]
+            usage["total_size_bytes"] += domain_size  # type: ignore[operator]
 
         return usage
 
@@ -399,9 +394,7 @@ class ArchiveManager:
 
         archiver = self.domain_archivers[domain]
         archive_files = sorted(
-            archiver.archive_dir.glob("*.tar.gz"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True
+            archiver.archive_dir.glob("*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True
         )
 
         if len(archive_files) <= keep_count:
@@ -414,7 +407,7 @@ class ArchiveManager:
             try:
                 # Delete archive and its manifest
                 archive_path.unlink()
-                manifest_path = archive_path.with_suffix('.json')
+                manifest_path = archive_path.with_suffix(".json")
                 if manifest_path.exists():
                     manifest_path.unlink()
 
@@ -422,13 +415,15 @@ class ArchiveManager:
                 logger.info(f"Deleted old archive: {archive_path}")
 
             except Exception as e:
+                # PERF203: try-except in loop necessary for robust file deletion
                 logger.error(f"Failed to delete {archive_path}: {e}")
 
         return deleted_count
 
 
-def create_flow_archive(data_dir: Path, trigger_reason: str,
-                       flow_context: Optional[Dict[str, Any]] = None) -> ArchiveSession:
+def create_flow_archive(
+    data_dir: Path, trigger_reason: str, flow_context: dict[str, Any] | None = None
+) -> ArchiveSession:
     """
     Convenience function for creating archives before flow execution.
 

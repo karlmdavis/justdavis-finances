@@ -7,16 +7,16 @@ Provides data normalization and filtering functionality.
 """
 
 import json
-import os
-from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from pathlib import Path
+from typing import Any
+
 import pandas as pd
 
 from ..core.config import get_config
 
 
-def find_latest_apple_export(base_path: Optional[str] = None) -> Optional[str]:
+def find_latest_apple_export(base_path: str | None = None) -> str | None:
     """
     Find the most recent Apple receipt export directory.
 
@@ -45,10 +45,11 @@ def find_latest_apple_export(base_path: Optional[str] = None) -> Optional[str]:
         return None
 
     # Find all export directories with timestamp pattern
-    export_dirs = []
-    for item in export_path.iterdir():
-        if item.is_dir() and item.name.startswith("20") and "apple_receipts_export" in item.name:
-            export_dirs.append(item)
+    export_dirs = [
+        item
+        for item in export_path.iterdir()
+        if item.is_dir() and item.name.startswith("20") and "apple_receipts_export" in item.name
+    ]
 
     if not export_dirs:
         return None
@@ -58,7 +59,7 @@ def find_latest_apple_export(base_path: Optional[str] = None) -> Optional[str]:
     return str(latest_dir)
 
 
-def load_apple_receipts(export_path: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_apple_receipts(export_path: str | None = None) -> list[dict[str, Any]]:
     """
     Load Apple receipts from the latest export.
 
@@ -80,14 +81,14 @@ def load_apple_receipts(export_path: Optional[str] = None) -> List[Dict[str, Any
     if not receipts_file.exists():
         raise FileNotFoundError(f"Receipt file not found: {receipts_file}")
 
-    with open(receipts_file, 'r') as f:
-        receipts = json.load(f)
+    with open(receipts_file) as f:
+        receipts_data: list[dict[str, Any]] = json.load(f)
 
-    print(f"Loaded {len(receipts)} Apple receipts from {export_path}")
-    return receipts
+    print(f"Loaded {len(receipts_data)} Apple receipts from {export_path}")
+    return receipts_data
 
 
-def normalize_apple_receipt_data(receipts: List[Dict[str, Any]]) -> pd.DataFrame:
+def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame:
     """
     Normalize Apple receipt data into a standardized DataFrame.
 
@@ -103,34 +104,36 @@ def normalize_apple_receipt_data(receipts: List[Dict[str, Any]]) -> pd.DataFrame
         # Extract core receipt information
         try:
             # Parse receipt date to standard format
-            receipt_date_str = receipt.get('receipt_date', '')
+            receipt_date_str = receipt.get("receipt_date", "")
             receipt_date = parse_apple_date(receipt_date_str)
 
             # Skip receipts without valid dates
             if receipt_date is None:
-                print(f"Warning: Skipping receipt {receipt.get('order_id', 'unknown')} due to invalid date: '{receipt_date_str}'")
+                print(
+                    f"Warning: Skipping receipt {receipt.get('order_id', 'unknown')} due to invalid date: '{receipt_date_str}'"
+                )
                 continue
 
             # Get total amount (already in cents from parsing)
-            total = receipt.get('total', 0)
+            total = receipt.get("total", 0)
             if total is None:
                 total = 0
 
             # Create normalized record
             normalized_record = {
-                'apple_id': receipt.get('apple_id', ''),
-                'receipt_date': receipt_date,
-                'receipt_date_str': receipt_date_str,
-                'order_id': receipt.get('order_id', ''),
-                'document_number': receipt.get('document_number', ''),
-                'total': total,  # Amount in cents
-                'currency': receipt.get('currency', 'USD'),
-                'subtotal': receipt.get('subtotal'),
-                'tax': receipt.get('tax'),
-                'items': receipt.get('items', []),
-                'format_detected': receipt.get('format_detected', ''),
-                'base_name': receipt.get('base_name', ''),
-                'item_count': len(receipt.get('items', []))
+                "apple_id": receipt.get("apple_id", ""),
+                "receipt_date": receipt_date,
+                "receipt_date_str": receipt_date_str,
+                "order_id": receipt.get("order_id", ""),
+                "document_number": receipt.get("document_number", ""),
+                "total": total,  # Amount in cents
+                "currency": receipt.get("currency", "USD"),
+                "subtotal": receipt.get("subtotal"),
+                "tax": receipt.get("tax"),
+                "items": receipt.get("items", []),
+                "format_detected": receipt.get("format_detected", ""),
+                "base_name": receipt.get("base_name", ""),
+                "item_count": len(receipt.get("items", [])),
             }
 
             normalized_data.append(normalized_record)
@@ -143,13 +146,13 @@ def normalize_apple_receipt_data(receipts: List[Dict[str, Any]]) -> pd.DataFrame
 
     # Sort by receipt date for easier processing
     if not df.empty:
-        df = df.sort_values('receipt_date')
+        df = df.sort_values("receipt_date")
 
     print(f"Normalized {len(df)} receipts successfully")
     return df
 
 
-def parse_apple_date(date_str: str) -> Optional[datetime]:
+def parse_apple_date(date_str: str) -> datetime | None:
     """
     Parse Apple receipt date string into datetime object.
 
@@ -178,9 +181,7 @@ def parse_apple_date(date_str: str) -> Optional[datetime]:
             return None
 
 
-def filter_receipts_by_date_range(receipts_df: pd.DataFrame,
-                                  start_date: str,
-                                  end_date: str) -> pd.DataFrame:
+def filter_receipts_by_date_range(receipts_df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
     """
     Filter receipts to a specific date range.
 
@@ -199,14 +200,14 @@ def filter_receipts_by_date_range(receipts_df: pd.DataFrame,
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
     # Filter receipts within date range
-    mask = (receipts_df['receipt_date'] >= start_dt) & (receipts_df['receipt_date'] <= end_dt)
+    mask = (receipts_df["receipt_date"] >= start_dt) & (receipts_df["receipt_date"] <= end_dt)
     filtered_df = receipts_df[mask].copy()
 
     print(f"Filtered to {len(filtered_df)} receipts between {start_date} and {end_date}")
     return filtered_df
 
 
-def get_apple_receipt_summary(receipts_df: pd.DataFrame) -> Dict[str, Any]:
+def get_apple_receipt_summary(receipts_df: pd.DataFrame) -> dict[str, Any]:
     """
     Generate summary statistics for Apple receipts.
 
@@ -221,14 +222,22 @@ def get_apple_receipt_summary(receipts_df: pd.DataFrame) -> Dict[str, Any]:
 
     summary = {
         "total_receipts": len(receipts_df),
-        "total_amount": receipts_df['total'].sum(),
+        "total_amount": receipts_df["total"].sum(),
         "date_range": {
-            "earliest": receipts_df['receipt_date'].min().strftime("%Y-%m-%d") if not receipts_df['receipt_date'].isnull().all() else None,
-            "latest": receipts_df['receipt_date'].max().strftime("%Y-%m-%d") if not receipts_df['receipt_date'].isnull().all() else None
+            "earliest": (
+                receipts_df["receipt_date"].min().strftime("%Y-%m-%d")
+                if not receipts_df["receipt_date"].isnull().all()
+                else None
+            ),
+            "latest": (
+                receipts_df["receipt_date"].max().strftime("%Y-%m-%d")
+                if not receipts_df["receipt_date"].isnull().all()
+                else None
+            ),
         },
-        "apple_ids": receipts_df['apple_id'].unique().tolist(),
-        "average_amount": receipts_df['total'].mean(),
-        "formats_detected": receipts_df['format_detected'].value_counts().to_dict()
+        "apple_ids": receipts_df["apple_id"].unique().tolist(),
+        "average_amount": receipts_df["total"].mean(),
+        "formats_detected": receipts_df["format_detected"].value_counts().to_dict(),
     }
 
     return summary
