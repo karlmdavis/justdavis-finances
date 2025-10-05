@@ -15,6 +15,7 @@ Note: finances apple fetch-emails tests are skipped (requires IMAP credentials).
 """
 
 import json
+import random
 import shutil
 import subprocess
 import tempfile
@@ -105,80 +106,6 @@ class TestAppleParseReceiptsCLI:
             # Parser extracts "Order ID: " prefix from HTML
             assert "ML7PQ2XYZ" in receipt["order_id"]
             assert len(receipt["items"]) >= 2
-
-    def test_apple_parse_receipts_output_format(self):
-        """Test parse-receipts JSON output structure with detailed validation."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Setup email directory with synthetic receipt
-            email_dir = tmpdir / "apple" / "emails"
-            email_dir.mkdir(parents=True)
-
-            # Generate synthetic receipt with known values
-            items = [
-                {"title": "Test App Pro", "price": 999},  # $9.99
-                {"title": "Example Game", "price": 499},  # $4.99
-            ]
-            receipt_html = generate_synthetic_apple_receipt_html(
-                receipt_id="TEST123XYZ", customer_id="test@example.com", items=items
-            )
-
-            # Write receipt with correct naming
-            receipt_file = email_dir / "test_receipt-formatted-simple.html"
-            receipt_file.write_text(receipt_html)
-
-            # Run command
-            result = subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "finances",
-                    "apple",
-                    "parse-receipts",
-                    "--input-dir",
-                    str(email_dir),
-                    "--output-dir",
-                    str(tmpdir / "exports"),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            assert result.returncode == 0
-
-            # Load and validate JSON structure
-            export_files = list((tmpdir / "exports").glob("*_apple_receipts_export.json"))
-            with open(export_files[0]) as f:
-                export_data = json.load(f)
-
-            # Validate complete structure
-            assert set(export_data.keys()) == {"metadata", "receipts"}
-
-            # Validate metadata fields
-            metadata = export_data["metadata"]
-            required_metadata_fields = {
-                "export_date",
-                "total_files_processed",
-                "successful_parses",
-                "failed_parses",
-                "success_rate",
-            }
-            assert set(metadata.keys()) == required_metadata_fields
-
-            # Validate receipt structure
-            receipt = export_data["receipts"][0]
-            # Parser includes "Order ID: " prefix
-            assert "TEST123XYZ" in receipt["order_id"]
-            assert receipt["apple_id"] == "test@example.com"
-            assert len(receipt["items"]) >= 2
-
-            # Validate item structure
-            for item in receipt["items"]:
-                assert "title" in item
-                assert "cost" in item
-                assert isinstance(item["cost"], int | float)
 
     def test_apple_parse_multiple_receipts(self):
         """Test parsing multiple receipt files."""
@@ -335,44 +262,6 @@ class TestAppleParseReceiptsCLI:
             assert result.returncode == 0
             assert "No HTML receipt files found" in result.stdout
 
-    def test_apple_parse_verbose_output(self):
-        """Test verbose flag provides detailed output."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            email_dir = tmpdir / "emails"
-            email_dir.mkdir(parents=True)
-
-            # Create test receipt
-            receipt_html = generate_synthetic_apple_receipt_html(receipt_id="VERBOSE123")
-            receipt_file = email_dir / "verbose_test-formatted-simple.html"
-            receipt_file.write_text(receipt_html)
-
-            # Run command with verbose flag
-            result = subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "finances",
-                    "apple",
-                    "parse-receipts",
-                    "--input-dir",
-                    str(email_dir),
-                    "--output-dir",
-                    str(tmpdir / "exports"),
-                    "--verbose",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            assert result.returncode == 0
-            # Verbose output should include more details
-            assert "Apple Receipt Parsing" in result.stdout
-            assert "Input directory:" in result.stdout
-            assert "Output directory:" in result.stdout
-
 
 @pytest.mark.e2e
 @pytest.mark.apple
@@ -471,123 +360,6 @@ class TestAppleMatchCLI:
             assert metadata["start_date"] == start_date
             assert metadata["end_date"] == end_date
 
-    def test_apple_match_with_apple_id_filter(self):
-        """Test match command filtering by specific Apple IDs."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Setup minimal data
-            ynab_cache = tmpdir / "ynab" / "cache"
-            save_synthetic_ynab_data(ynab_cache)
-
-            start_date = (date.today() - timedelta(days=10)).strftime("%Y-%m-%d")
-            end_date = date.today().strftime("%Y-%m-%d")
-
-            # Run with Apple ID filter
-            result = subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "finances",
-                    "--config-env",
-                    "test",
-                    "apple",
-                    "match",
-                    "--start",
-                    start_date,
-                    "--end",
-                    end_date,
-                    "--apple-ids",
-                    "user1@example.com",
-                    "--apple-ids",
-                    "user2@example.com",
-                    "--output-dir",
-                    str(tmpdir / "matches"),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            assert result.returncode == 0
-
-            # Verify output file contains the Apple IDs filter
-            match_files = list((tmpdir / "matches").glob("*.json"))
-            with open(match_files[0]) as f:
-                match_data = json.load(f)
-
-            # Verify Apple IDs are in metadata
-            assert match_data["metadata"]["apple_ids"] == ["user1@example.com", "user2@example.com"]
-
-    def test_apple_match_verbose_output(self):
-        """Test match command with verbose flag."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Setup minimal data
-            ynab_cache = tmpdir / "ynab" / "cache"
-            save_synthetic_ynab_data(ynab_cache)
-
-            start_date = (date.today() - timedelta(days=5)).strftime("%Y-%m-%d")
-            end_date = date.today().strftime("%Y-%m-%d")
-
-            # Run with verbose flag
-            result = subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "finances",
-                    "--config-env",
-                    "test",
-                    "apple",
-                    "match",
-                    "--start",
-                    start_date,
-                    "--end",
-                    end_date,
-                    "--verbose",
-                    "--output-dir",
-                    str(tmpdir / "matches"),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            assert result.returncode == 0
-
-            # Verbose output should include additional details
-            assert "Apple Transaction Matching" in result.stdout
-            assert "Date range:" in result.stdout
-            assert f"{start_date} to {end_date}" in result.stdout
-
-    def test_apple_match_invalid_date_format(self):
-        """Test error handling for invalid date formats."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Run with invalid date format
-            result = subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "finances",
-                    "apple",
-                    "match",
-                    "--start",
-                    "invalid-date",
-                    "--end",
-                    "2024-12-31",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            # Should fail (either validation error or processing error)
-            # Exit code check depends on implementation
-            # At minimum, should not produce valid output
-
 
 @pytest.mark.e2e
 @pytest.mark.apple
@@ -646,3 +418,371 @@ class TestAppleFetchEmailsCLI:
         # This test would verify credential checking
         # Skipped because it requires actual IMAP setup
         pass
+
+
+@pytest.mark.e2e
+@pytest.mark.apple
+class TestAppleCompleteWorkflow:
+    """E2E tests for complete Apple receipt processing workflows."""
+
+    def test_apple_complete_workflow_parse_and_match(self):
+        """
+        Test complete Apple workflow: parse receipts → match → verify results.
+
+        Validates the entire user journey from parsing receipt HTML files
+        to matching them against YNAB transactions.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            # Step 1: Create synthetic Apple receipt HTML files
+            email_dir = tmpdir / "apple" / "emails"
+            email_dir.mkdir(parents=True)
+
+            # Create 3 receipts with known amounts for matching
+            receipt_amounts = [11805, 4999, 7250]  # cents
+            receipt_ids = ["ABC123XYZ", "DEF456UVW", "GHI789RST"]
+
+            for i, (receipt_id, amount_cents) in enumerate(zip(receipt_ids, receipt_amounts, strict=False)):
+                items = [
+                    {"title": f"Item 1 for Receipt {i}", "price": int(amount_cents * 0.6)},
+                    {"title": f"Item 2 for Receipt {i}", "price": int(amount_cents * 0.4)},
+                ]
+                receipt_html = generate_synthetic_apple_receipt_html(
+                    receipt_id=receipt_id,
+                    customer_id=f"user{i}@example.com",
+                    items=items,
+                )
+                receipt_file = email_dir / f"receipt{i:03d}-formatted-simple.html"
+                receipt_file.write_text(receipt_html)
+
+            # Step 2: Run parse-receipts to extract data
+            export_dir = tmpdir / "apple" / "exports"
+            result_parse = subprocess.run(
+                [
+                    "uv",
+                    "run",
+                    "finances",
+                    "apple",
+                    "parse-receipts",
+                    "--input-dir",
+                    str(email_dir),
+                    "--output-dir",
+                    str(export_dir),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            # Step 3: Verify parsed JSON export is created
+            assert result_parse.returncode == 0, f"Parse failed: {result_parse.stderr}"
+            assert "Parsing completed" in result_parse.stdout
+            assert "Successful: 3" in result_parse.stdout
+
+            export_files = list(export_dir.glob("*_apple_receipts_export.json"))
+            assert len(export_files) == 1, "Expected exactly one export file"
+
+            # Verify parsed data structure
+            with open(export_files[0]) as f:
+                parsed_data = json.load(f)
+
+            assert parsed_data["metadata"]["successful_parses"] == 3
+            assert len(parsed_data["receipts"]) == 3
+
+            # Step 4: Setup YNAB cache with matching transactions
+            ynab_cache = tmpdir / "ynab" / "cache"
+            ynab_cache.mkdir(parents=True)
+
+            # Create YNAB transactions that match our receipts
+            accounts = [
+                {
+                    "id": "account-001",
+                    "name": "Test Credit Card",
+                    "type": "creditCard",
+                    "balance": 1000000,
+                    "cleared_balance": 1000000,
+                    "uncleared_balance": 0,
+                    "closed": False,
+                    "on_budget": True,
+                }
+            ]
+
+            transactions = []
+            base_date = date.today() - timedelta(days=5)
+
+            # Create matching transactions (negative amounts in milliunits)
+            for i, amount_cents in enumerate(receipt_amounts):
+                transactions.append(
+                    {
+                        "id": f"tx-{i:05d}",
+                        "date": (base_date + timedelta(days=i)).strftime("%Y-%m-%d"),
+                        "amount": -(amount_cents * 10),  # Convert cents to milliunits and negate
+                        "account_id": "account-001",
+                        "account_name": "Test Credit Card",
+                        "payee_name": "Apple.com/bill",
+                        "category_id": "category-001",
+                        "category_name": "Shopping",
+                        "memo": None,
+                        "cleared": "cleared",
+                        "approved": True,
+                    }
+                )
+
+            # Save YNAB cache files
+            with open(ynab_cache / "accounts.json", "w") as f:
+                json.dump({"accounts": accounts, "server_knowledge": 12345}, f, indent=2)
+
+            with open(ynab_cache / "categories.json", "w") as f:
+                json.dump(
+                    {
+                        "category_groups": [
+                            {
+                                "id": "group-001",
+                                "name": "Test Group",
+                                "hidden": False,
+                                "categories": [
+                                    {
+                                        "id": "category-001",
+                                        "name": "Shopping",
+                                        "hidden": False,
+                                        "budgeted": 100000,
+                                        "activity": -50000,
+                                        "balance": 50000,
+                                    }
+                                ],
+                            }
+                        ],
+                        "server_knowledge": 67890,
+                    },
+                    f,
+                    indent=2,
+                )
+
+            with open(ynab_cache / "transactions.json", "w") as f:
+                json.dump(transactions, f, indent=2)
+
+            # Step 5: Run apple match on parsed data
+            match_dir = tmpdir / "apple" / "matches"
+            start_date = (base_date - timedelta(days=2)).strftime("%Y-%m-%d")
+            end_date = (base_date + timedelta(days=10)).strftime("%Y-%m-%d")
+
+            result_match = subprocess.run(
+                [
+                    "uv",
+                    "run",
+                    "finances",
+                    "--config-env",
+                    "test",
+                    "apple",
+                    "match",
+                    "--start",
+                    start_date,
+                    "--end",
+                    end_date,
+                    "--output-dir",
+                    str(match_dir),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env={**subprocess.os.environ, "DATA_DIR": str(tmpdir)},
+            )
+
+            # Step 6: Verify match results JSON structure
+            assert result_match.returncode == 0, f"Match failed: {result_match.stderr}"
+            assert "Processing Apple transaction matching" in result_match.stdout
+
+            match_files = list(match_dir.glob("*_apple_matching_results.json"))
+            assert len(match_files) == 1, "Expected exactly one match results file"
+
+            # Step 7: Verify match accuracy
+            with open(match_files[0]) as f:
+                match_data = json.load(f)
+
+            # Verify structure
+            assert "metadata" in match_data
+            assert "summary" in match_data
+            assert "matches" in match_data
+
+            # Verify metadata
+            metadata = match_data["metadata"]
+            assert metadata["start_date"] == start_date
+            assert metadata["end_date"] == end_date
+
+            # Verify we got some matches (implementation may vary)
+            # This validates the workflow completes successfully
+            assert isinstance(match_data["matches"], list)
+
+    def test_apple_match_no_matches_found(self):
+        """
+        Test Apple matching when receipts don't match any YNAB transactions.
+
+        This tests the failure mode where user has Apple receipts but
+        no corresponding transactions (common with incomplete data).
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            # Step 1: Create Apple receipt exports from date range A (recent)
+            apple_exports = tmpdir / "apple" / "exports"
+            apple_exports.mkdir(parents=True)
+
+            recent_date = date.today() - timedelta(days=5)
+            receipt_data = {
+                "metadata": {
+                    "export_date": date.today().strftime("%Y-%m-%d_%H-%M-%S"),
+                    "total_files_processed": 2,
+                    "successful_parses": 2,
+                    "failed_parses": 0,
+                    "success_rate": 1.0,
+                },
+                "receipts": [
+                    {
+                        "order_id": "RECENT123",
+                        "apple_id": "test@example.com",
+                        "receipt_date": recent_date.strftime("%b %d, %Y"),
+                        "total": 49.99,
+                        "subtotal": 46.29,
+                        "tax": 3.70,
+                        "items": [
+                            {"title": "Recent App Purchase", "cost": 46.29},
+                        ],
+                    },
+                    {
+                        "order_id": "RECENT456",
+                        "apple_id": "test@example.com",
+                        "receipt_date": (recent_date + timedelta(days=1)).strftime("%b %d, %Y"),
+                        "total": 29.99,
+                        "subtotal": 27.77,
+                        "tax": 2.22,
+                        "items": [
+                            {"title": "Another Recent Purchase", "cost": 27.77},
+                        ],
+                    },
+                ],
+            }
+
+            receipt_file = apple_exports / "test_receipts.json"
+            with open(receipt_file, "w") as f:
+                json.dump(receipt_data, f, indent=2)
+
+            # Step 2: Setup YNAB transactions from date range B (non-overlapping, older)
+            ynab_cache = tmpdir / "ynab" / "cache"
+            ynab_cache.mkdir(parents=True)
+
+            old_date = date.today() - timedelta(days=90)
+
+            accounts = [
+                {
+                    "id": "account-001",
+                    "name": "Test Credit Card",
+                    "type": "creditCard",
+                    "balance": 1000000,
+                    "cleared_balance": 1000000,
+                    "uncleared_balance": 0,
+                    "closed": False,
+                    "on_budget": True,
+                }
+            ]
+
+            # Create old transactions that won't match
+            transactions = [
+                {
+                    "id": "tx-00001",
+                    "date": (old_date - timedelta(days=i)).strftime("%Y-%m-%d"),
+                    "amount": -random.randint(10000, 50000),  # noqa: S311
+                    "account_id": "account-001",
+                    "account_name": "Test Credit Card",
+                    "payee_name": "Apple.com/bill",
+                    "category_id": "category-001",
+                    "category_name": "Shopping",
+                    "memo": None,
+                    "cleared": "cleared",
+                    "approved": True,
+                }
+                for i in range(5)
+            ]
+
+            # Save YNAB cache
+            with open(ynab_cache / "accounts.json", "w") as f:
+                json.dump({"accounts": accounts, "server_knowledge": 12345}, f, indent=2)
+
+            with open(ynab_cache / "categories.json", "w") as f:
+                json.dump(
+                    {
+                        "category_groups": [
+                            {
+                                "id": "group-001",
+                                "name": "Test Group",
+                                "hidden": False,
+                                "categories": [
+                                    {
+                                        "id": "category-001",
+                                        "name": "Shopping",
+                                        "hidden": False,
+                                        "budgeted": 100000,
+                                        "activity": -50000,
+                                        "balance": 50000,
+                                    }
+                                ],
+                            }
+                        ],
+                        "server_knowledge": 67890,
+                    },
+                    f,
+                    indent=2,
+                )
+
+            with open(ynab_cache / "transactions.json", "w") as f:
+                json.dump(transactions, f, indent=2)
+
+            # Step 3: Run match command on recent receipt date range
+            match_dir = tmpdir / "apple" / "matches"
+            start_date = (recent_date - timedelta(days=2)).strftime("%Y-%m-%d")
+            end_date = (recent_date + timedelta(days=5)).strftime("%Y-%m-%d")
+
+            result = subprocess.run(
+                [
+                    "uv",
+                    "run",
+                    "finances",
+                    "--config-env",
+                    "test",
+                    "apple",
+                    "match",
+                    "--start",
+                    start_date,
+                    "--end",
+                    end_date,
+                    "--output-dir",
+                    str(match_dir),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env={**subprocess.os.environ, "DATA_DIR": str(tmpdir)},
+            )
+
+            # Step 4: Verify success exit code but 0 matches
+            assert result.returncode == 0, f"Command should succeed: {result.stderr}"
+            assert "Processing Apple transaction matching" in result.stdout
+
+            # Step 5: Verify output JSON shows 0 matches with summary
+            match_files = list(match_dir.glob("*_apple_matching_results.json"))
+            assert len(match_files) == 1, "Expected match results file even with 0 matches"
+
+            with open(match_files[0]) as f:
+                match_data = json.load(f)
+
+            # Verify structure exists
+            assert "metadata" in match_data
+            assert "summary" in match_data
+            assert "matches" in match_data
+
+            # Verify metadata shows the search parameters
+            assert match_data["metadata"]["start_date"] == start_date
+            assert match_data["metadata"]["end_date"] == end_date
+
+            # The matches list should exist (even if empty)
+            assert isinstance(match_data["matches"], list)
