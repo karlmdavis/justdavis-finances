@@ -4,26 +4,18 @@ This document tracks known limitations and issues in the finances package.
 
 ## Test Infrastructure
 
-### E2E Test Subprocess Failures
+### E2E Test Subprocess Failures (RESOLVED)
 
-**Issue**: Some E2E tests may fail with `FileNotFoundError: [Errno 2] No such file or directory: 'uv'`
+**Issue**: Some E2E tests could fail with `FileNotFoundError: [Errno 2] No such file or directory: 'uv'`
 
-**Cause**: E2E tests execute `uv run finances ...` via subprocess.
-If `uv` is not in the system PATH when subprocess runs, tests fail.
+**Cause**: Early E2E test implementations passed custom `env` dict to `subprocess.run()` without merging with `os.environ`, causing PATH and other critical environment variables to be lost.
 
-**Affected Tests**:
-- `tests/e2e/test_amazon_cli.py` - Amazon CLI E2E tests
-- `tests/e2e/test_analysis_cli.py` - Cash flow & retirement CLI E2E tests
-- `tests/e2e/test_apple_cli.py` - Apple CLI E2E tests
-- `tests/e2e/test_ynab_cli.py` - YNAB CLI E2E tests
+**Fix Applied**: Commit b001e01 (2025-10-05) fixed environment merging in all E2E test helpers.
+All subprocess calls now properly merge custom environment variables with `os.environ` to preserve PATH.
 
-**Workaround**:
-1. Ensure `uv` is in your PATH: `which uv`
-2. Run tests with proper environment: `uv run pytest tests/`
-3. Skip E2E tests if needed: `pytest -m "not e2e"`
+**Status**: ✅ **RESOLVED** as of 2025-10-05.
 
-**Status**: Known limitation of subprocess-based E2E testing.
-Not a bug in the application itself.
+E2E tests should now run reliably in any environment where `uv` is installed and in PATH.
 
 ## CLI Commands
 
