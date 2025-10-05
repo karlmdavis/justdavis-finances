@@ -43,7 +43,7 @@ repos:
     hooks:
       - id: ruff
         name: Lint with Ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix]
 
 # Configuration notes:
 # - Mypy and pytest are excluded as they're too slow for pre-commit hooks
