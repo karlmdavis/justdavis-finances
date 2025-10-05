@@ -45,8 +45,24 @@ repos:
         name: Lint with Ruff
         args: [--fix]
 
+  # Mypy - Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        name: Type check with Mypy
+        args: [--config-file=pyproject.toml, src/]
+        pass_filenames: false
+        additional_dependencies:
+          - types-beautifulsoup4
+          - types-requests
+          - click
+          - numpy
+          - matplotlib
+          - pandas
+
 # Configuration notes:
-# - Mypy and pytest are excluded as they're too slow for pre-commit hooks
-# - Run those in CI/CD instead (see .github/workflows/quality.yml)
-# - Hooks run only on staged files for speed (<2 seconds typical)
+# - pytest is excluded as it's too slow for pre-commit hooks
+# - Run tests in CI/CD instead (see .github/workflows/quality.yml)
+# - Hooks run only on staged files for speed (except mypy which checks src/)
 # - To bypass hooks: git commit --no-verify
