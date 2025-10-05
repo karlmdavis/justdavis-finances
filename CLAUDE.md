@@ -181,6 +181,181 @@ This repository uses a **PR-based workflow** with branch protection rules enforc
 - **Test plan**: How the changes were tested (commands run, test coverage, manual verification).
 - **Context**: Link to related issues or provide background for the change.
 
+### Testing Philosophy and Strategy
+
+This repository prioritizes **quality over quantity** in test coverage, focusing on tests that catch
+  real bugs in user workflows.
+
+#### Test Pyramid (Inverted Priority)
+
+Traditional test pyramids emphasize unit tests.
+This repository inverts that priority:
+
+**Priority 1: E2E Tests** (Highest Value)
+- Execute actual `finances` CLI commands via subprocess
+- Test complete user workflows from start to finish
+- Catch integration bugs that unit tests miss
+- Tell clear, complete stories about functionality
+- Located in `tests/e2e/`
+
+**Priority 2: Integration Tests** (Fill Coverage Gaps)
+- Test multiple components working together with real file system operations
+- Use CliRunner for CLI commands (faster than subprocess)
+- Minimal mocking (only for external services like YNAB API)
+- Located in `tests/integration/`
+
+**Priority 3: Unit Tests** (Complex Business Logic Only)
+- Test isolated components in pure business logic
+- Avoid testing implementation details or trivial code
+- Use only when behavior is too complex for integration testing alone
+- Located in `tests/unit/`
+
+#### Writing Testable Code
+
+When implementing new features, design code to be testable without excessive mocking:
+
+**DO:**
+- ✅ Separate I/O from business logic
+- ✅ Design CLI commands with testable parameter behavior
+- ✅ Make implementations complete, not placeholders
+- ✅ Return meaningful results that can be verified
+- ✅ Use dependency injection for external services
+- ✅ Write integration tests before unit tests
+
+**DON'T:**
+- ❌ Tightly couple business logic to external APIs
+- ❌ Mix presentation logic with computation
+- ❌ Create complex dependencies that require extensive mocking
+- ❌ Write placeholder implementations without test placeholders
+- ❌ Test private methods or implementation details
+- ❌ Write tests just to increase coverage percentage
+
+#### Test Development Workflow
+
+**For New Features:**
+1.
+Start with E2E test for the main user workflow
+2.
+If E2E test doesn't cover edge cases, add integration tests
+3.
+Only add unit tests if complex business logic needs isolation
+4.
+Ensure all tests use synthetic data (see `tests/fixtures/synthetic_data.py`)
+
+**For Bug Fixes:**
+1.
+Write failing E2E or integration test reproducing the bug
+2.
+Fix the bug
+3.
+Verify test passes
+4.
+Consider if additional edge case tests are needed
+
+**Test Quality Indicators:**
+- ✅ Test catches real bugs in user workflows
+- ✅ Test fails when functionality breaks
+- ✅ Test name clearly describes what it verifies
+- ✅ Test is fast enough to run frequently
+- ✅ Test uses minimal mocking
+- ❌ Test requires extensive setup/mocking (consider refactoring code)
+- ❌ Test breaks when implementation changes but behavior doesn't
+- ❌ Test covers trivial code or implementation details
+
+#### Coverage Philosophy
+
+**Target Coverage**: 60%+ with quality over quantity
+
+**What to Test:**
+- ✅ CLI command parameter handling and workflows
+- ✅ Core business logic (matchers, calculators, parsers)
+- ✅ Error handling and edge cases
+- ✅ Data transformation and validation
+- ✅ File I/O with real temporary files
+
+**What NOT to Test:**
+- ❌ Simple getters/setters or property accessors
+- ❌ Trivial dataclass definitions
+- ❌ Implementation details (algorithms, private methods)
+- ❌ Third-party library behavior
+- ❌ Code requiring excessive mocking (refactor instead)
+
+#### Anti-Patterns to Avoid
+
+**Over-Mocking:**
+```python
+# BAD: Excessive mocking defeats integration test purpose
+def test_amazon_match():
+    mock_loader = Mock()
+    mock_matcher = Mock()
+    mock_ynab = Mock()
+    mock_writer = Mock()
+    # ...20 more mocks...
+    # This tests nothing real!
+```
+
+**Testing Implementation Details:**
+```python
+# BAD: Tests private method implementation
+def test_internal_algorithm_step_3():
+    result = matcher._internal_sort_by_confidence(items)
+    assert result[0].confidence > result[1].confidence
+
+# GOOD: Tests public behavior
+def test_matcher_returns_best_match_first():
+    matches = matcher.match_transaction(transaction)
+    assert matches[0].confidence >= matches[1].confidence
+```
+
+**Low-Value Algorithmic Tests:**
+```python
+# BAD: Tests obvious sorting implementation
+def test_sort_orders_by_date():
+    orders = [order_b, order_a]
+    sorted_orders = sort_by_date(orders)
+    assert sorted_orders == [order_a, order_b]
+
+# GOOD: Tests business logic using sorting
+def test_matcher_prioritizes_recent_orders():
+    matches = matcher.match_transaction(transaction)
+    assert matches[0].order_date > matches[1].order_date
+```
+
+#### Test Data Management
+
+**Synthetic Data Only:**
+- All test data MUST be synthetic (never real PII or financial data)
+- Use `tests/fixtures/synthetic_data.py` generators
+- See `tests/README.md` for detailed guidelines
+
+**Temporary Files:**
+- Always use `tempfile.mkdtemp()` for test file operations
+- Clean up in `teardown_method()` or use pytest fixtures
+- Never write to actual `data/` directory in tests
+
+#### Running Tests
+
+```bash
+# All tests
+uv run pytest tests/
+
+# Fast tests (skip E2E subprocess tests)
+uv run pytest -m "not e2e"
+
+# Integration + Unit only
+uv run pytest tests/integration/ tests/unit/
+
+# With coverage
+uv run pytest --cov=src/finances --cov-report=term-missing
+
+# Specific domain
+uv run pytest -m amazon
+uv run pytest -m apple
+uv run pytest -m ynab
+```
+
+See `tests/README.md` for complete testing documentation.
+
 ### Important Implementation Notes
 
 #### Critical: Currency Handling - ZERO Floating Point Tolerance

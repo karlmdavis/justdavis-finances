@@ -128,6 +128,21 @@ class TestCurrencyPrecision:
         # Formatting preserves sign
         assert cents_to_dollars_str(-4599) == "-45.99"
 
+    @pytest.mark.currency
+    def test_cents_to_dollars_str_with_commas(self):
+        """Test comma separators in large dollar amounts using pure integer operations."""
+        # Verify comma placement for various amounts
+        assert cents_to_dollars_str(10000000) == "100,000.00"  # $100k
+        assert cents_to_dollars_str(123456789) == "1,234,567.89"  # $1.2M
+        assert cents_to_dollars_str(-10000000) == "-100,000.00"  # Negative
+        assert cents_to_dollars_str(100) == "1.00"  # No comma for small amounts
+
+        # Test million+ amounts to verify comma placement
+        assert cents_to_dollars_str(100000000) == "1,000,000.00"  # $1M exactly
+        assert cents_to_dollars_str(543210987) == "5,432,109.87"  # $5.4M
+        assert cents_to_dollars_str(1000) == "10.00"  # No comma needed
+        assert cents_to_dollars_str(100000) == "1,000.00"  # First comma at thousands
+
 
 @pytest.mark.currency
 def test_integration_with_fixtures(currency_test_cases):

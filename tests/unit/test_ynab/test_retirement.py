@@ -161,7 +161,7 @@ class TestYnabRetirementService:
         assert mutation["account_id"] == "test-id"
         assert mutation["amount_milliunits"] == 500000  # $500 increase in milliunits
         assert mutation["action"] == "create_reconciliation"
-        assert "1000.00 → $1500.00" in mutation["memo"]
+        assert "$1,000.00 → $1,500.00" in mutation["memo"]
 
     def test_generate_balance_adjustment_decrease(self, temp_data_dir):
         """Test generating adjustment for balance decrease."""
@@ -180,7 +180,7 @@ class TestYnabRetirementService:
 
         assert mutation is not None
         assert mutation["amount_milliunits"] == -500000  # $500 decrease in milliunits
-        assert "2000.00 → $1500.00" in mutation["memo"]
+        assert "$2,000.00 → $1,500.00" in mutation["memo"]
 
     def test_generate_balance_adjustment_no_change(self, temp_data_dir):
         """Test no adjustment when balance unchanged."""

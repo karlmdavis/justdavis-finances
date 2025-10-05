@@ -1,0 +1,35 @@
+{
+  "accounts": [
+    {
+      "id": "account-001",
+      "name": "Test Account 1",
+      "type": "savings",
+      "balance": 4128066,
+      "cleared_balance": 1461575,
+      "uncleared_balance": 0,
+      "closed": false,
+      "on_budget": true
+    },
+    {
+      "id": "account-002",
+      "name": "Test Account 2",
+      "type": "checking",
+      "balance": 251531,
+      "cleared_balance": 3165601,
+      "uncleared_balance": 0,
+      "closed": false,
+      "on_budget": true
+    },
+    {
+      "id": "account-003",
+      "name": "Test Account 3",
+      "type": "savings",
+      "balance": 731103,
+      "cleared_balance": 4216806,
+      "uncleared_balance": 0,
+      "closed": false,
+      "on_budget": true
+    }
+  ],
+  "server_knowledge": 12345
+}

@@ -53,6 +53,38 @@ def cents_to_milliunits(cents: int) -> int:
     return cents * 10
 
 
+def _format_integer_with_commas(num: int) -> str:
+    """
+    Add comma separators to an integer using pure integer operations.
+
+    This function uses only string manipulation and integer operations,
+    avoiding any reliance on locale-specific formatting or built-in
+    format specifiers that could introduce floating-point behavior.
+
+    Args:
+        num: Non-negative integer to format
+
+    Returns:
+        String representation with comma separators
+
+    Examples:
+        _format_integer_with_commas(1234) -> "1,234"
+        _format_integer_with_commas(1234567) -> "1,234,567"
+        _format_integer_with_commas(100) -> "100"
+    """
+    s = str(num)
+    if len(s) <= 3:
+        return s
+
+    # Build groups of 3 digits from right to left
+    groups: list[str] = []
+    while s:
+        groups.insert(0, s[-3:])
+        s = s[:-3]
+
+    return ",".join(groups)
+
+
 def cents_to_dollars_str(cents: int) -> str:
     """
     Convert cents to dollar string using pure integer arithmetic.
@@ -61,10 +93,11 @@ def cents_to_dollars_str(cents: int) -> str:
         cents: Amount in cents
 
     Returns:
-        Formatted dollar string
+        Formatted dollar string with comma separators
 
     Example:
         cents_to_dollars_str(4599) -> "45.99"
+        cents_to_dollars_str(10000000) -> "100,000.00"
     """
     # Handle negative amounts properly
     is_negative = cents < 0
@@ -73,10 +106,13 @@ def cents_to_dollars_str(cents: int) -> str:
     dollars = int(abs_cents // 100)
     remainder = int(abs_cents % 100)
 
+    # Add comma separators to dollars part using pure integer operations
+    dollars_str = _format_integer_with_commas(dollars)
+
     if is_negative:
-        return f"-{dollars}.{remainder:02d}"
+        return f"-{dollars_str}.{remainder:02d}"
     else:
-        return f"{dollars}.{remainder:02d}"
+        return f"{dollars_str}.{remainder:02d}"
 
 
 def safe_currency_to_cents(currency_str: str | int | float) -> int:

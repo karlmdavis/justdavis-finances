@@ -140,6 +140,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101", "S603"]  # allow assert statements and subprocess calls in tests
+"tests/fixtures/synthetic_data.py" = ["S311"]  # allow standard random for test data generation
+"tests/e2e/**/*" = ["S607"]  # allow partial executable paths for CLI testing
 
 # MyPy configuration
 [tool.mypy]
@@ -181,11 +183,14 @@ python_functions = ["test_*"]
 markers = [
     "unit: Unit tests for individual components",
     "integration: Integration tests for complete workflows",
+    "e2e: End-to-end tests executing actual CLI commands",
     "currency: Tests for currency handling and precision",
     "amazon: Tests for Amazon transaction matching",
     "apple: Tests for Apple receipt processing",
     "ynab: Tests for YNAB integration",
     "slow: Tests that take significant time to run",
+    "requires_network: Tests that require network access",
+    "requires_credentials: Tests that require API keys or credentials",
 ]
 
 # Coverage configuration

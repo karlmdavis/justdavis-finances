@@ -65,8 +65,9 @@ def _group_by_order_id(orders_df: pd.DataFrame) -> dict[str, dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
 
     for order_id, group in orders_df.groupby("Order ID"):
+        order_id_str = str(order_id)
         order_summary: dict[str, Any] = {
-            "order_id": order_id,
+            "order_id": order_id_str,
             "items": [],
             "total": 0,
             "order_date": None,
@@ -105,8 +106,7 @@ def _group_by_order_id(orders_df: pd.DataFrame) -> dict[str, dict[str, Any]]:
         ship_dates_list = order_summary["ship_dates"]
         order_summary["ship_dates"] = sorted(ship_dates_list)
 
-        # pandas-stubs limitation: groupby iterator returns overly broad Union type for keys
-        grouped[order_id] = order_summary  # type: ignore[index]
+        grouped[order_id_str] = order_summary
 
     return grouped
 
