@@ -291,7 +291,7 @@ def parse_receipts(ctx: click.Context, input_dir: str, output_dir: str | None, v
                     if verbose:
                         click.echo(f"  ❌ {base_name}: Failed to extract data")
 
-            except Exception as e:  # noqa: PERF203
+            except Exception as e:
                 # PERF203: try-except in loop necessary for robust HTML parsing
                 failed_parses += 1
                 if verbose:

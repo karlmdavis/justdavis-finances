@@ -122,7 +122,7 @@ class DomainArchiver:
                 name_parts = archive_path.stem.split("-")
                 if len(name_parts) >= 4:
                     sequence_numbers.append(int(name_parts[3]))
-            except (ValueError, IndexError):  # noqa: PERF203
+            except (ValueError, IndexError):
                 # PERF203: try-except in loop necessary for robust filename parsing
                 continue
 
@@ -349,7 +349,7 @@ class ArchiveManager:
                 try:
                     session_data = read_json(session_file)
                     archives.append(session_data)
-                except Exception as e:  # noqa: PERF203
+                except Exception as e:
                     # PERF203: try-except in loop necessary for robust JSON file reading
                     logger.warning(f"Failed to read session {session_file}: {e}")
 
@@ -414,7 +414,7 @@ class ArchiveManager:
                 deleted_count += 1
                 logger.info(f"Deleted old archive: {archive_path}")
 
-            except Exception as e:  # noqa: PERF203
+            except Exception as e:
                 # PERF203: try-except in loop necessary for robust file deletion
                 logger.error(f"Failed to delete {archive_path}: {e}")
 

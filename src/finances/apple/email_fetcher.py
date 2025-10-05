@@ -209,8 +209,7 @@ class AppleEmailFetcher:
                         receipt = self._fetch_and_parse_email(msg_num.decode(), folder)
                         if receipt and self._is_apple_receipt(receipt):
                             receipts.append(receipt)
-                    except Exception as e:  # noqa: PERF203
-                        # PERF203: try-except in loop necessary for robust email processing
+                    except Exception as e:
                         logger.warning(f"Error processing email {msg_num}: {e}")
 
         except Exception as e:
@@ -511,7 +510,7 @@ class AppleEmailFetcher:
                 saved_count: int = stats["saved_successfully"]
                 stats["saved_successfully"] = saved_count + 1
 
-            except Exception as e:  # noqa: PERF203
+            except Exception as e:
                 # PERF203: try-except in loop necessary for robust file I/O operations
                 logger.error(f"Error saving email {i}: {e}")
                 error_count: int = stats["save_errors"]

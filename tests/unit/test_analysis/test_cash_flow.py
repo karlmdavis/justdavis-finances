@@ -292,9 +292,9 @@ class TestCashFlowAnalyzer:
             assert key in stats
 
         # Check data types
-        assert isinstance(stats["current_balance"], (int, float))
-        assert isinstance(stats["monthly_trend"], (int, float))
-        assert isinstance(stats["yearly_trend"], (int, float))
+        assert isinstance(stats["current_balance"], int | float)
+        assert isinstance(stats["monthly_trend"], int | float)
+        assert isinstance(stats["yearly_trend"], int | float)
         assert isinstance(stats["trend_direction"], str)
         assert stats["trend_direction"] in ["positive", "negative"]
         assert 0 <= stats["trend_confidence"] <= 1
@@ -537,5 +537,5 @@ def test_full_cash_flow_workflow(temp_dir):
     # Verify results
     assert dashboard_file.exists()
     assert summary["data_start_date"] == "2024-07-01"
-    assert isinstance(summary["current_balance"], (int, float))
+    assert isinstance(summary["current_balance"], int | float)
     assert summary["trend_direction"] in ["positive", "negative"]
