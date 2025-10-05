@@ -4,6 +4,7 @@ Unit tests for YNAB-based retirement account management.
 """
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -198,7 +199,7 @@ class TestYnabRetirementService:
             account, 100000, date(2024, 1, 1)  # $1000 in cents (same as current)
         )
 
-        assert mutation is None
+        assert mutation == {}
 
     def test_create_retirement_edits(self, temp_data_dir):
         """Test creating YNAB edits file."""
@@ -239,10 +240,10 @@ class TestYnabRetirementService:
         assert len(data["mutations"]) == 2
 
     def test_empty_edits_returns_none(self, temp_data_dir):
-        """Test that empty adjustments returns None."""
+        """Test that empty adjustments returns empty Path."""
         service = YnabRetirementService(temp_data_dir)
         result = service.create_retirement_edits([])
-        assert result is None
+        assert result == Path()
 
 
 class TestConvenienceFunctions:

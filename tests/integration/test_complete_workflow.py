@@ -473,10 +473,6 @@ class TestCrossSystemIntegration:
         assert config.database.cache_dir == temp_dir / "ynab" / "cache"
         assert config.analysis.output_dir == temp_dir / "cash_flow" / "charts"
 
-        # Test that analyzers respect configuration
-        analyzer = CashFlowAnalyzer()
-        assert analyzer.config is not None
-
         # Create minimal data structure
         ynab_cache_dir = config.database.cache_dir
         ynab_cache_dir.mkdir(parents=True)
@@ -500,6 +496,14 @@ class TestCrossSystemIntegration:
             json.dump(accounts_data, f, indent=2)
         with open(ynab_cache_dir / "transactions.json", "w") as f:
             json.dump(transactions_data, f, indent=2)
+
+        # Test that analyzers respect configuration
+        # Create analyzer with custom config that includes test account
+        from finances.analysis.cash_flow import CashFlowConfig
+
+        test_config = CashFlowConfig(cash_accounts=["Test"], start_date="2024-05-01")
+        analyzer = CashFlowAnalyzer(config=test_config)
+        assert analyzer.config is not None
 
         # Test that analyzer can load from configured location
         # Note: This may fail if data doesn't meet minimum requirements, which is acceptable
