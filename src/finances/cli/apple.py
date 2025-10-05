@@ -96,7 +96,7 @@ def match(
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @apple.command()
@@ -176,7 +176,7 @@ def match_single(
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @apple.command()
@@ -222,7 +222,7 @@ def fetch_emails(
 
     except Exception as e:
         click.echo(f"❌ Error fetching emails: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @apple.command()
@@ -321,7 +321,7 @@ def parse_receipts(ctx: click.Context, input_dir: str, output_dir: Optional[str]
 
     except Exception as e:
         click.echo(f"❌ Error parsing receipts: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 if __name__ == "__main__":

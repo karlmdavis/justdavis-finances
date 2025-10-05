@@ -169,7 +169,7 @@ def generate_splits(
 
     except Exception as e:
         click.echo(f"❌ Error generating splits: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @ynab.command()
@@ -241,7 +241,7 @@ def apply_edits(ctx: click.Context, edit_file: str, force: bool, verbose: bool) 
 
     except Exception as e:
         click.echo(f"❌ Error applying edits: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @ynab.command()
@@ -282,7 +282,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
     except Exception as e:
         click.echo(f"❌ Error syncing cache: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 if __name__ == "__main__":

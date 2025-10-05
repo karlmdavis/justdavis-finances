@@ -129,12 +129,12 @@ class AmazonUnzipper:
         except zipfile.BadZipFile as e:
             error_msg = f"Invalid ZIP file: {zip_path} - {e}"
             logger.error(error_msg)
-            raise ValueError(error_msg)
+            raise ValueError(error_msg) from e
 
         except Exception as e:
             error_msg = f"Failed to extract {zip_path}: {e}"
             logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            raise RuntimeError(error_msg) from e
 
     def batch_extract(self, download_dir: Path, account_filter: Optional[list[str]] = None) -> dict[str, Any]:
         """

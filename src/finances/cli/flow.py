@@ -452,7 +452,7 @@ def go(
             end_date = datetime.strptime(end, "%Y-%m-%d").date()
             date_range = (start_date, end_date)
         except ValueError as e:
-            raise click.ClickException(f"Invalid date format: {e}")
+            raise click.ClickException(f"Invalid date format: {e}") from e
     elif start or end:
         raise click.ClickException("Both --start and --end must be provided together")
 
@@ -579,7 +579,7 @@ def go(
                 )
             except Exception as e:
                 if not click.confirm(f"Archive creation failed: {e}\nContinue without archive?"):
-                    raise click.ClickException("Execution aborted due to archive failure")
+                    raise click.ClickException("Execution aborted due to archive failure") from e
 
         # Execute flow
         click.echo("\n🚀 Executing flow...")
@@ -667,7 +667,7 @@ def go(
             import traceback
 
             click.echo(traceback.format_exc(), err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @flow.command()
@@ -715,7 +715,7 @@ def validate(ctx: click.Context, verbose: bool) -> None:
 
     except Exception as e:
         click.echo(f"❌ Validation error: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @flow.command()
@@ -785,7 +785,7 @@ def graph(ctx: click.Context, output_format: str, verbose: bool) -> None:
 
     except Exception as e:
         click.echo(f"❌ Error generating graph: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 if __name__ == "__main__":

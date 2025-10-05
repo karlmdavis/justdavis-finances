@@ -125,7 +125,7 @@ def analyze(
 
     except Exception as e:
         click.echo(f"❌ Error during analysis: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cashflow.command()
@@ -209,7 +209,7 @@ def report(
 
     except Exception as e:
         click.echo(f"❌ Error generating report: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cashflow.command()
@@ -261,7 +261,7 @@ def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, ve
 
     except Exception as e:
         click.echo(f"❌ Error generating forecast: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 if __name__ == "__main__":

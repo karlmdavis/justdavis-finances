@@ -111,8 +111,8 @@ def update(
     if date_str:
         try:
             update_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            raise click.ClickException(f"Invalid date format: {date_str}. Use YYYY-MM-DD")
+        except ValueError as e:
+            raise click.ClickException(f"Invalid date format: {date_str}. Use YYYY-MM-DD") from e
     else:
         update_date = date.today()
 
@@ -233,7 +233,7 @@ def update(
 
     except Exception as e:
         click.echo(f"\n❌ Error creating edits: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 if __name__ == "__main__":

@@ -107,7 +107,7 @@ def match(
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @amazon.command()
@@ -187,7 +187,7 @@ def match_single(
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @amazon.command()
@@ -275,7 +275,7 @@ def unzip(
 
     except Exception as e:
         click.echo(f"❌ Error during unzip: {e}", err=True)
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 if __name__ == "__main__":
