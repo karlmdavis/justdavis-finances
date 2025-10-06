@@ -471,13 +471,27 @@ class TestRetirementCLIIntegration:
         with open(accounts_file, "w") as f:
             json.dump(accounts_data, f, indent=2)
 
+        # Create input file with balance updates for non-interactive mode
+        # Expected format: {"account_name": new_balance, ...}
+        input_file = self.temp_dir / "balance_updates.json"
+        balance_updates = {
+            "Karl's Fidelity: 401(k) Plan": 125000.50,
+            "Erica's Vanguard: Roth IRA": 75000.25,
+        }
+        with open(input_file, "w") as f:
+            json.dump(balance_updates, f, indent=2)
+
         from unittest.mock import MagicMock, patch
 
         mock_config = MagicMock()
         mock_config.data_dir = self.temp_dir
 
         with patch("finances.cli.retirement.get_config", return_value=mock_config):
-            result = self.runner.invoke(retirement, ["update", "--non-interactive"], obj={})
+            result = self.runner.invoke(
+                retirement, ["update", "--non-interactive", "--output-file", str(input_file)], obj={}
+            )
 
         assert result.exit_code == 0
-        assert "Non-interactive mode requires additional implementation" in result.output
+        assert "Summary of Adjustments:" in result.output
+        assert "Karl's Fidelity: 401(k) Plan" in result.output
+        assert "Erica's Vanguard: Roth IRA" in result.output
