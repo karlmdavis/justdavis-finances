@@ -5,6 +5,7 @@ Apple CLI - Transaction Matching Commands
 Professional command-line interface for Apple transaction matching.
 """
 
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -54,26 +55,74 @@ def match(
         click.echo()
 
     try:
-        # Initialize matcher
-        AppleMatcher()
+        # Load Apple receipt data and YNAB transactions
+        import pandas as pd
 
-        # Load Apple receipt data
-        apple_data_dir = config.data_dir / "apple" / "exports"
+        from ..apple import batch_match_transactions, load_apple_receipts
+        from ..ynab import filter_transactions, load_ynab_transactions
+
+        ynab_cache_dir = config.data_dir / "ynab" / "cache"
 
         if verbose:
-            click.echo(f"Loading Apple receipt data from: {apple_data_dir}")
+            click.echo(f"Loading Apple receipt data from: {config.data_dir / 'apple' / 'exports'}")
+            click.echo(f"Loading YNAB data from: {ynab_cache_dir}")
 
-        # This would integrate with the existing data loading logic
-        # For now, we'll show the structure
+        # Load Apple receipts - loader will auto-discover latest export directory
+        apple_receipts = load_apple_receipts()
+
+        # Filter by Apple ID if specified
+        if apple_ids:
+            apple_receipts = [r for r in apple_receipts if r.get("apple_id") in apple_ids]
+
+        # Convert to DataFrame
+        apple_receipts_df = pd.DataFrame(apple_receipts)
+
+        # Load and filter YNAB transactions
+        all_transactions = load_ynab_transactions(ynab_cache_dir)
+        transactions = filter_transactions(all_transactions, start_date=start, end_date=end, payee="Apple")
+
+        # Convert to DataFrame
+        transactions_df = pd.DataFrame(transactions)
+
+        if verbose:
+            click.echo(f"Loaded {len(apple_receipts_df)} Apple receipts")
+            click.echo(f"Found {len(transactions_df)} Apple transactions in date range")
+
         click.echo("🔍 Processing Apple transaction matching...")
-        click.echo("⚠️  Full implementation requires integration with existing batch processing logic")
+
+        # Initialize matcher and match transactions
+        matcher = AppleMatcher()
+        match_results = batch_match_transactions(transactions_df, apple_receipts_df, matcher)
+
+        # Calculate summary statistics
+        matched_count = sum(1 for result in match_results if result.receipts)
+        total_confidence = sum(result.confidence for result in match_results if result.receipts)
+        match_rate = matched_count / len(match_results) if match_results else 0.0
+        avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
 
         # Generate output filename
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_file = output_path / f"{timestamp}_apple_matching_results.json"
 
-        # Placeholder result structure
-        result = {
+        # Convert results to JSON-serializable format
+        matches = []
+        for result in match_results:
+            # Convert dataclass instances to dicts
+            transaction_dict = (
+                asdict(result.transaction) if hasattr(result.transaction, "__dict__") else result.transaction
+            )
+            receipts_list = [asdict(r) if hasattr(r, "__dict__") else r for r in result.receipts]
+
+            match_dict: dict[str, Any] = {
+                "transaction": transaction_dict,
+                "receipts": receipts_list,
+                "confidence": result.confidence,
+                "strategy": result.strategy_used or result.match_method,
+            }
+            matches.append(match_dict)
+
+        # Build result structure
+        output_result = {
             "metadata": {
                 "start_date": start,
                 "end_date": end,
@@ -81,18 +130,21 @@ def match(
                 "timestamp": timestamp,
             },
             "summary": {
-                "total_transactions": 0,
-                "matched_transactions": 0,
-                "match_rate": 0.0,
-                "average_confidence": 0.0,
+                "total_transactions": len(match_results),
+                "matched_transactions": matched_count,
+                "match_rate": match_rate,
+                "average_confidence": avg_confidence,
             },
-            "matches": [],
+            "matches": matches,
         }
 
         # Write result file
-        write_json(output_file, result)
+        write_json(output_file, output_result)
 
-        click.echo(f"✅ Results saved to: {output_file}")
+        # Display summary
+        click.echo(f"✅ Matched {matched_count} of {len(match_results)} transactions ({match_rate*100:.1f}%)")
+        click.echo(f"   Average confidence: {avg_confidence*100:.1f}%")
+        click.echo(f"   Results saved to: {output_file}")
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
@@ -125,7 +177,7 @@ def match_single(
       finances apple match-single --transaction-id "abc123" --date "2024-07-07"
         --amount -227320 --payee-name "Apple Store" --account-name "Chase Credit Card"
     """
-    config = get_config()
+    get_config()
 
     if verbose or ctx.obj.get("verbose", False):
         click.echo("Single Apple Transaction Matching")
@@ -146,33 +198,63 @@ def match_single(
     }
 
     try:
-        # Initialize matcher
-        AppleMatcher()
-
         # Load Apple receipt data
-        config.data_dir / "apple" / "exports"
+        import pandas as pd
+
+        from ..apple import load_apple_receipts
+
+        # Load receipts - loader will auto-discover latest export directory
+        apple_receipts = load_apple_receipts()
+
+        # Filter by Apple ID if specified
+        if apple_ids:
+            apple_receipts = [r for r in apple_receipts if r.get("apple_id") in apple_ids]
+
+        # Convert to DataFrame
+        apple_receipts_df = pd.DataFrame(apple_receipts)
+
+        if verbose:
+            click.echo(f"Loaded {len(apple_receipts_df)} Apple receipts")
 
         click.echo("🔍 Searching for matching Apple receipts...")
-        click.echo("⚠️  Full implementation requires integration with existing single transaction logic")
 
-        # Placeholder result
-        result: dict[str, Any] = {
-            "transaction": ynab_transaction,
-            "matches": [],
-            "best_match": None,
-            "message": "CLI implementation in progress",
-        }
+        # Initialize matcher and match the transaction
+        matcher = AppleMatcher()
+        match_result = matcher.match_single_transaction(ynab_transaction, apple_receipts_df)
 
         # Display result
-        if result.get("best_match"):
-            click.echo("✅ Match found!")
-            click.echo(f"Confidence: {result['best_match']['confidence']}")
+        if match_result.receipts:
+            click.echo("\n✅ Match found!")
+            click.echo(f"   Confidence: {match_result.confidence*100:.1f}%")
+            click.echo(f"   Strategy: {match_result.strategy_used or match_result.match_method}")
+            click.echo(f"   Receipts matched: {len(match_result.receipts)}")
+
+            for i, receipt in enumerate(match_result.receipts[:3], 1):  # Show first 3
+                click.echo(f"   {i}. Order ID: {getattr(receipt, 'order_id', 'N/A')}")
+                click.echo(f"      Date: {getattr(receipt, 'date', 'N/A')}")
+                total = getattr(receipt, "total_amount", 0)
+                click.echo(f"      Total: ${total/100:.2f}")
         else:
-            click.echo("❌ No matches found")
+            click.echo("\n❌ No matches found")
 
         # Output JSON for programmatic use
-        click.echo("\nJSON Result:")
-        click.echo(format_json(result))
+        if verbose:
+            # Convert dataclass to dict
+            transaction_dict = (
+                asdict(match_result.transaction)
+                if hasattr(match_result.transaction, "__dict__")
+                else match_result.transaction
+            )
+            receipts_list = [asdict(r) if hasattr(r, "__dict__") else r for r in match_result.receipts]
+
+            result_dict: dict[str, Any] = {
+                "transaction": transaction_dict,
+                "receipts": receipts_list,
+                "confidence": match_result.confidence,
+                "strategy": match_result.strategy_used or match_result.match_method,
+            }
+            click.echo("\nJSON Result:")
+            click.echo(format_json(result_dict))
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)

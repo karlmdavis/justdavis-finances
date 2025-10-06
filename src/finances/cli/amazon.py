@@ -7,7 +7,6 @@ Professional command-line interface for Amazon transaction matching.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import click
 
@@ -65,24 +64,56 @@ def match(
     try:
         # Initialize matcher
         split_cache_file = None if disable_split else str(config.cache_dir / "amazon_split_cache.json")
-        SimplifiedMatcher(split_cache_file=split_cache_file)
+        matcher = SimplifiedMatcher(split_cache_file=split_cache_file)
 
         # Load Amazon data for specified accounts
+        from ..amazon import load_amazon_data
+        from ..ynab import filter_transactions, load_ynab_transactions
+
         amazon_data_dir = config.data_dir / "amazon" / "raw"
+        ynab_cache_dir = config.data_dir / "ynab" / "cache"
 
         if verbose:
             click.echo(f"Loading Amazon data from: {amazon_data_dir}")
+            click.echo(f"Loading YNAB data from: {ynab_cache_dir}")
 
-        # This would integrate with the existing data loading logic
-        # For now, we'll show the structure
+        # Load Amazon account data
+        account_data = load_amazon_data(amazon_data_dir, accounts)
+
+        # Load and filter YNAB transactions
+        all_transactions = load_ynab_transactions(ynab_cache_dir)
+        transactions = filter_transactions(all_transactions, start_date=start, end_date=end, payee="Amazon")
+
+        if verbose:
+            click.echo(f"Loaded {len(account_data)} Amazon accounts")
+            click.echo(f"Found {len(transactions)} Amazon transactions in date range")
+
         click.echo("🔍 Processing Amazon transaction matching...")
-        click.echo("⚠️  Full implementation requires integration with existing batch processing logic")
+
+        # Match transactions
+        matches = []
+        matched_count = 0
+        total_confidence = 0.0
+
+        for tx in transactions:
+            match_result = matcher.match_transaction(tx, account_data)
+
+            # Add to matches if we found any matches
+            if match_result.get("best_match"):
+                matched_count += 1
+                total_confidence += match_result["best_match"].get("confidence", 0.0)
+
+            matches.append(match_result)
+
+        # Calculate summary statistics
+        match_rate = matched_count / len(transactions) if transactions else 0.0
+        avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
 
         # Generate output filename
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_file = output_path / f"{timestamp}_amazon_matching_results.json"
 
-        # Placeholder result structure
+        # Build result structure
         result = {
             "metadata": {
                 "start_date": start,
@@ -92,18 +123,21 @@ def match(
                 "timestamp": timestamp,
             },
             "summary": {
-                "total_transactions": 0,
-                "matched_transactions": 0,
-                "match_rate": 0.0,
-                "average_confidence": 0.0,
+                "total_transactions": len(transactions),
+                "matched_transactions": matched_count,
+                "match_rate": match_rate,
+                "average_confidence": avg_confidence,
             },
-            "matches": [],
+            "matches": matches,
         }
 
         # Write result file
         write_json(output_file, result)
 
-        click.echo(f"✅ Results saved to: {output_file}")
+        # Display summary
+        click.echo(f"✅ Matched {matched_count} of {len(transactions)} transactions ({match_rate*100:.1f}%)")
+        click.echo(f"   Average confidence: {avg_confidence*100:.1f}%")
+        click.echo(f"   Results saved to: {output_file}")
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
@@ -158,32 +192,47 @@ def match_single(
 
     try:
         # Initialize matcher
-        SimplifiedMatcher()
+        matcher = SimplifiedMatcher()
 
         # Load Amazon data
-        config.data_dir / "amazon" / "raw"
+        from ..amazon import load_amazon_data
+
+        amazon_data_dir = config.data_dir / "amazon" / "raw"
+        account_data = load_amazon_data(amazon_data_dir, accounts)
+
+        if verbose:
+            click.echo(f"Loaded {len(account_data)} Amazon accounts")
 
         click.echo("🔍 Searching for matching Amazon orders...")
-        click.echo("⚠️  Full implementation requires integration with existing single transaction logic")
 
-        # Placeholder result
-        result: dict[str, Any] = {
-            "transaction": ynab_transaction,
-            "matches": [],
-            "best_match": None,
-            "message": "CLI implementation in progress",
-        }
+        # Match the transaction
+        result = matcher.match_transaction(ynab_transaction, account_data)
 
         # Display result
         if result.get("best_match"):
-            click.echo("✅ Match found!")
-            click.echo(f"Confidence: {result['best_match']['confidence']}")
+            best = result["best_match"]
+            click.echo("\n✅ Match found!")
+            click.echo(f"   Confidence: {best.get('confidence', 0.0)*100:.1f}%")
+            click.echo(f"   Match type: {best.get('match_type', 'unknown')}")
+            click.echo(f"   Order ID: {best.get('order_id', 'N/A')}")
+            click.echo(f"   Order date: {best.get('order_date', 'N/A')}")
+            click.echo(f"   Total: ${best.get('order_total_cents', 0)/100:.2f}")
         else:
-            click.echo("❌ No matches found")
+            click.echo("\n❌ No matches found")
+
+        # Show all matches if multiple found
+        if verbose and len(result.get("matches", [])) > 1:
+            click.echo(f"\nFound {len(result['matches'])} potential matches:")
+            for i, match in enumerate(result["matches"][:5], 1):  # Show top 5
+                click.echo(
+                    f"  {i}. Order {match.get('order_id', 'N/A')} - "
+                    f"Confidence: {match.get('confidence', 0.0)*100:.1f}%"
+                )
 
         # Output JSON for programmatic use
-        click.echo("\nJSON Result:")
-        click.echo(format_json(result))
+        if verbose:
+            click.echo("\nJSON Result:")
+            click.echo(format_json(result))
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)

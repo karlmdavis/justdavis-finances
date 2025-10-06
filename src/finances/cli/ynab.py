@@ -219,24 +219,26 @@ def apply_edits(ctx: click.Context, edit_file: str, force: bool, verbose: bool) 
                 click.echo("Cancelled.")
                 return
 
-        # Apply edits
-        click.echo("🔍 Applying edits to YNAB...")
-        click.echo("⚠️  Full implementation requires YNAB API integration")
+        # Manual application workflow
+        click.echo("\n[WORKFLOW] Manual Application Process:")
+        click.echo("  1. Open YNAB web interface or mobile app")
+        click.echo("  2. For each transaction in the edit file:")
+        click.echo("     a. Find the original transaction by date and amount")
+        click.echo("     b. Split the transaction using the split details")
+        click.echo("     c. Update category and memo for each split")
+        click.echo("  3. Mark this edit file as applied (rename or move)")
 
-        # Placeholder implementation
-        applied = 0
-        skipped = 0
+        # Count edits
+        auto_approved = sum(1 for edit in edits if edit.get("auto_approved", False))
+        requires_review_count = len(edits) - auto_approved
 
-        for edit in edits:
-            if edit.get("auto_approved", False):
-                # Would apply edit here
-                applied += 1
-            else:
-                skipped += 1
+        click.echo("\n✅ Edit file ready for manual application")
+        click.echo(f"   Total edits: {len(edits)}")
+        click.echo(f"   High confidence (auto-approved): {auto_approved}")
+        click.echo(f"   Requires review: {requires_review_count}")
 
-        click.echo(f"✅ Applied {applied} edits")
-        if skipped > 0:
-            click.echo(f"⏸️  Skipped {skipped} edits (require review)")
+        click.echo("\n💡 TIP: Use YNAB's split transaction feature to match the edit structure")
+        click.echo("   Each split should match the category and amount shown in the edit file")
 
     except Exception as e:
         click.echo(f"❌ Error applying edits: {e}", err=True)
@@ -265,19 +267,80 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
         click.echo()
 
     try:
-        click.echo("🔄 Syncing YNAB data to local cache...")
-        click.echo("⚠️  Full implementation requires YNAB API integration")
+        import subprocess
 
-        # Placeholder for YNAB data sync
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        click.echo("🔄 Syncing YNAB cache using 'ynab' CLI tool...")
 
-        # Would fetch and cache:
-        # - accounts.json
-        # - categories.json
-        # - transactions.json (last N days)
+        # Check if ynab CLI is available
+        try:
+            result = subprocess.run(
+                ["ynab", "--version"],  # noqa: S607
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                raise FileNotFoundError()
+        except FileNotFoundError:
+            raise click.ClickException(
+                "YNAB CLI tool not found. Install from: https://github.com/karlmdavis/ynab-cli"
+            ) from None
 
-        click.echo("✅ YNAB data synced to cache")
-        click.echo(f"   Timestamp: {timestamp}")
+        if verbose:
+            click.echo(f"Cache directory: {cache_dir}")
+
+        # Sync transactions
+        click.echo("\n[SYNC] Fetching transactions from YNAB...")
+        transactions_file = cache_dir / "transactions.json"
+
+        with open(transactions_file, "w") as f:
+            result = subprocess.run(
+                ["ynab", "list", "--format", "json"],  # noqa: S607
+                stdout=f,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+
+        if result.returncode != 0:
+            raise click.ClickException(f"Failed to fetch transactions: {result.stderr}")
+
+        # Sync accounts
+        click.echo("[SYNC] Fetching accounts from YNAB...")
+        accounts_file = cache_dir / "accounts.json"
+
+        with open(accounts_file, "w") as f:
+            result = subprocess.run(
+                ["ynab", "get", "accounts", "--format", "json"],  # noqa: S607
+                stdout=f,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+
+        if result.returncode != 0:
+            click.echo(f"⚠️  Failed to fetch accounts: {result.stderr}")
+
+        # Sync categories
+        click.echo("[SYNC] Fetching categories from YNAB...")
+        categories_file = cache_dir / "categories.json"
+
+        with open(categories_file, "w") as f:
+            result = subprocess.run(
+                ["ynab", "get", "categories", "--format", "json"],  # noqa: S607
+                stdout=f,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+
+        if result.returncode != 0:
+            click.echo(f"⚠️  Failed to fetch categories: {result.stderr}")
+
+        click.echo("\n✅ YNAB cache synchronized successfully")
+        click.echo(f"   Transactions: {transactions_file}")
+        click.echo(f"   Accounts: {accounts_file}")
+        click.echo(f"   Categories: {categories_file}")
 
     except Exception as e:
         click.echo(f"❌ Error syncing cache: {e}", err=True)

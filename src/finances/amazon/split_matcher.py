@@ -6,6 +6,7 @@ Handles cases where Amazon splits a single order into multiple credit card trans
 Tracks which items have been matched to prevent double-counting.
 """
 
+import logging
 import os
 from collections import defaultdict
 from datetime import datetime
@@ -14,6 +15,8 @@ from typing import Any
 import pandas as pd
 
 from ..core.json_utils import read_json, write_json_with_defaults
+
+logger = logging.getLogger(__name__)
 
 
 class SplitPaymentMatcher:
@@ -54,8 +57,8 @@ class SplitPaymentMatcher:
                 set, {order_id: set(items) for order_id, items in data.get("matched_items", {}).items()}
             )
             self.transaction_matches = data.get("transaction_matches", {})
-        except Exception as e:
-            print(f"Warning: Could not load cache: {e}")
+        except (FileNotFoundError, ValueError, KeyError) as e:
+            logger.warning("Could not load cache from %s: %s", self.cache_file, e)
 
     def save_cache(self) -> None:
         """Save current matching state to cache file (only if cache file specified)."""
@@ -73,8 +76,8 @@ class SplitPaymentMatcher:
             }
 
             write_json_with_defaults(self.cache_file, data)
-        except Exception as e:
-            print(f"Warning: Could not save cache: {e}")
+        except (OSError, ValueError) as e:
+            logger.warning("Could not save cache to %s: %s", self.cache_file, e)
 
     def get_unmatched_items(self, order_id: str, order_data: dict) -> tuple[list[dict], int]:
         """

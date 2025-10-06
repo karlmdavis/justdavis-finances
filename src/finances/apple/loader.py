@@ -7,6 +7,7 @@ Provides data normalization and filtering functionality.
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,8 @@ from typing import Any
 import pandas as pd
 
 from ..core.config import get_config
+
+logger = logging.getLogger(__name__)
 
 
 def find_latest_apple_export(base_path: str | None = None) -> str | None:
@@ -84,7 +87,7 @@ def load_apple_receipts(export_path: str | None = None) -> list[dict[str, Any]]:
     with open(receipts_file) as f:
         receipts_data: list[dict[str, Any]] = json.load(f)
 
-    print(f"Loaded {len(receipts_data)} Apple receipts from {export_path}")
+    logger.info("Loaded %d Apple receipts from %s", len(receipts_data), export_path)
     return receipts_data
 
 
@@ -109,8 +112,10 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
 
             # Skip receipts without valid dates
             if receipt_date is None:
-                print(
-                    f"Warning: Skipping receipt {receipt.get('order_id', 'unknown')} due to invalid date: '{receipt_date_str}'"
+                logger.warning(
+                    "Skipping receipt %s due to invalid date: '%s'",
+                    receipt.get("order_id", "unknown"),
+                    receipt_date_str,
                 )
                 continue
 
@@ -138,8 +143,8 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
 
             normalized_data.append(normalized_record)
 
-        except Exception as e:
-            print(f"Warning: Failed to normalize receipt {receipt.get('order_id', 'unknown')}: {e}")
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning("Failed to normalize receipt %s: %s", receipt.get("order_id", "unknown"), e)
             continue
 
     df = pd.DataFrame(normalized_data)
@@ -148,7 +153,7 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
     if not df.empty:
         df = df.sort_values("receipt_date")
 
-    print(f"Normalized {len(df)} receipts successfully")
+    logger.info("Normalized %d receipts successfully", len(df))
     return df
 
 
@@ -177,7 +182,7 @@ def parse_apple_date(date_str: str) -> datetime | None:
             parsed_date = datetime.strptime(date_str, "%B %d, %Y")
             return parsed_date
         except ValueError:
-            print(f"Warning: Could not parse date '{date_str}'")
+            logger.warning("Could not parse date '%s'", date_str)
             return None
 
 
@@ -203,7 +208,7 @@ def filter_receipts_by_date_range(receipts_df: pd.DataFrame, start_date: str, en
     mask = (receipts_df["receipt_date"] >= start_dt) & (receipts_df["receipt_date"] <= end_dt)
     filtered_df = receipts_df[mask].copy()
 
-    print(f"Filtered to {len(filtered_df)} receipts between {start_date} and {end_date}")
+    logger.info("Filtered to %d receipts between %s and %s", len(filtered_df), start_date, end_date)
     return filtered_df
 
 
