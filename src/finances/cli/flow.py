@@ -548,14 +548,9 @@ def go(
             click.echo(f"\nPotentially affected downstream nodes: {len(downstream_nodes)}")
 
         # Confirm execution in interactive mode (before dry-run check)
-        # Only prompt if we're in a real terminal (not in automated tests/CI)
-        if interactive:
-            import sys
-
-            if sys.stdin.isatty() and not click.confirm("\nProceed with dynamic execution?"):
-                click.echo("Execution cancelled.")
-                return
-            # In non-TTY environments (tests, CI), auto-proceed when interactive=True
+        if interactive and not click.confirm("\nProceed with dynamic execution?"):
+            click.echo("Execution cancelled.")
+            return
 
         if dry_run:
             click.echo("\n🏃 Dry run mode - no changes will be made")
