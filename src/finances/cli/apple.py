@@ -5,6 +5,7 @@ Apple CLI - Transaction Matching Commands
 Professional command-line interface for Apple transaction matching.
 """
 
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -108,9 +109,9 @@ def match(
         for result in match_results:
             # Convert dataclass instances to dicts
             transaction_dict = (
-                result.transaction.__dict__ if hasattr(result.transaction, "__dict__") else result.transaction
+                asdict(result.transaction) if hasattr(result.transaction, "__dict__") else result.transaction
             )
-            receipts_list = [r.__dict__ if hasattr(r, "__dict__") else r for r in result.receipts]
+            receipts_list = [asdict(r) if hasattr(r, "__dict__") else r for r in result.receipts]
 
             match_dict: dict[str, Any] = {
                 "transaction": transaction_dict,
@@ -240,11 +241,11 @@ def match_single(
         if verbose:
             # Convert dataclass to dict
             transaction_dict = (
-                match_result.transaction.__dict__
+                asdict(match_result.transaction)
                 if hasattr(match_result.transaction, "__dict__")
                 else match_result.transaction
             )
-            receipts_list = [r.__dict__ if hasattr(r, "__dict__") else r for r in match_result.receipts]
+            receipts_list = [asdict(r) if hasattr(r, "__dict__") else r for r in match_result.receipts]
 
             result_dict: dict[str, Any] = {
                 "transaction": transaction_dict,
