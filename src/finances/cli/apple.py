@@ -24,21 +24,29 @@ def apple() -> None:
 
 
 @apple.command()
-@click.option("--start", required=True, help="Start date (YYYY-MM-DD)")
-@click.option("--end", required=True, help="End date (YYYY-MM-DD)")
+@click.option("--start", help="Start date (YYYY-MM-DD) - optional, defaults to all transactions")
+@click.option("--end", help="End date (YYYY-MM-DD) - optional, defaults to all transactions")
 @click.option("--apple-ids", multiple=True, help="Specific Apple IDs to process")
 @click.option("--output-dir", help="Override output directory")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def match(
-    ctx: click.Context, start: str, end: str, apple_ids: tuple, output_dir: str | None, verbose: bool
+    ctx: click.Context,
+    start: str | None,
+    end: str | None,
+    apple_ids: tuple,
+    output_dir: str | None,
+    verbose: bool,
 ) -> None:
     """
-    Match YNAB transactions to Apple receipts in a date range.
+    Match YNAB transactions to Apple receipts.
+
+    Date range is optional. If not provided, all Apple transactions will be matched.
 
     Examples:
+      finances apple match
       finances apple match --start 2024-07-01 --end 2024-07-31
-      finances apple match --start 2024-07-01 --end 2024-07-31 --apple-ids karl@example.com erica@example.com
+      finances apple match --start 2024-07-01 --end 2024-07-31 --apple-ids karl@example.com
     """
     config = get_config()
 
@@ -49,7 +57,10 @@ def match(
 
     if verbose or ctx.obj.get("verbose", False):
         click.echo("Apple Transaction Matching")
-        click.echo(f"Date range: {start} to {end}")
+        if start and end:
+            click.echo(f"Date range: {start} to {end}")
+        else:
+            click.echo("Date range: all transactions")
         click.echo(f"Apple IDs: {list(apple_ids) if apple_ids else 'all'}")
         click.echo(f"Output: {output_path}")
         click.echo()
