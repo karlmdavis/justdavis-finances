@@ -11,6 +11,12 @@
     - [X] Files should end with a line break, per POSIX.
 - [X] Rename the YNAB "mutations" to "edits".
 - [X] JSON file outputs should be pretty-printed, for readability and searchability.
+- [ ] Fix potential data loss risk in retirement CLI non-interactive mode
+      (src/finances/cli/retirement.py:177-203).
+      Currently --output-file serves dual purpose as both input and output file,
+      which could lead to accidental overwrites.
+      Recommendation: Add separate --input-file option for non-interactive mode.
+      Context: PR #8 code review feedback - deferred for future enhancement.
 
 ## Major Items
 
