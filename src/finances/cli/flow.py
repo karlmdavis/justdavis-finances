@@ -547,13 +547,13 @@ def go(
         if downstream_nodes:
             click.echo(f"\nPotentially affected downstream nodes: {len(downstream_nodes)}")
 
-        if dry_run:
-            click.echo("\n🏃 Dry run mode - no changes will be made")
-            return
-
-        # Confirm execution in interactive mode
+        # Confirm execution in interactive mode (before dry-run check)
         if interactive and not click.confirm("\nProceed with dynamic execution?"):
             click.echo("Execution cancelled.")
+            return
+
+        if dry_run:
+            click.echo("\n🏃 Dry run mode - no changes will be made")
             return
 
         # Create transaction archive

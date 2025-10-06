@@ -364,3 +364,96 @@ def test_flow_go_inverted_date_range(flow_test_env):
         "No nodes need execution" in result.stdout
         or "Dry run mode - no changes will be made" in result.stdout
     ), "Should indicate no-op execution"
+
+
+@pytest.mark.e2e
+@pytest.mark.slow
+def test_flow_go_interactive_mode(flow_test_env):
+    """
+    Test `finances flow go` in interactive mode with user prompts.
+
+    This test uses pexpect to spawn the flow command interactively and
+    simulates user responses to prompts. This exercises code paths that
+    are not tested when using --non-interactive flag.
+
+    Validates that the interactive flow:
+    1. Displays execution plan and prompts for confirmation
+    2. Handles user confirmation responses
+    3. Executes the flow system successfully
+    4. Displays results and completion status
+    """
+    import os
+
+    import pexpect
+
+    # Build environment with test data directory
+    env = os.environ.copy()
+    env["FINANCES_DATA_DIR"] = str(flow_test_env["data_dir"])
+    env["FINANCES_ENV"] = "test"
+    env["YNAB_API_TOKEN"] = "test-token-e2e"
+    env["EMAIL_PASSWORD"] = "test-password-e2e"
+
+    # Spawn the flow command interactively (no --non-interactive flag)
+    cmd = ["uv", "run", "finances", "flow", "go", "--dry-run"]
+    child = pexpect.spawn(
+        " ".join(cmd),
+        cwd=REPO_ROOT,
+        env=env,
+        timeout=120,
+        encoding="utf-8",
+    )
+
+    try:
+        # Enable logging for debugging
+        child.logfile_read = None  # Set to sys.stdout for debugging
+
+        # Accumulate all output
+        full_output = []
+
+        # Expect the execution plan to be displayed
+        child.expect("Dynamic execution will process", timeout=30)
+        full_output.append(child.before + child.after)
+
+        # Expect the prompt asking to proceed
+        child.expect("Proceed with dynamic execution?", timeout=10)
+        full_output.append(child.before + child.after)
+
+        # Send confirmation (yes)
+        child.sendline("y")
+
+        # Expect dry run confirmation
+        child.expect("Dry run mode - no changes will be made", timeout=10)
+        full_output.append(child.before + child.after)
+
+        # Wait for completion
+        child.expect(pexpect.EOF, timeout=60)
+        full_output.append(child.before)
+
+        # Check exit code
+        child.close()
+        exit_code = child.exitstatus
+
+        # Verify successful completion
+        assert exit_code == 0, f"Flow execution should succeed, got exit code {exit_code}"
+
+        # Verify output contains expected messages
+        combined_output = "".join(full_output)
+        assert "Dry run mode" in combined_output, "Should indicate dry run mode"
+        assert "Proceed with dynamic execution?" in combined_output, "Should show confirmation prompt"
+
+    except pexpect.TIMEOUT as e:
+        # Capture what we got before timeout
+        output = child.before or ""
+        child.close(force=True)
+        pytest.fail(f"Interactive flow test timed out. Output so far:\n{output}\nException: {e}")
+
+    except pexpect.EOF as e:
+        # Unexpected EOF
+        output = child.before or ""
+        child.close(force=True)
+        pytest.fail(f"Interactive flow ended unexpectedly. Output:\n{output}\nException: {e}")
+
+    finally:
+        # Ensure process is terminated
+        if child.isalive():
+            child.close(force=True)

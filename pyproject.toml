@@ -47,6 +47,7 @@ dev = [
     "types-PyYAML>=6.0.0",
     "types-beautifulsoup4>=4.12.0",
     "pandas-stubs>=2.0.0",
+    "pexpect>=4.8.0",
 ]
 docs = [
     "mkdocs>=1.5.0",
@@ -87,6 +88,7 @@ dev = [
     "types-PyYAML>=6.0.0",
     "types-beautifulsoup4>=4.12.0",
     "pandas-stubs>=2.0.0",
+    "pexpect>=4.8.0",
 ]
 
 # Black configuration
@@ -139,7 +141,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101", "S603"]  # allow assert statements and subprocess calls in tests
+"tests/**/*" = ["S101", "S105", "S603"]  # allow assert statements, test credentials, and subprocess calls in tests
 "tests/fixtures/synthetic_data.py" = ["S311"]  # allow standard random for test data generation
 "tests/e2e/**/*" = ["S607"]  # allow partial executable paths for CLI testing
 
