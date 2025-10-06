@@ -457,3 +457,64 @@ def test_flow_go_interactive_mode(flow_test_env):
         # Ensure process is terminated
         if child.isalive():
             child.close(force=True)
+
+
+@pytest.mark.e2e
+def test_flow_go_nodes_excluded(flow_test_env):
+    """
+    Test `finances flow go --nodes-excluded` excludes nodes and their dependents.
+
+    Validates that excluded nodes and any nodes that depend on them are
+    removed from the execution plan.
+    """
+    # Exclude ynab_apply (which depends on split_generation)
+    result = run_flow_command(
+        ["go", "--non-interactive", "--dry-run", "--nodes-excluded", "ynab_apply", "--verbose"]
+    )
+
+    assert result.returncode == 0, f"Command failed: {result.stderr}"
+
+    # Should show exclusion message in verbose mode
+    assert "Excluding nodes: ynab_apply" in result.stdout, "Should show exclusion message"
+
+    # ynab_apply should not appear in the "Initially triggered nodes" section
+    # (it will appear in the exclusion message, but not in the execution plan)
+    lines = result.stdout.split("\n")
+    execution_section = False
+    for line in lines:
+        if "Initially triggered nodes:" in line:
+            execution_section = True
+        if execution_section and "ynab" in line.lower() and "apply" in line.lower():
+            pytest.fail("ynab_apply should not appear in execution plan")
+
+
+@pytest.mark.e2e
+def test_flow_go_nodes_excluded_with_dependents(flow_test_env):
+    """
+    Test that excluding a node also excludes its dependent nodes.
+
+    When split_generation is excluded, ynab_apply (which depends on it)
+    should also be excluded automatically.
+    """
+    result = run_flow_command(
+        ["go", "--non-interactive", "--dry-run", "--nodes-excluded", "split_generation", "--verbose"]
+    )
+
+    assert result.returncode == 0, f"Command failed: {result.stderr}"
+
+    # Should show both direct and dependent exclusions
+    assert "Excluding nodes: split_generation" in result.stdout, "Should show direct exclusion"
+    assert "Also excluding dependent nodes:" in result.stdout, "Should show dependent exclusion"
+    assert "ynab_apply" in result.stdout, "ynab_apply should be mentioned as dependent"
+
+    # Neither should appear in execution plan
+    lines = result.stdout.split("\n")
+    execution_section = False
+    for line in lines:
+        if "Initially triggered nodes:" in line:
+            execution_section = True
+        if execution_section:
+            if "split" in line.lower() and "generation" in line.lower():
+                pytest.fail("split_generation should not appear in execution plan")
+            if "ynab" in line.lower() and "apply" in line.lower():
+                pytest.fail("ynab_apply should not appear in execution plan")

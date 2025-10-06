@@ -408,6 +408,7 @@ def setup_flow_nodes() -> None:
 @click.option("--dry-run", is_flag=True, help="Show execution plan without running")
 @click.option("--force", is_flag=True, help="Force execution of all nodes")
 @click.option("--nodes", multiple=True, help="Specific nodes to execute")
+@click.option("--nodes-excluded", multiple=True, help="Nodes to exclude from execution")
 @click.option("--skip-archive", is_flag=True, help="Skip archive creation")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
@@ -421,6 +422,7 @@ def go(
     dry_run: bool,
     force: bool,
     nodes: tuple,
+    nodes_excluded: tuple,
     skip_archive: bool,
     verbose: bool,
 ) -> None:
@@ -498,6 +500,32 @@ def go(
         # Determine target nodes
         target_nodes = set(nodes) if nodes else None
 
+        # Apply node exclusions (including dependent nodes)
+        if nodes_excluded:
+            excluded_set = set(nodes_excluded)
+            # Find all nodes that depend on excluded nodes
+            dependents_to_exclude = set()
+            for excluded_node in excluded_set:
+                # Find all nodes that transitively depend on this excluded node
+                for node_name in flow_registry.get_all_nodes():
+                    if engine.dependency_graph._node_depends_on(node_name, excluded_node):
+                        dependents_to_exclude.add(node_name)
+
+            # Combine direct exclusions with dependent exclusions
+            all_excluded = excluded_set | dependents_to_exclude
+
+            # Apply exclusions to target nodes
+            if target_nodes is not None:
+                target_nodes = target_nodes - all_excluded
+            else:
+                # Start with all nodes, then exclude
+                target_nodes = set(flow_registry.get_all_nodes().keys()) - all_excluded
+
+            if verbose:
+                click.echo(f"Excluding nodes: {', '.join(sorted(excluded_set))}")
+                if dependents_to_exclude:
+                    click.echo(f"Also excluding dependent nodes: {', '.join(sorted(dependents_to_exclude))}")
+
         # Detect initial changes for preview
         all_nodes = set(flow_registry.get_all_nodes().keys()) if target_nodes is None else target_nodes
 
@@ -536,7 +564,7 @@ def go(
             click.echo("\nInitially triggered nodes:")
             for node_name in sorted(initially_changed):
                 node = flow_registry.get_node(node_name)
-                display_name = node.get_display_name() if node else node_name
+                display_name = node.get_display_name() if node is not None else node_name
                 click.echo(f"  • {display_name}")
                 if node_name in change_summary:
                     for reason in change_summary[node_name]:
