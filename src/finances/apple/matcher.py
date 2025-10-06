@@ -6,6 +6,7 @@ Core logic for matching Apple receipts to YNAB transactions.
 Implements a simplified 2-strategy system optimized for Apple's 1:1 transaction model.
 """
 
+import logging
 from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -14,6 +15,8 @@ import pandas as pd
 
 from ..core.currency import format_cents, milliunits_to_cents
 from ..core.models import MatchResult, Receipt, Transaction
+
+logger = logging.getLogger(__name__)
 
 
 class MatchStrategy(Enum):
@@ -53,8 +56,11 @@ class AppleMatcher:
         tx_date = datetime.strptime(ynab_transaction["date"], "%Y-%m-%d")
         tx_id = ynab_transaction["id"]
 
-        print(
-            f"Matching transaction {tx_id}: {format_cents(tx_amount_cents)} on {tx_date.strftime('%Y-%m-%d')}"
+        logger.debug(
+            "Matching transaction %s: %s on %s",
+            tx_id,
+            format_cents(tx_amount_cents),
+            tx_date.strftime("%Y-%m-%d"),
         )
 
         # Create Transaction object
@@ -137,8 +143,10 @@ class AppleMatcher:
         # Find exact amount matches
         for _, receipt in same_date_receipts.iterrows():
             if receipt["total"] == tx_amount:
-                print(
-                    f"  Found exact match: Receipt {receipt['order_id']} for {format_cents(receipt['total'])}"
+                logger.debug(
+                    "Found exact match: Receipt %s for %s",
+                    receipt["order_id"],
+                    format_cents(receipt["total"]),
                 )
                 receipt_dict: dict[str, Any] = receipt.to_dict()
                 return receipt_dict
@@ -185,8 +193,11 @@ class AppleMatcher:
                     best_date_diff = date_diff
 
         if best_match:
-            print(
-                f"  Found date window match: Receipt {best_match['order_id']} for {format_cents(best_match['total'])}, {best_date_diff} days off"
+            logger.debug(
+                "Found date window match: Receipt %s for %s, %d days off",
+                best_match["order_id"],
+                format_cents(best_match["total"]),
+                best_date_diff,
             )
             return best_match, best_date_diff
 
@@ -280,8 +291,10 @@ def batch_match_transactions(
 
     results = []
 
-    print(
-        f"Matching {len(ynab_transactions_df)} YNAB transactions to {len(apple_receipts_df)} Apple receipts"
+    logger.info(
+        "Matching %d YNAB transactions to %d Apple receipts",
+        len(ynab_transactions_df),
+        len(apple_receipts_df),
     )
 
     for _, transaction in ynab_transactions_df.iterrows():
