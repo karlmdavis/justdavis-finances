@@ -12,6 +12,7 @@ import click
 
 from ..analysis import CashFlowAnalyzer, CashFlowConfig
 from ..core.config import get_config
+from ..core.currency import format_cents
 
 
 @click.group()
@@ -112,15 +113,17 @@ def analyze(
 
         # Display key insights
         click.echo("\n[INSIGHTS] Key Statistics:")
-        click.echo(f"   Current Balance: ${stats['current_balance']:,.0f}")
-        click.echo(f"   Monthly Trend: ${stats['monthly_trend']:,.0f}/month ({stats['trend_direction']})")
-        click.echo(f"   Monthly Burn Rate: ${stats['monthly_burn_rate']:,.0f}")
+        click.echo(f"   Current Balance: {format_cents(int(stats['current_balance'] * 100))}")
+        click.echo(
+            f"   Monthly Trend: {format_cents(int(stats['monthly_trend'] * 100))}/month ({stats['trend_direction']})"
+        )
+        click.echo(f"   Monthly Burn Rate: {format_cents(int(stats['monthly_burn_rate'] * 100))}")
         click.echo(f"   Trend Confidence: {stats['trend_confidence']*100:.1f}%")
-        click.echo(f"   Volatility: ${stats['volatility']:,.0f}")
+        click.echo(f"   Volatility: {format_cents(int(stats['volatility'] * 100))}")
 
         if verbose:
             click.echo(f"\n📅 Analysis Period: {stats['data_start_date']} to present")
-            click.echo(f"   Yearly Projection: ${stats['yearly_trend']:,.0f}/year")
+            click.echo(f"   Yearly Projection: {format_cents(int(stats['yearly_trend'] * 100))}/year")
 
     except Exception as e:
         click.echo(f"❌ Error during analysis: {e}", err=True)
@@ -255,9 +258,9 @@ def report(
 
         # Display key metrics
         click.echo("\n[SUMMARY] Key Metrics:")
-        click.echo(f"   Current Balance: ${stats['current_balance']:,.0f}")
-        click.echo(f"   Monthly Trend: ${stats['monthly_trend']:,.0f}/month")
-        click.echo(f"   Yearly Trend: ${stats['yearly_trend']:,.0f}/year")
+        click.echo(f"   Current Balance: {format_cents(int(stats['current_balance'] * 100))}")
+        click.echo(f"   Monthly Trend: {format_cents(int(stats['monthly_trend'] * 100))}/month")
+        click.echo(f"   Yearly Trend: {format_cents(int(stats['yearly_trend'] * 100))}/year")
 
     except Exception as e:
         click.echo(f"❌ Error generating report: {e}", err=True)
@@ -338,17 +341,21 @@ def forecast(ctx: click.Context, lookback_days: int, confidence_level: float, ve
         }
 
         click.echo("\n🎯 Forecast Summary:")
-        click.echo(f"   Current Balance: ${current_balance:,.0f}")
-        click.echo(f"   Monthly Trend: ${monthly_trend:,.0f}/month ({stats['trend_direction']})")
+        click.echo(f"   Current Balance: {format_cents(int(current_balance * 100))}")
+        click.echo(
+            f"   Monthly Trend: {format_cents(int(monthly_trend * 100))}/month ({stats['trend_direction']})"
+        )
         click.echo(f"   Trend Confidence: {confidence*100:.1f}%")
-        click.echo(f"   Volatility: ${volatility:,.0f}")
+        click.echo(f"   Volatility: {format_cents(int(volatility * 100))}")
         click.echo()
 
         for projection in projections.values():
             click.echo(f"   {projection['days']}-day projection:")
-            click.echo(f"      Balance: ${projection['projected_balance']:,.0f}")
-            click.echo(f"      Range: ${projection['lower_bound']:,.0f} - ${projection['upper_bound']:,.0f}")
-            click.echo(f"      Change: ${projection['change']:,.0f}")
+            click.echo(f"      Balance: {format_cents(int(projection['projected_balance'] * 100))}")
+            click.echo(
+                f"      Range: {format_cents(int(projection['lower_bound'] * 100))} - {format_cents(int(projection['upper_bound'] * 100))}"
+            )
+            click.echo(f"      Change: {format_cents(int(projection['change'] * 100))}")
 
         # Display risk assessment
         risk_level = "LOW" if confidence > 0.8 else "MEDIUM" if confidence > 0.5 else "HIGH"
