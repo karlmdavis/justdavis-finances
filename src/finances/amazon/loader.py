@@ -10,12 +10,15 @@ Functions:
 - load_amazon_data: Load Amazon order CSVs into matcher-compatible format
 """
 
+import logging
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from ..core.config import get_config
+
+logger = logging.getLogger(__name__)
 
 
 def find_latest_amazon_export(base_path: str | Path | None = None) -> Path | None:
@@ -129,9 +132,9 @@ def load_amazon_data(
         retail_csv = retail_csv_files[0]
         try:
             retail_df = pd.read_csv(retail_csv, parse_dates=["Order Date", "Ship Date"])
-        except Exception as e:
+        except (pd.errors.ParserError, FileNotFoundError, ValueError) as e:
             # Skip accounts with malformed CSV files
-            print(f"Warning: Failed to load {retail_csv}: {e}")
+            logger.warning("Failed to load %s: %s", retail_csv, e)
             continue
 
         # Digital orders not yet supported - use empty DataFrame
