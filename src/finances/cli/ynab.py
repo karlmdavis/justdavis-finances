@@ -273,7 +273,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
         # Check if ynab CLI is available
         try:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(
                 ["ynab", "--version"],  # noqa: S607
                 capture_output=True,
                 text=True,
@@ -294,7 +294,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
         transactions_file = cache_dir / "transactions.json"
 
         with open(transactions_file, "w") as f:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(
                 ["ynab", "list", "--format", "json"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
@@ -310,7 +310,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
         accounts_file = cache_dir / "accounts.json"
 
         with open(accounts_file, "w") as f:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(
                 ["ynab", "get", "accounts", "--format", "json"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
@@ -326,7 +326,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
         categories_file = cache_dir / "categories.json"
 
         with open(categories_file, "w") as f:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(
                 ["ynab", "get", "categories", "--format", "json"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
