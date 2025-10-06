@@ -390,8 +390,8 @@ def test_flow_go_interactive_mode(flow_test_env):
     env = os.environ.copy()
     env["FINANCES_DATA_DIR"] = str(flow_test_env["data_dir"])
     env["FINANCES_ENV"] = "test"
-    env["YNAB_API_TOKEN"] = "test-token-e2e"
-    env["EMAIL_PASSWORD"] = "test-password-e2e"
+    env["YNAB_API_TOKEN"] = "test-token-e2e"  # noqa: S105 - test credential
+    env["EMAIL_PASSWORD"] = "test-password-e2e"  # noqa: S105 - test credential
 
     # Spawn the flow command interactively (no --non-interactive flag)
     cmd = ["uv", "run", "finances", "flow", "go", "--dry-run"]
