@@ -60,15 +60,14 @@ def match(
         from ..apple import batch_match_transactions, load_apple_receipts
         from ..ynab import filter_transactions, load_ynab_transactions
 
-        apple_data_dir = config.data_dir / "apple" / "exports"
         ynab_cache_dir = config.data_dir / "ynab" / "cache"
 
         if verbose:
-            click.echo(f"Loading Apple receipt data from: {apple_data_dir}")
+            click.echo(f"Loading Apple receipt data from: {config.data_dir / 'apple' / 'exports'}")
             click.echo(f"Loading YNAB data from: {ynab_cache_dir}")
 
-        # Load Apple receipts
-        apple_receipts = load_apple_receipts(str(apple_data_dir))
+        # Load Apple receipts - loader will auto-discover latest export directory
+        apple_receipts = load_apple_receipts()
 
         # Filter by Apple ID if specified
         if apple_ids:
@@ -177,7 +176,7 @@ def match_single(
       finances apple match-single --transaction-id "abc123" --date "2024-07-07"
         --amount -227320 --payee-name "Apple Store" --account-name "Chase Credit Card"
     """
-    config = get_config()
+    get_config()
 
     if verbose or ctx.obj.get("verbose", False):
         click.echo("Single Apple Transaction Matching")
@@ -203,8 +202,8 @@ def match_single(
 
         from ..apple import load_apple_receipts
 
-        apple_data_dir = config.data_dir / "apple" / "exports"
-        apple_receipts = load_apple_receipts(str(apple_data_dir))
+        # Load receipts - loader will auto-discover latest export directory
+        apple_receipts = load_apple_receipts()
 
         # Filter by Apple ID if specified
         if apple_ids:

@@ -190,7 +190,7 @@ def update(
             with open(input_file_path) as f:
                 if input_file_path.suffix == ".yaml" or input_file_path.suffix == ".yml":
                     try:
-                        import yaml  # type: ignore  # Optional dependency
+                        import yaml  # type: ignore[import-untyped]
 
                         balance_updates = yaml.safe_load(f)
                     except ImportError as e:
