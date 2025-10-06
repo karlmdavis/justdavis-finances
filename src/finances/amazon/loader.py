@@ -11,6 +11,7 @@ Functions:
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -108,13 +109,19 @@ def load_amazon_data(
     account_data: dict[str, tuple[pd.DataFrame, pd.DataFrame]] = {}
     accounts_filter = set(accounts) if accounts else None
 
-    for account_dir in amazon_dirs:
-        # Extract account name from directory (pattern: YYYY-MM-DD_accountname_amazon_data)
-        dir_parts = account_dir.name.split("_")
-        if len(dir_parts) < 3:
-            continue  # Skip malformed directory names
+    # Regex pattern to extract account name from directory
+    # Pattern: YYYY-MM-DD_accountname_amazon_data
+    # Account name can contain underscores, so we use non-greedy match
+    dir_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}_(.+?)_amazon_data$")
 
-        account_name = dir_parts[1]  # e.g., "karl" from "2024-10-05_karl_amazon_data"
+    for account_dir in amazon_dirs:
+        # Extract account name from directory using regex
+        match = dir_pattern.match(account_dir.name)
+        if not match:
+            logger.warning("Skipping malformed directory name: %s", account_dir.name)
+            continue
+
+        account_name = match.group(1)  # e.g., "karl_test" from "2024-10-05_karl_test_amazon_data"
 
         # Skip if filtering accounts and this account not in filter
         if accounts_filter and account_name not in accounts_filter:
