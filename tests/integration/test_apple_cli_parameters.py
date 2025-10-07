@@ -259,3 +259,129 @@ class TestAppleCLIParameters:
         assert (
             "2 Apple receipts" in result.output or result.exit_code == 1
         ), "Should process only valid receipts"
+
+    def test_match_with_date_objects_in_dataclasses(self):
+        """Test apple match handles date objects in dataclasses and serializes to JSON correctly."""
+        import json
+        import sys
+        from pathlib import Path
+
+        # Add tests directory to path for fixture imports
+        tests_dir = Path(__file__).parent.parent
+        sys.path.insert(0, str(tests_dir))
+
+        from finances.core.json_utils import write_json
+
+        # Create YNAB cache with Apple transactions
+        ynab_cache_dir = self.temp_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True)
+
+        accounts_data = {
+            "accounts": [
+                {
+                    "id": "account-001",
+                    "name": "Test Account",
+                    "type": "checking",
+                    "balance": 1000000,
+                    "cleared_balance": 1000000,
+                    "uncleared_balance": 0,
+                    "closed": False,
+                    "on_budget": True,
+                }
+            ],
+            "server_knowledge": 12345,
+        }
+
+        transactions_data = [
+            {
+                "id": "tx-001",
+                "date": "2025-01-15",
+                "amount": -1999,
+                "account_id": "account-001",
+                "account_name": "Test Account",
+                "payee_name": "Apple",
+                "category_id": "cat-001",
+                "category_name": "Shopping",
+                "memo": None,
+                "cleared": "cleared",
+                "approved": True,
+            }
+        ]
+
+        categories_data = {
+            "category_groups": [
+                {
+                    "id": "group-001",
+                    "name": "Test Group",
+                    "categories": [{"id": "cat-001", "name": "Shopping"}],
+                }
+            ],
+            "server_knowledge": 67890,
+        }
+
+        write_json(ynab_cache_dir / "accounts.json", accounts_data)
+        write_json(ynab_cache_dir / "transactions.json", transactions_data)
+        write_json(ynab_cache_dir / "categories.json", categories_data)
+
+        # Create Apple receipts with actual date objects (not strings)
+        # This simulates what would happen if normalize_apple_receipt_data returns date objects
+        apple_exports_dir = self.temp_dir / "apple" / "exports" / "2025-01-01_00-00-00_apple_receipts_export"
+        apple_exports_dir.mkdir(parents=True)
+
+        receipts = [
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": "Jan 15, 2025",  # String that will be parsed to date
+                "order_id": "ORDER-001",
+                "document_number": "DOC-001",
+                "total": 1999,
+                "currency": "USD",
+                "items": [{"name": "Test App", "amount": 1999}],
+            }
+        ]
+
+        receipts_file = apple_exports_dir / "all_receipts_combined.json"
+        write_json(receipts_file, receipts)
+
+        # Create output directory
+        output_dir = self.temp_dir / "output"
+        output_dir.mkdir()
+
+        # Run match command - should serialize date objects correctly
+        result = self.runner.invoke(
+            apple,
+            ["match", "--output-dir", str(output_dir)],
+            env={"FINANCES_DATA_DIR": str(self.temp_dir), "FINANCES_ENV": "test"},
+            obj={},
+        )
+
+        # Should complete successfully
+        assert result.exit_code in [
+            0,
+            1,
+        ], f"Unexpected exit code {result.exit_code}: {result.output}"
+
+        # Should not crash with date serialization error
+        assert (
+            "Object of type date is not JSON serializable" not in result.output
+        ), f"Should not crash with date serialization error: {result.output}"
+
+        # Verify output file was created and contains valid JSON
+        output_files = list(output_dir.glob("*_apple_matching_results.json"))
+        if output_files:
+            with open(output_files[0]) as f:
+                data = json.load(f)
+                assert "matches" in data, "Output should contain matches"
+                # Dates should be serialized as strings in the output
+                if data["matches"]:
+                    for match in data["matches"]:
+                        if "transaction" in match and "date" in match["transaction"]:
+                            assert isinstance(
+                                match["transaction"]["date"], str
+                            ), "Transaction dates should be strings in JSON"
+                        if "receipts" in match:
+                            for receipt in match["receipts"]:
+                                if "date" in receipt:
+                                    assert isinstance(
+                                        receipt["date"], str
+                                    ), "Receipt dates should be strings in JSON"
