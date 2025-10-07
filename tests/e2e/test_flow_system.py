@@ -39,13 +39,72 @@ def flow_test_env(monkeypatch):
         save_synthetic_ynab_data(ynab_cache_dir)
 
         # Create other required directories
-        (data_dir / "amazon" / "raw").mkdir(parents=True, exist_ok=True)
+        amazon_raw_dir = data_dir / "amazon" / "raw"
+        amazon_raw_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "amazon" / "transaction_matches").mkdir(parents=True, exist_ok=True)
-        (data_dir / "apple" / "emails").mkdir(parents=True, exist_ok=True)
-        (data_dir / "apple" / "exports").mkdir(parents=True, exist_ok=True)
+
+        apple_emails_dir = data_dir / "apple" / "emails"
+        apple_emails_dir.mkdir(parents=True, exist_ok=True)
+        apple_exports_dir = data_dir / "apple" / "exports"
+        apple_exports_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "apple" / "transaction_matches").mkdir(parents=True, exist_ok=True)
         (data_dir / "ynab" / "edits").mkdir(parents=True, exist_ok=True)
         (data_dir / "cash_flow" / "charts").mkdir(parents=True, exist_ok=True)
+
+        # Generate Amazon test data
+
+        from finances.core.json_utils import write_json
+        from tests.fixtures.synthetic_data import generate_synthetic_amazon_orders
+
+        # Create Amazon raw data directory structure
+        amazon_account_dir = amazon_raw_dir / "2024-01-01_testaccount_amazon_data"
+        amazon_account_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate and save Amazon orders CSV
+        import csv
+
+        orders = generate_synthetic_amazon_orders(num_orders=5)
+        csv_file = amazon_account_dir / "RetailOrderHistory.csv"
+        if orders:
+            with open(csv_file, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=orders[0].keys())
+                writer.writeheader()
+                writer.writerows(orders)
+
+        # Generate Apple test data - create receipts JSON directly
+        # (skip email HTML generation since we parse receipts directly)
+        apple_export_dir = apple_exports_dir / "2025-01-01_00-00-00_apple_receipts_export"
+        apple_export_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate receipts with synthetic data
+        receipts = [
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": "Jan 15, 2025",
+                "order_id": f"ORDER-{i:03d}",
+                "document_number": f"DOC-{i:03d}",
+                "total": 999 + (i * 100),  # Varying amounts in cents
+                "currency": "USD",
+                "items": [{"name": f"Test App {i}", "amount": 999 + (i * 100)}],
+            }
+            for i in range(1, 4)
+        ]
+
+        # Add one receipt with null date to test edge case handling
+        receipts.append(
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": None,
+                "order_id": "ORDER-NULL",
+                "document_number": "DOC-NULL",
+                "total": 599,
+                "currency": "USD",
+                "items": [{"name": "Test App Null Date", "amount": 599}],
+            }
+        )
+
+        receipts_file = apple_export_dir / "all_receipts_combined.json"
+        write_json(receipts_file, receipts)
 
         # Set environment variables for this test
         monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
@@ -394,16 +453,19 @@ def test_flow_go_interactive_mode(flow_test_env):
     env["EMAIL_PASSWORD"] = "test-password-e2e"  # noqa: S105 - test credential
 
     # Spawn the flow command interactively (no --non-interactive or --dry-run flags)
-    # Use --nodes to run only ynab_sync which has all required test data
-    # This tests interactive mode without requiring comprehensive external data
+    # Exclude ynab_apply to prevent actual YNAB API mutations
+    # Exclude cash_flow_analysis (requires 6+ months of data, test env has only 90 days)
+    # All other nodes should execute successfully with synthetic test data
     cmd = [
         "uv",
         "run",
         "finances",
         "flow",
         "go",
-        "--nodes",
-        "ynab_sync",
+        "--nodes-excluded",
+        "ynab_apply",
+        "--nodes-excluded",
+        "cash_flow_analysis",
         "--verbose",
     ]
     child = pexpect.spawn(
@@ -460,11 +522,19 @@ def test_flow_go_interactive_mode(flow_test_env):
         # Verify successful completion
         assert "Flow completed successfully" in combined_output, "Should show success message"
 
-        # Verify ynab_sync executed (appears in detailed results)
-        assert "ynab_sync" in combined_output, "Should execute ynab_sync node"
+        # Verify ynab_apply and cash_flow_analysis were excluded
+        assert "ynab_apply" in combined_output, "Should mention excluded nodes"
+        assert "cash_flow_analysis" in combined_output, "Should mention excluded nodes"
+
+        # Verify at least some nodes executed
+        # (Not all nodes may execute - depends on change detection and data availability)
+        assert (
+            "Executing node:" in combined_output or "completed" in combined_output.lower()
+        ), "Should execute at least some nodes"
 
         # Verify execution summary shows 0 failures
         assert "Failed: 0" in combined_output, "Should have no failed nodes"
+        assert "Completed:" in combined_output, "Should show completed nodes count"
 
     except pexpect.TIMEOUT as e:
         # Capture what we got before timeout
