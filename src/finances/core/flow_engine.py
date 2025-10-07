@@ -438,6 +438,9 @@ class FlowExecutionEngine:
         # Find all nodes that need execution due to changes (including downstream)
         nodes_needing_execution = self.dependency_graph.find_changed_subgraph(initially_changed)
 
+        # Filter nodes_needing_execution by target_nodes (respects exclusions)
+        nodes_needing_execution = nodes_needing_execution & all_nodes
+
         logger.info(f"Dynamic execution starting with {len(nodes_needing_execution)} potential nodes")
         if context.verbose:
             logger.info(f"Initially changed: {initially_changed}")
