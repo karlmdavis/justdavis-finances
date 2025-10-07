@@ -14,7 +14,7 @@ import click
 
 from ..apple import AppleMatcher, AppleReceiptParser, fetch_apple_receipts_cli, normalize_apple_receipt_data
 from ..core.config import get_config
-from ..core.json_utils import format_json, write_json
+from ..core.json_utils import format_json, write_json, write_json_with_defaults
 
 
 @click.group()
@@ -149,8 +149,8 @@ def match(
             "matches": matches,
         }
 
-        # Write result file
-        write_json(output_file, output_result)
+        # Write result file (use write_json_with_defaults to handle date objects)
+        write_json_with_defaults(output_file, output_result, default=str)
 
         # Display summary
         click.echo(f"✅ Matched {matched_count} of {len(match_results)} transactions ({match_rate*100:.1f}%)")
@@ -264,7 +264,7 @@ def match_single(
                 "strategy": match_result.strategy_used or match_result.match_method,
             }
             click.echo("\nJSON Result:")
-            click.echo(format_json(result_dict))
+            click.echo(format_json(result_dict, default=str))
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)
