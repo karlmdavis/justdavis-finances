@@ -219,7 +219,12 @@ def setup_flow_nodes() -> None:
     flow_registry.register_function_node(
         name="amazon_matching",
         func=create_cli_executor(
-            amazon_match_cmd, accounts=(), disable_split=False, output_dir=None  # All accounts
+            amazon_match_cmd,
+            accounts=(),  # All accounts
+            disable_split=False,
+            output_dir=None,
+            start=None,
+            end=None,
         ),
         dependencies=["ynab_sync", "amazon_unzip"],
         change_detector=get_change_detector_function(change_detectors["amazon_matching"]),
@@ -258,7 +263,9 @@ def setup_flow_nodes() -> None:
     # Register Apple Matching Node
     flow_registry.register_function_node(
         name="apple_matching",
-        func=create_cli_executor(apple_match_cmd, apple_ids=(), output_dir=None),  # All Apple IDs
+        func=create_cli_executor(
+            apple_match_cmd, apple_ids=(), output_dir=None, start=None, end=None  # All Apple IDs
+        ),
         dependencies=["ynab_sync", "apple_receipt_parsing"],
         change_detector=get_change_detector_function(change_detectors["apple_matching"]),
     )

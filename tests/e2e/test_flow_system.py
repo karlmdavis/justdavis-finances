@@ -394,8 +394,18 @@ def test_flow_go_interactive_mode(flow_test_env):
     env["EMAIL_PASSWORD"] = "test-password-e2e"  # noqa: S105 - test credential
 
     # Spawn the flow command interactively (no --non-interactive or --dry-run flags)
-    # Exclude ynab_apply to prevent actual YNAB API mutations
-    cmd = ["uv", "run", "finances", "flow", "go", "--nodes-excluded", "ynab_apply", "--verbose"]
+    # Use --nodes to run only ynab_sync which has all required test data
+    # This tests interactive mode without requiring comprehensive external data
+    cmd = [
+        "uv",
+        "run",
+        "finances",
+        "flow",
+        "go",
+        "--nodes",
+        "ynab_sync",
+        "--verbose",
+    ]
     child = pexpect.spawn(
         " ".join(cmd),
         cwd=REPO_ROOT,
@@ -435,17 +445,26 @@ def test_flow_go_interactive_mode(flow_test_env):
         child.close()
         exit_code = child.exitstatus
 
-        # Verify successful completion or acceptable failure
-        # Some nodes may fail due to missing data, but that's expected in test environment
-        assert exit_code in (0, 1), f"Flow execution should complete, got exit code {exit_code}"
-
         # Verify output contains expected messages
         combined_output = "".join(full_output)
+
+        # Verify successful completion - should be strict success (exit 0)
+        # If nodes fail, the test should fail too
+        assert (
+            exit_code == 0
+        ), f"Flow execution should succeed, got exit code {exit_code}\n\nOutput:\n{combined_output}"
+
         assert "Proceed with dynamic execution?" in combined_output, "Should show confirmation prompt"
         assert "Executing flow" in combined_output, "Should show actual execution (not dry run)"
 
-        # Verify ynab_apply was excluded
-        assert "Excluding nodes: ynab_apply" in combined_output, "Should exclude ynab_apply node"
+        # Verify successful completion
+        assert "Flow completed successfully" in combined_output, "Should show success message"
+
+        # Verify ynab_sync executed (appears in detailed results)
+        assert "ynab_sync" in combined_output, "Should execute ynab_sync node"
+
+        # Verify execution summary shows 0 failures
+        assert "Failed: 0" in combined_output, "Should have no failed nodes"
 
     except pexpect.TIMEOUT as e:
         # Capture what we got before timeout
