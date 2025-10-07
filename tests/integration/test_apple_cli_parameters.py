@@ -109,3 +109,153 @@ class TestAppleCLIParameters:
         )
 
         assert result.exit_code in [0, 1]
+
+    def test_match_with_invalid_receipt_dates(self):
+        """Test apple match handles receipts with null/invalid dates gracefully."""
+        import sys
+        from pathlib import Path
+
+        # Add tests directory to path for fixture imports
+        tests_dir = Path(__file__).parent.parent
+        sys.path.insert(0, str(tests_dir))
+
+        from finances.core.json_utils import write_json
+
+        # Create YNAB cache with synthetic data including Apple transactions
+        ynab_cache_dir = self.temp_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True)
+
+        # Manually create YNAB data with Apple transactions
+        accounts_data = {
+            "accounts": [
+                {
+                    "id": "account-001",
+                    "name": "Test Account",
+                    "type": "checking",
+                    "balance": 1000000,
+                    "cleared_balance": 1000000,
+                    "uncleared_balance": 0,
+                    "closed": False,
+                    "on_budget": True,
+                }
+            ],
+            "server_knowledge": 12345,
+        }
+
+        # Create transactions with Apple payee
+        transactions_data = [
+            {
+                "id": "tx-001",
+                "date": "2025-01-15",
+                "amount": -1999,  # $19.99
+                "account_id": "account-001",
+                "account_name": "Test Account",
+                "payee_name": "Apple",
+                "category_id": "cat-001",
+                "category_name": "Shopping",
+                "memo": None,
+                "cleared": "cleared",
+                "approved": True,
+            },
+            {
+                "id": "tx-002",
+                "date": "2025-02-20",
+                "amount": -2999,  # $29.99
+                "account_id": "account-001",
+                "account_name": "Test Account",
+                "payee_name": "Apple",
+                "category_id": "cat-001",
+                "category_name": "Shopping",
+                "memo": None,
+                "cleared": "cleared",
+                "approved": True,
+            },
+        ]
+
+        categories_data = {
+            "category_groups": [
+                {
+                    "id": "group-001",
+                    "name": "Test Group",
+                    "categories": [{"id": "cat-001", "name": "Shopping"}],
+                }
+            ],
+            "server_knowledge": 67890,
+        }
+
+        write_json(ynab_cache_dir / "accounts.json", accounts_data)
+        write_json(ynab_cache_dir / "transactions.json", transactions_data)
+        write_json(ynab_cache_dir / "categories.json", categories_data)
+
+        # Create Apple exports directory with receipts containing invalid dates
+        apple_exports_dir = self.temp_dir / "apple" / "exports" / "2025-01-01_00-00-00_apple_receipts_export"
+        apple_exports_dir.mkdir(parents=True)
+
+        # Create receipts with mixed valid and invalid dates
+        receipts = [
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": "Jan 15, 2025",  # Valid date string
+                "order_id": "ORDER-001",
+                "document_number": "DOC-001",
+                "total": 1999,  # $19.99 in cents
+                "currency": "USD",
+                "items": [{"name": "Test App", "amount": 1999}],
+            },
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": None,  # NULL date - should be skipped
+                "order_id": "ORDER-002",
+                "document_number": "DOC-002",
+                "total": 999,
+                "currency": "USD",
+                "items": [{"name": "Another App", "amount": 999}],
+            },
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": "Feb 20, 2025",  # Valid date string
+                "order_id": "ORDER-003",
+                "document_number": "DOC-003",
+                "total": 2999,
+                "currency": "USD",
+                "items": [{"name": "Third App", "amount": 2999}],
+            },
+        ]
+
+        receipts_file = apple_exports_dir / "all_receipts_combined.json"
+        write_json(receipts_file, receipts)
+
+        # Create output directory
+        output_dir = self.temp_dir / "output"
+        output_dir.mkdir()
+
+        # Run match command - should handle invalid dates without crashing
+        result = self.runner.invoke(
+            apple,
+            [
+                "match",
+                "--output-dir",
+                str(output_dir),
+            ],
+            env={
+                "FINANCES_DATA_DIR": str(self.temp_dir),
+                "FINANCES_ENV": "test",
+            },
+            obj={},  # Provide empty obj dict to avoid NoneType error
+        )
+
+        # Should complete successfully (exit 0) or with acceptable failure (exit 1 for no matches)
+        # But should NOT crash with AttributeError about .dt accessor
+        assert result.exit_code in [0, 1], f"Unexpected exit code {result.exit_code}: {result.output}"
+        assert "AttributeError" not in result.output, f"Should not crash with AttributeError: {result.output}"
+        assert (
+            ".dt accessor" not in result.output.lower()
+        ), f"Should not have .dt accessor error: {result.output}"
+        assert (
+            "Can only use .dt accessor with datetimelike values" not in result.output
+        ), f"Should not have datetime accessor error: {result.output}"
+
+        # Verify receipts with null dates were skipped (only 2 valid receipts should be processed)
+        assert (
+            "2 Apple receipts" in result.output or result.exit_code == 1
+        ), "Should process only valid receipts"

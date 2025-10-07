@@ -12,7 +12,7 @@ from typing import Any
 
 import click
 
-from ..apple import AppleMatcher, AppleReceiptParser, fetch_apple_receipts_cli
+from ..apple import AppleMatcher, AppleReceiptParser, fetch_apple_receipts_cli, normalize_apple_receipt_data
 from ..core.config import get_config
 from ..core.json_utils import format_json, write_json
 
@@ -85,8 +85,8 @@ def match(
         if apple_ids:
             apple_receipts = [r for r in apple_receipts if r.get("apple_id") in apple_ids]
 
-        # Convert to DataFrame
-        apple_receipts_df = pd.DataFrame(apple_receipts)
+        # Normalize and convert to DataFrame (handles date parsing and invalid data)
+        apple_receipts_df = normalize_apple_receipt_data(apple_receipts)
 
         # Load and filter YNAB transactions
         all_transactions = load_ynab_transactions(ynab_cache_dir)
@@ -210,7 +210,6 @@ def match_single(
 
     try:
         # Load Apple receipt data
-        import pandas as pd
 
         from ..apple import load_apple_receipts
 
@@ -221,8 +220,8 @@ def match_single(
         if apple_ids:
             apple_receipts = [r for r in apple_receipts if r.get("apple_id") in apple_ids]
 
-        # Convert to DataFrame
-        apple_receipts_df = pd.DataFrame(apple_receipts)
+        # Normalize and convert to DataFrame (handles date parsing and invalid data)
+        apple_receipts_df = normalize_apple_receipt_data(apple_receipts)
 
         if verbose:
             click.echo(f"Loaded {len(apple_receipts_df)} Apple receipts")
