@@ -27,7 +27,7 @@
 
 - [ ] Figure out what version of Python we want to target,
         and remove any unnecessary compatibility comprises.
-- [ ] Remove the error ignores in pyproject.toml and resolve any resulting issues.
+- [X] Remove the error ignores in pyproject.toml and resolve any resulting issues.
 - [X] Implement @dev/specs/2025-09-21-code-quality.md, to add lints and CI and such.
     - [X] Pre-commit hooks configured (Black, Ruff, file hygiene).
     - [X] GitHub Actions CI/CD workflow with all quality checks.
@@ -39,7 +39,7 @@
     - [X] Documentation updated with setup instructions.
     - [X] Fix 2 failing tests in retirement service.
     - [X] Increase test coverage from 56% to 60% threshold (currently at 74%).
-- [ ] Ensure there's one canonical end-to-end test that covers all major functionality.
+- [X] Ensure there's one canonical end-to-end test that covers all major functionality.
       As the human overseer of a project mostly written by Claude Code,
         I'll keep an eye on this test case to ensure things haven't gone off the rails.
 
