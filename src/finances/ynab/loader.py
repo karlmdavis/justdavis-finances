@@ -168,6 +168,6 @@ def filter_transactions(
     # Filter by payee
     if payee:
         payee_lower = payee.lower()
-        filtered = [tx for tx in filtered if payee_lower in tx.get("payee_name", "").lower()]
+        filtered = [tx for tx in filtered if payee_lower in (tx.get("payee_name") or "").lower()]
 
     return filtered

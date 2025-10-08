@@ -128,7 +128,14 @@ def generate_synthetic_ynab_cache(
 
         account = random.choice(accounts)
         category = random.choice(category_groups[0]["categories"])
-        payee = random.choice(SYNTHETIC_PAYEES)
+
+        # Occasionally create split transactions with null payee_name (10% of transactions)
+        if i % 10 == 0:
+            payee = None
+            category_name = "Split"
+        else:
+            payee = random.choice(SYNTHETIC_PAYEES)
+            category_name = category["name"]
 
         # Random transaction amount (negative for expenses)
         amount = random.randint(-50000, -1000)  # -$500 to -$10 in milliunits
@@ -142,7 +149,7 @@ def generate_synthetic_ynab_cache(
                 "account_name": account["name"],
                 "payee_name": payee,
                 "category_id": category["id"],
-                "category_name": category["name"],
+                "category_name": category_name,
                 "memo": None,
                 "cleared": "cleared",
                 "approved": True,

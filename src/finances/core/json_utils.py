@@ -43,7 +43,7 @@ def read_json(filepath: str | Path) -> Any:
         return json.load(f)
 
 
-def format_json(data: Any, ensure_ascii: bool = False, sort_keys: bool = False) -> str:
+def format_json(data: Any, ensure_ascii: bool = False, sort_keys: bool = False, default: Any = None) -> str:
     """
     Format data as a pretty-printed JSON string.
 
@@ -51,10 +51,13 @@ def format_json(data: Any, ensure_ascii: bool = False, sort_keys: bool = False) 
         data: Data to format
         ensure_ascii: If True, escape non-ASCII characters (default: False)
         sort_keys: If True, sort dictionary keys (default: False)
+        default: Function to serialize non-JSON types (default: None)
 
     Returns:
         Pretty-printed JSON string
     """
+    if default is not None:
+        return json.dumps(data, indent=2, ensure_ascii=ensure_ascii, sort_keys=sort_keys, default=default)
     return json.dumps(data, indent=2, ensure_ascii=ensure_ascii, sort_keys=sort_keys)
 
 

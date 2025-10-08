@@ -183,6 +183,39 @@ class DependencyGraph:
 
         return needs_execution
 
+    def _node_depends_on(self, node_name: str, dependency_name: str) -> bool:
+        """
+        Check if a node transitively depends on another node.
+
+        Args:
+            node_name: Name of the node to check
+            dependency_name: Name of the potential dependency
+
+        Returns:
+            True if node_name depends on dependency_name (directly or transitively)
+        """
+        if node_name not in self.nodes or dependency_name not in self.nodes:
+            return False
+
+        # BFS to find if dependency_name is reachable from node_name's dependencies
+        visited = set()
+        queue = deque([node_name])
+
+        while queue:
+            current = queue.popleft()
+            if current in visited:
+                continue
+            visited.add(current)
+
+            # Check direct dependencies
+            for dep in self.dependencies.get(current, set()):
+                if dep == dependency_name:
+                    return True
+                if dep not in visited:
+                    queue.append(dep)
+
+        return False
+
 
 class FlowExecutionEngine:
     """
@@ -404,6 +437,9 @@ class FlowExecutionEngine:
 
         # Find all nodes that need execution due to changes (including downstream)
         nodes_needing_execution = self.dependency_graph.find_changed_subgraph(initially_changed)
+
+        # Filter nodes_needing_execution by target_nodes (respects exclusions)
+        nodes_needing_execution = nodes_needing_execution & all_nodes
 
         logger.info(f"Dynamic execution starting with {len(nodes_needing_execution)} potential nodes")
         if context.verbose:

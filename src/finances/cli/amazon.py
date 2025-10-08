@@ -23,8 +23,8 @@ def amazon() -> None:
 
 
 @amazon.command()
-@click.option("--start", required=True, help="Start date (YYYY-MM-DD)")
-@click.option("--end", required=True, help="End date (YYYY-MM-DD)")
+@click.option("--start", help="Start date (YYYY-MM-DD) - optional, defaults to all transactions")
+@click.option("--end", help="End date (YYYY-MM-DD) - optional, defaults to all transactions")
 @click.option("--accounts", multiple=True, help="Specific Amazon accounts to process")
 @click.option("--disable-split", is_flag=True, help="Disable split payment matching")
 @click.option("--output-dir", help="Override output directory")
@@ -32,17 +32,20 @@ def amazon() -> None:
 @click.pass_context
 def match(
     ctx: click.Context,
-    start: str,
-    end: str,
+    start: str | None,
+    end: str | None,
     accounts: tuple,
     disable_split: bool,
     output_dir: str | None,
     verbose: bool,
 ) -> None:
     """
-    Match YNAB transactions to Amazon orders in a date range.
+    Match YNAB transactions to Amazon orders.
+
+    Date range is optional. If not provided, all Amazon transactions will be matched.
 
     Examples:
+      finances amazon match
       finances amazon match --start 2024-07-01 --end 2024-07-31
       finances amazon match --start 2024-07-01 --end 2024-07-31 --accounts karl erica
     """
@@ -55,7 +58,10 @@ def match(
 
     if verbose or ctx.obj.get("verbose", False):
         click.echo("Amazon Transaction Matching")
-        click.echo(f"Date range: {start} to {end}")
+        if start and end:
+            click.echo(f"Date range: {start} to {end}")
+        else:
+            click.echo("Date range: all transactions")
         click.echo(f"Accounts: {list(accounts) if accounts else 'all'}")
         click.echo(f"Split payments: {'disabled' if disable_split else 'enabled'}")
         click.echo(f"Output: {output_path}")

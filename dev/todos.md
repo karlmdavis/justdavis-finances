@@ -17,6 +17,11 @@
       which could lead to accidental overwrites.
       Recommendation: Add separate --input-file option for non-interactive mode.
       Context: PR #8 code review feedback - deferred for future enhancement.
+- [ ] Make cash flow analysis more lenient for test environments.
+      Currently requires 6+ months of historical data, which causes E2E tests to exclude it.
+      Recommendation: Detect test environment or allow configurable minimum data requirements
+      so that cash_flow_analysis node can be included in comprehensive flow E2E tests.
+      Context: PR #9 - excluded from test_flow_go_interactive_mode due to data requirements.
 
 ## Major Items
 

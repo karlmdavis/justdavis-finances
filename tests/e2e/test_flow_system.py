@@ -39,13 +39,72 @@ def flow_test_env(monkeypatch):
         save_synthetic_ynab_data(ynab_cache_dir)
 
         # Create other required directories
-        (data_dir / "amazon" / "raw").mkdir(parents=True, exist_ok=True)
+        amazon_raw_dir = data_dir / "amazon" / "raw"
+        amazon_raw_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "amazon" / "transaction_matches").mkdir(parents=True, exist_ok=True)
-        (data_dir / "apple" / "emails").mkdir(parents=True, exist_ok=True)
-        (data_dir / "apple" / "exports").mkdir(parents=True, exist_ok=True)
+
+        apple_emails_dir = data_dir / "apple" / "emails"
+        apple_emails_dir.mkdir(parents=True, exist_ok=True)
+        apple_exports_dir = data_dir / "apple" / "exports"
+        apple_exports_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "apple" / "transaction_matches").mkdir(parents=True, exist_ok=True)
         (data_dir / "ynab" / "edits").mkdir(parents=True, exist_ok=True)
         (data_dir / "cash_flow" / "charts").mkdir(parents=True, exist_ok=True)
+
+        # Generate Amazon test data
+
+        from finances.core.json_utils import write_json
+        from tests.fixtures.synthetic_data import generate_synthetic_amazon_orders
+
+        # Create Amazon raw data directory structure
+        amazon_account_dir = amazon_raw_dir / "2024-01-01_testaccount_amazon_data"
+        amazon_account_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate and save Amazon orders CSV
+        import csv
+
+        orders = generate_synthetic_amazon_orders(num_orders=5)
+        csv_file = amazon_account_dir / "RetailOrderHistory.csv"
+        if orders:
+            with open(csv_file, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=orders[0].keys())
+                writer.writeheader()
+                writer.writerows(orders)
+
+        # Generate Apple test data - create receipts JSON directly
+        # (skip email HTML generation since we parse receipts directly)
+        apple_export_dir = apple_exports_dir / "2025-01-01_00-00-00_apple_receipts_export"
+        apple_export_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate receipts with synthetic data
+        receipts = [
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": "Jan 15, 2025",
+                "order_id": f"ORDER-{i:03d}",
+                "document_number": f"DOC-{i:03d}",
+                "total": 999 + (i * 100),  # Varying amounts in cents
+                "currency": "USD",
+                "items": [{"name": f"Test App {i}", "amount": 999 + (i * 100)}],
+            }
+            for i in range(1, 4)
+        ]
+
+        # Add one receipt with null date to test edge case handling
+        receipts.append(
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": None,
+                "order_id": "ORDER-NULL",
+                "document_number": "DOC-NULL",
+                "total": 599,
+                "currency": "USD",
+                "items": [{"name": "Test App Null Date", "amount": 599}],
+            }
+        )
+
+        receipts_file = apple_export_dir / "all_receipts_combined.json"
+        write_json(receipts_file, receipts)
 
         # Set environment variables for this test
         monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
@@ -364,3 +423,193 @@ def test_flow_go_inverted_date_range(flow_test_env):
         "No nodes need execution" in result.stdout
         or "Dry run mode - no changes will be made" in result.stdout
     ), "Should indicate no-op execution"
+
+
+@pytest.mark.e2e
+@pytest.mark.slow
+def test_flow_go_interactive_mode(flow_test_env):
+    """
+    Test `finances flow go` in interactive mode with user prompts.
+
+    This test uses pexpect to spawn the flow command interactively and
+    simulates user responses to prompts. This exercises code paths that
+    are not tested when using --non-interactive flag.
+
+    Validates that the interactive flow:
+    1. Displays execution plan and prompts for confirmation
+    2. Handles user confirmation responses
+    3. Executes the flow system successfully
+    4. Displays results and completion status
+    """
+    import os
+
+    import pexpect
+
+    # Build environment with test data directory
+    env = os.environ.copy()
+    env["FINANCES_DATA_DIR"] = str(flow_test_env["data_dir"])
+    env["FINANCES_ENV"] = "test"
+    env["YNAB_API_TOKEN"] = "test-token-e2e"  # noqa: S105 - test credential
+    env["EMAIL_PASSWORD"] = "test-password-e2e"  # noqa: S105 - test credential
+
+    # Spawn the flow command interactively (no --non-interactive or --dry-run flags)
+    # Exclude ynab_apply to prevent actual YNAB API mutations
+    # Exclude cash_flow_analysis (requires 6+ months of data, test env has only 90 days)
+    # All other nodes should execute successfully with synthetic test data
+    cmd = [
+        "uv",
+        "run",
+        "finances",
+        "flow",
+        "go",
+        "--nodes-excluded",
+        "ynab_apply",
+        "--nodes-excluded",
+        "cash_flow_analysis",
+        "--verbose",
+    ]
+    child = pexpect.spawn(
+        " ".join(cmd),
+        cwd=REPO_ROOT,
+        env=env,
+        timeout=120,
+        encoding="utf-8",
+    )
+
+    try:
+        # Enable logging for debugging
+        child.logfile_read = None  # Set to sys.stdout for debugging
+
+        # Accumulate all output
+        full_output = []
+
+        # Expect the execution plan to be displayed
+        child.expect("Dynamic execution will process", timeout=30)
+        full_output.append(child.before + child.after)
+
+        # Expect the prompt asking to proceed
+        child.expect("Proceed with dynamic execution?", timeout=10)
+        full_output.append(child.before + child.after)
+
+        # Send confirmation (yes)
+        child.sendline("y")
+
+        # Expect actual execution (not dry run)
+        # The flow will start executing nodes
+        child.expect("Executing flow", timeout=10)
+        full_output.append(child.before + child.after)
+
+        # Wait for completion
+        child.expect(pexpect.EOF, timeout=60)
+        full_output.append(child.before)
+
+        # Check exit code
+        child.close()
+        exit_code = child.exitstatus
+
+        # Verify output contains expected messages
+        combined_output = "".join(full_output)
+
+        # Verify successful completion - should be strict success (exit 0)
+        # If nodes fail, the test should fail too
+        assert (
+            exit_code == 0
+        ), f"Flow execution should succeed, got exit code {exit_code}\n\nOutput:\n{combined_output}"
+
+        assert "Proceed with dynamic execution?" in combined_output, "Should show confirmation prompt"
+        assert "Executing flow" in combined_output, "Should show actual execution (not dry run)"
+
+        # Verify successful completion
+        assert "Flow completed successfully" in combined_output, "Should show success message"
+
+        # Verify ynab_apply and cash_flow_analysis were excluded
+        assert "ynab_apply" in combined_output, "Should mention excluded nodes"
+        assert "cash_flow_analysis" in combined_output, "Should mention excluded nodes"
+
+        # Verify at least some nodes executed
+        # (Not all nodes may execute - depends on change detection and data availability)
+        assert (
+            "Executing node:" in combined_output or "completed" in combined_output.lower()
+        ), "Should execute at least some nodes"
+
+        # Verify execution summary shows 0 failures
+        assert "Failed: 0" in combined_output, "Should have no failed nodes"
+        assert "Completed:" in combined_output, "Should show completed nodes count"
+
+    except pexpect.TIMEOUT as e:
+        # Capture what we got before timeout
+        output = child.before or ""
+        child.close(force=True)
+        pytest.fail(f"Interactive flow test timed out. Output so far:\n{output}\nException: {e}")
+
+    except pexpect.EOF as e:
+        # Unexpected EOF
+        output = child.before or ""
+        child.close(force=True)
+        pytest.fail(f"Interactive flow ended unexpectedly. Output:\n{output}\nException: {e}")
+
+    finally:
+        # Ensure process is terminated
+        if child.isalive():
+            child.close(force=True)
+
+
+@pytest.mark.e2e
+def test_flow_go_nodes_excluded(flow_test_env):
+    """
+    Test `finances flow go --nodes-excluded` excludes nodes and their dependents.
+
+    Validates that excluded nodes and any nodes that depend on them are
+    removed from the execution plan.
+    """
+    # Exclude ynab_apply (which depends on split_generation)
+    result = run_flow_command(
+        ["go", "--non-interactive", "--dry-run", "--nodes-excluded", "ynab_apply", "--verbose"]
+    )
+
+    assert result.returncode == 0, f"Command failed: {result.stderr}"
+
+    # Should show exclusion message in verbose mode
+    assert "Excluding nodes: ynab_apply" in result.stdout, "Should show exclusion message"
+
+    # ynab_apply should not appear in the "Initially triggered nodes" section
+    # (it will appear in the exclusion message, but not in the execution plan)
+    lines = result.stdout.split("\n")
+    execution_section = False
+    for line in lines:
+        if "Initially triggered nodes:" in line:
+            execution_section = True
+        if execution_section and "ynab" in line.lower() and "apply" in line.lower():
+            pytest.fail("ynab_apply should not appear in execution plan")
+
+
+@pytest.mark.e2e
+def test_flow_go_nodes_excluded_with_dependents(flow_test_env):
+    """
+    Test that excluding a node also excludes its dependent nodes.
+
+    When split_generation is excluded, ynab_apply (which depends on it)
+    should also be excluded automatically.
+    """
+    result = run_flow_command(
+        ["go", "--non-interactive", "--dry-run", "--nodes-excluded", "split_generation", "--verbose"]
+    )
+
+    assert result.returncode == 0, f"Command failed: {result.stderr}"
+
+    # Should show both direct and dependent exclusions
+    assert "Excluding nodes: split_generation" in result.stdout, "Should show direct exclusion"
+    assert "Also excluding dependent nodes:" in result.stdout, "Should show dependent exclusion"
+    assert "ynab_apply" in result.stdout, "ynab_apply should be mentioned as dependent"
+
+    # Neither should appear in execution plan
+    lines = result.stdout.split("\n")
+    execution_section = False
+    for line in lines:
+        if "Initially triggered nodes:" in line:
+            execution_section = True
+        if execution_section:
+            if "split" in line.lower() and "generation" in line.lower():
+                pytest.fail("split_generation should not appear in execution plan")
+            if "ynab" in line.lower() and "apply" in line.lower():
+                pytest.fail("ynab_apply should not appear in execution plan")
