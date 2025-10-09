@@ -67,7 +67,7 @@ class SimplifiedMatcher:
             return {
                 "ynab_transaction": {
                     "id": ynab_tx["id"],
-                    "amount": ynab_amount_cents,
+                    "amount": ynab_tx["amount"],  # Keep original milliunits, not cents
                     "date": ynab_tx["date"],
                     "payee_name": ynab_tx.get("payee_name", ""),
                     "memo": ynab_tx.get("memo", ""),
@@ -109,7 +109,7 @@ class SimplifiedMatcher:
         return {
             "ynab_transaction": {
                 "id": ynab_tx["id"],
-                "amount": ynab_amount_cents,
+                "amount": ynab_tx["amount"],  # Keep original milliunits, not cents
                 "date": ynab_tx["date"],
                 "payee_name": ynab_tx.get("payee_name", ""),
                 "memo": ynab_tx.get("memo", ""),

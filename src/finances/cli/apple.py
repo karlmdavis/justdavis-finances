@@ -124,9 +124,26 @@ def match(
             )
             receipts_list = [asdict(r) if hasattr(r, "__dict__") else r for r in result.receipts]
 
+            # Flatten items for split calculator compatibility
+            # Transform from Apple format {title, cost} to standard {name, price}
+            flattened_items: list[dict[str, Any]] = []
+            if receipts_list and len(receipts_list) > 0:
+                first_receipt = receipts_list[0]
+                # Ensure we have a dict (asdict should always return dict)
+                if isinstance(first_receipt, dict):
+                    raw_items = first_receipt.get("items", [])
+                    flattened_items = [
+                        {
+                            "name": item.get("title", ""),  # Apple uses "title"
+                            "price": item.get("cost", 0),  # Apple uses "cost" (in cents)
+                        }
+                        for item in raw_items
+                    ]
+
             match_dict: dict[str, Any] = {
-                "transaction": transaction_dict,
-                "receipts": receipts_list,
+                "ynab_transaction": transaction_dict,  # Match Amazon format
+                "receipts": receipts_list,  # Keep for backwards compatibility
+                "items": flattened_items,  # Flattened items for split calculator
                 "confidence": result.confidence,
                 "strategy": result.strategy_used or result.match_method,
             }

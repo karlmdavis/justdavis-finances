@@ -288,17 +288,18 @@ class TestAppleMatchCLI:
 
             # Create synthetic Apple receipt export
             # Production format: all_receipts_combined.json is direct array of receipts
+            # Amounts in CENTS (as parser now returns)
             receipts_array = [
                 {
                     "order_id": "ML7PQ2XYZ",
                     "apple_id": "test@example.com",
                     "receipt_date": (date.today() - timedelta(days=5)).strftime("%b %d, %Y"),
-                    "total": 118.05,
-                    "subtotal": 109.31,
-                    "tax": 8.74,
+                    "total": 11805,  # $118.05 → 11805 cents
+                    "subtotal": 10931,  # $109.31 → 10931 cents
+                    "tax": 874,  # $8.74 → 874 cents
                     "items": [
-                        {"title": "Mock Photo Editor", "cost": 69.93},
-                        {"title": "Sample Subscription", "cost": 39.38},
+                        {"title": "Mock Photo Editor", "cost": 6993},  # $69.93 → 6993 cents
+                        {"title": "Sample Subscription", "cost": 3938},  # $39.38 → 3938 cents
                     ],
                 }
             ]
@@ -637,27 +638,28 @@ class TestAppleCompleteWorkflow:
 
             recent_date = date.today() - timedelta(days=5)
             # Production format: direct array of receipts
+            # Amounts in CENTS (as parser now returns)
             receipts_array = [
                 {
                     "order_id": "RECENT123",
                     "apple_id": "test@example.com",
                     "receipt_date": recent_date.strftime("%b %d, %Y"),
-                    "total": 49.99,
-                    "subtotal": 46.29,
-                    "tax": 3.70,
+                    "total": 4999,  # $49.99 → 4999 cents
+                    "subtotal": 4629,  # $46.29 → 4629 cents
+                    "tax": 370,  # $3.70 → 370 cents
                     "items": [
-                        {"title": "Recent App Purchase", "cost": 46.29},
+                        {"title": "Recent App Purchase", "cost": 4629},  # $46.29 → 4629 cents
                     ],
                 },
                 {
                     "order_id": "RECENT456",
                     "apple_id": "test@example.com",
                     "receipt_date": (recent_date + timedelta(days=1)).strftime("%b %d, %Y"),
-                    "total": 29.99,
-                    "subtotal": 27.77,
-                    "tax": 2.22,
+                    "total": 2999,  # $29.99 → 2999 cents
+                    "subtotal": 2777,  # $27.77 → 2777 cents
+                    "tax": 222,  # $2.22 → 222 cents
                     "items": [
-                        {"title": "Another Recent Purchase", "cost": 27.77},
+                        {"title": "Another Recent Purchase", "cost": 2777},  # $27.77 → 2777 cents
                     ],
                 },
             ]

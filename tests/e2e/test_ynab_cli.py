@@ -47,13 +47,17 @@ def test_ynab_generate_splits_from_amazon():
         write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
 
         # Create synthetic Amazon match result
-        # Using transaction from synthetic data
-        transaction = cache_data["transactions"][0]
-        transaction_amount_cents = milliunits_to_cents(transaction["amount"])
+        # Use a fixed transaction amount that's evenly divisible (whole cents)
+        # to avoid rounding issues when splitting
+        transaction = cache_data["transactions"][0].copy()
+        transaction["amount"] = -45990  # -$45.99 in milliunits (evenly divisible by 10)
 
-        # Create Amazon items that sum to transaction amount
-        item1_amount = transaction_amount_cents // 2
-        item2_amount = transaction_amount_cents - item1_amount
+        transaction_amount_cents = milliunits_to_cents(transaction["amount"])  # 4599 cents
+
+        # Create Amazon items that sum to transaction amount (in cents)
+        item1_amount = 2500  # $25.00 in cents
+        item2_amount = 2099  # $20.99 in cents
+        # Total: $45.99
 
         amazon_match_result = {
             "matches": [
@@ -63,7 +67,7 @@ def test_ynab_generate_splits_from_amazon():
                     "ynab_transaction": {
                         "id": transaction["id"],
                         "date": transaction["date"],
-                        "amount": -transaction_amount_cents,  # Negative for expense
+                        "amount": transaction["amount"],  # Already in milliunits (negative for expense)
                         "payee_name": transaction["payee_name"],
                     },
                     "amazon_orders": [
@@ -154,10 +158,9 @@ def test_ynab_generate_splits_from_amazon():
         assert "splits" in edit
         assert len(edit["splits"]) == 2
 
-        # Verify splits sum to transaction amount
-        # The CLI converts cents to milliunits by multiplying by 10
+        # Verify splits sum to transaction amount (in milliunits)
         splits_total = sum(split["amount"] for split in edit["splits"])
-        expected_total = -transaction_amount_cents * 10  # CLI multiplies cents by 10 to get milliunits
+        expected_total = transaction["amount"]  # Already in milliunits (negative for expense)
         assert splits_total == expected_total
 
 
@@ -186,17 +189,15 @@ def test_ynab_generate_splits_from_apple():
         write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
 
         # Create synthetic Apple match result
-        transaction = cache_data["transactions"][1]
-        transaction_amount_cents = milliunits_to_cents(transaction["amount"])
+        # Use a fixed transaction amount that's evenly divisible (whole cents)
+        transaction = cache_data["transactions"][1].copy()
+        transaction["amount"] = -11990  # -$11.99 in milliunits (evenly divisible by 10)
 
-        # For Apple, the CLI doesn't pass receipt_subtotal/tax to the calculator
-        # So we need to create items such that when proportional tax is calculated,
-        # the total matches the transaction amount.
-        # The easiest way is to just use the full transaction amount as a single item.
-        # In reality, Apple items have price without tax, and tax is calculated.
-        # For this test, we'll create items without tax that sum to transaction amount.
-        item1_price = transaction_amount_cents // 2
-        item2_price = transaction_amount_cents - item1_price
+        # For Apple, items represent the price (in cents) before tax
+        # The split calculator will convert these to milliunits
+        item1_price = 600  # $6.00 in cents
+        item2_price = 599  # $5.99 in cents
+        # Total: $11.99
 
         apple_match_result = {
             "matches": [
@@ -206,7 +207,7 @@ def test_ynab_generate_splits_from_apple():
                     "ynab_transaction": {
                         "id": transaction["id"],
                         "date": transaction["date"],
-                        "amount": -transaction_amount_cents,
+                        "amount": transaction["amount"],  # Already in milliunits (negative for expense)
                         "payee_name": transaction["payee_name"],
                     },
                     "items": [
@@ -261,10 +262,9 @@ def test_ynab_generate_splits_from_apple():
         edit = edit_data["edits"][0]
         assert len(edit["splits"]) == 2
 
-        # Verify splits sum to transaction amount
-        # The CLI converts cents to milliunits by multiplying by 10
+        # Verify splits sum to transaction amount (in milliunits)
         splits_total = sum(split["amount"] for split in edit["splits"])
-        expected_total = -transaction_amount_cents * 10  # CLI multiplies cents by 10 to get milliunits
+        expected_total = transaction["amount"]  # Already in milliunits (negative for expense)
         assert splits_total == expected_total
 
 
@@ -293,13 +293,15 @@ def test_ynab_generate_splits_with_confidence_threshold():
         write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
 
         # Create match results with varying confidence levels
+        # Use fixed amounts that are evenly divisible (whole cents)
+        test_amounts = [-23990, -15990, -31990]  # -$23.99, -$15.99, -$31.99 in milliunits
+        confidence_values = [0.95, 0.75, 0.85]  # high, low, medium
+
         matches = []
         for i in range(3):
-            transaction = cache_data["transactions"][i]
+            transaction = cache_data["transactions"][i].copy()
+            transaction["amount"] = test_amounts[i]
             transaction_amount_cents = milliunits_to_cents(transaction["amount"])
-
-            # Vary confidence: 0.95 (high), 0.75 (low), 0.85 (medium)
-            confidence_values = [0.95, 0.75, 0.85]
 
             matches.append(
                 {
@@ -308,7 +310,7 @@ def test_ynab_generate_splits_with_confidence_threshold():
                     "ynab_transaction": {
                         "id": transaction["id"],
                         "date": transaction["date"],
-                        "amount": -transaction_amount_cents,
+                        "amount": transaction["amount"],  # Already in milliunits (negative for expense)
                         "payee_name": transaction["payee_name"],
                     },
                     "amazon_orders": [
