@@ -576,7 +576,7 @@ class AppleReceiptParser:
                         else:
                             continue
 
-                    currency_result: float | None = self._parse_currency(text)
+                    currency_result: int | None = self._parse_currency(text)
                     if currency_result is not None:
                         self.selectors_successful.append(f"{field_name}:{selector}")
                         return currency_result
@@ -657,7 +657,7 @@ class AppleReceiptParser:
 
     def _parse_currency(self, text: str) -> int | None:
         """
-        Parse currency string to integer cents.
+        Parse currency string to integer cents using integer-only arithmetic.
 
         Converts dollar amounts like "$45.99" to integer cents (4599).
         This ensures compliance with the repository's zero-floating-point policy.
@@ -674,14 +674,19 @@ class AppleReceiptParser:
         # Remove common currency symbols and whitespace
         cleaned = re.sub(r"[\$£€¥,\s]", "", text)
 
-        # Extract numeric value
-        match = re.search(r"\d+\.?\d*", cleaned)
+        # Extract dollars and cents separately as integers (zero-floating-point policy)
+        match = re.search(r"(\d+)(?:\.(\d{1,2}))?", cleaned)
         if match:
             try:
-                # Convert to float first to handle decimal, then to cents
-                dollars = float(match.group())
-                cents = int(dollars * 100)
-                return cents
+                dollars = int(match.group(1))
+                cents_str = match.group(2) or "0"
+                # Pad cents to 2 digits (e.g., "5" becomes "50")
+                if len(cents_str) == 1:
+                    cents_str = cents_str + "0"
+                cents_part = int(cents_str)
+                # Combine using integer arithmetic only
+                total_cents = dollars * 100 + cents_part
+                return total_cents
             except ValueError:
                 return None
 
