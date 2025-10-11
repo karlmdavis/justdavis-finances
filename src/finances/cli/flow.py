@@ -195,17 +195,24 @@ def setup_flow_nodes() -> None:
     # Register Amazon Unzip Node
     def amazon_unzip_executor(context: FlowContext) -> FlowResult:
         """Execute Amazon unzip with automatic download directory detection."""
+        import os
         from pathlib import Path
 
         from ..core.flow import FlowResult
 
-        # Try to find download directory
-        download_dir = Path.home() / "Downloads"
+        # Check for environment variable first (for testing), then fallback to user's Downloads
+        downloads_env = os.getenv("FINANCES_DOWNLOADS_DIR")
+        download_dir = Path(downloads_env) if downloads_env else Path.home() / "Downloads"
+
         if not download_dir.exists():
-            return FlowResult(success=False, error_message="Downloads directory not found")
+            return FlowResult(success=False, error_message=f"Downloads directory not found: {download_dir}")
 
         return create_cli_executor(
-            amazon_unzip_cmd, download_dir=str(download_dir), accounts=()  # All accounts
+            amazon_unzip_cmd,
+            download_dir=str(download_dir),
+            accounts=(),  # All accounts
+            output_dir=None,  # Use default output directory
+            verbose=False,  # Use default verbosity
         )(context)
 
     flow_registry.register_function_node(

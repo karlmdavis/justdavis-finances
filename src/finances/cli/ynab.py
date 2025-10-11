@@ -325,7 +325,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
         with open(transactions_file, "w") as f:
             result = subprocess.run(
-                ["ynab", "list", "--format", "json"],  # noqa: S607
+                ["ynab", "list"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -341,7 +341,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
         with open(accounts_file, "w") as f:
             result = subprocess.run(
-                ["ynab", "get", "accounts", "--format", "json"],  # noqa: S607
+                ["ynab", "get", "accounts"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -357,7 +357,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
         with open(categories_file, "w") as f:
             result = subprocess.run(
-                ["ynab", "get", "categories", "--format", "json"],  # noqa: S607
+                ["ynab", "get", "categories"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
                 text=True,

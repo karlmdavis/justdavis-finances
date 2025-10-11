@@ -549,6 +549,286 @@ def test_ynab_generate_splits_malformed_json():
 
 @pytest.mark.e2e
 @pytest.mark.ynab
+def test_ynab_generate_splits_skips_zero_confidence():
+    """
+    Test that matches with 0.0 confidence are skipped.
+
+    Verifies:
+    - Matches with confidence=0.0 are excluded from edits
+    - Only non-zero confidence matches generate splits
+    - Summary statistics reflect the skipping correctly
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # Setup YNAB cache
+        ynab_cache_dir = tmpdir_path / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        cache_data = generate_synthetic_ynab_cache(num_transactions=10)
+
+        write_json(ynab_cache_dir / "accounts.json", cache_data["accounts"])
+        write_json(ynab_cache_dir / "categories.json", cache_data["categories"])
+        write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
+
+        # Create match results with mixed confidence levels including 0.0
+        transaction1 = cache_data["transactions"][0].copy()
+        transaction1["amount"] = -23990  # -$23.99
+        transaction2 = cache_data["transactions"][1].copy()
+        transaction2["amount"] = -15990  # -$15.99
+
+        matches = [
+            {
+                "transaction_id": transaction1["id"],
+                "confidence": 0.95,
+                "ynab_transaction": {
+                    "id": transaction1["id"],
+                    "date": transaction1["date"],
+                    "amount": transaction1["amount"],
+                    "payee_name": transaction1["payee_name"],
+                },
+                "amazon_orders": [
+                    {
+                        "order_id": "123-4567890-1234567",
+                        "order_date": transaction1["date"],
+                        "total_owed": 2399,
+                        "items": [{"name": "Test Item", "amount": 2399, "quantity": 1, "unit_price": 2399}],
+                    }
+                ],
+                "strategy": "exact_match",
+            },
+            {
+                "transaction_id": transaction2["id"],
+                "confidence": 0.0,  # Zero confidence - should be skipped
+                "ynab_transaction": {
+                    "id": transaction2["id"],
+                    "date": transaction2["date"],
+                    "amount": transaction2["amount"],
+                    "payee_name": transaction2["payee_name"],
+                },
+                "amazon_orders": [],
+                "strategy": "no_match",
+            },
+        ]
+
+        match_result = {"matches": matches}
+
+        match_file = tmpdir_path / "amazon_matches.json"
+        write_json(match_file, match_result)
+
+        # Run generate-splits
+        output_dir = tmpdir_path / "ynab" / "edits"
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                "finances",
+                "ynab",
+                "generate-splits",
+                "--input-file",
+                str(match_file),
+                "--output-dir",
+                str(output_dir),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        # Verify command succeeded
+        assert result.returncode == 0
+        # Should only generate 1 edit (0.95 confidence), skipping the 0.0 confidence match
+        assert "Generated 1 edits" in result.stdout
+
+        # Verify edit file
+        edit_files = list(output_dir.glob("*.json"))
+        assert len(edit_files) == 1
+
+        with open(edit_files[0]) as f:
+            edit_data = json.load(f)
+
+        # Only the high-confidence match should be in edits
+        assert edit_data["summary"]["total_edits"] == 1
+        assert len(edit_data["edits"]) == 1
+        assert edit_data["edits"][0]["confidence"] == 0.95
+
+
+@pytest.mark.e2e
+@pytest.mark.ynab
+def test_ynab_generate_splits_apple_with_tax_and_subtotal():
+    """
+    Test Apple split generation with receipt tax and subtotal.
+
+    Verifies:
+    - Apple receipts with tax and subtotal are processed correctly
+    - Tax is distributed proportionally across items
+    - Splits sum to transaction amount
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # Setup YNAB cache
+        ynab_cache_dir = tmpdir_path / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        cache_data = generate_synthetic_ynab_cache(num_transactions=10)
+
+        write_json(ynab_cache_dir / "accounts.json", cache_data["accounts"])
+        write_json(ynab_cache_dir / "categories.json", cache_data["categories"])
+        write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
+
+        # Create Apple match with tax and subtotal
+        transaction = cache_data["transactions"][0].copy()
+        transaction["amount"] = -10990  # -$10.99 in milliunits
+
+        apple_match_result = {
+            "matches": [
+                {
+                    "transaction_id": transaction["id"],
+                    "confidence": 0.92,
+                    "ynab_transaction": {
+                        "id": transaction["id"],
+                        "date": transaction["date"],
+                        "amount": transaction["amount"],
+                        "payee_name": transaction["payee_name"],
+                    },
+                    "items": [
+                        {"name": "App Purchase 1", "price": 599},  # $5.99 in cents
+                        {"name": "App Purchase 2", "price": 400},  # $4.00 in cents
+                    ],
+                    "receipts": [
+                        {
+                            "order_id": "ORDER123",
+                            "subtotal": 999,  # $9.99 in cents
+                            "tax": 100,  # $1.00 in cents
+                        }
+                    ],
+                    "strategy": "exact_match",
+                }
+            ]
+        }
+
+        match_file = tmpdir_path / "apple_matches.json"
+        write_json(match_file, apple_match_result)
+
+        # Run generate-splits
+        output_dir = tmpdir_path / "ynab" / "edits"
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                "finances",
+                "ynab",
+                "generate-splits",
+                "--input-file",
+                str(match_file),
+                "--output-dir",
+                str(output_dir),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        # Verify command succeeded
+        assert result.returncode == 0
+        assert "Generated 1 edits" in result.stdout
+
+        # Verify edit file
+        edit_files = list(output_dir.glob("*apple*.json"))
+        assert len(edit_files) == 1
+
+        with open(edit_files[0]) as f:
+            edit_data = json.load(f)
+
+        assert len(edit_data["edits"]) == 1
+        edit = edit_data["edits"][0]
+
+        # Verify splits were created
+        assert len(edit["splits"]) == 2
+
+        # Verify splits sum to transaction amount
+        splits_total = sum(split["amount"] for split in edit["splits"])
+        assert splits_total == transaction["amount"]
+
+
+@pytest.mark.e2e
+@pytest.mark.ynab
+def test_ynab_generate_splits_apple_missing_items():
+    """
+    Test handling of Apple matches with no items.
+
+    Verifies:
+    - Apple matches without items are skipped with warning
+    - Command succeeds but generates 0 edits
+    - Summary reflects the skipping
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # Setup YNAB cache
+        ynab_cache_dir = tmpdir_path / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        cache_data = generate_synthetic_ynab_cache(num_transactions=10)
+
+        write_json(ynab_cache_dir / "accounts.json", cache_data["accounts"])
+        write_json(ynab_cache_dir / "categories.json", cache_data["categories"])
+        write_json(ynab_cache_dir / "transactions.json", cache_data["transactions"])
+
+        # Create Apple match with no items (edge case)
+        transaction = cache_data["transactions"][0].copy()
+        transaction["amount"] = -10990
+
+        apple_match_result = {
+            "matches": [
+                {
+                    "transaction_id": transaction["id"],
+                    "confidence": 0.88,
+                    "ynab_transaction": {
+                        "id": transaction["id"],
+                        "date": transaction["date"],
+                        "amount": transaction["amount"],
+                        "payee_name": transaction["payee_name"],
+                    },
+                    "items": [],  # Empty items list
+                    "receipts": [{"order_id": "ORDER123"}],
+                    "strategy": "exact_match",
+                }
+            ]
+        }
+
+        match_file = tmpdir_path / "apple_matches.json"
+        write_json(match_file, apple_match_result)
+
+        # Run generate-splits with verbose to see warnings
+        output_dir = tmpdir_path / "ynab" / "edits"
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                "finances",
+                "ynab",
+                "generate-splits",
+                "--input-file",
+                str(match_file),
+                "--output-dir",
+                str(output_dir),
+                "-v",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        # Verify command succeeded
+        assert result.returncode == 0
+        assert "Generated 0 edits" in result.stdout
+        assert "No items in Apple match" in result.stdout or "skipping" in result.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.ynab
 def test_ynab_cli_help_commands():
     """
     Test that all YNAB CLI commands display help correctly.

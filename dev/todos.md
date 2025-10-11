@@ -22,6 +22,13 @@
       Recommendation: Detect test environment or allow configurable minimum data requirements
       so that cash_flow_analysis node can be included in comprehensive flow E2E tests.
       Context: PR #9 - excluded from test_flow_go_interactive_mode due to data requirements.
+- [ ] Improve flow_test_env synthetic test data to create realistic transaction matches.
+      Currently YNAB transactions, Amazon orders, and Apple receipts are generated independently,
+      so matchers likely find no actual matches in E2E flow tests.
+      Recommendation: Generate coordinated test data where some YNAB transactions have
+      corresponding Amazon orders or Apple receipts with matching amounts and dates.
+      This would provide more realistic E2E testing of the matching algorithms through the flow system.
+      Context: flow_test_env fixture creates ZIP files and parsed data but matchers find no matches.
 
 ## Major Items
 
@@ -40,6 +47,8 @@
             for currency and dates.
 - [ ] Figure out what version of Python we want to target,
         and remove any unnecessary compatibility comprises.
+- [ ] Make `--nodes-excluded` not transitive, as this breaks its usefulness in a test scenario.
+      Either that or add a non-transitive `--nodes-skipped`.
 - [X] Remove the error ignores in pyproject.toml and resolve any resulting issues.
 - [X] Implement @dev/specs/2025-09-21-code-quality.md, to add lints and CI and such.
     - [X] Pre-commit hooks configured (Black, Ruff, file hygiene).
