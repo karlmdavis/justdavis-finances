@@ -23,7 +23,7 @@ class ParsedItem:
     """Represents a single purchased item from an Apple receipt."""
 
     title: str
-    cost: float
+    cost: int  # Amount in cents (e.g., 4599 for $45.99)
     quantity: int = 1
     subscription: bool = False
     item_type: str | None = None
@@ -41,10 +41,10 @@ class ParsedReceipt:
     order_id: str | None = None
     document_number: str | None = None
 
-    # Financial data
-    subtotal: float | None = None
-    tax: float | None = None
-    total: float | None = None
+    # Financial data (amounts in cents, e.g., 4599 for $45.99)
+    subtotal: int | None = None
+    tax: int | None = None
+    total: int | None = None
     currency: str = "USD"
 
     # Billing information
@@ -62,8 +62,8 @@ class ParsedReceipt:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
-    def add_item(self, title: str, cost: float, **kwargs: Any) -> None:
-        """Add an item to the receipt."""
+    def add_item(self, title: str, cost: int, **kwargs: Any) -> None:
+        """Add an item to the receipt (cost in cents)."""
         item = ParsedItem(title=title, cost=cost, **kwargs)
         self.items.append(item)
 
@@ -291,8 +291,8 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "document number")
         return str(result) if result is not None else None
 
-    def _extract_subtotal(self, soup: BeautifulSoup) -> float | None:
-        """Extract subtotal amount."""
+    def _extract_subtotal(self, soup: BeautifulSoup) -> int | None:
+        """Extract subtotal amount in cents."""
         selectors = [
             {"selector": ".aapl-subtotal, .subtotal", "method": "currency"},
             {"selector": 'td:contains("Subtotal"), th:contains("Subtotal")', "method": "sibling_currency"},
@@ -300,10 +300,10 @@ class AppleReceiptParser:
         ]
 
         result = self._try_selectors(soup, selectors, "subtotal")
-        return float(result) if result is not None and not isinstance(result, str) else None
+        return int(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_tax(self, soup: BeautifulSoup) -> float | None:
-        """Extract tax amount."""
+    def _extract_tax(self, soup: BeautifulSoup) -> int | None:
+        """Extract tax amount in cents."""
         selectors = [
             {"selector": ".aapl-tax, .tax", "method": "currency"},
             {"selector": 'td:contains("Tax"), th:contains("Tax")', "method": "sibling_currency"},
@@ -311,10 +311,10 @@ class AppleReceiptParser:
         ]
 
         result = self._try_selectors(soup, selectors, "tax")
-        return float(result) if result is not None and not isinstance(result, str) else None
+        return int(result) if result is not None and not isinstance(result, str) else None
 
-    def _extract_total(self, soup: BeautifulSoup) -> float | None:
-        """Extract total amount."""
+    def _extract_total(self, soup: BeautifulSoup) -> int | None:
+        """Extract total amount in cents."""
         selectors = [
             {"selector": ".aapl-total, .total, .grand-total", "method": "currency"},
             {"selector": 'td:contains("Total"), th:contains("Total")', "method": "sibling_currency"},
@@ -326,7 +326,7 @@ class AppleReceiptParser:
         ]
 
         result = self._try_selectors(soup, selectors, "total")
-        return float(result) if result is not None and not isinstance(result, str) else None
+        return int(result) if result is not None and not isinstance(result, str) else None
 
     def _extract_payment_method(self, soup: BeautifulSoup) -> str | None:
         """Extract payment method."""
@@ -412,11 +412,15 @@ class AppleReceiptParser:
                 match = re.search(r"(.+?)\s*[\$£€¥]\s*(\d+\.?\d*)", text)
                 if match:
                     item_name = match.group(1).strip()
-                    cost = float(match.group(2))
+                    # Parse currency to cents
+                    cost = self._parse_currency(match.group(2))
 
-                    items.append(
-                        ParsedItem(title=item_name, cost=cost, metadata={"extraction_method": "list_based"})
-                    )
+                    if cost is not None:
+                        items.append(
+                            ParsedItem(
+                                title=item_name, cost=cost, metadata={"extraction_method": "list_based"}
+                            )
+                        )
 
         return items
 
@@ -572,7 +576,7 @@ class AppleReceiptParser:
                         else:
                             continue
 
-                    currency_result: float | None = self._parse_currency(text)
+                    currency_result: int | None = self._parse_currency(text)
                     if currency_result is not None:
                         self.selectors_successful.append(f"{field_name}:{selector}")
                         return currency_result
@@ -651,19 +655,38 @@ class AppleReceiptParser:
         currency_pattern = r"[\$£€¥]\s*\d+\.?\d*"
         return bool(re.search(currency_pattern, text))
 
-    def _parse_currency(self, text: str) -> float | None:
-        """Parse currency string to float value."""
+    def _parse_currency(self, text: str) -> int | None:
+        """
+        Parse currency string to integer cents using integer-only arithmetic.
+
+        Converts dollar amounts like "$45.99" to integer cents (4599).
+        This ensures compliance with the repository's zero-floating-point policy.
+
+        Args:
+            text: Currency string (e.g., "$45.99", "12.34")
+
+        Returns:
+            Amount in integer cents, or None if parsing fails
+        """
         if not text:
             return None
 
         # Remove common currency symbols and whitespace
         cleaned = re.sub(r"[\$£€¥,\s]", "", text)
 
-        # Extract numeric value
-        match = re.search(r"\d+\.?\d*", cleaned)
+        # Extract dollars and cents separately as integers (zero-floating-point policy)
+        match = re.search(r"(\d+)(?:\.(\d{1,2}))?", cleaned)
         if match:
             try:
-                return float(match.group())
+                dollars = int(match.group(1))
+                cents_str = match.group(2) or "0"
+                # Pad cents to 2 digits (e.g., "5" becomes "50")
+                if len(cents_str) == 1:
+                    cents_str = cents_str + "0"
+                cents_part = int(cents_str)
+                # Combine using integer arithmetic only
+                total_cents = dollars * 100 + cents_part
+                return total_cents
             except ValueError:
                 return None
 

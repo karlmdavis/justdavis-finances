@@ -87,6 +87,73 @@ class TestDependencyGraph:
         assert len(errors) > 0
         assert any("cycle" in error.lower() for error in errors)
 
+    def test_node_depends_on_direct_dependency(self):
+        """Test _node_depends_on with direct dependency."""
+        registry = FlowNodeRegistry()
+
+        node1 = MockFlowNode("node1")
+        node2 = MockFlowNode("node2", dependencies=["node1"])
+
+        registry.register_node(node1)
+        registry.register_node(node2)
+
+        graph = DependencyGraph(registry)
+
+        # node2 directly depends on node1
+        assert graph._node_depends_on("node2", "node1") is True
+        # node1 does not depend on node2
+        assert graph._node_depends_on("node1", "node2") is False
+
+    def test_node_depends_on_transitive_dependency(self):
+        """Test _node_depends_on with transitive dependency."""
+        registry = FlowNodeRegistry()
+
+        node1 = MockFlowNode("node1")
+        node2 = MockFlowNode("node2", dependencies=["node1"])
+        node3 = MockFlowNode("node3", dependencies=["node2"])
+
+        registry.register_node(node1)
+        registry.register_node(node2)
+        registry.register_node(node3)
+
+        graph = DependencyGraph(registry)
+
+        # node3 transitively depends on node1 (through node2)
+        assert graph._node_depends_on("node3", "node1") is True
+        # node3 directly depends on node2
+        assert graph._node_depends_on("node3", "node2") is True
+        # node1 does not depend on node3
+        assert graph._node_depends_on("node1", "node3") is False
+
+    def test_node_depends_on_no_dependency(self):
+        """Test _node_depends_on with no dependency relationship."""
+        registry = FlowNodeRegistry()
+
+        node1 = MockFlowNode("node1")
+        node2 = MockFlowNode("node2")
+
+        registry.register_node(node1)
+        registry.register_node(node2)
+
+        graph = DependencyGraph(registry)
+
+        # No dependency relationship
+        assert graph._node_depends_on("node1", "node2") is False
+        assert graph._node_depends_on("node2", "node1") is False
+
+    def test_node_depends_on_missing_node(self):
+        """Test _node_depends_on with missing node."""
+        registry = FlowNodeRegistry()
+
+        node1 = MockFlowNode("node1")
+        registry.register_node(node1)
+
+        graph = DependencyGraph(registry)
+
+        # Missing nodes should return False
+        assert graph._node_depends_on("node1", "missing") is False
+        assert graph._node_depends_on("missing", "node1") is False
+
 
 class TestFlowExecutionEngine:
     """Test FlowExecutionEngine functionality."""

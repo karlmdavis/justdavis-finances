@@ -77,7 +77,7 @@ class TestFlowCLIIntegration:
         (ynab_dir / "categories.json").write_text('{"server_knowledge": 456}')
         (ynab_dir / "transactions.json").write_text("[]")
 
-        result = self.runner.invoke(flow, ["go", "--dry-run", "--verbose"])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run", "--verbose"])
 
         assert result.exit_code == 0
         assert "Dry run mode - no changes will be made" in result.output
@@ -86,7 +86,7 @@ class TestFlowCLIIntegration:
     def test_flow_execute_no_changes(self):
         """Test flow execute when no changes are detected."""
         # Don't create any data files - should result in no changes, use dry-run mode
-        result = self.runner.invoke(flow, ["go", "--dry-run"])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run"])
 
         assert result.exit_code == 0
         # With no data files, we might still get some nodes that want to execute
@@ -95,7 +95,8 @@ class TestFlowCLIIntegration:
     def test_flow_execute_specific_nodes(self):
         """Test flow execute with specific nodes."""
         result = self.runner.invoke(
-            flow, ["go", "--dry-run", "--nodes", "ynab_sync", "--nodes", "cash_flow_analysis"]
+            flow,
+            ["go", "--non-interactive", "--dry-run", "--nodes", "ynab_sync", "--nodes", "cash_flow_analysis"],
         )
 
         assert result.exit_code == 0
@@ -104,7 +105,7 @@ class TestFlowCLIIntegration:
 
     def test_flow_execute_force_mode(self):
         """Test flow execute with force mode."""
-        result = self.runner.invoke(flow, ["go", "--dry-run", "--force"])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run", "--force"])
 
         assert result.exit_code == 0
         assert "Dynamic execution will process" in result.output
@@ -158,8 +159,8 @@ class TestFlowCLIIntegration:
 
     def test_flow_execute_verbose_flag(self):
         """Test flow execute with verbose flag enables detailed output."""
-        result_normal = self.runner.invoke(flow, ["go", "--dry-run"])
-        result_verbose = self.runner.invoke(flow, ["go", "--dry-run", "--verbose"])
+        result_normal = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run"])
+        result_verbose = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run", "--verbose"])
 
         assert result_normal.exit_code == 0
         assert result_verbose.exit_code == 0
@@ -172,7 +173,7 @@ class TestFlowCLIIntegration:
 
     def test_flow_execute_performance_tracking(self):
         """Test flow execute with performance tracking enabled."""
-        result = self.runner.invoke(flow, ["go", "--dry-run", "--perf"])
+        result = self.runner.invoke(flow, ["go", "--non-interactive", "--dry-run", "--perf"])
 
         assert result.exit_code == 0
         # Performance tracking should be enabled (implementation-dependent output)
@@ -180,7 +181,9 @@ class TestFlowCLIIntegration:
 
     def test_flow_execute_date_range_filter(self):
         """Test flow execute with date range filtering."""
-        result = self.runner.invoke(flow, ["go", "--dry-run", "--start", "2024-07-01", "--end", "2024-07-31"])
+        result = self.runner.invoke(
+            flow, ["go", "--non-interactive", "--dry-run", "--start", "2024-07-01", "--end", "2024-07-31"]
+        )
 
         assert result.exit_code == 0
         # Date range filtering should be applied
@@ -189,7 +192,9 @@ class TestFlowCLIIntegration:
     def test_flow_execute_confidence_threshold(self):
         """Test flow execute with custom confidence threshold."""
         # Default is 10000 basis points (100%), test with 8000 (80%)
-        result = self.runner.invoke(flow, ["go", "--dry-run", "--confidence-threshold", "8000"])
+        result = self.runner.invoke(
+            flow, ["go", "--non-interactive", "--dry-run", "--confidence-threshold", "8000"]
+        )
 
         assert result.exit_code == 0
         # Confidence threshold should be applied
@@ -478,7 +483,7 @@ class TestEndToEndFlow:
 
         # Execute with archive creation
         runner = CliRunner()
-        result = runner.invoke(flow, ["go", "--dry-run", "--verbose"])
+        result = runner.invoke(flow, ["go", "--non-interactive", "--dry-run", "--verbose"])
 
         assert result.exit_code == 0
         # In dry run mode, archives are not created, so we just check it runs successfully

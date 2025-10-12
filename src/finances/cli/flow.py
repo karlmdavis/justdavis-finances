@@ -195,17 +195,24 @@ def setup_flow_nodes() -> None:
     # Register Amazon Unzip Node
     def amazon_unzip_executor(context: FlowContext) -> FlowResult:
         """Execute Amazon unzip with automatic download directory detection."""
+        import os
         from pathlib import Path
 
         from ..core.flow import FlowResult
 
-        # Try to find download directory
-        download_dir = Path.home() / "Downloads"
+        # Check for environment variable first (for testing), then fallback to user's Downloads
+        downloads_env = os.getenv("FINANCES_DOWNLOADS_DIR")
+        download_dir = Path(downloads_env) if downloads_env else Path.home() / "Downloads"
+
         if not download_dir.exists():
-            return FlowResult(success=False, error_message="Downloads directory not found")
+            return FlowResult(success=False, error_message=f"Downloads directory not found: {download_dir}")
 
         return create_cli_executor(
-            amazon_unzip_cmd, download_dir=str(download_dir), accounts=()  # All accounts
+            amazon_unzip_cmd,
+            download_dir=str(download_dir),
+            accounts=(),  # All accounts
+            output_dir=None,  # Use default output directory
+            verbose=False,  # Use default verbosity
         )(context)
 
     flow_registry.register_function_node(
@@ -219,7 +226,12 @@ def setup_flow_nodes() -> None:
     flow_registry.register_function_node(
         name="amazon_matching",
         func=create_cli_executor(
-            amazon_match_cmd, accounts=(), disable_split=False, output_dir=None  # All accounts
+            amazon_match_cmd,
+            accounts=(),  # All accounts
+            disable_split=False,
+            output_dir=None,
+            start=None,
+            end=None,
         ),
         dependencies=["ynab_sync", "amazon_unzip"],
         change_detector=get_change_detector_function(change_detectors["amazon_matching"]),
@@ -258,7 +270,9 @@ def setup_flow_nodes() -> None:
     # Register Apple Matching Node
     flow_registry.register_function_node(
         name="apple_matching",
-        func=create_cli_executor(apple_match_cmd, apple_ids=(), output_dir=None),  # All Apple IDs
+        func=create_cli_executor(
+            apple_match_cmd, apple_ids=(), output_dir=None, start=None, end=None  # All Apple IDs
+        ),
         dependencies=["ynab_sync", "apple_receipt_parsing"],
         change_detector=get_change_detector_function(change_detectors["apple_matching"]),
     )
@@ -408,6 +422,7 @@ def setup_flow_nodes() -> None:
 @click.option("--dry-run", is_flag=True, help="Show execution plan without running")
 @click.option("--force", is_flag=True, help="Force execution of all nodes")
 @click.option("--nodes", multiple=True, help="Specific nodes to execute")
+@click.option("--nodes-excluded", multiple=True, help="Nodes to exclude from execution")
 @click.option("--skip-archive", is_flag=True, help="Skip archive creation")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
@@ -421,6 +436,7 @@ def go(
     dry_run: bool,
     force: bool,
     nodes: tuple,
+    nodes_excluded: tuple,
     skip_archive: bool,
     verbose: bool,
 ) -> None:
@@ -498,6 +514,32 @@ def go(
         # Determine target nodes
         target_nodes = set(nodes) if nodes else None
 
+        # Apply node exclusions (including dependent nodes)
+        if nodes_excluded:
+            excluded_set = set(nodes_excluded)
+            # Find all nodes that depend on excluded nodes
+            dependents_to_exclude = set()
+            for excluded_node in excluded_set:
+                # Find all nodes that transitively depend on this excluded node
+                for node_name in flow_registry.get_all_nodes():
+                    if engine.dependency_graph._node_depends_on(node_name, excluded_node):
+                        dependents_to_exclude.add(node_name)
+
+            # Combine direct exclusions with dependent exclusions
+            all_excluded = excluded_set | dependents_to_exclude
+
+            # Apply exclusions to target nodes
+            if target_nodes is not None:
+                target_nodes = target_nodes - all_excluded
+            else:
+                # Start with all nodes, then exclude
+                target_nodes = set(flow_registry.get_all_nodes().keys()) - all_excluded
+
+            if verbose:
+                click.echo(f"Excluding nodes: {', '.join(sorted(excluded_set))}")
+                if dependents_to_exclude:
+                    click.echo(f"Also excluding dependent nodes: {', '.join(sorted(dependents_to_exclude))}")
+
         # Detect initial changes for preview
         all_nodes = set(flow_registry.get_all_nodes().keys()) if target_nodes is None else target_nodes
 
@@ -536,7 +578,7 @@ def go(
             click.echo("\nInitially triggered nodes:")
             for node_name in sorted(initially_changed):
                 node = flow_registry.get_node(node_name)
-                display_name = node.get_display_name() if node else node_name
+                display_name = node.get_display_name() if node is not None else node_name
                 click.echo(f"  • {display_name}")
                 if node_name in change_summary:
                     for reason in change_summary[node_name]:
@@ -547,13 +589,13 @@ def go(
         if downstream_nodes:
             click.echo(f"\nPotentially affected downstream nodes: {len(downstream_nodes)}")
 
-        if dry_run:
-            click.echo("\n🏃 Dry run mode - no changes will be made")
-            return
-
-        # Confirm execution in interactive mode
+        # Confirm execution in interactive mode (before dry-run check)
         if interactive and not click.confirm("\nProceed with dynamic execution?"):
             click.echo("Execution cancelled.")
+            return
+
+        if dry_run:
+            click.echo("\n🏃 Dry run mode - no changes will be made")
             return
 
         # Create transaction archive

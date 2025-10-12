@@ -12,9 +12,9 @@ from typing import Any
 
 import click
 
-from ..apple import AppleMatcher, AppleReceiptParser, fetch_apple_receipts_cli
+from ..apple import AppleMatcher, AppleReceiptParser, fetch_apple_receipts_cli, normalize_apple_receipt_data
 from ..core.config import get_config
-from ..core.json_utils import format_json, write_json
+from ..core.json_utils import format_json, write_json, write_json_with_defaults
 
 
 @click.group()
@@ -24,21 +24,29 @@ def apple() -> None:
 
 
 @apple.command()
-@click.option("--start", required=True, help="Start date (YYYY-MM-DD)")
-@click.option("--end", required=True, help="End date (YYYY-MM-DD)")
+@click.option("--start", help="Start date (YYYY-MM-DD) - optional, defaults to all transactions")
+@click.option("--end", help="End date (YYYY-MM-DD) - optional, defaults to all transactions")
 @click.option("--apple-ids", multiple=True, help="Specific Apple IDs to process")
 @click.option("--output-dir", help="Override output directory")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def match(
-    ctx: click.Context, start: str, end: str, apple_ids: tuple, output_dir: str | None, verbose: bool
+    ctx: click.Context,
+    start: str | None,
+    end: str | None,
+    apple_ids: tuple,
+    output_dir: str | None,
+    verbose: bool,
 ) -> None:
     """
-    Match YNAB transactions to Apple receipts in a date range.
+    Match YNAB transactions to Apple receipts.
+
+    Date range is optional. If not provided, all Apple transactions will be matched.
 
     Examples:
+      finances apple match
       finances apple match --start 2024-07-01 --end 2024-07-31
-      finances apple match --start 2024-07-01 --end 2024-07-31 --apple-ids karl@example.com erica@example.com
+      finances apple match --start 2024-07-01 --end 2024-07-31 --apple-ids karl@example.com
     """
     config = get_config()
 
@@ -49,7 +57,10 @@ def match(
 
     if verbose or ctx.obj.get("verbose", False):
         click.echo("Apple Transaction Matching")
-        click.echo(f"Date range: {start} to {end}")
+        if start and end:
+            click.echo(f"Date range: {start} to {end}")
+        else:
+            click.echo("Date range: all transactions")
         click.echo(f"Apple IDs: {list(apple_ids) if apple_ids else 'all'}")
         click.echo(f"Output: {output_path}")
         click.echo()
@@ -74,8 +85,8 @@ def match(
         if apple_ids:
             apple_receipts = [r for r in apple_receipts if r.get("apple_id") in apple_ids]
 
-        # Convert to DataFrame
-        apple_receipts_df = pd.DataFrame(apple_receipts)
+        # Normalize and convert to DataFrame (handles date parsing and invalid data)
+        apple_receipts_df = normalize_apple_receipt_data(apple_receipts)
 
         # Load and filter YNAB transactions
         all_transactions = load_ynab_transactions(ynab_cache_dir)
@@ -113,9 +124,26 @@ def match(
             )
             receipts_list = [asdict(r) if hasattr(r, "__dict__") else r for r in result.receipts]
 
+            # Flatten items for split calculator compatibility
+            # Transform from Apple format {title, cost} to standard {name, price}
+            flattened_items: list[dict[str, Any]] = []
+            if receipts_list and len(receipts_list) > 0:
+                first_receipt = receipts_list[0]
+                # Ensure we have a dict (asdict should always return dict)
+                if isinstance(first_receipt, dict):
+                    raw_items = first_receipt.get("items", [])
+                    flattened_items = [
+                        {
+                            "name": item.get("title", ""),  # Apple uses "title"
+                            "price": item.get("cost", 0),  # Apple uses "cost" (in cents)
+                        }
+                        for item in raw_items
+                    ]
+
             match_dict: dict[str, Any] = {
-                "transaction": transaction_dict,
-                "receipts": receipts_list,
+                "ynab_transaction": transaction_dict,  # Match Amazon format
+                "receipts": receipts_list,  # Keep for backwards compatibility
+                "items": flattened_items,  # Flattened items for split calculator
                 "confidence": result.confidence,
                 "strategy": result.strategy_used or result.match_method,
             }
@@ -138,8 +166,8 @@ def match(
             "matches": matches,
         }
 
-        # Write result file
-        write_json(output_file, output_result)
+        # Write result file (use write_json_with_defaults to handle date objects)
+        write_json_with_defaults(output_file, output_result, default=str)
 
         # Display summary
         click.echo(f"✅ Matched {matched_count} of {len(match_results)} transactions ({match_rate*100:.1f}%)")
@@ -199,7 +227,6 @@ def match_single(
 
     try:
         # Load Apple receipt data
-        import pandas as pd
 
         from ..apple import load_apple_receipts
 
@@ -210,8 +237,8 @@ def match_single(
         if apple_ids:
             apple_receipts = [r for r in apple_receipts if r.get("apple_id") in apple_ids]
 
-        # Convert to DataFrame
-        apple_receipts_df = pd.DataFrame(apple_receipts)
+        # Normalize and convert to DataFrame (handles date parsing and invalid data)
+        apple_receipts_df = normalize_apple_receipt_data(apple_receipts)
 
         if verbose:
             click.echo(f"Loaded {len(apple_receipts_df)} Apple receipts")
@@ -254,7 +281,7 @@ def match_single(
                 "strategy": match_result.strategy_used or match_result.match_method,
             }
             click.echo("\nJSON Result:")
-            click.echo(format_json(result_dict))
+            click.echo(format_json(result_dict, default=str))
 
     except Exception as e:
         click.echo(f"❌ Error during matching: {e}", err=True)

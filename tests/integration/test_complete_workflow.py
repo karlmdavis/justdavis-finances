@@ -129,16 +129,16 @@ class TestAppleWorkflow:
         exports_dir.mkdir(parents=True)
         matches_dir.mkdir(parents=True)
 
-        # Sample receipt data (amounts in cents)
+        # Sample receipt data (amounts in cents - parser output format)
         receipts = [
             {
                 "order_id": "ML7PQ2XYZ",
                 "receipt_date": "Aug 15, 2024",  # Proper Apple date format
                 "apple_id": "test@example.com",
-                "subtotal": 2999,  # $29.99 in cents
-                "tax": 298,  # $2.98 in cents
-                "total": 3297,  # $32.97 in cents
-                "items": [{"title": "Procreate", "cost": 2999}],  # $29.99 in cents
+                "subtotal": 2999,  # $29.99 → 2999 cents (parser returns int cents)
+                "tax": 298,  # $2.98 → 298 cents
+                "total": 3297,  # $32.97 → 3297 cents
+                "items": [{"title": "Procreate", "cost": 2999}],  # $29.99 → 2999 cents
             }
         ]
 

@@ -119,7 +119,7 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
                 )
                 continue
 
-            # Get total amount (already in cents from parsing)
+            # Get total amount in cents (parser now returns integer cents)
             total = receipt.get("total", 0)
             if total is None:
                 total = 0
@@ -131,7 +131,7 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
                 "receipt_date_str": receipt_date_str,
                 "order_id": receipt.get("order_id", ""),
                 "document_number": receipt.get("document_number", ""),
-                "total": total,  # Amount in cents
+                "total": total,  # Amount in integer cents (e.g., 4599 for $45.99)
                 "currency": receipt.get("currency", "USD"),
                 "subtotal": receipt.get("subtotal"),
                 "tax": receipt.get("tax"),

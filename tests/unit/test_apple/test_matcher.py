@@ -17,38 +17,43 @@ class TestAppleMatcher:
 
     @pytest.fixture
     def sample_apple_receipts(self):
-        """Sample Apple receipts for testing."""
+        """
+        Sample Apple receipts for testing.
+
+        IMPORTANT: Amounts are in CENTS (as integers) because the parser now returns
+        integer cents. The parser converts "$29.99" → 2999 cents.
+        """
         return [
             {
                 "order_id": "ML7PQ2XYZ",
                 "receipt_date": "Aug 15, 2024",
                 "apple_id": "test@example.com",
-                "subtotal": 2999,  # $29.99 in cents
-                "tax": 298,  # $2.98 in cents
-                "total": 3297,  # $32.97 in cents
-                "items": [{"title": "Procreate", "cost": 2999}],  # $29.99 in cents
+                "subtotal": 2999,  # $29.99 → 2999 cents (parser output)
+                "tax": 298,  # $2.98 → 298 cents
+                "total": 3297,  # $32.97 → 3297 cents
+                "items": [{"title": "Procreate", "cost": 2999}],  # $29.99 → 2999 cents
             },
             {
                 "order_id": "NX8QR3ABC",
                 "receipt_date": "Aug 16, 2024",
                 "apple_id": "family@example.com",
-                "subtotal": 999,  # $9.99 in cents
-                "tax": 99,  # $0.99 in cents
-                "total": 1098,  # $10.98 in cents
+                "subtotal": 999,  # $9.99 → 999 cents
+                "tax": 99,  # $0.99 → 99 cents
+                "total": 1098,  # $10.98 → 1098 cents
                 "items": [
-                    {"title": "Apple Music (Monthly)", "cost": 999, "subscription": True}  # $9.99 in cents
+                    {"title": "Apple Music (Monthly)", "cost": 999, "subscription": True}  # $9.99 → 999 cents
                 ],
             },
             {
                 "order_id": "KL5MN4DEF",
                 "receipt_date": "Aug 14, 2024",
                 "apple_id": "test@example.com",
-                "subtotal": 59998,  # $599.98 in cents
-                "tax": 5964,  # $59.64 in cents
-                "total": 65962,  # $659.62 in cents
+                "subtotal": 59998,  # $599.98 → 59998 cents
+                "tax": 5964,  # $59.64 → 5964 cents
+                "total": 65962,  # $659.62 → 65962 cents
                 "items": [
-                    {"title": "Final Cut Pro", "cost": 29999},  # $299.99 in cents
-                    {"title": "Logic Pro", "cost": 29999},  # $299.99 in cents
+                    {"title": "Final Cut Pro", "cost": 29999},  # $299.99 → 29999 cents
+                    {"title": "Logic Pro", "cost": 29999},  # $299.99 → 29999 cents
                 ],
             },
         ]
@@ -240,8 +245,8 @@ class TestAppleMatcher:
                 "order_id": "ZZ9YY8XXX",
                 "receipt_date": "Aug 15, 2024",
                 "apple_id": "another@example.com",
-                "total": 32.97,
-                "items": [{"title": "Different App", "cost": 32.97}],
+                "total": 3297,  # $32.97 → 3297 cents
+                "items": [{"title": "Different App", "cost": 3297}],  # $32.97 → 3297 cents
             },
         ]
 
@@ -331,8 +336,8 @@ class TestAppleEdgeCases:
                 "order_id": "free-app",
                 "receipt_date": "Aug 15, 2024",
                 "apple_id": "test@example.com",
-                "total": 0.00,
-                "items": [{"title": "Free App", "cost": 0.00}],
+                "total": 0,  # $0.00 → 0 cents
+                "items": [{"title": "Free App", "cost": 0}],  # Free
             }
         ]
 
@@ -384,8 +389,8 @@ class TestAppleEdgeCases:
                 "order_id": f"receipt-{i}",
                 "receipt_date": "Aug 15, 2024",
                 "apple_id": f"user{i}@example.com",
-                "total": 10.00 + i * 0.01,  # Varying amounts
-                "items": [{"title": f"App {i}", "cost": 10.00 + i * 0.01}],
+                "total": 1000 + i,  # Varying amounts in cents ($10.00, $10.01, $10.02, ...)
+                "items": [{"title": f"App {i}", "cost": 1000 + i}],
             }
             for i in range(500)
         ]
@@ -441,3 +446,43 @@ def test_integration_with_fixtures(sample_ynab_transaction, sample_apple_receipt
     assert hasattr(result, "match_method")
     assert isinstance(result.confidence, int | float)
     assert 0 <= result.confidence <= 1
+
+
+@pytest.mark.apple
+def test_currency_unit_consistency_with_ynab():
+    """
+    Verify Apple matcher correctly compares cents from parser with YNAB milliunits.
+
+    This is a regression test for the currency unit mismatch bug where:
+    - YNAB: -45990 milliunits → 4599 cents
+    - Apple: Was returning 45.99 dollars (float) → Should be 4599 cents (int)
+    - Matcher was comparing: 4599 == 45.99 → False (BUG!)
+    - Now should compare: 4599 == 4599 → True (FIXED!)
+    """
+    matcher = AppleMatcher()
+
+    # Simulate REAL parser output (integer cents, not float dollars)
+    receipts = [
+        {
+            "order_id": "TEST123",
+            "receipt_date": "Aug 15, 2024",
+            "total": 4599,  # $45.99 in cents (as parser NOW returns)
+            "items": [{"title": "Test App", "cost": 4599}],
+        }
+    ]
+
+    # YNAB transaction in milliunits (negative for expense)
+    transaction = {
+        "id": "tx-001",
+        "date": "2024-08-15",
+        "amount": -45990,  # $45.99 in milliunits (negative for expense)
+        "payee_name": "Apple",
+    }
+
+    receipts_df = normalize_apple_receipt_data(receipts)
+    result = matcher.match_single_transaction(transaction, receipts_df)
+
+    # Should match because both represent $45.99 (just in different units)
+    assert result.receipts, "Should match same dollar amount in different units"
+    assert result.confidence == 1.0, "Should be exact match (same date, same amount)"
+    assert result.match_method == "exact_date_amount", "Should use exact match strategy"

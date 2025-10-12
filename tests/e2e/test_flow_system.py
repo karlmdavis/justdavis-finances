@@ -39,16 +39,108 @@ def flow_test_env(monkeypatch):
         save_synthetic_ynab_data(ynab_cache_dir)
 
         # Create other required directories
-        (data_dir / "amazon" / "raw").mkdir(parents=True, exist_ok=True)
+        amazon_raw_dir = data_dir / "amazon" / "raw"
+        amazon_raw_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "amazon" / "transaction_matches").mkdir(parents=True, exist_ok=True)
-        (data_dir / "apple" / "emails").mkdir(parents=True, exist_ok=True)
-        (data_dir / "apple" / "exports").mkdir(parents=True, exist_ok=True)
+
+        apple_emails_dir = data_dir / "apple" / "emails"
+        apple_emails_dir.mkdir(parents=True, exist_ok=True)
+        apple_exports_dir = data_dir / "apple" / "exports"
+        apple_exports_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "apple" / "transaction_matches").mkdir(parents=True, exist_ok=True)
         (data_dir / "ynab" / "edits").mkdir(parents=True, exist_ok=True)
         (data_dir / "cash_flow" / "charts").mkdir(parents=True, exist_ok=True)
 
+        # Generate Amazon test data - create ZIP file (input to amazon_unzip)
+        # This ensures amazon_unzip node will execute during flow tests
+
+        import csv
+        import zipfile
+
+        from finances.core.json_utils import write_json
+        from tests.fixtures.synthetic_data import generate_synthetic_amazon_orders
+
+        # Create downloads directory for ZIP files
+        downloads_dir = temp_path / "downloads"
+        downloads_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate synthetic Amazon orders
+        orders = generate_synthetic_amazon_orders(num_orders=5)
+
+        if orders:
+            # Create temporary CSV file
+            csv_file = temp_path / "temp_amazon_orders.csv"
+            with open(csv_file, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=orders[0].keys())
+                writer.writeheader()
+                writer.writerows(orders)
+
+            # Create ZIP file in downloads directory
+            zip_path = downloads_dir / "amazon_orders_testaccount.zip"
+            with zipfile.ZipFile(zip_path, "w") as zip_ref:
+                zip_ref.write(csv_file, "Retail.OrderHistory.1.csv")
+
+        # Generate Apple test data - create receipts JSON directly
+        # (skip email HTML generation since we parse receipts directly)
+        apple_export_dir = apple_exports_dir / "2025-01-01_00-00-00_apple_receipts_export"
+        apple_export_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate receipts with synthetic data
+        receipts = [
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": "Jan 15, 2025",
+                "order_id": f"ORDER-{i:03d}",
+                "document_number": f"DOC-{i:03d}",
+                "total": 999 + (i * 100),  # Varying amounts in cents
+                "currency": "USD",
+                "items": [{"name": f"Test App {i}", "amount": 999 + (i * 100)}],
+            }
+            for i in range(1, 4)
+        ]
+
+        # Add one receipt with null date to test edge case handling
+        receipts.append(
+            {
+                "apple_id": "test@example.com",
+                "receipt_date": None,
+                "order_id": "ORDER-NULL",
+                "document_number": "DOC-NULL",
+                "total": 599,
+                "currency": "USD",
+                "items": [{"name": "Test App Null Date", "amount": 599}],
+            }
+        )
+
+        receipts_file = apple_export_dir / "all_receipts_combined.json"
+        write_json(receipts_file, receipts)
+
+        # Create change detection cache to make ynab_sync and apple_email_fetch
+        # appear as "recently run" so change detection skips them in tests
+        from datetime import datetime, timedelta
+
+        flow_cache_dir = data_dir / "cache" / "flow"
+        flow_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Timestamp from 1 hour ago (well within 12/24 hour thresholds)
+        one_hour_ago = (datetime.now() - timedelta(hours=1)).isoformat()
+
+        # ynab_sync change detection cache (24-hour threshold)
+        # Must match server_knowledge values in synthetic YNAB data
+        ynab_sync_cache = {
+            "last_sync_time": one_hour_ago,
+            "accounts_server_knowledge": 12345,  # Matches synthetic data
+            "categories_server_knowledge": 67890,  # Matches synthetic data
+        }
+        write_json(flow_cache_dir / "ynab_sync_last_check.json", ynab_sync_cache)
+
+        # apple_email_fetch change detection cache (12-hour threshold)
+        apple_fetch_cache = {"last_fetch_time": one_hour_ago}
+        write_json(flow_cache_dir / "apple_email_fetch_last_check.json", apple_fetch_cache)
+
         # Set environment variables for this test
         monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
+        monkeypatch.setenv("FINANCES_DOWNLOADS_DIR", str(downloads_dir))
         monkeypatch.setenv("FINANCES_ENV", "test")
         monkeypatch.setenv("YNAB_API_TOKEN", "test-token-e2e")
         monkeypatch.setenv("EMAIL_PASSWORD", "test-password-e2e")
@@ -57,6 +149,7 @@ def flow_test_env(monkeypatch):
             "temp_dir": temp_path,
             "data_dir": data_dir,
             "ynab_cache_dir": ynab_cache_dir,
+            "downloads_dir": downloads_dir,
         }
 
 
@@ -117,21 +210,6 @@ def test_flow_graph_text_format(flow_test_env):
     # Should show some expected nodes
     assert "ynab_sync" in result.stdout.lower() or "YNAB Sync" in result.stdout
     assert "depends on:" in result.stdout or "no dependencies" in result.stdout
-
-
-@pytest.mark.e2e
-def test_flow_go_dry_run(flow_test_env):
-    """
-    Test `finances flow go --dry-run` with synthetic YNAB data.
-
-    Validates that dry-run mode shows execution plan without making changes.
-    """
-    result = run_flow_command(["go", "--dry-run", "--non-interactive"])
-
-    # Dry run should always succeed (no actual execution)
-    assert result.returncode == 0, f"Dry run failed: {result.stderr}"
-    assert "Dry run mode - no changes will be made" in result.stdout
-    assert "Dynamic execution will process" in result.stdout or "No nodes need execution" in result.stdout
 
 
 @pytest.mark.e2e
@@ -205,6 +283,9 @@ def test_flow_complete_orchestration(flow_test_env):
 
     This is the most important E2E test - it verifies the entire
     flow system works as a cohesive whole, not just individual pieces.
+
+    Note: Excludes nodes with external dependencies (ynab_sync, amazon_unzip,
+    ynab_apply, cash_flow_analysis) to ensure reliable test execution.
     """
     from tests.fixtures.synthetic_data import (
         save_synthetic_amazon_data,
@@ -214,7 +295,7 @@ def test_flow_complete_orchestration(flow_test_env):
     # Setup comprehensive test data
     data_dir = flow_test_env["data_dir"]
 
-    # Add Amazon data (triggers amazon_unzip and amazon_matching)
+    # Add Amazon data (pre-extracted to bypass amazon_unzip which needs real Downloads folder)
     amazon_raw_dir = data_dir / "amazon" / "raw"
     amazon_raw_dir.mkdir(parents=True, exist_ok=True)
     save_synthetic_amazon_data(amazon_raw_dir)
@@ -226,67 +307,41 @@ def test_flow_complete_orchestration(flow_test_env):
 
     # Note: YNAB data is already setup by flow_test_env fixture
 
-    # Execute the flow with --dry-run to validate orchestration without mutations
-    # Using dry-run because we don't want to hit real YNAB APIs or create actual edits
-    result = run_flow_command(["go", "--dry-run", "--non-interactive"])
+    # Execute flow with --force to run all testable nodes
+    # Exclude nodes with external dependencies
+    # NOTE: Excluding ynab_sync and apple_email_fetch transitively excludes their dependent nodes
+    # (amazon_matching, apple_matching, split_generation, etc).
+    # This is a known limitation - see dev/todos.md for non-transitive exclusion feature request.
+    result = run_flow_command(
+        [
+            "go",
+            "--force",
+            "--non-interactive",
+            "--verbose",
+            "--nodes-excluded",
+            "ynab_sync",  # External CLI tool
+            "--nodes-excluded",
+            "apple_email_fetch",  # Requires EMAIL credentials
+            "--nodes-excluded",
+            "ynab_apply",  # External YNAB API
+            "--nodes-excluded",
+            "cash_flow_analysis",  # Requires 6+ months of data
+            "--skip-archive",  # Skip archiving for faster test execution
+        ]
+    )
 
-    # Verify the command succeeded
-    assert result.returncode == 0, f"Flow execution failed: {result.stderr}\nStdout: {result.stdout}"
+    # Verify strict success (no failures allowed)
+    assert result.returncode == 0, f"Flow execution failed: {result.stderr}\n\nStdout:\n{result.stdout}"
 
-    # Verify orchestration output shows expected behavior
-    assert "Dry run mode - no changes will be made" in result.stdout, "Should indicate dry run mode"
+    # Verify execution summary shows no failures
+    assert "Failed: 0" in result.stdout, "Should have 0 failed nodes"
+    assert "Completed:" in result.stdout, "Should show completed nodes count"
 
-    # Should show execution plan or completion
-    assert (
-        "Dynamic execution" in result.stdout
-        or "No nodes need execution" in result.stdout
-        or "execution completed" in result.stdout.lower()
-    ), "Should show execution status"
+    # Verify at least some nodes executed
+    assert "Executing" in result.stdout or "execution" in result.stdout.lower(), "Should show node execution"
 
-    # Verify that the flow detected YNAB as a starting point
-    # (since we have YNAB cache data)
-    assert "ynab" in result.stdout.lower() or "YNAB" in result.stdout, "Should mention YNAB in execution"
-
-    # Verify node dependency ordering by checking execution sequence
-    # In dry-run mode, nodes should still be processed in dependency order
-    # Look for dynamic execution planning or node processing
-    assert (
-        "Initially triggered nodes:" in result.stdout  # Dynamic execution planning
-        or "Executing" in result.stdout  # Node execution
-        or "will process" in result.stdout.lower()  # Execution plan
-    ), "Should show execution progress"
-
-    # Now run without dry-run but with --force to execute all nodes
-    # This tests actual execution (though some nodes may fail due to missing external dependencies)
-    result_force = run_flow_command(["go", "--force", "--non-interactive", "--verbose"])
-
-    # With --force, it should attempt to execute
-    # Note: Some nodes may fail (e.g., YNAB API calls with test token), but we verify orchestration
-    assert (
-        result_force.returncode == 0 or "failed" in result_force.stdout.lower()
-    ), "Should execute or report failures"
-
-    # Verify that execution attempted multiple nodes
-    assert (
-        "Executing" in result_force.stdout or "execution" in result_force.stdout.lower()
-    ), "Should show node execution"
-
-    # Verify execution summary is provided
-    assert (
-        "completed" in result_force.stdout.lower()
-        or "failed" in result_force.stdout.lower()
-        or "nodes" in result_force.stdout.lower()
-    ), "Should provide execution summary"
-
-    # Verify that nodes were processed in dependency order
-    # The output should show progression through levels or sequential execution
-    lines = result_force.stdout.lower().split("\n")
-    execution_lines = [
-        line for line in lines if "executing" in line or "completed" in line or "failed" in line
-    ]
-
-    # Should have executed at least some nodes
-    assert len(execution_lines) > 0, "Should have executed at least one node"
+    # Verify successful completion message
+    assert "Flow completed successfully" in result.stdout, "Should show success message"
 
 
 @pytest.mark.e2e
@@ -364,3 +419,175 @@ def test_flow_go_inverted_date_range(flow_test_env):
         "No nodes need execution" in result.stdout
         or "Dry run mode - no changes will be made" in result.stdout
     ), "Should indicate no-op execution"
+
+
+@pytest.mark.e2e
+@pytest.mark.slow
+def test_flow_go_interactive_mode(flow_test_env):
+    """
+    Test `finances flow go` in interactive mode with user prompts.
+
+    This test uses pexpect to spawn the flow command interactively and
+    simulates user responses to prompts. This exercises code paths that
+    are not tested when using --non-interactive flag.
+
+    Validates that the interactive flow:
+    1. Displays execution plan and prompts for confirmation
+    2. Handles user confirmation responses
+    3. Executes the flow system successfully
+    4. Displays results and completion status
+    """
+    import os
+
+    import pexpect
+
+    # Build environment with test data directory
+    env = os.environ.copy()
+    env["FINANCES_DATA_DIR"] = str(flow_test_env["data_dir"])
+    env["FINANCES_DOWNLOADS_DIR"] = str(flow_test_env["downloads_dir"])
+    env["FINANCES_ENV"] = "test"
+    env["YNAB_API_TOKEN"] = "test-token-e2e"  # noqa: S105 - test credential
+    env["EMAIL_PASSWORD"] = "test-password-e2e"  # noqa: S105 - test credential
+
+    # Spawn the flow command interactively (no --non-interactive or --dry-run flags)
+    # Exclude nodes with external dependencies
+    # NOTE: Excluding ynab_sync and apple_email_fetch transitively excludes dependent nodes.
+    # This is a known limitation - see dev/todos.md for non-transitive exclusion feature request.
+    # Note: amazon_order_history_request is NOT excluded - we answer its prompt with "n"
+    # to skip it, which allows dependent nodes like amazon_unzip to continue
+    cmd = [
+        "uv",
+        "run",
+        "finances",
+        "flow",
+        "go",
+        "--force",
+        "--nodes-excluded",
+        "ynab_sync",
+        "--nodes-excluded",
+        "apple_email_fetch",
+        "--nodes-excluded",
+        "ynab_apply",
+        "--nodes-excluded",
+        "cash_flow_analysis",
+        "--verbose",
+    ]
+    child = pexpect.spawn(
+        " ".join(cmd),
+        cwd=REPO_ROOT,
+        env=env,
+        timeout=120,
+        encoding="utf-8",
+    )
+
+    try:
+        # Enable logging for debugging
+        child.logfile_read = None  # Set to sys.stdout for debugging
+
+        # Accumulate all output
+        full_output = []
+
+        # Expect the execution plan to be displayed
+        child.expect("Dynamic execution will process", timeout=30)
+        full_output.append(child.before + child.after)
+
+        # Expect the prompt asking to proceed
+        child.expect("Proceed with dynamic execution?", timeout=10)
+        full_output.append(child.before + child.after)
+
+        # Send confirmation (yes) - this starts node execution
+        child.sendline("y")
+
+        # NOW the amazon_order_history_request manual step will prompt
+        # We answer "n" to skip it (we already have ZIP files in the test fixture)
+        child.expect("Have you completed this step?", timeout=30)
+        full_output.append(child.before + child.after)
+        child.sendline("n")  # Skip the manual Amazon download step
+
+        # Wait for completion
+        child.expect(pexpect.EOF, timeout=60)
+        full_output.append(child.before)
+
+        # Close child process
+        child.close()
+
+        # Verify output contains expected messages
+        combined_output = "".join(full_output)
+
+        # Note: exit_code will be non-zero because amazon_order_history_request "failed"
+        # (we answered "n" to skip the manual step). This is expected behavior.
+
+        assert "Proceed with dynamic execution?" in combined_output, "Should show confirmation prompt"
+        assert "Have you completed this step?" in combined_output, "Should show manual step prompt"
+
+        # Verify execution completed (even with the expected manual step failure)
+        assert "Flow completed with errors" in combined_output, "Should show completion message"
+
+        # Verify excluded nodes were mentioned
+        assert "ynab_sync" in combined_output, "Should mention excluded nodes"
+        assert "apple_email_fetch" in combined_output, "Should mention excluded nodes"
+        assert "ynab_apply" in combined_output, "Should mention excluded nodes"
+        assert "cash_flow_analysis" in combined_output, "Should mention excluded nodes"
+
+        # Verify amazon_unzip executed successfully (the key node we're testing)
+        assert "amazon_unzip: completed" in combined_output, "amazon_unzip should execute successfully"
+        assert "Items processed: 1" in combined_output, "Should process the test ZIP file"
+
+        # Verify amazon_order_history_request reported as failed (expected when user answers "n")
+        assert (
+            "amazon_order_history_request: failed" in combined_output
+        ), "Manual step should report as failed when skipped"
+
+        # Verify execution summary shows the expected results:
+        # 1 completed (amazon_unzip), 1 failed (amazon_order_history_request - manual step skipped)
+        assert "Completed: 1" in combined_output, "Should have 1 completed node (amazon_unzip)"
+        assert "Failed: 1" in combined_output, "Should have 1 failed node (manual step skipped)"
+
+    except pexpect.TIMEOUT as e:
+        # Capture what we got before timeout
+        output = child.before or ""
+        child.close(force=True)
+        pytest.fail(f"Interactive flow test timed out. Output so far:\n{output}\nException: {e}")
+
+    except pexpect.EOF as e:
+        # Unexpected EOF
+        output = child.before or ""
+        child.close(force=True)
+        pytest.fail(f"Interactive flow ended unexpectedly. Output:\n{output}\nException: {e}")
+
+    finally:
+        # Ensure process is terminated
+        if child.isalive():
+            child.close(force=True)
+
+
+@pytest.mark.e2e
+def test_flow_go_nodes_excluded_with_dependents(flow_test_env):
+    """
+    Test that excluding a node also excludes its dependent nodes.
+
+    When split_generation is excluded, ynab_apply (which depends on it)
+    should also be excluded automatically.
+    """
+    result = run_flow_command(
+        ["go", "--non-interactive", "--dry-run", "--nodes-excluded", "split_generation", "--verbose"]
+    )
+
+    assert result.returncode == 0, f"Command failed: {result.stderr}"
+
+    # Should show both direct and dependent exclusions
+    assert "Excluding nodes: split_generation" in result.stdout, "Should show direct exclusion"
+    assert "Also excluding dependent nodes:" in result.stdout, "Should show dependent exclusion"
+    assert "ynab_apply" in result.stdout, "ynab_apply should be mentioned as dependent"
+
+    # Neither should appear in execution plan
+    lines = result.stdout.split("\n")
+    execution_section = False
+    for line in lines:
+        if "Initially triggered nodes:" in line:
+            execution_section = True
+        if execution_section:
+            if "split" in line.lower() and "generation" in line.lower():
+                pytest.fail("split_generation should not appear in execution plan")
+            if "ynab" in line.lower() and "apply" in line.lower():
+                pytest.fail("ynab_apply should not appear in execution plan")

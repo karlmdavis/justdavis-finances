@@ -17,12 +17,39 @@
       which could lead to accidental overwrites.
       Recommendation: Add separate --input-file option for non-interactive mode.
       Context: PR #8 code review feedback - deferred for future enhancement.
+- [ ] Make cash flow analysis more lenient for test environments.
+      Currently requires 6+ months of historical data, which causes E2E tests to exclude it.
+      Recommendation: Detect test environment or allow configurable minimum data requirements
+      so that cash_flow_analysis node can be included in comprehensive flow E2E tests.
+      Context: PR #9 - excluded from test_flow_go_interactive_mode due to data requirements.
+- [ ] Improve flow_test_env synthetic test data to create realistic transaction matches.
+      Currently YNAB transactions, Amazon orders, and Apple receipts are generated independently,
+      so matchers likely find no actual matches in E2E flow tests.
+      Recommendation: Generate coordinated test data where some YNAB transactions have
+      corresponding Amazon orders or Apple receipts with matching amounts and dates.
+      This would provide more realistic E2E testing of the matching algorithms through the flow system.
+      Context: flow_test_env fixture creates ZIP files and parsed data but matchers find no matches.
 
 ## Major Items
 
+- [ ] Get more serious about data flow schemas.
+    - [ ] Apple receipt parsing and Amazon order parsing should each produce result objects modeled
+            by a class and JSON schema that most naturally represent the actual data.
+    - [ ] The Apple and Amazon matchers should use those parsed object classes to load parse results.
+          They should then apply any transformations needed to each record via a view transform class,
+            e.g., AppleReceipt --> AppleReceiptForMatching.
+          That view class should be the only format used for that "side" of the data in matching logic.
+    - [ ] The split edit generator input should be modeled by a YnabTransactionExternalDetails class,
+            or something like it, which represents the receipt/order matches that were found,
+            associating a YNAB transaction ID with a potential match's line items.
+          The Apple and Amazon matchers should produce their output in this exact format/class.
+    - [ ] Every step after receipt/order parsing should use standard primitive types
+            for currency and dates.
 - [ ] Figure out what version of Python we want to target,
         and remove any unnecessary compatibility comprises.
-- [ ] Remove the error ignores in pyproject.toml and resolve any resulting issues.
+- [ ] Make `--nodes-excluded` not transitive, as this breaks its usefulness in a test scenario.
+      Either that or add a non-transitive `--nodes-skipped`.
+- [X] Remove the error ignores in pyproject.toml and resolve any resulting issues.
 - [X] Implement @dev/specs/2025-09-21-code-quality.md, to add lints and CI and such.
     - [X] Pre-commit hooks configured (Black, Ruff, file hygiene).
     - [X] GitHub Actions CI/CD workflow with all quality checks.
@@ -34,7 +61,7 @@
     - [X] Documentation updated with setup instructions.
     - [X] Fix 2 failing tests in retirement service.
     - [X] Increase test coverage from 56% to 60% threshold (currently at 74%).
-- [ ] Ensure there's one canonical end-to-end test that covers all major functionality.
+- [X] Ensure there's one canonical end-to-end test that covers all major functionality.
       As the human overseer of a project mostly written by Claude Code,
         I'll keep an eye on this test case to ensure things haven't gone off the rails.
 

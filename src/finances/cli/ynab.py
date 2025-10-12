@@ -91,11 +91,14 @@ def generate_splits(
         for match in match_results.get("matches", []):
             confidence = match.get("confidence", 0.0)
 
+            # Skip matches with no confidence (no match found)
+            if confidence == 0.0:
+                continue
+
             # Extract transaction amount in milliunits from the match
-            ynab_transaction = match.get("ynab_transaction", {})
-            transaction_amount_cents = ynab_transaction.get("amount", 0)
-            # Convert cents to milliunits (YNAB's format)
-            transaction_amount = transaction_amount_cents * 10
+            # Note: Both Amazon and Apple matchers now return amounts in milliunits
+            ynab_transaction = match.get("ynab_transaction") or match.get("transaction", {})
+            transaction_amount = ynab_transaction.get("amount", 0)  # Already in milliunits!
 
             if match_type == "amazon":
                 # Extract Amazon items from the first order
@@ -109,9 +112,36 @@ def generate_splits(
                     )
                     continue
             elif match_type == "apple":
-                # Extract Apple items
+                # Extract Apple items (now flattened with {name, price} format)
                 apple_items = match.get("items", [])
-                splits = calculate_apple_splits(transaction_amount, apple_items)
+
+                # Skip if no items (shouldn't happen for confident matches, but safety check)
+                if not apple_items:
+                    if verbose:
+                        click.echo(f"⚠️  No items in Apple match, skipping: {ynab_transaction.get('id')}")
+                    continue
+
+                # Extract subtotal and tax from first receipt if available
+                receipts = match.get("receipts", [])
+                receipt_subtotal = None
+                receipt_tax = None
+                if receipts and len(receipts) > 0:
+                    first_receipt = receipts[0]
+                    receipt_subtotal = first_receipt.get("subtotal")
+                    receipt_tax = first_receipt.get("tax_amount") or first_receipt.get("tax")
+
+                try:
+                    splits = calculate_apple_splits(
+                        transaction_amount,
+                        apple_items,
+                        receipt_subtotal=receipt_subtotal,
+                        receipt_tax=receipt_tax,
+                    )
+                except Exception as e:
+                    click.echo(
+                        f"⚠️  Failed to calculate splits for transaction {ynab_transaction.get('id')}: {e}"
+                    )
+                    continue
             else:
                 click.echo(f"⚠️  Unknown match type, skipping: {ynab_transaction.get('id', 'unknown')}")
                 continue
@@ -295,7 +325,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
         with open(transactions_file, "w") as f:
             result = subprocess.run(
-                ["ynab", "list", "--format", "json"],  # noqa: S607
+                ["ynab", "list"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -311,7 +341,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
         with open(accounts_file, "w") as f:
             result = subprocess.run(
-                ["ynab", "get", "accounts", "--format", "json"],  # noqa: S607
+                ["ynab", "get", "accounts"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -327,7 +357,7 @@ def sync_cache(ctx: click.Context, days: int, verbose: bool) -> None:
 
         with open(categories_file, "w") as f:
             result = subprocess.run(
-                ["ynab", "get", "categories", "--format", "json"],  # noqa: S607
+                ["ynab", "get", "categories"],  # noqa: S607
                 stdout=f,
                 stderr=subprocess.PIPE,
                 text=True,

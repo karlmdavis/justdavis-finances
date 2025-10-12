@@ -49,9 +49,9 @@ def test_parse_legacy_aapl_format_complete(parser, fixtures_dir):
     assert "2024" in receipt.receipt_date
 
     # Financial data - verify currency values were extracted (parser may extract multiple)
-    # Just verify they are present and numeric
+    # Parser now returns integer cents (e.g., 12340 for $123.40)
     assert receipt.total is not None
-    assert isinstance(receipt.total, float)
+    assert isinstance(receipt.total, int)
 
     # Verify items extraction - should find at least one item with "Procreate"
     assert len(receipt.items) > 0
@@ -150,6 +150,44 @@ def test_parse_malformed_receipt_gracefully(parser, fixtures_dir):
 
 @pytest.mark.integration
 @pytest.mark.apple
+def test_currency_values_are_integers_in_cents(parser, fixtures_dir):
+    """
+    Verify parser returns currency as integer cents, not float dollars.
+
+    This is a regression test for the currency unit mismatch bug where the parser
+    returned float dollars (e.g., 45.99) but the matcher expected integer cents (4599).
+    """
+    html_path = fixtures_dir / "legacy_aapl_receipt.html"
+
+    with open(html_path, encoding="utf-8") as f:
+        html_content = f.read()
+
+    receipt = parser.parse_html_content(html_content, "currency_test")
+
+    # Verify all currency fields are integers in cents (not floats in dollars)
+    if receipt.total is not None:
+        assert isinstance(receipt.total, int), f"total must be int cents, got {type(receipt.total)}"
+        # Verify reasonable range - should be in cents (e.g., 4599 not 45.99)
+        assert receipt.total > 100, f"total={receipt.total} should be in cents (>100), not dollars"
+
+    if receipt.subtotal is not None:
+        assert isinstance(receipt.subtotal, int), f"subtotal must be int cents, got {type(receipt.subtotal)}"
+
+    if receipt.tax is not None:
+        assert isinstance(receipt.tax, int), f"tax must be int cents, got {type(receipt.tax)}"
+
+    # Verify all items have integer cent costs
+    for item in receipt.items:
+        assert isinstance(
+            item.cost, int
+        ), f"item '{item.title}' cost must be int cents, got {type(item.cost)}"
+        # Verify reasonable range for items
+        if item.cost > 0:
+            assert item.cost > 50, f"item '{item.title}' cost={item.cost} should be in cents, not dollars"
+
+
+@pytest.mark.integration
+@pytest.mark.apple
 def test_parse_receipt_from_file_system(parser, fixtures_dir, temp_dir):
     """Test parsing receipt using file system path method."""
     # Copy a fixture to temp directory with expected naming
@@ -175,7 +213,7 @@ def test_parse_receipt_from_file_system(parser, fixtures_dir, temp_dir):
     assert receipt.format_detected == "legacy_aapl"
     assert receipt.apple_id == "test@example.com"
     assert receipt.total is not None
-    assert isinstance(receipt.total, float)
+    assert isinstance(receipt.total, int)  # Parser now returns integer cents
 
 
 @pytest.mark.integration
