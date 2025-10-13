@@ -69,20 +69,10 @@ def config(ctx: click.Context) -> None:
     click.echo(f"  Log Level: {config_obj.log_level}")
 
 
-# Import subcommands
-from .amazon import amazon  # noqa: E402
-from .apple import apple  # noqa: E402
-from .cashflow import cashflow  # noqa: E402
+# Import flow command
 from .flow import flow  # noqa: E402
-from .retirement import retirement  # noqa: E402
-from .ynab import ynab  # noqa: E402
 
-# Register subcommands
-main.add_command(amazon)
-main.add_command(apple)
-main.add_command(ynab)
-main.add_command(cashflow)
-main.add_command(retirement)
+# Register flow command (the unified interface for all operations)
 main.add_command(flow)
 
 

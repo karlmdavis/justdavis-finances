@@ -10,7 +10,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -70,15 +70,8 @@ class FlowContext:
     """Execution context shared across all flow nodes."""
 
     start_time: datetime
-    interactive: bool = True
-    performance_tracking: bool = False
-    confidence_threshold: int = 10000  # 100.00% in basis points
-    date_range: tuple[date, date] | None = None
     archive_manifest: dict[str, Path] = field(default_factory=dict)
     execution_history: list["NodeExecution"] = field(default_factory=list)
-    dry_run: bool = False
-    force: bool = False
-    verbose: bool = False
 
 
 @dataclass
@@ -92,6 +85,18 @@ class NodeExecution:
     result: FlowResult | None = None
     changes_detected: bool = False
     change_reasons: list[str] = field(default_factory=list)
+
+
+@dataclass
+class NodeDataSummary:
+    """Summary of a node's current data state for interactive prompts."""
+
+    exists: bool
+    last_updated: datetime | None
+    age_days: int | None
+    item_count: int | None
+    size_bytes: int | None
+    summary_text: str
 
 
 class FlowNode(ABC):
@@ -161,6 +166,55 @@ class FlowNode(ABC):
         else:
             return f"Processing {display}"
 
+    def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
+        """
+        Get summary of current data for this node.
+
+        Returns information about data presence, age, and size for
+        display in interactive prompts.
+
+        Returns:
+            NodeDataSummary with current data state
+        """
+        # Default implementation: no data available
+        return NodeDataSummary(
+            exists=False,
+            last_updated=None,
+            age_days=None,
+            item_count=None,
+            size_bytes=None,
+            summary_text="No data summary available",
+        )
+
+    def prompt_user(self, context: FlowContext) -> bool:
+        """
+        Prompt user whether to execute this node.
+
+        Shows data summary and asks user for decision.
+        Returns True to execute, False to skip.
+
+        Args:
+            context: Flow execution context
+
+        Returns:
+            True if node should execute, False to skip
+        """
+        summary = self.get_data_summary(context)
+
+        # Import click here to avoid circular imports
+        import click
+
+        click.echo(f"\n{self.get_display_name()}")
+        click.echo(f"  {summary.summary_text}")
+
+        if summary.last_updated:
+            age_str = f"{summary.age_days} days ago" if summary.age_days else "recently"
+            click.echo(f"  Last updated: {age_str}")
+        else:
+            click.echo("  Status: No data found")
+
+        return click.confirm("  Update this data?", default=False)
+
 
 def flow_node(
     name: str, depends_on: list[str] | None = None
@@ -206,10 +260,23 @@ class FunctionFlowNode(FlowNode):
         self._dependencies = set(dependencies)
         self.func = func
         self._change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None
+        self._data_summary_func: Callable[[FlowContext], NodeDataSummary] | None = None
 
     def set_change_detector(self, detector: Callable[[FlowContext], tuple[bool, list[str]]]) -> None:
         """Set custom change detection function."""
         self._change_detector = detector
+
+    def set_data_summary_func(self, func: Callable[[FlowContext], NodeDataSummary]) -> None:
+        """Set custom data summary function."""
+        self._data_summary_func = func
+
+    def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
+        """Get data summary using registered function or default."""
+        if self._data_summary_func:
+            return self._data_summary_func(context)
+
+        # Use default implementation from base class
+        return super().get_data_summary(context)
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check for changes using registered detector or default logic."""
@@ -222,7 +289,6 @@ class FunctionFlowNode(FlowNode):
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute the wrapped function."""
         try:
-            start_time = datetime.now()
             result = self.func(context)
 
             # Runtime validation for type safety
@@ -232,11 +298,6 @@ class FunctionFlowNode(FlowNode):
                     f"Function {safe_get_callable_name(self.func)} must return FlowResult, "
                     f"got {type(result).__name__}"
                 )
-
-            # Add timing information
-            if context.performance_tracking:
-                end_time = datetime.now()
-                result.execution_time_seconds = (end_time - start_time).total_seconds()
 
             return result
 
@@ -284,18 +345,12 @@ class CLIAdapterNode(FlowNode):
         if self._change_detector:
             return self._change_detector(context)
 
-        # Default: execute on any upstream change or if forced
-        if context.force:
-            return True, ["Force execution requested"]
-
-        # For now, assume changes if no detector provided
+        # Default: assume changes if no detector provided
         return True, ["No change detector available"]
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute the CLI command with flow context adaptation."""
         try:
-            start_time = datetime.now()
-
             # This would adapt the CLI command call to work with flow context
             # The actual implementation would depend on the specific CLI command structure
             logger.info(f"Executing CLI command for {self.name}")
@@ -313,10 +368,6 @@ class CLIAdapterNode(FlowNode):
                     )
                 },
             )
-
-            if context.performance_tracking:
-                end_time = datetime.now()
-                result.execution_time_seconds = (end_time - start_time).total_seconds()
 
             return result
 
@@ -357,6 +408,7 @@ class FlowNodeRegistry:
         func: Callable[[FlowContext], FlowResult],
         dependencies: list[str] | None = None,
         change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None,
+        data_summary_func: Callable[[FlowContext], NodeDataSummary] | None = None,
     ) -> None:
         """
         Register a function as a flow node.
@@ -366,10 +418,13 @@ class FlowNodeRegistry:
             func: Function to execute
             dependencies: List of dependency node names
             change_detector: Optional change detection function
+            data_summary_func: Optional data summary function for interactive prompts
         """
         node = FunctionFlowNode(name, func, dependencies or [])
         if change_detector:
             node.set_change_detector(change_detector)
+        if data_summary_func:
+            node.set_data_summary_func(data_summary_func)
 
         self.register_node(node)
 

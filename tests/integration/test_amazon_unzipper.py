@@ -45,8 +45,8 @@ class TestAmazonUnzipperIntegration:
         raw_data_dir = temp_dir / "amazon" / "raw"
         return AmazonUnzipper(raw_data_dir)
 
-    def test_extract_single_zip_file_complete_workflow(self, unzipper, karl_zip, temp_dir):
-        """Test complete extraction workflow for a single ZIP file."""
+    def test_extract_single_zip_complete(self, unzipper, karl_zip, temp_dir):
+        """Test complete ZIP extraction with comprehensive validation."""
         # Execute extraction
         result = unzipper.extract_zip_file(karl_zip)
 
@@ -96,6 +96,49 @@ class TestAmazonUnzipperIntegration:
             metadata = json.load(f)
             assert metadata["report_type"] == "order_history"
             assert metadata["record_count"] == 2
+
+        # Verify metadata preservation in result
+        assert "zip_file" in result
+        assert "output_directory" in result
+        assert "timestamp" in result
+        assert "files_extracted" in result
+
+        # Verify timestamp format (ISO 8601)
+        from datetime import datetime
+
+        timestamp = datetime.fromisoformat(result["timestamp"])
+        assert timestamp is not None
+
+        # Verify zip_file path is preserved
+        assert karl_zip.name in result["zip_file"]
+
+        # Verify CSV column structure and data formats
+        with open(csv_path, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            orders = list(reader)
+
+            # Verify expected columns exist
+            expected_columns = [
+                "Order ID",
+                "Order Date",
+                "Title",
+                "ASIN/ISBN",
+                "Item Subtotal",
+                "Item Subtotal Tax",
+                "Item Total",
+                "Buyer Name",
+                "Ordering Customer Email",
+            ]
+
+            for column in expected_columns:
+                assert column in orders[0]
+
+            # Verify data types and formats
+            assert orders[0]["Order ID"].startswith("111-")
+            assert "$" in orders[0]["Item Subtotal"]  # Currency format preserved
+
+            # Verify multi-item order data
+            assert orders[1]["Quantity"] == "2"  # Second order has 2 items
 
     def test_extract_with_account_name_detection(self, unzipper, erica_zip):
         """Test automatic account name detection from filename."""
@@ -217,28 +260,6 @@ class TestAmazonUnzipperIntegration:
             assert output_dir.exists()
             assert (output_dir / "Retail.OrderHistory.1.csv").exists()
 
-    def test_batch_extract_with_account_filter(self, unzipper, fixtures_dir):
-        """Test batch extraction with account filtering."""
-        # Create temporary download directory
-        download_dir = unzipper.raw_data_dir.parent / "downloads"
-        download_dir.mkdir(parents=True)
-
-        import shutil
-
-        karl_zip = fixtures_dir / "amazon_orders_karl.zip"
-        erica_zip = fixtures_dir / "amazon_orders_erica.zip"
-        shutil.copy(karl_zip, download_dir / "amazon_orders_karl.zip")
-        shutil.copy(erica_zip, download_dir / "amazon_orders_erica.zip")
-
-        # Execute batch extraction with filter for only Karl's account
-        result = unzipper.batch_extract(download_dir, account_filter=["karl"])
-
-        # Verify only Karl's account was extracted
-        assert result["success"] is True
-        assert result["files_processed"] == 1
-        assert len(result["extractions"]) == 1
-        assert result["extractions"][0]["account_name"] == "karl"
-
     def test_batch_extract_empty_directory(self, unzipper, temp_dir):
         """Test batch extraction with no ZIP files."""
         empty_dir = temp_dir / "empty"
@@ -307,56 +328,3 @@ class TestAmazonUnzipperIntegration:
         output_dir = Path(extraction["output_directory"])
         assert output_dir.exists()
         assert (output_dir / "Retail.OrderHistory.1.csv").exists()
-
-    def test_zip_file_metadata_preservation(self, unzipper, karl_zip):
-        """Test that ZIP metadata and structure is preserved during extraction."""
-        result = unzipper.extract_zip_file(karl_zip)
-
-        # Verify metadata in result
-        assert "zip_file" in result
-        assert "output_directory" in result
-        assert "timestamp" in result
-        assert "files_extracted" in result
-
-        # Verify timestamp format (ISO 8601)
-        from datetime import datetime
-
-        timestamp = datetime.fromisoformat(result["timestamp"])
-        assert timestamp is not None
-
-        # Verify zip_file path is preserved
-        assert karl_zip.name in result["zip_file"]
-
-    def test_csv_content_integrity_after_extraction(self, unzipper, karl_zip):
-        """Test that CSV data maintains integrity after extraction."""
-        result = unzipper.extract_zip_file(karl_zip)
-        output_dir = Path(result["output_directory"])
-        csv_path = output_dir / "Retail.OrderHistory.1.csv"
-
-        # Read and verify CSV structure
-        with open(csv_path, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            orders = list(reader)
-
-            # Verify expected columns exist
-            expected_columns = [
-                "Order ID",
-                "Order Date",
-                "Title",
-                "ASIN/ISBN",
-                "Item Subtotal",
-                "Item Subtotal Tax",
-                "Item Total",
-                "Buyer Name",
-                "Ordering Customer Email",
-            ]
-
-            for column in expected_columns:
-                assert column in orders[0]
-
-            # Verify data types and formats
-            assert orders[0]["Order ID"].startswith("111-")
-            assert "$" in orders[0]["Item Subtotal"]  # Currency format preserved
-
-            # Verify multi-item order data
-            assert orders[1]["Quantity"] == "2"  # Second order has 2 items

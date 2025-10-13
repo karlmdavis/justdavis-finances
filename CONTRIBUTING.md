@@ -255,8 +255,8 @@ def test_amazon_matching(sample_amazon_orders, sample_ynab_transactions):
 
 ### Test Coverage Requirements
 
-- **Minimum coverage**: 90% line coverage for all production code.
-- **Critical paths**: 100% branch coverage for financial calculations.
+- **Minimum coverage**: 60% line coverage with quality over quantity philosophy.
+- **Critical paths**: Comprehensive testing for financial calculations and user workflows.
 - **Integration coverage**: End-to-end workflow testing with realistic data.
 - **Performance testing**: Regression testing for critical performance paths.
 

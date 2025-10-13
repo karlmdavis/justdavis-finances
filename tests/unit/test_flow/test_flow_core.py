@@ -90,21 +90,6 @@ class TestFunctionFlowNode:
         assert result.items_processed == 10
         assert result.metadata["test"] is True
 
-    def test_function_node_with_performance_tracking(self):
-        """Test function node with performance tracking enabled."""
-
-        def test_func(context: FlowContext) -> FlowResult:
-            return FlowResult(success=True, items_processed=1)
-
-        node = FunctionFlowNode("test_func", test_func, [])
-        context = FlowContext(start_time=datetime.now(), performance_tracking=True)
-
-        result = node.execute(context)
-
-        assert result.success is True
-        assert result.execution_time_seconds is not None
-        assert result.execution_time_seconds >= 0
-
     def test_function_node_error_handling(self):
         """Test function node error handling."""
 

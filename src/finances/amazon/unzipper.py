@@ -136,13 +136,12 @@ class AmazonUnzipper:
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
-    def batch_extract(self, download_dir: Path, account_filter: list[str] | None = None) -> dict[str, Any]:
+    def batch_extract(self, download_dir: Path) -> dict[str, Any]:
         """
         Extract all ZIP files found in download directory.
 
         Args:
             download_dir: Directory containing ZIP files
-            account_filter: Optional list of account names to filter by
 
         Returns:
             Dictionary with batch extraction results
@@ -162,22 +161,7 @@ class AmazonUnzipper:
 
         for zip_path in zip_files:
             try:
-                # Try to determine account from filename
-                account_name = None
-                if account_filter:
-                    # Check if any filter account is in filename
-                    filename_lower = zip_path.name.lower()
-                    for account in account_filter:
-                        if account.lower() in filename_lower:
-                            account_name = account
-                            break
-
-                    # Skip if account filter specified but no match found
-                    if account_name is None:
-                        logger.info(f"Skipping {zip_path.name} - no matching account filter")
-                        continue
-
-                extraction_result = self.extract_zip_file(zip_path, account_name)
+                extraction_result = self.extract_zip_file(zip_path)
                 extractions.append(extraction_result)
 
             except Exception as e:
@@ -206,19 +190,16 @@ class AmazonUnzipper:
         return result
 
 
-def extract_amazon_zip_files(
-    download_dir: Path, raw_data_dir: Path, account_filter: list[str] | None = None
-) -> dict[str, Any]:
+def extract_amazon_zip_files(download_dir: Path, raw_data_dir: Path) -> dict[str, Any]:
     """
-    Convenience function for extracting Amazon ZIP files.
+    Convenience function for extracting all Amazon ZIP files.
 
     Args:
         download_dir: Directory containing downloaded ZIP files
         raw_data_dir: Directory for storing extracted data
-        account_filter: Optional list of account names to filter by
 
     Returns:
         Dictionary with extraction results
     """
     unzipper = AmazonUnzipper(raw_data_dir)
-    return unzipper.batch_extract(download_dir, account_filter)
+    return unzipper.batch_extract(download_dir)

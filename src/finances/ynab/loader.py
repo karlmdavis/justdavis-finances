@@ -13,7 +13,6 @@ Functions:
 """
 
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -138,36 +137,20 @@ def load_ynab_categories(cache_dir: str | Path | None = None) -> list[dict[str, 
 
 def filter_transactions(
     transactions: list[dict[str, Any]],
-    start_date: str | None = None,
-    end_date: str | None = None,
     payee: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Filter transactions by date range and/or payee name.
+    Filter transactions by payee name.
 
     Args:
         transactions: List of transaction dictionaries
-        start_date: Start date in YYYY-MM-DD format (inclusive)
-        end_date: End date in YYYY-MM-DD format (inclusive)
         payee: Payee name pattern (case-insensitive substring match)
 
     Returns:
         Filtered list of transactions
     """
-    filtered = transactions
+    if not payee:
+        return transactions
 
-    # Filter by date range
-    if start_date:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
-        filtered = [tx for tx in filtered if datetime.strptime(tx["date"], "%Y-%m-%d").date() >= start_dt]
-
-    if end_date:
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
-        filtered = [tx for tx in filtered if datetime.strptime(tx["date"], "%Y-%m-%d").date() <= end_dt]
-
-    # Filter by payee
-    if payee:
-        payee_lower = payee.lower()
-        filtered = [tx for tx in filtered if payee_lower in (tx.get("payee_name") or "").lower()]
-
-    return filtered
+    payee_lower = payee.lower()
+    return [tx for tx in transactions if payee_lower in (tx.get("payee_name") or "").lower()]

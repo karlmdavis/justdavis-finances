@@ -14,7 +14,7 @@ import imaplib
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -116,15 +116,9 @@ class AppleEmailFetcher:
             finally:
                 self.connection = None
 
-    def fetch_apple_receipts(
-        self, days_back: int = 90, max_emails: int | None = None
-    ) -> list[AppleReceiptEmail]:
+    def fetch_apple_receipts(self) -> list[AppleReceiptEmail]:
         """
-        Fetch Apple receipt emails from configured folders.
-
-        Args:
-            days_back: Number of days to search back
-            max_emails: Maximum number of emails to fetch (None for no limit)
+        Fetch all Apple receipt emails from configured folders.
 
         Returns:
             List of AppleReceiptEmail objects
@@ -150,14 +144,10 @@ class AppleEmailFetcher:
                         continue
 
                     # Search for Apple receipt emails
-                    receipts = self._search_apple_receipts_in_folder(folder, days_back, max_emails)
+                    receipts = self._search_apple_receipts_in_folder(folder)
 
                     all_receipts.extend(receipts)
                     logger.info(f"Found {len(receipts)} receipts in {folder}")
-
-                    if max_emails and len(all_receipts) >= max_emails:
-                        all_receipts = all_receipts[:max_emails]
-                        break
 
                 except Exception as e:
                     logger.error(f"Error searching folder {folder}: {e}")
@@ -169,19 +159,13 @@ class AppleEmailFetcher:
         logger.info(f"Total Apple receipts found: {len(all_receipts)}")
         return all_receipts
 
-    def _search_apple_receipts_in_folder(
-        self, folder: str, days_back: int, max_emails: int | None
-    ) -> list[AppleReceiptEmail]:
-        """Search for Apple receipts in a specific folder."""
+    def _search_apple_receipts_in_folder(self, folder: str) -> list[AppleReceiptEmail]:
+        """Search for all Apple receipts in a specific folder."""
         receipts: list[AppleReceiptEmail] = []
 
         try:
-            # Calculate date range for search
-            cutoff_date = datetime.now() - timedelta(days=days_back)
-            date_string = cutoff_date.strftime("%d-%b-%Y")
-
             # Build search criteria for Apple receipts
-            search_criteria = self._build_apple_search_criteria(date_string)
+            search_criteria = self._build_apple_search_criteria()
 
             logger.debug(f"Search criteria: {search_criteria}")
 
@@ -200,10 +184,6 @@ class AppleEmailFetcher:
                 msg_nums = message_numbers[0].split()
                 logger.info(f"Found {len(msg_nums)} potential Apple emails in {folder}")
 
-                # Limit the number of emails to process
-                if max_emails:
-                    msg_nums = msg_nums[-max_emails:]  # Get most recent
-
                 for msg_num in msg_nums:
                     try:
                         receipt = self._fetch_and_parse_email(msg_num.decode(), folder)
@@ -217,12 +197,11 @@ class AppleEmailFetcher:
 
         return receipts
 
-    def _build_apple_search_criteria(self, since_date: str) -> list[str]:
-        """Build IMAP search criteria for Apple receipts."""
-        # Search for emails from Apple domains since the cutoff date
+    def _build_apple_search_criteria(self) -> list[str]:
+        """Build IMAP search criteria for all Apple receipts."""
         apple_domains = ["apple.com", "itunes.com", "icloud.com", "me.com", "mac.com"]
 
-        criteria = [f"(SINCE {since_date})"]
+        criteria = []
 
         # Add sender criteria for Apple domains
         from_criteria = [f"(FROM {domain})" for domain in apple_domains]
@@ -440,16 +419,13 @@ class AppleEmailFetcher:
         logger.debug(f"Email passed all checks: {email_obj.subject}")
         return True
 
-    def save_emails_to_disk(
-        self, emails: list[AppleReceiptEmail], output_dir: Path, format_html: bool = True
-    ) -> dict[str, Any]:
+    def save_emails_to_disk(self, emails: list[AppleReceiptEmail], output_dir: Path) -> dict[str, Any]:
         """
         Save fetched emails to disk for processing.
 
         Args:
             emails: List of AppleReceiptEmail objects
             output_dir: Directory to save emails
-            format_html: Whether to format HTML content
 
         Returns:
             Dictionary with save statistics
@@ -470,7 +446,7 @@ class AppleEmailFetcher:
                 base_name = f"{email_obj.date.strftime('%Y%m%d_%H%M%S')}_{safe_subject}_{i:03d}"
 
                 # Save HTML content if available
-                if email_obj.html_content and format_html:
+                if email_obj.html_content:
                     html_file = output_dir / f"{base_name}-formatted-simple.html"
                     with open(html_file, "w", encoding="utf-8") as f:
                         f.write(email_obj.html_content)
@@ -518,45 +494,3 @@ class AppleEmailFetcher:
 
         logger.info(f"Saved {stats['saved_successfully']}/{stats['total_emails']} emails to {output_dir}")
         return stats
-
-
-def fetch_apple_receipts_cli(
-    days_back: int = 90, output_dir: Path | None = None, max_emails: int | None = None
-) -> None:
-    """
-    CLI function to fetch Apple receipts.
-
-    Args:
-        days_back: Number of days to search back
-        output_dir: Directory to save emails (uses config default if None)
-        max_emails: Maximum number of emails to fetch
-    """
-    config = get_config()
-
-    if output_dir is None:
-        output_dir = config.data_dir / "apple" / "emails"
-
-    # Verify email configuration
-    if not config.email.username or not config.email.password:
-        logger.error(
-            "Email credentials not configured. Check EMAIL_USERNAME and EMAIL_PASSWORD environment variables."
-        )
-        return
-
-    # Initialize fetcher and fetch emails
-    fetcher = AppleEmailFetcher()
-
-    try:
-        emails = fetcher.fetch_apple_receipts(days_back=days_back, max_emails=max_emails)
-
-        if emails:
-            stats = fetcher.save_emails_to_disk(emails, output_dir)
-            logger.info(f"Fetch complete: {stats}")
-        else:
-            logger.info("No Apple receipt emails found")
-
-    except Exception as e:
-        logger.error(f"Error during email fetch: {e}")
-
-    finally:
-        fetcher.disconnect()

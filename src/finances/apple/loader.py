@@ -124,6 +124,10 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
             if total is None:
                 total = 0
 
+            # Get subtotal and tax in cents (parser returns integer cents)
+            subtotal = receipt.get("subtotal")
+            tax = receipt.get("tax")
+
             # Create normalized record
             normalized_record = {
                 "apple_id": receipt.get("apple_id", ""),
@@ -133,8 +137,8 @@ def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame
                 "document_number": receipt.get("document_number", ""),
                 "total": total,  # Amount in integer cents (e.g., 4599 for $45.99)
                 "currency": receipt.get("currency", "USD"),
-                "subtotal": receipt.get("subtotal"),
-                "tax": receipt.get("tax"),
+                "subtotal": subtotal,  # Amount in cents
+                "tax": tax,  # Amount in cents
                 "items": receipt.get("items", []),
                 "format_detected": receipt.get("format_detected", ""),
                 "base_name": receipt.get("base_name", ""),
@@ -162,6 +166,7 @@ def parse_apple_date(date_str: str) -> datetime | None:
     Parse Apple receipt date string into datetime object.
 
     Apple uses formats like "Nov 3, 2020" or "Apr 16, 2025"
+    Parser may normalize dates to ISO format "YYYY-MM-DD"
 
     Args:
         date_str: Date string from Apple receipt
@@ -171,6 +176,13 @@ def parse_apple_date(date_str: str) -> datetime | None:
     """
     if not date_str:
         return None
+
+    # Try ISO format first (from parser normalization)
+    try:
+        parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
+        return parsed_date
+    except ValueError:
+        pass
 
     try:
         # Handle Apple's "MMM d, yyyy" format

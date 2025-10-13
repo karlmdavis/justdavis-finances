@@ -38,7 +38,6 @@ from .email_fetcher import (
     AppleEmailFetcher,
     AppleReceiptEmail,
     EmailConfig,
-    fetch_apple_receipts_cli,
 )
 from .loader import (
     filter_receipts_by_date_range,
@@ -73,7 +72,6 @@ __all__ = [
     "ParsedItem",
     "ParsedReceipt",
     "batch_match_transactions",
-    "fetch_apple_receipts_cli",
     "filter_receipts_by_date_range",
     # Receipt loading
     "find_latest_apple_export",

@@ -56,8 +56,10 @@ def sample_email_objects():
 
 @pytest.mark.integration
 @pytest.mark.apple
-def test_save_emails_to_disk_complete_workflow(email_config, sample_email_objects, temp_dir):
-    """Test complete workflow of saving emails to disk."""
+def test_save_emails_complete(email_config, sample_email_objects, temp_dir):
+    """Test complete email save workflow with comprehensive validation."""
+    from finances.core.json_utils import read_json
+
     fetcher = AppleEmailFetcher(email_config)
 
     output_dir = temp_dir / "saved_emails"
@@ -80,57 +82,29 @@ def test_save_emails_to_disk_complete_workflow(email_config, sample_email_object
     assert len(files) > 0
 
     # Each email should generate multiple files (html, txt, eml, metadata)
-    html_files = list(output_dir.glob("*-formatted-simple.html"))
+    html_files = sorted(output_dir.glob("*-formatted-simple.html"))
     eml_files = list(output_dir.glob("*.eml"))
-    metadata_files = list(output_dir.glob("*_metadata.json"))
+    metadata_files = sorted(output_dir.glob("*_metadata.json"))
 
     assert len(html_files) == 2
     assert len(eml_files) == 2
     assert len(metadata_files) == 2
 
-
-@pytest.mark.integration
-@pytest.mark.apple
-def test_saved_html_content_integrity(email_config, sample_email_objects, temp_dir):
-    """Test that saved HTML content preserves original content."""
-    fetcher = AppleEmailFetcher(email_config)
-
-    output_dir = temp_dir / "html_test"
-    fetcher.save_emails_to_disk(sample_email_objects, output_dir)
-
-    # Read back HTML files
-    html_files = sorted(output_dir.glob("*-formatted-simple.html"))
-    assert len(html_files) == 2
-
-    # Verify first HTML file
+    # Verify HTML content integrity
+    # First HTML file
     with open(html_files[0], encoding="utf-8") as f:
         content = f.read()
     assert "Procreate" in content
     assert "$29.99" in content
 
-    # Verify second HTML file
+    # Second HTML file
     with open(html_files[1], encoding="utf-8") as f:
         content = f.read()
     assert "Apple Music" in content
     assert "$10.98" in content
 
-
-@pytest.mark.integration
-@pytest.mark.apple
-def test_saved_metadata_structure(email_config, sample_email_objects, temp_dir):
-    """Test that saved metadata has correct structure."""
-    from finances.core.json_utils import read_json
-
-    fetcher = AppleEmailFetcher(email_config)
-
-    output_dir = temp_dir / "metadata_test"
-    fetcher.save_emails_to_disk(sample_email_objects, output_dir)
-
-    # Read metadata files
-    metadata_files = sorted(output_dir.glob("*_metadata.json"))
-    assert len(metadata_files) == 2
-
-    # Verify first metadata file
+    # Verify metadata structure and content
+    # First metadata file
     metadata1 = read_json(metadata_files[0])
     assert "message_id" in metadata1
     assert "subject" in metadata1
@@ -329,15 +303,14 @@ def test_build_apple_search_criteria(email_config):
     """Test IMAP search criteria building for Apple receipts."""
     fetcher = AppleEmailFetcher(email_config)
 
-    criteria = fetcher._build_apple_search_criteria("01-Jan-2024")
+    criteria = fetcher._build_apple_search_criteria()
 
     # Verify criteria structure
     assert isinstance(criteria, list)
     assert len(criteria) > 0
 
-    # Should include date constraint
-    assert any("SINCE" in c for c in criteria)
-    assert any("01-Jan-2024" in c for c in criteria)
+    # Should NOT include date constraints (fetches all emails)
+    assert not any("SINCE" in c for c in criteria)
 
     # Should include Apple domain filtering
     assert any("apple.com" in c for c in criteria)
