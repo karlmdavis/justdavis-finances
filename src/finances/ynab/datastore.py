@@ -277,7 +277,9 @@ class YnabEditsStore:
         latest_file = max(retirement_files, key=lambda p: p.stat().st_mtime)
         result = read_json(latest_file)
         if not isinstance(result, dict):
-            raise ValueError(f"Invalid retirement edit data format: expected dict, got {type(result).__name__}")
+            raise ValueError(
+                f"Invalid retirement edit data format: expected dict, got {type(result).__name__}"
+            )
         return result
 
     def to_node_data_summary(self) -> "NodeDataSummary":
