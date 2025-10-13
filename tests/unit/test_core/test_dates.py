@@ -24,7 +24,7 @@ class TestFinancialDateConstruction:
 
     def test_from_string_custom_format(self):
         """Test parsing with custom format."""
-        fd = FinancialDate.from_string("01/15/2024", format="%m/%d/%Y")
+        fd = FinancialDate.from_string("01/15/2024", date_format="%m/%d/%Y")
         assert fd.date == date(2024, 1, 15)
 
     def test_from_timestamp(self):

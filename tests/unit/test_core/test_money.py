@@ -124,7 +124,7 @@ class TestMoneyNegativeAmounts:
         """Test creating negative Money from cents."""
         m = Money.from_cents(-1234)
         assert m.to_cents() == -1234
-        assert str(m) == "$-12.34"
+        assert str(m) == "-$12.34"
 
     @pytest.mark.currency
     def test_negative_from_milliunits(self):
@@ -132,14 +132,14 @@ class TestMoneyNegativeAmounts:
         # YNAB uses negative amounts for expenses/outflows
         expense = Money.from_milliunits(-45990)  # -$45.99 expense
         assert expense.to_cents() == -4599
-        assert str(expense) == "$-45.99"
+        assert str(expense) == "-$45.99"
 
     @pytest.mark.currency
     def test_negative_from_dollars_string(self):
         """Test parsing negative dollar strings."""
         m = Money.from_dollars("-$12.34")
         assert m.to_cents() == -1234
-        assert str(m) == "$-12.34"
+        assert str(m) == "-$12.34"
 
     @pytest.mark.currency
     def test_negative_arithmetic(self):

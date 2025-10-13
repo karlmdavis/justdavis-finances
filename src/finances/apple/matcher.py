@@ -325,12 +325,19 @@ def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
     if total_transactions == 0:
         return {"total_transactions": 0}
 
-    # Calculate amounts using Money type (use abs for display purposes)
-    total_amount = sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results)
-    matched_amount = sum(
-        Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results if r.receipts
+    # Calculate amounts using Money type directly
+    total_money = Money.from_cents(
+        sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results)
     )
-    unmatched_amount = total_amount - matched_amount
+    matched_money = Money.from_cents(
+        sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results if r.receipts)
+    )
+    unmatched_money = Money.from_cents(total_money.to_cents() - matched_money.to_cents())
+
+    # Convert to cents for JSON serialization
+    total_amount = total_money.to_cents()
+    matched_amount = matched_money.to_cents()
+    unmatched_amount = unmatched_money.to_cents()
 
     # Confidence statistics
     matched_confidences = [r.confidence for r in results if r.receipts]

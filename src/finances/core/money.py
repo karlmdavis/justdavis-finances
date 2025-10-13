@@ -32,14 +32,14 @@ class Money:
         >>> # Negative amounts (expenses/outflows)
         >>> expense = Money.from_milliunits(-45990)  # YNAB expense
         >>> str(expense)
-        '$-45.99'
+        '-$45.99'
         >>> expense.to_cents()
         -4599
 
         >>> # Arithmetic with mixed signs
         >>> net = income + expense  # $12.34 + (-$45.99)
         >>> str(net)
-        '$-33.65'
+        '-$33.65'
 
         >>> # Absolute value for display
         >>> expense.abs()
@@ -141,8 +141,13 @@ class Money:
         return self.cents >= other.cents
 
     def __str__(self) -> str:
-        """Format as dollar string."""
-        return f"${cents_to_dollars_str(self.cents)}"
+        """Format as dollar string (negative sign before $)."""
+        dollars_str = cents_to_dollars_str(self.cents)
+        # cents_to_dollars_str returns "-45.99" for negative, "45.99" for positive
+        # Convert to standard format: -$45.99 or $45.99
+        if dollars_str.startswith("-"):
+            return f"-${dollars_str[1:]}"  # Remove - from front, add -$ prefix
+        return f"${dollars_str}"
 
     def __repr__(self) -> str:
         """Repr format."""

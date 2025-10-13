@@ -17,18 +17,18 @@ class FinancialDate:
     date: date
 
     @classmethod
-    def from_string(cls, date_str: str, format: str = "%Y-%m-%d") -> "FinancialDate":
+    def from_string(cls, date_str: str, date_format: str = "%Y-%m-%d") -> "FinancialDate":
         """
         Parse from string in specified format.
 
         Args:
             date_str: Date string to parse
-            format: Date format (default: ISO format "%Y-%m-%d")
+            date_format: Date format (default: ISO format "%Y-%m-%d")
 
         Returns:
             FinancialDate object
         """
-        return cls(date=datetime.strptime(date_str, format).date())
+        return cls(date=datetime.strptime(date_str, date_format).date())
 
     @classmethod
     def from_timestamp(cls, timestamp: float) -> "FinancialDate":
