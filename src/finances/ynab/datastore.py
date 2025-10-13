@@ -181,7 +181,8 @@ class YnabEditsStore:
             raise FileNotFoundError(f"No edit files found in {self.edits_dir}")
 
         latest_file = max(self.edits_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
-        return read_json(latest_file)
+        result = read_json(latest_file)
+        return result if isinstance(result, dict) else {}
 
     def save(self, data: dict) -> None:
         """
@@ -221,13 +222,13 @@ class YnabEditsStore:
             data = self.load()
             # Check multiple possible structures
             if "edits" in data:
-                return len(data["edits"])
+                edits = data["edits"]
+                return len(edits) if isinstance(edits, list) else 0
             elif "updates" in data:
-                return len(data["updates"])
-            elif isinstance(data, list):
-                return len(data)
+                updates = data["updates"]
+                return len(updates) if isinstance(updates, list) else 0
             return 0
-        except Exception:
+        except (FileNotFoundError, ValueError, KeyError):
             return 0
 
     def size_bytes(self) -> int | None:
@@ -268,7 +269,8 @@ class YnabEditsStore:
             return None
 
         latest_file = max(retirement_files, key=lambda p: p.stat().st_mtime)
-        return read_json(latest_file)
+        result = read_json(latest_file)
+        return result if isinstance(result, dict) else None
 
     def to_node_data_summary(self) -> "NodeDataSummary":
         """Convert to NodeDataSummary for FlowNode integration."""

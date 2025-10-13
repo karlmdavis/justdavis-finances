@@ -156,7 +156,8 @@ class AmazonMatchResultsStore:
             raise FileNotFoundError(f"No match results found in {self.matches_dir}")
 
         latest_file = max(self.matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
-        return read_json(latest_file)
+        result = read_json(latest_file)
+        return result if isinstance(result, dict) else {}
 
     def save(self, data: dict) -> None:
         """
