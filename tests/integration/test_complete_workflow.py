@@ -188,12 +188,12 @@ class TestAppleWorkflow:
             # Convert Receipt object to the format expected by calculate_apple_splits
             if receipt:
                 # Transform Apple item format to expected format
-                # Note: receipt.items contains raw parser data with float costs in dollars
+                # Note: receipt.items contains costs already in cents (from parser)
                 # Split calculator expects int prices in cents
                 transformed_items = [
                     {
                         "name": item["title"],  # Apple uses 'title'
-                        "price": int(item["cost"] * 100),  # Convert dollars to cents
+                        "price": item["cost"],  # Already in cents from parser
                     }
                     for item in receipt.items
                 ]

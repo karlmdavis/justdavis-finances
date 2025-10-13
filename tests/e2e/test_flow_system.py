@@ -446,8 +446,8 @@ def test_flow_go_interactive_mode(flow_test_env):
     env["FINANCES_DATA_DIR"] = str(flow_test_env["data_dir"])
     env["FINANCES_DOWNLOADS_DIR"] = str(flow_test_env["downloads_dir"])
     env["FINANCES_ENV"] = "test"
-    env["YNAB_API_TOKEN"] = "test-token-e2e"  # noqa: S105 - test credential
-    env["EMAIL_PASSWORD"] = "test-password-e2e"  # noqa: S105 - test credential
+    env["YNAB_API_TOKEN"] = "test-token-e2e"
+    env["EMAIL_PASSWORD"] = "test-password-e2e"
 
     # Spawn the flow command interactively (no --non-interactive or --dry-run flags)
     # Exclude nodes with external dependencies
