@@ -33,6 +33,7 @@ from .currency import (
     safe_currency_to_cents,
     validate_sum_equals_total,
 )
+from .dates import FinancialDate
 from .money import Money
 from .models import (
     Account,
@@ -54,6 +55,7 @@ __all__ = [
     # Configuration
     "Config",
     "Environment",
+    "FinancialDate",
     "MatchConfidence",
     "MatchResult",
     "Money",
