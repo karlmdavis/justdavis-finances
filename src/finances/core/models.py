@@ -106,20 +106,18 @@ class Transaction:
     @property
     def amount_cents(self) -> int:
         """Get amount in cents."""
-        if self.amount_money:
-            return self.amount_money.to_cents()
-        from .currency import milliunits_to_cents
-
-        return milliunits_to_cents(self.amount)
+        # amount_money is always set by __post_init__
+        if self.amount_money is None:
+            raise ValueError("amount_money not initialized")
+        return self.amount_money.to_cents()
 
     @property
     def amount_dollars(self) -> str:
         """Get formatted amount as dollar string."""
-        if self.amount_money:
-            return str(self.amount_money)
-        from .currency import format_milliunits
-
-        return format_milliunits(self.amount)
+        # amount_money is always set by __post_init__
+        if self.amount_money is None:
+            raise ValueError("amount_money not initialized")
+        return str(self.amount_money)
 
 
 @dataclass

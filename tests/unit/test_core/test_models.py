@@ -23,16 +23,16 @@ class TestTransactionWithMoney:
         assert tx.amount == 12340  # Auto-synced to milliunits
 
     def test_transaction_auto_creates_money_from_milliunits(self):
-        """Test Transaction auto-creates Money from legacy milliunits."""
+        """Test Transaction auto-creates Money from legacy milliunits with sign preservation."""
         tx = Transaction(
             id="test-2",
             date=date(2024, 1, 15),
-            amount=-12340,  # Legacy milliunits
+            amount=-12340,  # Negative milliunits (expense)
             description="Test transaction",
             account_name="Checking",
         )
         assert tx.amount_money is not None
-        assert tx.amount_money.to_cents() == 1234
+        assert tx.amount_money.to_cents() == -1234  # Sign preserved
         assert tx.amount == -12340  # Legacy field preserved
 
     def test_transaction_amount_dollars_property(self):

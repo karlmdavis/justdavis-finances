@@ -28,7 +28,6 @@ from .currency import (
     cents_to_milliunits,
     format_cents,
     format_milliunits,
-    milliunits_to_cents,
     parse_dollars_to_cents,
     safe_currency_to_cents,
     validate_sum_equals_total,
@@ -77,7 +76,6 @@ __all__ = [
     "is_production",
     "is_test",
     # Currency utilities
-    "milliunits_to_cents",
     "parse_dollars_to_cents",
     "reload_config",
     "safe_currency_to_cents",

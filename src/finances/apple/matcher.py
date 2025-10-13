@@ -13,7 +13,7 @@ from typing import Any
 
 import pandas as pd
 
-from ..core.currency import format_cents, milliunits_to_cents
+from ..core.currency import format_cents
 from ..core.models import MatchResult, Receipt, Transaction
 from ..core.money import Money
 
@@ -52,9 +52,10 @@ class AppleMatcher:
         Returns:
             MatchResult with details of the match
         """
-        # Convert to Money
+        # Convert to Money and get absolute value for matching
+        # (receipts are always positive, transactions are negative for expenses)
         tx_amount_money = Money.from_milliunits(ynab_transaction["amount"])
-        tx_amount_cents = tx_amount_money.to_cents()
+        tx_amount_cents = tx_amount_money.abs().to_cents()
         tx_date = datetime.strptime(ynab_transaction["date"], "%Y-%m-%d")
         tx_id = ynab_transaction["id"]
 
@@ -324,9 +325,11 @@ def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
     if total_transactions == 0:
         return {"total_transactions": 0}
 
-    # Calculate amounts
-    total_amount = sum(milliunits_to_cents(r.transaction.amount) for r in results)
-    matched_amount = sum(milliunits_to_cents(r.transaction.amount) for r in results if r.receipts)
+    # Calculate amounts using Money type (use abs for display purposes)
+    total_amount = sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results)
+    matched_amount = sum(
+        Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results if r.receipts
+    )
     unmatched_amount = total_amount - matched_amount
 
     # Confidence statistics

@@ -17,7 +17,34 @@ from .currency import (
 
 @dataclass(frozen=True)
 class Money:
-    """Immutable money value in cents (USD)."""
+    """
+    Immutable money value in cents (USD).
+
+    Supports both positive (income/inflows) and negative (expense/outflows) amounts.
+    Uses integer arithmetic throughout to prevent floating-point errors.
+
+    Examples:
+        >>> # Positive amounts (income/inflows)
+        >>> income = Money.from_cents(1234)
+        >>> str(income)
+        '$12.34'
+
+        >>> # Negative amounts (expenses/outflows)
+        >>> expense = Money.from_milliunits(-45990)  # YNAB expense
+        >>> str(expense)
+        '$-45.99'
+        >>> expense.to_cents()
+        -4599
+
+        >>> # Arithmetic with mixed signs
+        >>> net = income + expense  # $12.34 + (-$45.99)
+        >>> str(net)
+        '$-33.65'
+
+        >>> # Absolute value for display
+        >>> expense.abs()
+        Money(cents=4599)
+    """
 
     cents: int
 
@@ -28,8 +55,18 @@ class Money:
 
     @classmethod
     def from_milliunits(cls, milliunits: int) -> "Money":
-        """Create Money from YNAB milliunits."""
-        return cls(cents=abs(milliunits // 10))
+        """
+        Create Money from YNAB milliunits.
+
+        Preserves sign: negative milliunits (expenses) become negative cents.
+
+        Args:
+            milliunits: YNAB amount (1000 = $1.00, -1000 = -$1.00)
+
+        Returns:
+            Money object with sign preserved
+        """
+        return cls(cents=milliunits // 10)
 
     @classmethod
     def from_dollars(cls, dollars: str | int) -> "Money":
@@ -53,6 +90,21 @@ class Money:
     def to_milliunits(self) -> int:
         """Get value in YNAB milliunits."""
         return cents_to_milliunits(self.cents)
+
+    def to_dollars(self) -> str:
+        """Get formatted dollar string."""
+        return str(self)
+
+    def abs(self) -> "Money":
+        """
+        Return absolute value of Money.
+
+        Useful for display purposes when sign doesn't matter.
+
+        Returns:
+            New Money object with absolute value
+        """
+        return Money(cents=abs(self.cents))
 
     def __add__(self, other: "Money") -> "Money":
         """Add two Money objects."""

@@ -29,7 +29,7 @@ This repository is a complete professional Python package for financial manageme
 from finances.amazon import SimplifiedMatcher, batch_match_transactions
 from finances.apple import AppleMatcher, AppleReceiptParser, AppleEmailFetcher
 from finances.core import Money, FinancialDate  # Type-safe primitives
-from finances.core.currency import milliunits_to_cents, format_cents
+from finances.core.currency import format_cents
 from finances.ynab import SplitCalculator
 from finances.analysis import CashFlowAnalyzer
 ```
@@ -386,7 +386,7 @@ This repository maintains strict integer-only arithmetic for all financial calcu
      ```python
      # Money construction
      amount = Money.from_cents(1234)  # $12.34
-     amount = Money.from_milliunits(-12340)  # YNAB format
+     expense = Money.from_milliunits(-12340)  # -$12.34 (YNAB expense)
      amount = Money.from_dollars("$12.34")  # String parsing
 
      # FinancialDate construction
@@ -394,32 +394,26 @@ This repository maintains strict integer-only arithmetic for all financial calcu
      date = FinancialDate.today()
      date = FinancialDate(date=datetime.date(2024, 10, 13))
      ```
+   - **Sign preservation**: Money preserves sign from milliunits - negative for expenses, positive
+     for income.
    - **Arithmetic**: Money supports +, -, <, >, ==, and other operators.
-   - **Conversion**: Use `.to_cents()`, `.to_milliunits()`, `.to_dollars()` for interop.
-   - **Backward compatibility**: All models auto-sync between legacy int/date and new types.
-   - **Recommendation**: Use Money/FinancialDate in new code; legacy fields remain for
-     compatibility.
-2. **Currency handling (legacy patterns)**:
-   - YNAB amounts are in milliunits (1000 milliunits = $1.00).
-   - All calculations use integer arithmetic (cents or milliunits).
-   - **Required imports**:
-     `from finances.core.currency import milliunits_to_cents, format_cents`.
-   - Convert: `milliunits_to_cents(amount) = abs(milliunits // 10)`.
-   - Display: `format_cents(cents) = f"${cents//100}.{cents%100:02d}"`.
-3. **Date handling**: Transaction dates before May 2024 may have incomplete data.
-4. **JSON structures**: Use proper jq paths for nested structures
+   - **Conversion**: Use `.to_cents()`, `.to_milliunits()`, `.to_dollars()`, `.abs()` for interop.
+   - **No more backward compatibility**: All code now uses Money type directly (October 2024).
+   - **Recommendation**: Always use Money/FinancialDate for all currency and date operations.
+2. **Date handling**: Transaction dates before May 2024 may have incomplete data.
+3. **JSON structures**: Use proper jq paths for nested structures
    (e.g., `.accounts[0]` not `.[0]`).
-5. **Output organization**: Always create output directories if they don't exist.
-6. **Timestamps**: Use format `YYYY-MM-DD_HH-MM-SS_filename` for all generated files.
-7. **Path handling**: Use package-relative paths and configuration-based directory
+4. **Output organization**: Always create output directories if they don't exist.
+5. **Timestamps**: Use format `YYYY-MM-DD_HH-MM-SS_filename` for all generated files.
+6. **Path handling**: Use package-relative paths and configuration-based directory
    resolution.
-8. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/`
+7. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/`
    naming in `data/amazon/raw/`.
-9. **Working directory**: Repository root (`personal/justdavis-finances/`) is the standard
+8. **Working directory**: Repository root (`personal/justdavis-finances/`) is the standard
    working directory.
-10. **Package execution**: Use `finances` CLI or `uv run finances` for all operations.
-11. **Development**: Use `uv run python -c ...` for ad-hoc Python with package imports.
-12. **JSON formatting**: All JSON files must use pretty-printing with 2-space indentation.
+9. **Package execution**: Use `finances` CLI or `uv run finances` for all operations.
+10. **Development**: Use `uv run python -c ...` for ad-hoc Python with package imports.
+11. **JSON formatting**: All JSON files must use pretty-printing with 2-space indentation.
     **Required practice**:
     - Import: `from finances.core.json_utils import write_json, read_json, format_json`.
     - File writing: Use `write_json(filepath, data)` instead of `json.dump()`.

@@ -244,10 +244,11 @@ class SplitGenerationFlowNode(FlowNode):
                             if not items:
                                 continue
 
-                            # Convert transaction amount to milliunits (negative for expenses)
+                            # Convert transaction amount to milliunits
+                            # Note: tx_amount is already negative for expenses (sign preserved)
                             from ..core.currency import cents_to_milliunits
 
-                            tx_amount_milliunits = -cents_to_milliunits(tx_amount)
+                            tx_amount_milliunits = cents_to_milliunits(tx_amount)
 
                             # Generate splits
                             splits = calculate_apple_splits(tx_amount_milliunits, items, subtotal, tax)
