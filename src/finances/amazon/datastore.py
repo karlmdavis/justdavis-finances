@@ -9,13 +9,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from finances.core.datastore_mixin import DataStoreMixin
 from finances.core.json_utils import read_json
 
 if TYPE_CHECKING:
     from finances.core.flow import NodeDataSummary
 
 
-class AmazonRawDataStore:
+class AmazonRawDataStore(DataStoreMixin):
     """
     DataStore for Amazon raw order history CSV files.
 
@@ -30,13 +31,16 @@ class AmazonRawDataStore:
         Args:
             raw_dir: Directory containing Amazon raw data (data/amazon/raw)
         """
+        super().__init__()
         self.raw_dir = raw_dir
+        self._glob_pattern = "**/Retail.OrderHistory.*.csv"
 
     def exists(self) -> bool:
         """Check if Amazon raw data exists."""
         if not self.raw_dir.exists():
             return False
-        return len(list(self.raw_dir.glob("**/Retail.OrderHistory.*.csv"))) > 0
+        files = self._get_files_cached(self.raw_dir, self._glob_pattern)
+        return len(files) > 0
 
     def load(self) -> list[Path]:
         """
@@ -51,7 +55,7 @@ class AmazonRawDataStore:
         if not self.raw_dir.exists():
             raise FileNotFoundError(f"Amazon raw directory not found: {self.raw_dir}")
 
-        csv_files = list(self.raw_dir.glob("**/Retail.OrderHistory.*.csv"))
+        csv_files = self._get_files_cached(self.raw_dir, self._glob_pattern)
         if not csv_files:
             raise FileNotFoundError(f"No Amazon CSV files found in {self.raw_dir}")
 
@@ -74,29 +78,25 @@ class AmazonRawDataStore:
         if not self.exists():
             return None
 
-        csv_files = list(self.raw_dir.glob("**/Retail.OrderHistory.*.csv"))
-        latest_file = max(csv_files, key=lambda p: p.stat().st_mtime)
-        return datetime.fromtimestamp(latest_file.stat().st_mtime)
-
-    def age_days(self) -> int | None:
-        """Get age in days of most recent CSV file."""
-        last_mod = self.last_modified()
-        if last_mod is None:
+        csv_files = self._get_files_cached(self.raw_dir, self._glob_pattern)
+        latest_file = self._get_latest_file(csv_files)
+        if latest_file is None:
             return None
-        return (datetime.now() - last_mod).days
+        return datetime.fromtimestamp(latest_file.stat().st_mtime)
 
     def item_count(self) -> int | None:
         """Get count of Amazon CSV files (one per account)."""
         if not self.exists():
             return None
-        return len(list(self.raw_dir.glob("**/Retail.OrderHistory.*.csv")))
+        files = self._get_files_cached(self.raw_dir, self._glob_pattern)
+        return len(files)
 
     def size_bytes(self) -> int | None:
         """Get total size of all CSV files."""
         if not self.exists():
             return None
-        csv_files = list(self.raw_dir.glob("**/Retail.OrderHistory.*.csv"))
-        return sum(f.stat().st_size for f in csv_files)
+        csv_files = self._get_files_cached(self.raw_dir, self._glob_pattern)
+        return self._get_total_size(csv_files)
 
     def summary_text(self) -> str:
         """Get human-readable summary."""
@@ -105,21 +105,8 @@ class AmazonRawDataStore:
             return "No Amazon raw data found"
         return f"Amazon data: {count} account(s)"
 
-    def to_node_data_summary(self) -> "NodeDataSummary":
-        """Convert to NodeDataSummary for FlowNode integration."""
-        from finances.core.flow import NodeDataSummary
 
-        return NodeDataSummary(
-            exists=self.exists(),
-            last_updated=self.last_modified(),
-            age_days=self.age_days(),
-            item_count=self.item_count(),
-            size_bytes=self.size_bytes(),
-            summary_text=self.summary_text(),
-        )
-
-
-class AmazonMatchResultsStore:
+class AmazonMatchResultsStore(DataStoreMixin):
     """
     DataStore for Amazon transaction matching results.
 
@@ -134,13 +121,16 @@ class AmazonMatchResultsStore:
         Args:
             matches_dir: Directory containing match result files
         """
+        super().__init__()
         self.matches_dir = matches_dir
+        self._glob_pattern = "*.json"
 
     def exists(self) -> bool:
         """Check if matching results exist."""
         if not self.matches_dir.exists():
             return False
-        return len(list(self.matches_dir.glob("*.json"))) > 0
+        files = self._get_files_cached(self.matches_dir, self._glob_pattern)
+        return len(files) > 0
 
     def load(self) -> dict:
         """
@@ -156,10 +146,16 @@ class AmazonMatchResultsStore:
         if not self.exists():
             raise FileNotFoundError(f"No match results found in {self.matches_dir}")
 
-        latest_file = max(self.matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        files = self._get_files_cached(self.matches_dir, self._glob_pattern)
+        latest_file = self._get_latest_file(files)
+        if latest_file is None:
+            raise FileNotFoundError(f"No match results found in {self.matches_dir}")
+
         result = read_json(latest_file)
         if not isinstance(result, dict):
-            raise ValueError(f"Invalid match data format: expected dict, got {type(result).__name__}")
+            raise ValueError(
+                f"Invalid match data format: expected dict, got {type(result).__name__}"
+            )
         return result
 
     def save(self, data: dict) -> None:
@@ -178,21 +174,19 @@ class AmazonMatchResultsStore:
 
         # Use write_json_with_defaults to handle pandas Timestamps from CSV parsing
         write_json_with_defaults(output_file, data, default=str)
+        # Invalidate cache after write
+        self._invalidate_cache()
 
     def last_modified(self) -> datetime | None:
         """Get timestamp of most recent match file."""
         if not self.exists():
             return None
 
-        latest_file = max(self.matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
-        return datetime.fromtimestamp(latest_file.stat().st_mtime)
-
-    def age_days(self) -> int | None:
-        """Get age in days of most recent match file."""
-        last_mod = self.last_modified()
-        if last_mod is None:
+        files = self._get_files_cached(self.matches_dir, self._glob_pattern)
+        latest_file = self._get_latest_file(files)
+        if latest_file is None:
             return None
-        return (datetime.now() - last_mod).days
+        return datetime.fromtimestamp(latest_file.stat().st_mtime)
 
     def item_count(self) -> int | None:
         """Get count of matched transactions in most recent results."""
@@ -210,7 +204,10 @@ class AmazonMatchResultsStore:
         if not self.exists():
             return None
 
-        latest_file = max(self.matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        files = self._get_files_cached(self.matches_dir, self._glob_pattern)
+        latest_file = self._get_latest_file(files)
+        if latest_file is None:
+            return None
         return latest_file.stat().st_size
 
     def summary_text(self) -> str:
@@ -219,16 +216,3 @@ class AmazonMatchResultsStore:
         if count is None:
             return "No Amazon matches found"
         return f"Amazon matches: {count} transactions"
-
-    def to_node_data_summary(self) -> "NodeDataSummary":
-        """Convert to NodeDataSummary for FlowNode integration."""
-        from finances.core.flow import NodeDataSummary
-
-        return NodeDataSummary(
-            exists=self.exists(),
-            last_updated=self.last_modified(),
-            age_days=self.age_days(),
-            item_count=self.item_count(),
-            size_bytes=self.size_bytes(),
-            summary_text=self.summary_text(),
-        )
