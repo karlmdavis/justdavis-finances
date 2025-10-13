@@ -10,7 +10,6 @@ from datetime import datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
-from ..core.json_utils import read_json
 
 
 class YnabSyncFlowNode(FlowNode):
@@ -20,54 +19,29 @@ class YnabSyncFlowNode(FlowNode):
         super().__init__("ynab_sync")
         self.data_dir = data_dir
 
+        # Initialize DataStore
+        from .datastore import YnabCacheStore
+
+        self.store = YnabCacheStore(data_dir / "ynab" / "cache")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if YNAB cache needs updating."""
-        cache_file = self.data_dir / "ynab" / "cache" / "transactions.json"
-
-        if not cache_file.exists():
+        if not self.store.exists():
             return True, ["YNAB cache does not exist"]
 
         # Check age of cache
-        mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        age_hours = (datetime.now() - mtime).total_seconds() / 3600
+        last_mod = self.store.last_modified()
+        if last_mod:
+            age_hours = (datetime.now() - last_mod).total_seconds() / 3600
 
-        if age_hours > 24:
-            return True, [f"YNAB cache is {age_hours:.1f} hours old"]
+            if age_hours > 24:
+                return True, [f"YNAB cache is {age_hours:.1f} hours old"]
 
         return False, ["YNAB cache is up to date"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get YNAB cache data summary."""
-        cache_file = self.data_dir / "ynab" / "cache" / "transactions.json"
-
-        if not cache_file.exists():
-            return NodeDataSummary(
-                exists=False,
-                last_updated=None,
-                age_days=None,
-                item_count=None,
-                size_bytes=None,
-                summary_text="No YNAB cache found",
-            )
-
-        mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        age = (datetime.now() - mtime).days
-
-        # Count transactions
-        try:
-            data = read_json(cache_file)
-            count = len(data) if isinstance(data, list) else 0
-        except Exception:
-            count = 0
-
-        return NodeDataSummary(
-            exists=True,
-            last_updated=mtime,
-            age_days=age,
-            item_count=count,
-            size_bytes=cache_file.stat().st_size,
-            summary_text=f"YNAB cache: {count} transactions",
-        )
+        return self.store.to_node_data_summary()
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute YNAB sync using external ynab CLI tool."""
@@ -101,15 +75,15 @@ class RetirementUpdateFlowNode(FlowNode):
         self.data_dir = data_dir
         self._dependencies = {"ynab_sync"}
 
+        # Initialize DataStore
+        from .datastore import YnabEditsStore
+
+        self.store = YnabEditsStore(data_dir / "ynab" / "edits")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if retirement accounts need updating."""
-        edits_dir = self.data_dir / "ynab" / "edits"
-
-        if not edits_dir.exists():
-            return True, ["No retirement edits directory found"]
-
-        # Check for retirement edit files
-        retirement_edits = list(edits_dir.glob("*retirement_edits*.json"))
+        # Check for retirement edit files specifically
+        retirement_edits = self.store.get_retirement_edits()
         if not retirement_edits:
             return True, ["No retirement edits found"]
 
@@ -139,11 +113,8 @@ class RetirementUpdateFlowNode(FlowNode):
                     summary_text="No retirement accounts found",
                 )
 
-            # Check for last edit file
-            edits_dir = self.data_dir / "ynab" / "edits"
-            retirement_edits = []
-            if edits_dir.exists():
-                retirement_edits = list(edits_dir.glob("*retirement_edits*.json"))
+            # Check for last retirement edit file using DataStore
+            retirement_edits = self.store.get_retirement_edits()
 
             last_updated = None
             age = None
