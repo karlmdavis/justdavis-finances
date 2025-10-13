@@ -28,6 +28,7 @@ This repository is a complete professional Python package for financial manageme
 ```python
 from finances.amazon import SimplifiedMatcher, batch_match_transactions
 from finances.apple import AppleMatcher, AppleReceiptParser, AppleEmailFetcher
+from finances.core import Money, FinancialDate  # Type-safe primitives
 from finances.core.currency import milliunits_to_cents, format_cents
 from finances.ynab import SplitCalculator
 from finances.analysis import CashFlowAnalyzer
@@ -377,34 +378,55 @@ This repository maintains strict integer-only arithmetic for all financial calcu
 - All domain modules use centralized currency utilities.
 - Package-wide enforcement of integer-only arithmetic.
 
-1. **Currency handling**:
+1. **Type-safe primitives (October 2024)**:
+   - **Money class**: Immutable type-safe currency wrapper (replaces raw cents/milliunits).
+   - **FinancialDate class**: Immutable type-safe date wrapper (replaces raw date objects).
+   - **Import**: `from finances.core import Money, FinancialDate`.
+   - **Construction examples**:
+     ```python
+     # Money construction
+     amount = Money.from_cents(1234)  # $12.34
+     amount = Money.from_milliunits(-12340)  # YNAB format
+     amount = Money.from_dollars("$12.34")  # String parsing
+
+     # FinancialDate construction
+     date = FinancialDate.from_string("2024-10-13")
+     date = FinancialDate.today()
+     date = FinancialDate(date=datetime.date(2024, 10, 13))
+     ```
+   - **Arithmetic**: Money supports +, -, <, >, ==, and other operators.
+   - **Conversion**: Use `.to_cents()`, `.to_milliunits()`, `.to_dollars()` for interop.
+   - **Backward compatibility**: All models auto-sync between legacy int/date and new types.
+   - **Recommendation**: Use Money/FinancialDate in new code; legacy fields remain for
+     compatibility.
+2. **Currency handling (legacy patterns)**:
    - YNAB amounts are in milliunits (1000 milliunits = $1.00).
    - All calculations use integer arithmetic (cents or milliunits).
    - **Required imports**:
      `from finances.core.currency import milliunits_to_cents, format_cents`.
    - Convert: `milliunits_to_cents(amount) = abs(milliunits // 10)`.
    - Display: `format_cents(cents) = f"${cents//100}.{cents%100:02d}"`.
-2. **Date handling**: Transaction dates before May 2024 may have incomplete data.
-3. **JSON structures**: Use proper jq paths for nested structures
+3. **Date handling**: Transaction dates before May 2024 may have incomplete data.
+4. **JSON structures**: Use proper jq paths for nested structures
    (e.g., `.accounts[0]` not `.[0]`).
-4. **Output organization**: Always create output directories if they don't exist.
-5. **Timestamps**: Use format `YYYY-MM-DD_HH-MM-SS_filename` for all generated files.
-6. **Path handling**: Use package-relative paths and configuration-based directory
+5. **Output organization**: Always create output directories if they don't exist.
+6. **Timestamps**: Use format `YYYY-MM-DD_HH-MM-SS_filename` for all generated files.
+7. **Path handling**: Use package-relative paths and configuration-based directory
    resolution.
-7. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/`
+8. **Multi-account support**: Amazon data uses `YYYY-MM-DD_accountname_amazon_data/`
    naming in `data/amazon/raw/`.
-8. **Working directory**: Repository root (`personal/justdavis-finances/`) is the standard
+9. **Working directory**: Repository root (`personal/justdavis-finances/`) is the standard
    working directory.
-9. **Package execution**: Use `finances` CLI or `uv run finances` for all operations.
-10. **Development**: Use `uv run python -c ...` for ad-hoc Python with package imports.
-11. **JSON formatting**: All JSON files must use pretty-printing with 2-space indentation.
+10. **Package execution**: Use `finances` CLI or `uv run finances` for all operations.
+11. **Development**: Use `uv run python -c ...` for ad-hoc Python with package imports.
+12. **JSON formatting**: All JSON files must use pretty-printing with 2-space indentation.
     **Required practice**:
     - Import: `from finances.core.json_utils import write_json, read_json, format_json`.
     - File writing: Use `write_json(filepath, data)` instead of `json.dump()`.
     - File reading: Use `read_json(filepath)` instead of `json.load()`.
     - String formatting: Use `format_json(data)` instead of `json.dumps()`.
     - **Never use** direct `json.dump()` or `json.dumps()` calls without `indent=2`.
-12. **Markdown formatting**: All markdown files follow standardized formatting rules.
+13. **Markdown formatting**: All markdown files follow standardized formatting rules.
     See [Markdown Formatting Guidelines](CONTRIBUTING.md#markdown-formatting-guidelines) for
       complete details:
     - One sentence per line for better version control
@@ -448,6 +470,27 @@ Key architectural achievements:
 3. **Unified data management**: Single `data/` directory with domain-specific subdirectories.
 4. **Professional development**: Complete development tooling setup with pre-commit hooks and
    quality gates.
+
+### Type-Safe Primitive Types - Money & FinancialDate (October 2024)
+- **Immutable type wrappers**: Introduced Money and FinancialDate classes to replace raw
+  integers and dates.
+- **Zero floating-point errors**: Money class enforces integer-only arithmetic at type level.
+- **Backward compatibility**: All core models (Transaction, Receipt) auto-sync between legacy
+  and new fields.
+- **Complete test coverage**: 33 unit tests covering construction, arithmetic, comparison,
+  immutability.
+- **Strict type checking**: All new code passes mypy --strict with zero errors.
+- **Domain migrations**: Amazon, Apple, and YNAB modules updated to use new types with
+  legacy support.
+
+Key implementation details:
+1. **Frozen dataclasses**: Immutable by design using `@dataclass(frozen=True)`.
+2. **Multiple constructors**: `Money.from_cents()`, `Money.from_milliunits()`,
+   `Money.from_dollars()`.
+3. **Rich comparisons**: Full support for arithmetic (+, -) and comparison (<, >, ==)
+   operators.
+4. **Seamless migration**: Existing code continues to work unchanged while new code gains type
+   safety.
 
 ### Apple Transaction Matching System Implementation (September 2024)
 - **Complete Apple ecosystem**: Full receipt extraction and transaction matching with email
