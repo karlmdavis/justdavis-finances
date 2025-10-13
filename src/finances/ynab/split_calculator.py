@@ -20,6 +20,7 @@ from ..core.currency import (
     safe_divide_proportional,
     validate_sum_equals_total,
 )
+from ..core.money import Money
 
 
 class SplitCalculationError(Exception):
@@ -29,7 +30,7 @@ class SplitCalculationError(Exception):
 
 
 def calculate_amazon_splits(
-    transaction_amount: int, amazon_items: list[dict[str, Any]]
+    transaction_amount: int | Money, amazon_items: list[dict[str, Any]]  # Accept both types
 ) -> list[dict[str, Any]]:
     """
     Calculate splits for Amazon transaction using pre-allocated item totals.
@@ -38,8 +39,8 @@ def calculate_amazon_splits(
     tax and shipping allocated to each item. No additional calculation needed.
 
     Args:
-        transaction_amount: YNAB transaction amount in milliunits (negative for expenses)
-        amazon_items: List of Amazon items with 'name', 'amount' (cents), 'quantity', 'unit_price'
+        transaction_amount: YNAB transaction amount in milliunits or Money object (negative for expenses)
+        amazon_items: List of Amazon items with 'name', 'amount' (cents or Money), 'quantity', 'unit_price'
 
     Returns:
         List of split dictionaries for YNAB with amount and memo
@@ -47,11 +48,21 @@ def calculate_amazon_splits(
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
     """
+    # Convert to milliunits if Money provided
+    if isinstance(transaction_amount, Money):
+        tx_milliunits = transaction_amount.to_milliunits()
+    else:
+        tx_milliunits = transaction_amount
+
     splits = []
 
     # Convert Amazon amounts (cents) to YNAB milliunits
     for item in amazon_items:
-        item_amount_milliunits = cents_to_milliunits(item["amount"])
+        # Handle Money or int for item amounts
+        item_amount = item["amount"]
+        item_amount_cents = item_amount.to_cents() if isinstance(item_amount, Money) else item_amount
+
+        item_amount_milliunits = cents_to_milliunits(item_amount_cents)
 
         # YNAB uses negative amounts for expenses
         split_amount = -item_amount_milliunits
@@ -65,10 +76,10 @@ def calculate_amazon_splits(
         splits.append(split)
 
     # Verify splits sum to transaction total
-    if not validate_sum_equals_total(splits, transaction_amount):
+    if not validate_sum_equals_total(splits, tx_milliunits):
         total_splits: int = sum(split["amount"] for split in splits)  # type: ignore[misc]
         raise SplitCalculationError(
-            f"Amazon splits total {total_splits} doesn't match transaction {transaction_amount}"
+            f"Amazon splits total {total_splits} doesn't match transaction {tx_milliunits}"
         )
 
     return splits

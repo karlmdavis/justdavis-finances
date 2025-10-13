@@ -22,7 +22,7 @@ Domain Packages:
 Example Usage:
     from finances.amazon import SimplifiedMatcher
     from finances.apple import AppleMatcher
-    from finances.core.currency import milliunits_to_cents
+    from finances.core import Money
     from finances.ynab import calculate_amazon_splits
 
 Version: 0.2.0 (Package Restructure)
@@ -36,7 +36,6 @@ from .core.config import Environment, get_config
 from .core.currency import (
     cents_to_dollars_str,
     cents_to_milliunits,
-    milliunits_to_cents,
     safe_currency_to_cents,
 )
 
@@ -54,6 +53,5 @@ __all__ = [
     # Configuration
     "get_config",
     # Core currency functions
-    "milliunits_to_cents",
     "safe_currency_to_cents",
 ]

@@ -37,7 +37,8 @@ class Money:
 
     @classmethod
     def from_milliunits(cls, milliunits: int) -> Money:
-        return cls(cents=abs(milliunits // 10))
+        """Create from YNAB milliunits with sign preservation."""
+        return cls(cents=milliunits // 10)  # Sign preserved
 
     @classmethod
     def from_dollars(cls, dollars: str | int) -> Money:

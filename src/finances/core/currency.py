@@ -21,22 +21,6 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 
-def milliunits_to_cents(milliunits: int) -> int:
-    """
-    Convert YNAB milliunits to cents.
-
-    Args:
-        milliunits: YNAB amount in milliunits (1000 = $1.00)
-
-    Returns:
-        Amount in cents (100 = $1.00)
-
-    Example:
-        milliunits_to_cents(-45990) -> 4599  # $45.99
-    """
-    return abs(milliunits // 10)
-
-
 def cents_to_milliunits(cents: int) -> int:
     """
     Convert cents to YNAB milliunits.
@@ -235,7 +219,9 @@ def format_amount_with_context(amount_milliunits: int, context: str = "") -> str
     Returns:
         Formatted string like "$45.99" or "$45.99 (incl. tax)"
     """
-    amount_str = f"${cents_to_dollars_str(milliunits_to_cents(amount_milliunits))}"
+    from .money import Money
+
+    amount_str = str(Money.from_milliunits(amount_milliunits))
     if context:
         return f"{amount_str} ({context})"
     return amount_str
@@ -308,7 +294,9 @@ def format_cents(cents: int) -> str:
 
 def format_milliunits(milliunits: int) -> str:
     """Format milliunits as dollar string with $ prefix."""
-    return format_cents(milliunits_to_cents(milliunits))
+    from .money import Money
+
+    return str(Money.from_milliunits(milliunits))
 
 
 # Validation utilities

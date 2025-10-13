@@ -28,7 +28,8 @@ This repository is a complete professional Python package for financial manageme
 ```python
 from finances.amazon import SimplifiedMatcher, batch_match_transactions
 from finances.apple import AppleMatcher, AppleReceiptParser, AppleEmailFetcher
-from finances.core.currency import milliunits_to_cents, format_cents
+from finances.core import Money, FinancialDate  # Type-safe primitives
+from finances.core.currency import format_cents
 from finances.ynab import SplitCalculator
 from finances.analysis import CashFlowAnalyzer
 ```
@@ -377,13 +378,28 @@ This repository maintains strict integer-only arithmetic for all financial calcu
 - All domain modules use centralized currency utilities.
 - Package-wide enforcement of integer-only arithmetic.
 
-1. **Currency handling**:
-   - YNAB amounts are in milliunits (1000 milliunits = $1.00).
-   - All calculations use integer arithmetic (cents or milliunits).
-   - **Required imports**:
-     `from finances.core.currency import milliunits_to_cents, format_cents`.
-   - Convert: `milliunits_to_cents(amount) = abs(milliunits // 10)`.
-   - Display: `format_cents(cents) = f"${cents//100}.{cents%100:02d}"`.
+1. **Type-safe primitives (October 2024)**:
+   - **Money class**: Immutable type-safe currency wrapper (replaces raw cents/milliunits).
+   - **FinancialDate class**: Immutable type-safe date wrapper (replaces raw date objects).
+   - **Import**: `from finances.core import Money, FinancialDate`.
+   - **Construction examples**:
+     ```python
+     # Money construction
+     amount = Money.from_cents(1234)  # $12.34
+     expense = Money.from_milliunits(-12340)  # -$12.34 (YNAB expense)
+     amount = Money.from_dollars("$12.34")  # String parsing
+
+     # FinancialDate construction
+     date = FinancialDate.from_string("2024-10-13")
+     date = FinancialDate.today()
+     date = FinancialDate(date=datetime.date(2024, 10, 13))
+     ```
+   - **Sign preservation**: Money preserves sign from milliunits - negative for expenses, positive
+     for income.
+   - **Arithmetic**: Money supports +, -, <, >, ==, and other operators.
+   - **Conversion**: Use `.to_cents()`, `.to_milliunits()`, `.to_dollars()`, `.abs()` for interop.
+   - **No more backward compatibility**: All code now uses Money type directly (October 2024).
+   - **Recommendation**: Always use Money/FinancialDate for all currency and date operations.
 2. **Date handling**: Transaction dates before May 2024 may have incomplete data.
 3. **JSON structures**: Use proper jq paths for nested structures
    (e.g., `.accounts[0]` not `.[0]`).
@@ -404,7 +420,7 @@ This repository maintains strict integer-only arithmetic for all financial calcu
     - File reading: Use `read_json(filepath)` instead of `json.load()`.
     - String formatting: Use `format_json(data)` instead of `json.dumps()`.
     - **Never use** direct `json.dump()` or `json.dumps()` calls without `indent=2`.
-12. **Markdown formatting**: All markdown files follow standardized formatting rules.
+13. **Markdown formatting**: All markdown files follow standardized formatting rules.
     See [Markdown Formatting Guidelines](CONTRIBUTING.md#markdown-formatting-guidelines) for
       complete details:
     - One sentence per line for better version control
@@ -448,6 +464,27 @@ Key architectural achievements:
 3. **Unified data management**: Single `data/` directory with domain-specific subdirectories.
 4. **Professional development**: Complete development tooling setup with pre-commit hooks and
    quality gates.
+
+### Type-Safe Primitive Types - Money & FinancialDate (October 2024)
+- **Immutable type wrappers**: Introduced Money and FinancialDate classes to replace raw
+  integers and dates.
+- **Zero floating-point errors**: Money class enforces integer-only arithmetic at type level.
+- **Backward compatibility**: All core models (Transaction, Receipt) auto-sync between legacy
+  and new fields.
+- **Complete test coverage**: 33 unit tests covering construction, arithmetic, comparison,
+  immutability.
+- **Strict type checking**: All new code passes mypy --strict with zero errors.
+- **Domain migrations**: Amazon, Apple, and YNAB modules updated to use new types with
+  legacy support.
+
+Key implementation details:
+1. **Frozen dataclasses**: Immutable by design using `@dataclass(frozen=True)`.
+2. **Multiple constructors**: `Money.from_cents()`, `Money.from_milliunits()`,
+   `Money.from_dollars()`.
+3. **Rich comparisons**: Full support for arithmetic (+, -) and comparison (<, >, ==)
+   operators.
+4. **Seamless migration**: Existing code continues to work unchanged while new code gains type
+   safety.
 
 ### Apple Transaction Matching System Implementation (September 2024)
 - **Complete Apple ecosystem**: Full receipt extraction and transaction matching with email

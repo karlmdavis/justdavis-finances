@@ -231,14 +231,17 @@ Tests are marked with pytest markers for selective execution:
 #### Test Structure
 ```python
 import pytest
-from finances.core.currency import milliunits_to_cents
+from finances.core import Money
 
 @pytest.mark.unit
 @pytest.mark.currency
-def test_milliunits_conversion():
-    """Test YNAB milliunits to cents conversion."""
-    assert milliunits_to_cents(123456) == 12345
-    assert milliunits_to_cents(-123456) == 12345  # Always positive
+def test_money_from_milliunits():
+    """Test Money creation from YNAB milliunits."""
+    income = Money.from_milliunits(123456)
+    assert income.to_cents() == 12345
+
+    expense = Money.from_milliunits(-123456)
+    assert expense.to_cents() == -12345  # Sign preserved
 ```
 
 #### Using Fixtures
@@ -358,11 +361,12 @@ for order_id, order_group in orders_df.groupby("Order ID"):  # type: ignore[inde
 
 #### Type Annotation Examples
 ```python
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
+from finances.core import Money
 
-def milliunits_to_cents(milliunits: int) -> int:
-    """Convert YNAB milliunits to integer cents."""
-    return abs(milliunits // 10)
+def calculate_total(amounts: list[Money]) -> Money:
+    """Calculate total from Money amounts with sign preservation."""
+    return Money.from_cents(sum(m.to_cents() for m in amounts))
 
 class Matcher(Protocol):
     """Protocol for transaction matching implementations."""
@@ -643,34 +647,47 @@ def process(ctx: click.Context, start: str, end: str, verbose: bool) -> None:
 ### Currency Handling (CRITICAL)
 
 **NEVER use floating-point arithmetic for currency calculations.**
+**ALWAYS use the Money type for all financial operations.**
 
 #### Required Patterns
 ```python
-# CORRECT: Integer arithmetic only
-def add_amounts(amount1_cents: int, amount2_cents: int) -> int:
-    return amount1_cents + amount2_cents
+from finances.core import Money
 
-def format_currency(cents: int) -> str:
-    return f"${cents // 100}.{cents % 100:02d}"
+# CORRECT: Use Money type for all currency operations
+def add_amounts(amount1: Money, amount2: Money) -> Money:
+    return amount1 + amount2  # Money supports arithmetic
+
+def format_currency(amount: Money) -> str:
+    return str(amount)  # Money handles formatting
 
 # INCORRECT: Never use float for currency
 def bad_currency_math(dollars: float) -> float:  # DON'T DO THIS
     return dollars * 1.0825  # Floating-point errors!
 ```
 
-#### Currency Conversion Functions
+#### Money Type Usage
 ```python
-from finances.core.currency import (
-    milliunits_to_cents,    # YNAB milliunits -> integer cents
-    cents_to_milliunits,    # Integer cents -> YNAB milliunits
-    format_cents,           # Integer cents -> display string
-    parse_currency_string   # String -> integer cents
-)
+from finances.core import Money
 
-# Always use these centralized functions
-ynab_amount = -123456  # YNAB milliunits
-cents = milliunits_to_cents(ynab_amount)  # 12345 cents
-display = format_cents(cents)  # "$123.45"
+# Creating Money from different sources
+income = Money.from_milliunits(123456)    # YNAB income (positive)
+expense = Money.from_milliunits(-123456)  # YNAB expense (negative)
+amount = Money.from_dollars("$12.34")     # String parsing
+cents_amount = Money.from_cents(1234)     # Direct cents
+
+# Sign preservation (critical for expenses)
+ynab_expense = -123456  # YNAB milliunits (negative = expense)
+money_expense = Money.from_milliunits(ynab_expense)
+assert money_expense.to_cents() == -12345  # Sign preserved
+
+# Conversions
+cents = money_expense.to_cents()          # -12345
+milliunits = money_expense.to_milliunits()  # -123450
+display = str(money_expense)              # "$-123.45"
+absolute = money_expense.abs()            # Money(cents=12345)
+
+# Arithmetic preserves sign
+net = income + expense  # Correct addition
 ```
 
 ### Amazon Domain Guidelines
@@ -744,7 +761,7 @@ python -c "import finances; print(finances.__file__)"
 #### Test Failures
 ```bash
 # Run specific failing test with verbose output
-uv run pytest tests/unit/core/test_currency.py::test_milliunits_conversion -v
+uv run pytest tests/unit/core/test_money.py::test_negative_from_milliunits -v
 
 # Clear pytest cache
 rm -rf .pytest_cache __pycache__ src/finances/__pycache__

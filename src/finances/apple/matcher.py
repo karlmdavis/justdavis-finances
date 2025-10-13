@@ -13,8 +13,9 @@ from typing import Any
 
 import pandas as pd
 
-from ..core.currency import format_cents, milliunits_to_cents
+from ..core.currency import format_cents
 from ..core.models import MatchResult, Receipt, Transaction
+from ..core.money import Money
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,10 @@ class AppleMatcher:
         Returns:
             MatchResult with details of the match
         """
-        # Convert YNAB transaction to internal format
-        tx_amount_cents = milliunits_to_cents(ynab_transaction["amount"])
+        # Convert to Money and get absolute value for matching
+        # (receipts are always positive, transactions are negative for expenses)
+        tx_amount_money = Money.from_milliunits(ynab_transaction["amount"])
+        tx_amount_cents = tx_amount_money.abs().to_cents()
         tx_date = datetime.strptime(ynab_transaction["date"], "%Y-%m-%d")
         tx_id = ynab_transaction["id"]
 
@@ -322,10 +325,18 @@ def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
     if total_transactions == 0:
         return {"total_transactions": 0}
 
-    # Calculate amounts
-    total_amount = sum(milliunits_to_cents(r.transaction.amount) for r in results)
-    matched_amount = sum(milliunits_to_cents(r.transaction.amount) for r in results if r.receipts)
-    unmatched_amount = total_amount - matched_amount
+    # Calculate amounts using Money type directly
+    total_money = Money.from_cents(
+        sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results)
+    )
+    matched_money = Money.from_cents(
+        sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results if r.receipts)
+    )
+    unmatched_money = Money.from_cents(total_money.to_cents() - matched_money.to_cents())
+
+    # Convert to cents for JSON serialization
+    matched_amount = matched_money.to_cents()
+    unmatched_amount = unmatched_money.to_cents()
 
     # Confidence statistics
     matched_confidences = [r.confidence for r in results if r.receipts]
