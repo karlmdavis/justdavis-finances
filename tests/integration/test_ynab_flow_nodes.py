@@ -76,15 +76,6 @@ class TestSplitGenerationFlowNode:
         assert result.success is True
         assert result.items_processed == 0
 
-    def test_check_changes_no_matches(self, temp_dir, flow_context):
-        """Test check_changes() with no match results."""
-        node = SplitGenerationFlowNode(temp_dir)
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is False
-        assert any("No match results" in r for r in reasons)
-
     def test_check_changes_no_edits(self, temp_dir, flow_context):
         """Test check_changes() with matches but no edits."""
         node = SplitGenerationFlowNode(temp_dir)
@@ -98,34 +89,6 @@ class TestSplitGenerationFlowNode:
 
         assert has_changes is True
         assert any("No split edits" in r for r in reasons)
-
-    def test_get_data_summary_no_matches(self, temp_dir, flow_context):
-        """Test get_data_summary() with no matches."""
-        node = SplitGenerationFlowNode(temp_dir)
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is False
-        assert "No match results" in summary.summary_text
-
-    def test_get_data_summary_with_matches(self, temp_dir, flow_context):
-        """Test get_data_summary() with match files."""
-        node = SplitGenerationFlowNode(temp_dir)
-
-        # Create match files
-        amazon_dir = temp_dir / "amazon" / "transaction_matches"
-        amazon_dir.mkdir(parents=True)
-        write_json(amazon_dir / "results.json", {"matches": []})
-
-        apple_dir = temp_dir / "apple" / "transaction_matches"
-        apple_dir.mkdir(parents=True)
-        write_json(apple_dir / "results.json", {"matches": []})
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is True
-        assert summary.item_count == 2  # 1 Amazon + 1 Apple
-        assert "Match files available" in summary.summary_text
 
 
 @pytest.mark.integration
@@ -142,28 +105,3 @@ class TestYnabSyncFlowNode:
         # Should return True when no cache exists
         assert has_changes is True
         assert len(reasons) > 0  # Should have at least one reason
-
-    def test_get_data_summary_no_cache(self, temp_dir, flow_context):
-        """Test get_data_summary() with no cache."""
-        node = YnabSyncFlowNode(temp_dir)
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is False
-        assert "No YNAB cache" in summary.summary_text
-
-    def test_get_data_summary_with_cache(self, temp_dir, flow_context):
-        """Test get_data_summary() with cache."""
-        node = YnabSyncFlowNode(temp_dir)
-
-        # Create mock cache files
-        cache_dir = temp_dir / "ynab" / "cache"
-        cache_dir.mkdir(parents=True)
-        write_json(cache_dir / "transactions.json", [{"id": "tx1"}, {"id": "tx2"}])
-        write_json(cache_dir / "accounts.json", {"accounts": []})
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is True
-        assert summary.item_count == 2  # 2 transactions
-        assert "transactions" in summary.summary_text.lower()

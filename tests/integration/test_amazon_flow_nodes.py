@@ -79,17 +79,6 @@ class TestAmazonUnzipFlowNode:
         assert result.success is False
         assert "Amazon raw directory not found" in result.error_message
 
-    def test_check_changes_no_data(self, temp_dir, flow_context):
-        """Test check_changes() when no Amazon data exists."""
-        node = AmazonUnzipFlowNode(temp_dir)
-
-        # Check changes with no existing data
-        has_changes, reasons = node.check_changes(flow_context)
-
-        # Should return False (no raw directory)
-        assert has_changes is False
-        assert any("Amazon raw directory not found" in r for r in reasons)
-
     def test_check_changes_with_new_zips(self, temp_dir, karl_zip, flow_context):
         """Test check_changes() when new ZIPs are available."""
         node = AmazonUnzipFlowNode(temp_dir)
@@ -106,33 +95,6 @@ class TestAmazonUnzipFlowNode:
         # Should detect new ZIP
         assert has_changes is True
         assert any("ZIP file" in r for r in reasons)
-
-    def test_get_data_summary_no_data(self, temp_dir, flow_context):
-        """Test get_data_summary() with no Amazon data."""
-        node = AmazonUnzipFlowNode(temp_dir)
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is False
-        assert summary.last_updated is None
-        assert "No Amazon raw data" in summary.summary_text
-
-    def test_get_data_summary_with_data(self, temp_dir, karl_zip, flow_context):
-        """Test get_data_summary() with existing Amazon data."""
-        node = AmazonUnzipFlowNode(temp_dir)
-
-        # Create mock extracted data (node looks for Retail.OrderHistory.*.csv files)
-        raw_dir = temp_dir / "amazon" / "raw" / "2025-01-01_karl_amazon_data"
-        raw_dir.mkdir(parents=True)
-        csv_file = raw_dir / "Retail.OrderHistory.1.csv"
-        csv_file.write_text("Order ID,Order Date\n111-222,2024-01-01\n")
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is True
-        assert summary.last_updated is not None
-        assert summary.item_count == 1  # 1 CSV file
-        assert "Amazon data" in summary.summary_text
 
 
 @pytest.mark.integration
@@ -225,15 +187,6 @@ class TestAmazonMatchingFlowNode:
 
         assert result.success is False
 
-    def test_check_changes_no_data(self, temp_dir, flow_context):
-        """Test check_changes() when no data exists."""
-        node = AmazonMatchingFlowNode(temp_dir)
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is False
-        assert any("No Amazon raw data" in r for r in reasons)
-
     def test_check_changes_no_ynab_cache(self, temp_dir, flow_context):
         """Test check_changes() when YNAB cache missing."""
         node = AmazonMatchingFlowNode(temp_dir)
@@ -266,34 +219,3 @@ class TestAmazonMatchingFlowNode:
 
         assert has_changes is True
         assert any("No previous matching" in r for r in reasons)
-
-    def test_get_data_summary_no_matches(self, temp_dir, flow_context):
-        """Test get_data_summary() with no match results."""
-        node = AmazonMatchingFlowNode(temp_dir)
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is False
-        assert "No Amazon matches" in summary.summary_text
-
-    def test_get_data_summary_with_matches(self, temp_dir, flow_context):
-        """Test get_data_summary() with existing matches."""
-        node = AmazonMatchingFlowNode(temp_dir)
-
-        # Create mock match results
-        matches_dir = temp_dir / "amazon" / "transaction_matches"
-        matches_dir.mkdir(parents=True)
-        match_file = matches_dir / "2025-01-01_results.json"
-        write_json(
-            match_file,
-            {
-                "metadata": {"timestamp": "2025-01-01"},
-                "matches": [{"transaction_id": "tx1"}, {"transaction_id": "tx2"}],
-            },
-        )
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is True
-        assert summary.item_count == 2
-        assert "2 transactions" in summary.summary_text

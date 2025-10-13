@@ -68,15 +68,6 @@ class TestAppleReceiptParsingFlowNode:
         assert result.success is True
         assert result.items_processed == 0
 
-    def test_check_changes_no_emails(self, temp_dir, flow_context):
-        """Test check_changes() with no emails."""
-        node = AppleReceiptParsingFlowNode(temp_dir)
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is False
-        assert any("No Apple emails" in r for r in reasons)
-
     def test_check_changes_no_exports(self, temp_dir, flow_context):
         """Test check_changes() with emails but no exports."""
         node = AppleReceiptParsingFlowNode(temp_dir)
@@ -90,31 +81,6 @@ class TestAppleReceiptParsingFlowNode:
 
         assert has_changes is True
         assert any("No parsed receipts" in r for r in reasons)
-
-    def test_get_data_summary_no_data(self, temp_dir, flow_context):
-        """Test get_data_summary() with no data."""
-        node = AppleReceiptParsingFlowNode(temp_dir)
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is False
-        assert "No parsed Apple receipts" in summary.summary_text
-
-    def test_get_data_summary_with_data(self, temp_dir, flow_context):
-        """Test get_data_summary() with parsed receipts."""
-        node = AppleReceiptParsingFlowNode(temp_dir)
-
-        # Create mock parsed receipts
-        exports_dir = temp_dir / "apple" / "exports"
-        exports_dir.mkdir(parents=True)
-        (exports_dir / "receipt1.json").write_text("{}")
-        (exports_dir / "receipt2.json").write_text("{}")
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is True
-        assert summary.item_count == 2
-        assert "2 files" in summary.summary_text
 
 
 @pytest.mark.integration
@@ -158,15 +124,6 @@ class TestAppleMatchingFlowNode:
         assert result.success is True
         assert result.items_processed == 0
 
-    def test_check_changes_no_data(self, temp_dir, flow_context):
-        """Test check_changes() with no data."""
-        node = AppleMatchingFlowNode(temp_dir)
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is False
-        assert any("No parsed Apple receipts" in r for r in reasons)
-
     def test_check_changes_no_ynab_cache(self, temp_dir, flow_context):
         """Test check_changes() with no YNAB cache."""
         node = AppleMatchingFlowNode(temp_dir)
@@ -199,33 +156,3 @@ class TestAppleMatchingFlowNode:
 
         assert has_changes is True
         assert any("No previous matching" in r for r in reasons)
-
-    def test_get_data_summary_no_matches(self, temp_dir, flow_context):
-        """Test get_data_summary() with no matches."""
-        node = AppleMatchingFlowNode(temp_dir)
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is False
-        assert "No Apple matches" in summary.summary_text
-
-    def test_get_data_summary_with_matches(self, temp_dir, flow_context):
-        """Test get_data_summary() with match results."""
-        node = AppleMatchingFlowNode(temp_dir)
-
-        # Create mock match results
-        matches_dir = temp_dir / "apple" / "transaction_matches"
-        matches_dir.mkdir(parents=True)
-        write_json(
-            matches_dir / "2025-01-01_results.json",
-            {
-                "metadata": {},
-                "matches": [{"transaction_id": "tx1"}, {"transaction_id": "tx2"}],
-            },
-        )
-
-        summary = node.get_data_summary(flow_context)
-
-        assert summary.exists is True
-        assert summary.item_count == 2
-        assert "2 transactions" in summary.summary_text

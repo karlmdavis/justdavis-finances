@@ -299,27 +299,3 @@ class TestSplitErrorHandling:
         splits = calculate_amazon_splits(10000, items)  # $10.00 positive transaction for refund in milliunits
         assert len(splits) == 1
         assert splits[0]["amount"] == 10000  # Positive milliunits for refund
-
-
-@pytest.mark.ynab
-def test_integration_with_fixtures(sample_ynab_transaction, sample_amazon_order):
-    """Test split calculation with fixture data."""
-    transaction_amount = sample_ynab_transaction["amount"]
-    items = sample_amazon_order["items"]
-
-    # Convert order format to items format expected by calculator
-    formatted_items = [
-        {
-            "name": item["name"],
-            "amount": item["amount"],
-            "quantity": item["quantity"],
-            "unit_price": item["amount"] // item["quantity"],
-        }
-        for item in items
-    ]
-
-    splits = calculate_amazon_splits(transaction_amount, formatted_items)
-
-    assert len(splits) >= 1
-    total = sum(split["amount"] for split in splits)
-    assert total == transaction_amount

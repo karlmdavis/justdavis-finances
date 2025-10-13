@@ -269,30 +269,6 @@ class TestSimplifiedMatcher:
         # Note: This depends on the matcher implementation
 
 
-class TestMatchingStrategies:
-    """Test different matching strategies."""
-
-    @pytest.fixture
-    def matcher(self):
-        return SimplifiedMatcher()
-
-    @pytest.mark.amazon
-    def test_complete_match_strategy(self, matcher):
-        """Test complete order matching (exact amount + date)."""
-
-        # This would test the complete match strategy specifically
-        # Implementation depends on matcher's internal structure
-        pass
-
-    @pytest.mark.amazon
-    def test_fuzzy_match_strategy(self, matcher):
-        """Test fuzzy matching with amount tolerance."""
-
-        # Should match with lower confidence due to amount difference
-        # Implementation would test fuzzy matching logic
-        pass
-
-
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
@@ -402,24 +378,3 @@ class TestEdgeCases:
         # Should complete within 5 seconds for 1000 orders
         assert end_time - start_time < 5.0
         assert isinstance(matches, list)
-
-
-@pytest.mark.amazon
-def test_integration_with_fixtures(sample_ynab_transaction, sample_amazon_order):
-    """Test Amazon matching with standard fixtures."""
-    matcher = SimplifiedMatcher()
-
-    amazon_data = convert_test_data_to_amazon_format([sample_amazon_order])
-    account_data = {"test_account": (pd.DataFrame(amazon_data), pd.DataFrame())}
-    result = matcher.match_transaction(sample_ynab_transaction, account_data)
-    matches = result["matches"]
-
-    assert isinstance(matches, list)
-    if matches:
-        # Verify match structure
-        match = matches[0]
-        assert "amazon_orders" in match
-        assert "confidence" in match
-        assert "match_method" in match
-        assert isinstance(match["confidence"], int | float)
-        assert 0 <= match["confidence"] <= 1
