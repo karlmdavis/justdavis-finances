@@ -7,6 +7,8 @@ of the Financial Flow System.
 """
 
 import logging
+import os
+import sys
 from collections import defaultdict, deque
 from datetime import datetime
 from typing import Any
@@ -294,25 +296,14 @@ class FlowExecutionEngine:
         # Detect changes
         changes = self.detect_changes(context, all_nodes)
 
-        # Find nodes that have changes or are forced
+        # Find nodes that have changes
         changed_nodes = set()
         change_summary = {}
 
         for node_name, (has_changes, reasons) in changes.items():
-            if has_changes or context.force:
+            if has_changes:
                 changed_nodes.add(node_name)
-                if context.force:
-                    # In force mode, prepend force reason
-                    change_summary[node_name] = ["Force execution requested", *reasons]
-                else:
-                    change_summary[node_name] = reasons
-
-        # If force mode, add all target nodes
-        if context.force:
-            changed_nodes.update(all_nodes)
-            for node_name in all_nodes:
-                if node_name not in change_summary:
-                    change_summary[node_name] = ["Force execution requested"]
+                change_summary[node_name] = reasons
 
         # Find all nodes that need execution (including downstream)
         execution_nodes = self.dependency_graph.find_changed_subgraph(changed_nodes)
@@ -419,21 +410,10 @@ class FlowExecutionEngine:
         # Initial change detection to find starting nodes
         changes = self.detect_changes(context, all_nodes)
         initially_changed = set()
-        change_summary = {}
 
-        for node_name, (has_changes, reasons) in changes.items():
-            if has_changes or context.force:
+        for node_name, (has_changes, _reasons) in changes.items():
+            if has_changes:
                 initially_changed.add(node_name)
-                if context.force:
-                    change_summary[node_name] = ["Force execution requested", *reasons]
-                else:
-                    change_summary[node_name] = reasons
-
-        if context.force:
-            initially_changed.update(all_nodes)
-            for node_name in all_nodes:
-                if node_name not in change_summary:
-                    change_summary[node_name] = ["Force execution requested"]
 
         # Find all nodes that need execution due to changes (including downstream)
         nodes_needing_execution = self.dependency_graph.find_changed_subgraph(initially_changed)
@@ -442,9 +422,6 @@ class FlowExecutionEngine:
         nodes_needing_execution = nodes_needing_execution & all_nodes
 
         logger.info(f"Dynamic execution starting with {len(nodes_needing_execution)} potential nodes")
-        if context.verbose:
-            logger.info(f"Initially changed: {initially_changed}")
-            logger.info(f"Nodes needing execution: {nodes_needing_execution}")
 
         # Dynamic execution state
         executions = {}
@@ -470,33 +447,61 @@ class FlowExecutionEngine:
                 execution_count += 1
                 logger.info(f"[{execution_count}] Executing: {node_name}")
 
-                # Check if we should skip due to dry run
-                if context.dry_run:
+                # Get the node for prompting
+                node = self.registry.get_node(node_name)
+                if not node:
+                    logger.error(f"Node {node_name} not found in registry")
+                    remaining_nodes.discard(node_name)
+                    continue
+
+                # Test-mode marker: Node prompt
+                if os.environ.get("FINANCES_ENV") == "test":
+                    print(f"\n[NODE_PROMPT: {node_name}]", file=sys.stderr, flush=True)
+
+                # Prompt user for each node
+                should_execute = node.prompt_user(context)
+
+                if not should_execute:
+                    # User chose to skip - mark as skipped and don't add to completed_nodes
                     execution = NodeExecution(
                         node_name=node_name,
                         status=NodeStatus.SKIPPED,
                         start_time=datetime.now(),
                         end_time=datetime.now(),
-                        result=FlowResult(success=True, metadata={"dry_run": True}),
+                        result=FlowResult(success=True, metadata={"user_skipped": True}),
                     )
-                    logger.info(f"Skipped {node_name} (dry run mode)")
-                    completed_nodes.add(node_name)
-                else:
-                    execution = self.execute_node(node_name, context)
+                    logger.info(f"User skipped {node_name}")
+                    executions[node_name] = execution
+                    context.execution_history.append(execution)
+                    remaining_nodes.discard(node_name)
+                    # Note: Don't add to completed_nodes - this prevents downstream execution
+                    continue
 
-                    if execution.status == NodeStatus.COMPLETED:
-                        completed_nodes.add(node_name)
-                        logger.info(f"Node {node_name} completed successfully")
-                    elif execution.status == NodeStatus.FAILED:
-                        failed_nodes.add(node_name)
-                        logger.error(f"Node {node_name} failed")
+                # Test-mode marker: Node execution start
+                if os.environ.get("FINANCES_ENV") == "test":
+                    print(f"[NODE_EXEC_START: {node_name}]", file=sys.stderr, flush=True)
+
+                # Execute the node
+                execution = self.execute_node(node_name, context)
+
+                if execution.status == NodeStatus.COMPLETED:
+                    completed_nodes.add(node_name)
+                    logger.info(f"Node {node_name} completed successfully")
+                elif execution.status == NodeStatus.FAILED:
+                    failed_nodes.add(node_name)
+                    logger.error(f"Node {node_name} failed")
+
+                # Test-mode marker: Node execution end
+                if os.environ.get("FINANCES_ENV") == "test":
+                    status = execution.status.value
+                    print(f"[NODE_EXEC_END: {node_name}: {status}]", file=sys.stderr, flush=True)
 
                 executions[node_name] = execution
                 context.execution_history.append(execution)
                 remaining_nodes.discard(node_name)
 
-                # Stop on failure unless we're in force mode
-                if execution.status == NodeStatus.FAILED and not context.force:
+                # Stop on failure
+                if execution.status == NodeStatus.FAILED:
                     logger.error(f"Flow execution stopped due to failure in {node_name}")
                     # Mark remaining dependent nodes as skipped
                     for remaining_node in remaining_nodes:

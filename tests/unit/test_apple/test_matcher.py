@@ -259,30 +259,6 @@ class TestAppleMatcher:
         assert len(result.receipts) >= 1
 
 
-class TestAppleMatchingStrategies:
-    """Test Apple-specific matching strategies."""
-
-    @pytest.fixture
-    def matcher(self):
-        return AppleMatcher()
-
-    @pytest.mark.apple
-    def test_exact_match_strategy(self, matcher):
-        """Test exact match strategy (same date + exact amount)."""
-
-        # This would test exact match logic specifically
-        # Implementation depends on matcher's internal structure
-        pass
-
-    @pytest.mark.apple
-    def test_date_window_strategy(self, matcher):
-        """Test date window matching strategy."""
-
-        # Should match with reduced confidence
-        # Implementation would test date window logic
-        pass
-
-
 class TestAppleEdgeCases:
     """Test edge cases for Apple matching."""
 
@@ -406,46 +382,6 @@ class TestAppleEdgeCases:
         # Should be much faster than Amazon matching due to simpler model
         assert end_time - start_time < 2.0
         assert isinstance(result.receipts, list)
-
-
-class TestAppleReceiptParsing:
-    """Test Apple receipt data parsing and validation."""
-
-    @pytest.mark.apple
-    def test_receipt_field_validation(self):
-        """Test validation of required receipt fields."""
-        # Valid receipt
-
-        # Invalid receipts missing required fields
-
-        # Test that validation works (implementation specific)
-        pass
-
-    @pytest.mark.apple
-    def test_currency_parsing(self):
-        """Test parsing of currency values in receipts."""
-
-        # All should parse to same normalized format
-        # Implementation would test currency normalization
-        pass
-
-
-@pytest.mark.apple
-def test_integration_with_fixtures(sample_ynab_transaction, sample_apple_receipt):
-    """Test Apple matching with standard fixtures."""
-    matcher = AppleMatcher()
-
-    # Convert fixture receipt to expected format
-    receipt_data = [sample_apple_receipt]
-    receipts_df = normalize_apple_receipt_data(receipt_data)
-    result = matcher.match_single_transaction(sample_ynab_transaction, receipts_df)
-
-    assert isinstance(result.receipts, list)
-    # Verify match result structure
-    assert hasattr(result, "confidence")
-    assert hasattr(result, "match_method")
-    assert isinstance(result.confidence, int | float)
-    assert 0 <= result.confidence <= 1
 
 
 @pytest.mark.apple

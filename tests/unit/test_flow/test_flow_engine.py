@@ -6,6 +6,7 @@ Tests dependency resolution, execution orchestration, and change detection integ
 """
 
 from datetime import datetime
+from unittest.mock import patch
 
 from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NodeExecution, NodeStatus
 from finances.core.flow_engine import DependencyGraph, FlowExecutionEngine
@@ -223,31 +224,6 @@ class TestFlowExecutionEngine:
         assert execution_order.index("node1") < execution_order.index("node2")
         assert "node1" in change_summary
 
-    def test_plan_execution_force_mode(self):
-        """Test execution planning with force mode."""
-        registry = FlowNodeRegistry()
-
-        node1 = MockFlowNode("node1", check_changes_result=(False, ["No changes"]))
-        node2 = MockFlowNode("node2", dependencies=["node1"], check_changes_result=(False, ["No changes"]))
-
-        registry.register_node(node1)
-        registry.register_node(node2)
-
-        engine = FlowExecutionEngine(registry)
-        context = FlowContext(start_time=datetime.now(), force=True)
-
-        execution_order, change_summary = engine.plan_execution(context)
-
-        # All nodes should execute in force mode
-        assert len(execution_order) == 2
-        assert execution_order.index("node1") < execution_order.index("node2")
-
-        # Check that all nodes have force execution in their reasons
-        for node_name, reasons in change_summary.items():
-            assert any(
-                "Force execution" in reason for reason in reasons
-            ), f"Node {node_name} missing force reason: {reasons}"
-
     def test_execute_node_success(self):
         """Test successful node execution."""
         registry = FlowNodeRegistry()
@@ -305,7 +281,8 @@ class TestFlowExecutionEngine:
         assert execution.result.success is False
         assert "Execution failed" in execution.result.error_message
 
-    def test_execute_flow_simple(self):
+    @patch("click.confirm", return_value=True)
+    def test_execute_flow_simple(self, mock_confirm):
         """Test executing a simple flow."""
         registry = FlowNodeRegistry()
 
@@ -326,23 +303,8 @@ class TestFlowExecutionEngine:
         assert node1.execution_count == 1
         assert node2.execution_count == 1
 
-    def test_execute_flow_dry_run(self):
-        """Test executing flow in dry run mode."""
-        registry = FlowNodeRegistry()
-
-        node1 = MockFlowNode("node1", check_changes_result=(True, ["Changed"]))
-        registry.register_node(node1)
-
-        engine = FlowExecutionEngine(registry)
-        context = FlowContext(start_time=datetime.now(), dry_run=True)
-
-        executions = engine.execute_flow(context)
-
-        assert len(executions) == 1
-        assert executions["node1"].status == NodeStatus.SKIPPED
-        assert node1.execution_count == 0  # Should not have executed
-
-    def test_execute_flow_stop_on_failure(self):
+    @patch("click.confirm", return_value=True)
+    def test_execute_flow_stop_on_failure(self, mock_confirm):
         """Test flow execution stops on failure."""
         registry = FlowNodeRegistry()
 
@@ -366,29 +328,6 @@ class TestFlowExecutionEngine:
         assert executions["node2"].status == NodeStatus.SKIPPED
         assert node1.execution_count == 1
         assert node2.execution_count == 0  # Should not execute due to dependency failure
-
-    def test_execute_flow_continue_on_error(self):
-        """Test flow execution continues on error with force flag."""
-        registry = FlowNodeRegistry()
-
-        node1 = MockFlowNode(
-            "node1",
-            check_changes_result=(True, ["Changed"]),
-            execute_result=FlowResult(success=False, error_message="Failed"),
-        )
-        node2 = MockFlowNode("node2", dependencies=["node1"], check_changes_result=(False, []))
-
-        registry.register_node(node1)
-        registry.register_node(node2)
-
-        engine = FlowExecutionEngine(registry)
-        context = FlowContext(start_time=datetime.now(), force=True)
-
-        executions = engine.execute_flow(context)
-
-        assert len(executions) == 2  # Should continue despite failure
-        assert executions["node1"].status == NodeStatus.FAILED
-        assert executions["node2"].status == NodeStatus.COMPLETED
 
     def test_get_execution_summary(self):
         """Test generation of execution summary."""

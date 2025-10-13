@@ -29,7 +29,7 @@ class SplitCalculationError(Exception):
 
 
 def calculate_amazon_splits(
-    transaction_amount: int, amazon_items: list[dict[str, Any]], category_id: str | None = None
+    transaction_amount: int, amazon_items: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """
     Calculate splits for Amazon transaction using pre-allocated item totals.
@@ -40,10 +40,9 @@ def calculate_amazon_splits(
     Args:
         transaction_amount: YNAB transaction amount in milliunits (negative for expenses)
         amazon_items: List of Amazon items with 'name', 'amount' (cents), 'quantity', 'unit_price'
-        category_id: Optional category ID for all splits
 
     Returns:
-        List of split dictionaries for YNAB with amount, memo, category_id
+        List of split dictionaries for YNAB with amount and memo
 
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
@@ -63,9 +62,6 @@ def calculate_amazon_splits(
 
         split = {"amount": split_amount, "memo": memo}
 
-        if category_id:
-            split["category_id"] = category_id
-
         splits.append(split)
 
     # Verify splits sum to transaction total
@@ -83,7 +79,6 @@ def calculate_apple_splits(
     apple_items: list[dict[str, Any]],
     receipt_subtotal: int | None = None,
     receipt_tax: int | None = None,
-    category_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Calculate splits for Apple transaction with proportional tax allocation.
@@ -95,10 +90,9 @@ def calculate_apple_splits(
         apple_items: List of Apple items with 'name', 'price' (cents)
         receipt_subtotal: Receipt subtotal in cents (optional)
         receipt_tax: Receipt tax in cents (optional)
-        category_id: Optional category ID for all splits
 
     Returns:
-        List of split dictionaries for YNAB with amount, memo, category_id
+        List of split dictionaries for YNAB with amount and memo
 
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
@@ -142,9 +136,6 @@ def calculate_apple_splits(
 
         memo = item["name"]
         split = {"amount": split_amount, "memo": memo}
-
-        if category_id:
-            split["category_id"] = category_id
 
         splits.append(split)
 

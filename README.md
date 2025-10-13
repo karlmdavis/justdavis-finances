@@ -53,14 +53,8 @@ uv run pre-commit install
 # View available commands
 finances --help
 
-# Execute complete financial update pipeline (recommended)
-finances flow execute
-
-# Validate flow configuration
-finances flow validate
-
-# View dependency graph
-finances flow graph
+# Execute complete financial update pipeline (recommended, interactive)
+finances flow
 
 # Individual commands (for specific tasks)
 finances amazon match --start 2024-07-01 --end 2024-07-31
@@ -78,12 +72,12 @@ Intelligent orchestration of the complete financial data pipeline with dependenc
   change detection, and transactional consistency.
 
 **Benefits:**
-- **Single Command**: Replaces 10+ manual commands with `finances flow execute`.
+- **Single Command**: Replaces 10+ manual commands with `finances flow`.
 - **Dependency Management**: Automatic execution ordering based on data dependencies.
 - **Change Detection**: Only processes data that has actually changed.
 - **Transactional Integrity**: Pre-execution archiving ensures data consistency.
-- **Interactive Mode**: Prompts for manual steps (downloads, review confirmations).
-- **Non-Interactive Mode**: Automated execution for scheduled runs.
+- **Interactive Execution**: Guided prompts walk you through each step.
+- **Smart Orchestration**: Detects which nodes need to run based on data changes.
 
 **Key Nodes and Dependencies:**
 - **YNAB Sync** → Amazon/Apple Matching → Split Generation → YNAB Apply.
@@ -94,26 +88,16 @@ Intelligent orchestration of the complete financial data pipeline with dependenc
 
 **Usage:**
 ```bash
-# Execute complete pipeline with change detection
-finances flow execute
+# Execute complete pipeline with interactive prompts and change detection
+finances flow
 
-# Dry run to see what would execute
-finances flow execute --dry-run --verbose
-
-# Force execution of all nodes regardless of changes
-finances flow execute --force
-
-# Execute specific nodes only
-finances flow execute --nodes ynab_sync --nodes amazon_matching
-
-# Non-interactive mode for automation
-finances flow execute --non-interactive
-
-# Execute with date filters
-finances flow execute --start 2024-07-01 --end 2024-07-31
-
-# View execution plan without running
-finances flow graph
+# The flow system will:
+# 1. Detect which nodes have data changes
+# 2. Show you a preview of what will execute
+# 3. Ask for confirmation before proceeding
+# 4. Create pre-execution archives for rollback
+# 5. Execute nodes in dependency order
+# 6. Show summary of results
 ```
 
 **Archive Management:**
@@ -355,30 +339,32 @@ finances amazon match --start 2024-07-01 --end 2024-07-31 --verbose
 
 **Flow execution issues:**
 ```bash
-# Validate flow configuration
-finances flow validate
+# Run the flow command interactively
+finances flow
 
-# Check what would execute without running
-finances flow execute --dry-run --verbose
-
-# View dependency graph
-finances flow graph
-
-# Force execution to bypass change detection
-finances flow execute --force --dry-run
+# The flow system will automatically:
+# - Detect changed data
+# - Show preview of execution plan
+# - Prompt for confirmation
+# - Execute nodes in dependency order
 
 # Check flow cache state
 ls -la data/cache/flow/
+
+# Clear cache to force re-detection
+rm -rf data/cache/flow/*
 ```
 
 **Flow reports no changes to execute:**
 ```bash
 # This is normal - the system only processes changed data
-# To force execution of all nodes:
-finances flow execute --force
+# The flow system compares timestamps to detect changes
 
-# To check what changes are detected:
-finances flow execute --dry-run --verbose
+# To trigger processing, update source data:
+# - Download new Amazon ZIP files to ~/Downloads
+# - Fetch new Apple receipt emails
+# - Manually touch files to update timestamps if needed:
+touch data/ynab/cache/transactions.json
 ```
 
 ## License

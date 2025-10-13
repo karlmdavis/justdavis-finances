@@ -89,7 +89,7 @@ class CashFlowAnalyzer:
 
         if not accounts_file.exists() or not transactions_file.exists():
             raise FileNotFoundError(
-                f"YNAB data not found in {ynab_cache_dir}. " "Run 'finances ynab sync-cache' first."
+                f"YNAB data not found in {ynab_cache_dir}. " "Run 'finances flow' to sync YNAB data first."
             )
 
         with open(accounts_file) as f:

@@ -256,7 +256,8 @@ class AppleMatcher:
             receipt_date = ""
 
         return Receipt(
-            id=receipt_data.get("order_id", ""),
+            id=receipt_data.get("order_id", "")
+            or receipt_data.get("base_name", ""),  # Prefer order_id, fallback to base_name
             date=receipt_date,
             vendor="Apple",
             total_amount=receipt_data.get("total", 0),
