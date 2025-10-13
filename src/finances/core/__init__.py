@@ -33,6 +33,7 @@ from .currency import (
     safe_currency_to_cents,
     validate_sum_equals_total,
 )
+from .money import Money
 from .models import (
     Account,
     Category,
@@ -55,6 +56,7 @@ __all__ = [
     "Environment",
     "MatchConfidence",
     "MatchResult",
+    "Money",
     "ProcessingResult",
     "Receipt",
     # Data models
