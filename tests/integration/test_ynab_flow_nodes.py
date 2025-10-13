@@ -67,14 +67,7 @@ class TestSplitGenerationFlowNode:
         assert edits_dir.exists()
         assert len(list(edits_dir.glob("*.json"))) >= 1
 
-    def test_execute_no_matches(self, temp_dir, flow_context):
-        """Test execute() with no match files."""
-        node = SplitGenerationFlowNode(temp_dir)
-
-        result = node.execute(flow_context)
-
-        assert result.success is True
-        assert result.items_processed == 0
+    # test_execute_no_matches removed - covered by parameterized test_flownode_interface.py
 
     def test_check_changes_no_edits(self, temp_dir, flow_context):
         """Test check_changes() with matches but no edits."""
@@ -96,12 +89,4 @@ class TestSplitGenerationFlowNode:
 class TestYnabSyncFlowNode:
     """Integration tests for YnabSyncFlowNode."""
 
-    def test_check_changes_no_cache(self, temp_dir, flow_context):
-        """Test check_changes() with no cache."""
-        node = YnabSyncFlowNode(temp_dir)
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        # Should return True when no cache exists
-        assert has_changes is True
-        assert len(reasons) > 0  # Should have at least one reason
+    # test_check_changes_no_cache removed - covered by parameterized test_flownode_interface.py

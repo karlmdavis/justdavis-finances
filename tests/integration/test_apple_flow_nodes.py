@@ -55,18 +55,7 @@ class TestAppleReceiptParsingFlowNode:
         # File should be named by order_id (ML7PQ2XYZ), not email filename (receipt_001)
         assert (exports_dir / "ML7PQ2XYZ.json").exists()
 
-    def test_execute_no_html_files(self, temp_dir, flow_context):
-        """Test execute() with no HTML files."""
-        node = AppleReceiptParsingFlowNode(temp_dir)
-
-        # Create empty emails directory
-        emails_dir = temp_dir / "apple" / "emails"
-        emails_dir.mkdir(parents=True)
-
-        result = node.execute(flow_context)
-
-        assert result.success is True
-        assert result.items_processed == 0
+    # test_execute_no_html_files removed - covered by parameterized test_flownode_interface.py
 
     def test_check_changes_no_exports(self, temp_dir, flow_context):
         """Test check_changes() with emails but no exports."""
@@ -88,55 +77,11 @@ class TestAppleReceiptParsingFlowNode:
 class TestAppleMatchingFlowNode:
     """Integration tests for AppleMatchingFlowNode."""
 
-    def test_execute_no_receipts(self, temp_dir, flow_context):
-        """Test execute() with no receipts."""
-        node = AppleMatchingFlowNode(temp_dir)
-
-        # Create YNAB cache only
-        ynab_cache_dir = temp_dir / "ynab" / "cache"
-        ynab_cache_dir.mkdir(parents=True)
-        write_json(ynab_cache_dir / "transactions.json", [])
-
-        result = node.execute(flow_context)
-
-        # Should succeed gracefully with no work to do
-        assert result.success is False or result.items_processed == 0
-
-    def test_execute_no_apple_transactions(self, temp_dir, flow_context):
-        """Test execute() when YNAB has no Apple transactions."""
-        node = AppleMatchingFlowNode(temp_dir)
-
-        # Create receipt
-        exports_dir = temp_dir / "apple" / "exports"
-        exports_dir.mkdir(parents=True)
-        write_json(exports_dir / "receipt1.json", {"id": "ML7", "total": 100})
-
-        # Create YNAB cache with non-Apple transactions
-        ynab_cache_dir = temp_dir / "ynab" / "cache"
-        ynab_cache_dir.mkdir(parents=True)
-        write_json(
-            ynab_cache_dir / "transactions.json",
-            [{"id": "tx123", "payee_name": "Walmart"}],
-        )
-
-        result = node.execute(flow_context)
-
-        assert result.success is True
-        assert result.items_processed == 0
-
-    def test_check_changes_no_ynab_cache(self, temp_dir, flow_context):
-        """Test check_changes() with no YNAB cache."""
-        node = AppleMatchingFlowNode(temp_dir)
-
-        # Create receipts only
-        exports_dir = temp_dir / "apple" / "exports"
-        exports_dir.mkdir(parents=True)
-        write_json(exports_dir / "receipt1.json", {})
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is False
-        assert any("No YNAB cache" in r for r in reasons)
+    # Removed tests covered by parameterized test_flownode_interface.py:
+    # - test_execute_no_receipts (missing input data handling)
+    # - test_execute_no_apple_transactions (no matching transactions scenario)
+    # - test_check_changes_no_ynab_cache (missing dependency handling)
+    # Kept node-specific tests below that validate business logic
 
     def test_check_changes_no_previous_matches(self, temp_dir, flow_context):
         """Test check_changes() with no previous matches."""

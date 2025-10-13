@@ -188,6 +188,7 @@ markers = [
     "unit: Unit tests for individual components",
     "integration: Integration tests for complete workflows",
     "e2e: End-to-end tests executing actual CLI commands",
+    "performance: Performance tests with large datasets",
     "currency: Tests for currency handling and precision",
     "amazon: Tests for Amazon transaction matching",
     "apple: Tests for Apple receipt processing",

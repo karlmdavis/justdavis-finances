@@ -68,16 +68,7 @@ class TestAmazonUnzipFlowNode:
         assert len(extracted_dirs) == 1
         assert (extracted_dirs[0] / "Retail.OrderHistory.1.csv").exists()
 
-    def test_execute_no_zip_files(self, temp_dir, flow_context):
-        """Test AmazonUnzipFlowNode.execute() with no ZIP files."""
-        node = AmazonUnzipFlowNode(temp_dir)
-
-        # Execute without amazon/raw directory
-        result = node.execute(flow_context)
-
-        # Should fail gracefully when directory doesn't exist
-        assert result.success is False
-        assert "Amazon raw directory not found" in result.error_message
+    # test_execute_no_zip_files removed - covered by parameterized test_flownode_interface.py
 
     def test_check_changes_with_new_zips(self, temp_dir, karl_zip, flow_context):
         """Test check_changes() when new ZIPs are available."""
@@ -156,50 +147,10 @@ class TestAmazonMatchingFlowNode:
         match_files = list(matches_dir.glob("*.json"))
         assert len(match_files) == 1
 
-    def test_execute_no_amazon_data(self, temp_dir, flow_context):
-        """Test execute() when no Amazon data available."""
-        node = AmazonMatchingFlowNode(temp_dir)
-
-        # Set up YNAB cache only (no Amazon data)
-        ynab_cache_dir = temp_dir / "ynab" / "cache"
-        ynab_cache_dir.mkdir(parents=True)
-        transactions_file = ynab_cache_dir / "transactions.json"
-        write_json(transactions_file, [{"id": "tx123", "payee_name": "Amazon.com"}])
-
-        # Execute should fail gracefully
-        result = node.execute(flow_context)
-
-        assert result.success is False
-        assert "Amazon" in result.error_message or result.items_processed == 0
-
-    def test_execute_no_ynab_cache(self, temp_dir, flow_context):
-        """Test execute() when no YNAB cache available."""
-        node = AmazonMatchingFlowNode(temp_dir)
-
-        # Set up Amazon data only (no YNAB cache)
-        raw_dir = temp_dir / "amazon" / "raw" / "2025-01-01_karl_amazon_data"
-        raw_dir.mkdir(parents=True)
-        csv_file = raw_dir / "Retail.OrderHistory.1.csv"
-        csv_file.write_text("Order ID\n111-222\n")
-
-        # Execute should fail
-        result = node.execute(flow_context)
-
-        assert result.success is False
-
-    def test_check_changes_no_ynab_cache(self, temp_dir, flow_context):
-        """Test check_changes() when YNAB cache missing."""
-        node = AmazonMatchingFlowNode(temp_dir)
-
-        # Create Amazon data only (node looks for Retail.OrderHistory.*.csv)
-        raw_dir = temp_dir / "amazon" / "raw" / "2025-01-01_karl_amazon_data"
-        raw_dir.mkdir(parents=True)
-        (raw_dir / "Retail.OrderHistory.1.csv").write_text("Order ID\n111\n")
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is False
-        assert any("No YNAB cache available" in r for r in reasons)
+    # Removed tests that are covered by parameterized test_flownode_interface.py:
+    # - test_execute_no_amazon_data (missing input data handling)
+    # - test_execute_no_ynab_cache (missing dependency handling)
+    # Kept node-specific tests below that validate business logic
 
     def test_check_changes_no_previous_matches(self, temp_dir, flow_context):
         """Test check_changes() when no previous matches exist."""
