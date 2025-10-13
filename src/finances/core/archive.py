@@ -119,7 +119,9 @@ class DomainArchiver:
         for archive_path in existing_archives:
             try:
                 # Extract sequence number from filename: YYYY-MM-DD-NNN.tar.gz
-                name_parts = archive_path.stem.split("-")
+                # Remove .tar.gz extension (not just .gz) to get base name
+                base_name = archive_path.name.removesuffix(".tar.gz")
+                name_parts = base_name.split("-")
                 if len(name_parts) >= 4:
                     sequence_numbers.append(int(name_parts[3]))
             except (ValueError, IndexError):
