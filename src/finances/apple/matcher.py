@@ -335,7 +335,6 @@ def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
     unmatched_money = Money.from_cents(total_money.to_cents() - matched_money.to_cents())
 
     # Convert to cents for JSON serialization
-    total_amount = total_money.to_cents()
     matched_amount = matched_money.to_cents()
     unmatched_amount = unmatched_money.to_cents()
 
