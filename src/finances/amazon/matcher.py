@@ -16,6 +16,7 @@ from typing import Any
 import pandas as pd
 
 from ..core.currency import format_cents, milliunits_to_cents
+from ..core.money import Money
 from .grouper import GroupingLevel, get_order_candidates, group_orders
 from .scorer import ConfidenceThresholds, MatchScorer, MatchType
 from .split_matcher import SplitPaymentMatcher
@@ -58,8 +59,9 @@ class SimplifiedMatcher:
         Returns:
             Match result with transaction, matches, and best_match
         """
-        # Convert YNAB amount to cents
-        ynab_amount_cents = milliunits_to_cents(ynab_tx["amount"])
+        # Convert YNAB amount to Money
+        ynab_amount_money = Money.from_milliunits(ynab_tx["amount"])
+        ynab_amount_cents = ynab_amount_money.to_cents()  # Still use cents internally
         ynab_date = datetime.strptime(ynab_tx["date"], "%Y-%m-%d").date()
 
         # Check if this is an Amazon transaction
@@ -109,7 +111,8 @@ class SimplifiedMatcher:
         return {
             "ynab_transaction": {
                 "id": ynab_tx["id"],
-                "amount": ynab_tx["amount"],  # Keep original milliunits, not cents
+                "amount": ynab_tx["amount"],  # Legacy milliunits
+                "amount_money": ynab_amount_money,  # NEW
                 "date": ynab_tx["date"],
                 "payee_name": ynab_tx.get("payee_name", ""),
                 "memo": ynab_tx.get("memo", ""),
