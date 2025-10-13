@@ -225,14 +225,14 @@ class TestAmazonMatchResultsStore:
         result = self.store.item_count()
         assert result == 2
 
-    def test_item_count_returns_zero_for_invalid_structure(self):
-        """Test item_count() returns 0 for invalid JSON structure."""
+    def test_item_count_returns_none_for_invalid_structure(self):
+        """Test item_count() returns None for invalid JSON structure."""
         self.matches_dir.mkdir(parents=True, exist_ok=True)
         match_file = self.matches_dir / "2024-10-01_12-00-00_amazon_matching_results.json"
         write_json(match_file, "not a dict")
 
         result = self.store.item_count()
-        assert result == 0
+        assert result is None
 
     def test_summary_text_when_no_files(self):
         """Test summary_text() returns appropriate message when no files."""

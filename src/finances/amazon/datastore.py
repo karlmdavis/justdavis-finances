@@ -151,13 +151,16 @@ class AmazonMatchResultsStore:
 
         Raises:
             FileNotFoundError: If no match files exist
+            ValueError: If JSON data is not a dictionary
         """
         if not self.exists():
             raise FileNotFoundError(f"No match results found in {self.matches_dir}")
 
         latest_file = max(self.matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
         result = read_json(latest_file)
-        return result if isinstance(result, dict) else {}
+        if not isinstance(result, dict):
+            raise ValueError(f"Invalid match data format: expected dict, got {type(result).__name__}")
+        return result
 
     def save(self, data: dict) -> None:
         """
@@ -198,9 +201,9 @@ class AmazonMatchResultsStore:
 
         try:
             data = self.load()
-            return len(data.get("matches", [])) if isinstance(data, dict) else 0
-        except Exception:
-            return 0
+            return len(data.get("matches", [])) if isinstance(data, dict) else None
+        except (FileNotFoundError, ValueError, KeyError, AttributeError):
+            return None
 
     def size_bytes(self) -> int | None:
         """Get size of most recent match file."""

@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from finances.core.json_utils import read_json
+from finances.core.json_utils import read_json, write_json
 
 if TYPE_CHECKING:
     from finances.core.flow import NodeDataSummary
@@ -163,8 +163,6 @@ class AppleReceiptStore:
         Args:
             data: List of receipt dictionaries
         """
-        from finances.core.json_utils import write_json
-
         self.exports_dir.mkdir(parents=True, exist_ok=True)
 
         for receipt in data:
@@ -255,13 +253,16 @@ class AppleMatchResultsStore:
 
         Raises:
             FileNotFoundError: If no match files exist
+            ValueError: If JSON data is not a dictionary
         """
         if not self.exists():
             raise FileNotFoundError(f"No match results found in {self.matches_dir}")
 
         latest_file = max(self.matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
         result = read_json(latest_file)
-        return result if isinstance(result, dict) else {}
+        if not isinstance(result, dict):
+            raise ValueError(f"Invalid match data format: expected dict, got {type(result).__name__}")
+        return result
 
     def save(self, data: dict) -> None:
         """
@@ -270,8 +271,6 @@ class AppleMatchResultsStore:
         Args:
             data: Matching results dictionary with metadata and matches
         """
-        from finances.core.json_utils import write_json
-
         self.matches_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -301,9 +300,9 @@ class AppleMatchResultsStore:
 
         try:
             data = self.load()
-            return len(data.get("matches", [])) if isinstance(data, dict) else 0
-        except Exception:
-            return 0
+            return len(data.get("matches", [])) if isinstance(data, dict) else None
+        except (FileNotFoundError, ValueError, KeyError, AttributeError):
+            return None
 
     def size_bytes(self) -> int | None:
         """Get size of most recent match file."""

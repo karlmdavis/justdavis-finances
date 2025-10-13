@@ -176,13 +176,16 @@ class YnabEditsStore:
 
         Raises:
             FileNotFoundError: If no edit files exist
+            ValueError: If JSON data is not a dictionary
         """
         if not self.exists():
             raise FileNotFoundError(f"No edit files found in {self.edits_dir}")
 
         latest_file = max(self.edits_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
         result = read_json(latest_file)
-        return result if isinstance(result, dict) else {}
+        if not isinstance(result, dict):
+            raise ValueError(f"Invalid edit data format: expected dict, got {type(result).__name__}")
+        return result
 
     def save(self, data: dict) -> None:
         """
@@ -263,6 +266,9 @@ class YnabEditsStore:
 
         Returns:
             Dictionary containing retirement edit data, or None if not found
+
+        Raises:
+            ValueError: If JSON data is not a dictionary
         """
         retirement_files = self.get_retirement_edits()
         if not retirement_files:
@@ -270,7 +276,9 @@ class YnabEditsStore:
 
         latest_file = max(retirement_files, key=lambda p: p.stat().st_mtime)
         result = read_json(latest_file)
-        return result if isinstance(result, dict) else None
+        if not isinstance(result, dict):
+            raise ValueError(f"Invalid retirement edit data format: expected dict, got {type(result).__name__}")
+        return result
 
     def to_node_data_summary(self) -> "NodeDataSummary":
         """Convert to NodeDataSummary for FlowNode integration."""
