@@ -16,7 +16,6 @@ import pytest
 
 from finances.core.archive import (
     ArchiveManager,
-    ArchiveManifest,
     DomainArchiver,
     create_flow_archive,
 )
@@ -108,8 +107,8 @@ class TestDomainArchiver:
 
     def test_get_next_sequence_number_with_existing_archives(self, temp_data_dir):
         """Test getting next sequence number with existing archives."""
-        from datetime import datetime
         import tarfile
+        from datetime import datetime
 
         archiver = DomainArchiver("amazon", temp_data_dir)
 
@@ -119,11 +118,11 @@ class TestDomainArchiver:
         # Create existing archives with today's date (must be valid tar files)
         for seq in [1, 2]:
             archive_path = archiver.archive_dir / f"{today}-{seq:03d}.tar.gz"
-            with tarfile.open(archive_path, "w:gz") as tar:
+            with tarfile.open(archive_path, "w:gz"):
                 pass  # Empty but valid tar.gz file
 
         # Also create one with different date
-        with tarfile.open(archiver.archive_dir / "2024-01-02-001.tar.gz", "w:gz") as tar:
+        with tarfile.open(archiver.archive_dir / "2024-01-02-001.tar.gz", "w:gz"):
             pass
 
         seq_num = archiver.get_next_sequence_number(today)
@@ -132,8 +131,8 @@ class TestDomainArchiver:
 
     def test_get_next_sequence_number_ignores_malformed_names(self, temp_data_dir):
         """Test that malformed archive names are ignored in sequence numbering."""
-        from datetime import datetime
         import tarfile
+        from datetime import datetime
 
         archiver = DomainArchiver("amazon", temp_data_dir)
 
@@ -141,7 +140,7 @@ class TestDomainArchiver:
         today = datetime.now().strftime("%Y-%m-%d")
 
         # Create archives with malformed names
-        with tarfile.open(archiver.archive_dir / f"{today}-001.tar.gz", "w:gz") as tar:
+        with tarfile.open(archiver.archive_dir / f"{today}-001.tar.gz", "w:gz"):
             pass
         (archiver.archive_dir / "invalid-name.tar.gz").write_bytes(b"")
         (archiver.archive_dir / f"{today}-xyz.tar.gz").write_bytes(b"")  # Malformed sequence
@@ -205,8 +204,8 @@ class TestDomainArchiver:
 
     def test_create_archive_sequence_numbering(self, sample_domain_data, temp_data_dir):
         """Test that sequence numbers increment based on existing archives."""
-        from datetime import datetime
         import tarfile
+        from datetime import datetime
 
         archiver = DomainArchiver("amazon", temp_data_dir)
 
@@ -214,9 +213,9 @@ class TestDomainArchiver:
         today = datetime.now().strftime("%Y-%m-%d")
 
         # Pre-create some archives to establish a sequence
-        with tarfile.open(archiver.archive_dir / f"{today}-001.tar.gz", "w:gz") as tar:
+        with tarfile.open(archiver.archive_dir / f"{today}-001.tar.gz", "w:gz"):
             pass
-        with tarfile.open(archiver.archive_dir / f"{today}-002.tar.gz", "w:gz") as tar:
+        with tarfile.open(archiver.archive_dir / f"{today}-002.tar.gz", "w:gz"):
             pass
 
         # Now create a new archive - it should get sequence number 3
@@ -358,9 +357,9 @@ class TestArchiveManager:
 
         manager = ArchiveManager(temp_data_dir)
 
-        session1 = manager.create_transaction_archive("trigger_1")
+        manager.create_transaction_archive("trigger_1")
         time.sleep(1)  # Ensure different session IDs (based on timestamp)
-        session2 = manager.create_transaction_archive("trigger_2")
+        manager.create_transaction_archive("trigger_2")
 
         archives = manager.list_recent_archives(limit=10)
 
@@ -377,7 +376,7 @@ class TestArchiveManager:
         manager = ArchiveManager(temp_data_dir)
 
         # Create archives - they will get sequential numbers
-        session = manager.create_transaction_archive("trigger_1")
+        manager.create_transaction_archive("trigger_1")
 
         archives = manager.list_recent_archives(domain="amazon", limit=10)
 
@@ -436,7 +435,6 @@ class TestArchiveManager:
 
     def test_cleanup_old_archives_keeps_recent(self, temp_data_dir):
         """Test that cleanup keeps the most recent archives."""
-        from datetime import datetime, timedelta
         import tarfile
         import time
 
@@ -445,12 +443,13 @@ class TestArchiveManager:
         # Create 5 archives with different modification times by manually creating them
         for i in range(5):
             archive_path = archiver.archive_dir / f"2025-10-{13+i:02d}-001.tar.gz"
-            with tarfile.open(archive_path, "w:gz") as tar:
+            with tarfile.open(archive_path, "w:gz"):
                 pass
             # Set different modification times
             mtime = time.time() - (5 - i) * 60  # Each one minute apart, oldest first
             archive_path.touch()
             import os
+
             os.utime(archive_path, (mtime, mtime))
 
         manager = ArchiveManager(temp_data_dir)
@@ -476,13 +475,14 @@ class TestArchiveManager:
             archive_path = archiver.archive_dir / f"2025-10-{13+i:02d}-001.tar.gz"
             manifest_path = archive_path.with_suffix(".json")
 
-            with tarfile.open(archive_path, "w:gz") as tar:
+            with tarfile.open(archive_path, "w:gz"):
                 pass
             manifest_path.write_text("{}")
 
             # Set different modification times
             mtime = time.time() - (5 - i) * 60
             import os
+
             os.utime(archive_path, (mtime, mtime))
             os.utime(manifest_path, (mtime, mtime))
 
@@ -514,9 +514,7 @@ class TestCreateFlowArchive:
         amazon_dir.mkdir(parents=True)
         (amazon_dir / "orders.json").write_text('{"orders": []}')
 
-        session = create_flow_archive(
-            temp_data_dir, "test_trigger", flow_context={"test": "data"}
-        )
+        session = create_flow_archive(temp_data_dir, "test_trigger", flow_context={"test": "data"})
 
         assert session is not None
         assert session.trigger_reason == "test_trigger"

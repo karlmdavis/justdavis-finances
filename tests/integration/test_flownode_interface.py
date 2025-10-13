@@ -15,7 +15,6 @@ import pytest
 
 from finances.amazon.flow import (
     AmazonMatchingFlowNode,
-    AmazonOrderHistoryRequestFlowNode,
     AmazonUnzipFlowNode,
 )
 from finances.analysis.flow import CashFlowAnalysisFlowNode

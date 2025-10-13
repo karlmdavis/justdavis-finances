@@ -11,7 +11,6 @@ import pytest
 
 from finances.core.flow import FlowContext
 from finances.core.json_utils import write_json
-from finances.ynab.flow import YnabSyncFlowNode
 from finances.ynab.split_generation_flow import SplitGenerationFlowNode
 
 

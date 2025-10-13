@@ -6,11 +6,7 @@ import json
 import pandas as pd
 import pytest
 
-from finances.amazon import SimplifiedMatcher
 from finances.analysis import CashFlowAnalyzer, CashFlowConfig
-from finances.apple import AppleMatcher, normalize_apple_receipt_data
-from finances.ynab import calculate_amazon_splits, calculate_apple_splits
-
 
 # TestAmazonWorkflow and TestAppleWorkflow removed - redundant with E2E tests
 # E2E test (test_flow_system.py::test_flow_interactive_execution_with_matching)
@@ -51,8 +47,6 @@ class TestCashFlowWorkflow:
         # 90 days of transaction history
         transactions_data = []
         from datetime import date
-
-        import pandas as pd
 
         base_date = date(2024, 6, 1)
         for day in range(90):

@@ -148,9 +148,7 @@ class TestYnabSyncChangeDetector:
         ynab_cache_dir.mkdir(parents=True)
 
         write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 100})
-        write_json(
-            ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50}
-        )
+        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50})
         write_json(ynab_cache_dir / "transactions.json", [])
 
         detector = YnabSyncChangeDetector(temp_data_dir)
@@ -173,9 +171,7 @@ class TestYnabSyncChangeDetector:
 
         # Initial state
         write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 100})
-        write_json(
-            ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50}
-        )
+        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50})
         write_json(ynab_cache_dir / "transactions.json", [])
 
         detector = YnabSyncChangeDetector(temp_data_dir)
@@ -198,9 +194,7 @@ class TestYnabSyncChangeDetector:
 
         # Initial state
         write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 100})
-        write_json(
-            ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50}
-        )
+        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50})
         write_json(ynab_cache_dir / "transactions.json", [])
 
         detector = YnabSyncChangeDetector(temp_data_dir)
@@ -209,9 +203,7 @@ class TestYnabSyncChangeDetector:
         detector.check_changes(flow_context)
 
         # Change categories server_knowledge
-        write_json(
-            ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 51}
-        )
+        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 51})
 
         has_changes, reasons = detector.check_changes(flow_context)
 
@@ -224,9 +216,7 @@ class TestYnabSyncChangeDetector:
         ynab_cache_dir.mkdir(parents=True)
 
         write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 100})
-        write_json(
-            ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50}
-        )
+        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50})
         write_json(ynab_cache_dir / "transactions.json", [])
 
         detector = YnabSyncChangeDetector(temp_data_dir)
