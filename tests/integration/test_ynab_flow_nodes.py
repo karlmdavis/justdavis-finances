@@ -40,9 +40,18 @@ class TestSplitGenerationFlowNode:
                     {
                         "ynab_transaction": {
                             "id": "tx123",
-                            "amount": 2999,  # cents
+                            "amount": -29990,  # milliunits (negative for expense) = -$29.99
                         },
-                        "best_match": {"amazon_orders": [{"items": [{"name": "Test Item", "amount": 2999}]}]},
+                        "best_match": {
+                            "amazon_orders": [
+                                {
+                                    "items": [
+                                        {"name": "Test Item 1", "amount": 1999},  # cents = $19.99
+                                        {"name": "Test Item 2", "amount": 1000},  # cents = $10.00
+                                    ]
+                                }
+                            ]
+                        },
                     }
                 ]
             },

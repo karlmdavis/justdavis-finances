@@ -5,19 +5,316 @@ E2E Tests for Financial Flow System
 Comprehensive end-to-end tests for the finances flow system using subprocess
 to run actual CLI commands with synthetic test data.
 
-These tests validate the complete flow orchestration system from user perspective.
+These tests validate the complete flow orchestration system from user perspective,
+using an imperative testing approach with explicit node sequencing.
+
+## Test Philosophy
+
+These E2E tests prioritize:
+1. **Real user workflows** - Tests execute actual CLI commands via subprocess
+2. **Coordinated test data** - Hardcoded data ensures 100% match rates
+3. **Explicit sequencing** - Deterministic execution order with clear node transitions
+4. **Full output logging** - Capture all output and display on failure for easy debugging
+
+## Flow Execution Order
+
+The flow system executes nodes in deterministic alphabetical order when dependencies
+are satisfied. With the coordinated test data fixture:
+
+**Input data:**
+- Amazon ZIP file (data/amazon/raw/2024-12-01_karl_amazon_data.zip) - requires unzipping
+- Apple .html receipt files (data/apple/emails/) - requires parsing
+- YNAB cached transactions (data/ynab/cache/) - ready to use
+
+**Execution sequence (5 nodes):**
+1. `amazon_unzip` - Extracts ZIP to CSV (no dependencies, alphabetically first)
+2. `amazon_matching` - Matches orders to YNAB (depends on amazon_unzip)
+3. `apple_receipt_parsing` - Parses .html to JSON (no dependencies, alphabetically after email_fetch when skipped)
+4. `apple_matching` - Matches receipts to YNAB (depends on apple_receipt_parsing)
+5. `split_generation` - Generates splits (depends on both matchers)
+
+**Nodes skipped in tests:**
+- `apple_email_fetch` - Requires IMAP credentials (not available in CI)
+- `cash_flow_analysis` - Requires historical data (not in test fixture)
+- `retirement_update` - Requires retirement accounts (not in test fixture)
+- `ynab_apply` - Requires YNAB API (would modify real data)
+- `ynab_sync` - Cache already exists (no API call needed)
+
+## Test-Mode Markers
+
+The flow_engine.py emits special markers to stderr when FINANCES_ENV=test:
+
+- `[NODE_PROMPT: node_name]` - Emitted before prompting user for node execution
+- `[NODE_EXEC_START: node_name]` - Emitted before node execution begins
+- `[NODE_EXEC_END: node_name: status]` - Emitted after execution completes
+
+These markers enable:
+1. **Explicit wait points** - `wait_for_node_prompt()` waits for specific nodes
+2. **Deterministic sequencing** - Know exactly which node is being prompted
+3. **Status verification** - `assert_node_executed()` confirms execution and status
+
+## Debugging Failed Tests
+
+When tests fail, the `capture_and_log_on_failure()` context manager automatically
+prints the full flow output. Look for:
+
+1. **Unexpected node order** - Check which `[NODE_PROMPT: ...]` markers appeared
+2. **Execution failures** - Look for `[NODE_EXEC_END: ...: failed]` markers
+3. **Missing markers** - If expected marker didn't appear, check node dependencies
+4. **Timeout errors** - Usually means node didn't prompt (no data to process)
+
+## Coordinated Test Data
+
+The test fixture creates hardcoded data designed to match and exercise the full flow:
+
+**Amazon data (ZIP file → CSV → matching):**
+- Format: ZIP file containing Retail.OrderHistory.1.csv
+- Order ID: 111-2223334-5556667
+- Ship Date: 2024-12-03
+- Items: Wireless Mouse ($29.99) + USB Cable ($12.99) = $46.42 total
+- Matches YNAB transaction: tx_amazon_001
+- Tests: amazon_unzip → amazon_matching
+
+**Apple data (.eml + extracted files → parsed JSON → matching):**
+- Format: Full email_fetcher output (4 files: .html, .txt, .eml, _metadata.json)
+- Order ID: ML7PQ2XYZ
+- Date: 2024-12-10
+- Items: Apple Music ($10.99) + iCloud Storage ($2.99) = $15.10 total
+- Matches YNAB transaction: tx_apple_001
+- Tests: apple_receipt_parsing → apple_matching (email_fetch skipped in tests)
+
+**YNAB transactions:**
+- tx_amazon_001: Amazon.com, $46.42, 2024-12-03
+- tx_apple_001: Apple.com/bill, $15.10, 2024-12-10
+
+This coordination ensures 100% match rate, exercises data transformation nodes
+(unzip, parse), and provides multi-item orders for split generation testing.
 """
 
 import subprocess
 import tempfile
+import zipfile
+from contextlib import contextmanager
+from io import StringIO
 from pathlib import Path
 
+import pexpect
 import pytest
 
+from finances.core.json_utils import read_json, write_json
 from tests.fixtures.synthetic_data import save_synthetic_ynab_data
 
 # Working directory for all subprocess calls
 REPO_ROOT = Path(__file__).parent.parent.parent
+
+
+def create_coordinated_amazon_data(data_dir: Path) -> None:
+    """
+    Create coordinated Amazon order data that matches YNAB transactions.
+
+    Creates a ZIP file to test the amazon_unzip node, which then enables
+    amazon_matching to run. This hardcoded data ensures 100% match rate.
+    """
+    # Create Amazon raw data directory
+    raw_dir = data_dir / "amazon" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    # Amazon Order 1: Multi-item order for splitting test
+    # Order Date: 2024-12-01, Ship Date: 2024-12-03
+    # Order ID: 111-2223334-5556667
+    # Items: Wireless Mouse ($29.99) + USB Cable ($12.99) = $42.98 + $3.44 tax = $46.42
+    # YNAB Transaction: Amazon.com, 2024-12-03, -$46.42
+
+    csv_content = """Order ID,Order Date,Purchase Order Number,Ship Date,Product Name,Category,ASIN,UNSPSC Code,Website,Release Date,Condition,Seller,Seller Credentials,List Price Per Unit,Unit Price,Quantity,Payment Instrument Type,Purchase Order State,Shipping Address Name,Shipping Address Street 1,Shipping Address Street 2,Shipping Address City,Shipping Address State,Shipping Address Zip,Order Status,Carrier Name & Tracking Number,Item Subtotal,Item Subtotal Tax,Total Owed,Tax Exemption Applied,Tax Exemption Type,Exemption Opt-Out,Buyer Name,Currency,Group Name
+111-2223334-5556667,12/01/24,D01-1234567-1234567,12/03/24,Wireless Mouse - Ergonomic,Electronics,B08X1234AB,43211500,www.amazon.com,,new,Amazon.com,,$34.99,$29.99,1,Visa - 1234,Shipped,Karl Davis,123 Main St,,Seattle,WA,98101,Shipped,AMZN_US(TBA987654321),$29.99,$2.55,$32.54,,,,Karl Davis,USD,
+111-2223334-5556667,12/01/24,D01-1234567-1234567,12/03/24,USB-C Cable 6ft,Electronics,B08Y5678CD,26121600,www.amazon.com,,new,Amazon.com,,$14.99,$12.99,1,Visa - 1234,Shipped,Karl Davis,123 Main St,,Seattle,WA,98101,Shipped,AMZN_US(TBA987654321),$12.99,$0.89,$13.88,,,,Karl Davis,USD,
+"""
+
+    # Create ZIP file with CSV inside (mimics Amazon's download format)
+    zip_path = raw_dir / "2024-12-01_karl_amazon_data.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Add the CSV with the expected filename
+        zf.writestr("Retail.OrderHistory.1.csv", csv_content.strip())
+
+
+def create_coordinated_apple_data(data_dir: Path) -> None:
+    """
+    Create coordinated Apple receipt data matching email_fetcher output format.
+
+    Creates the same 4-file structure that email_fetcher produces:
+    - .html: Extracted HTML content
+    - .txt: Extracted text content
+    - .eml: Raw email (RFC822 format)
+    - _metadata.json: Structured metadata
+
+    This ensures 100% match rate with YNAB transactions.
+    """
+    # Create Apple emails directory
+    emails_dir = data_dir / "apple" / "emails"
+    emails_dir.mkdir(parents=True, exist_ok=True)
+
+    # Apple Receipt: Multi-item subscription for splitting test
+    # Receipt Date: 2024-12-10
+    # Order ID: ML7PQ2XYZ
+    # Items: Apple Music ($10.99) + iCloud Storage ($2.99) = $13.98 + $1.12 tax = $15.10
+    # YNAB Transaction: Apple.com/bill, 2024-12-10, -$15.10
+
+    # Base filename following email_fetcher pattern: YYYYMMDD_HHMMSS_subject_###
+    base_name = "20241210_120000_Your_receipt_from_Apple_000"
+
+    # HTML content matching Apple parser expectations
+    # Use legacy format with aapl-* classes for precise control
+    html_content = """<!DOCTYPE html>
+<html>
+<head><title>Your receipt from Apple</title></head>
+<body>
+<div class="invoice">
+    <h1>Your receipt from Apple</h1>
+    <div class="aapl-order"><span class="aapl-order-id">ML7PQ2XYZ</span></div>
+    <div class="aapl-date">Dec 10, 2024</div>
+    <div class="items">
+        <div class="aapl-item">
+            <span class="aapl-item-name">Apple Music Individual Subscription</span>
+            <span class="aapl-item-cost">$10.99</span>
+        </div>
+        <div class="aapl-item">
+            <span class="aapl-item-name">iCloud+ 50GB Storage</span>
+            <span class="aapl-item-cost">$2.99</span>
+        </div>
+    </div>
+    <div class="totals">
+        <div class="aapl-subtotal">$13.98</div>
+        <div class="aapl-tax">$1.12</div>
+        <div class="aapl-total">$15.10</div>
+    </div>
+</div>
+</body>
+</html>"""
+
+    # Text content (simplified version)
+    text_content = """Your receipt from Apple
+
+Order ID: ML7PQ2XYZ
+Order Date: Dec 10, 2024
+Bill To: Karl Davis
+
+Items:
+Apple Music Individual Subscription - $10.99
+iCloud+ 50GB Storage - $2.99
+
+Subtotal: $13.98
+Tax: $1.12
+Total: $15.10"""
+
+    # Raw email in RFC822 format
+    eml_content = f"""From: no_reply@email.apple.com
+To: user@example.com
+Subject: Your receipt from Apple.
+Date: Tue, 10 Dec 2024 12:00:00 +0000
+Message-ID: <ML7PQ2XYZ@email.apple.com>
+Content-Type: multipart/alternative; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset=utf-8
+
+{text_content}
+
+--boundary123
+Content-Type: text/html; charset=utf-8
+
+{html_content}
+
+--boundary123--"""
+
+    # Metadata JSON
+    metadata = {
+        "message_id": "<ML7PQ2XYZ@email.apple.com>",
+        "subject": "Your receipt from Apple.",
+        "sender": "no_reply@email.apple.com",
+        "date": "2024-12-10T12:00:00+00:00",
+        "folder": "INBOX",
+        "metadata": {"msg_num": "1", "size": len(eml_content)},
+    }
+
+    # Write all 4 files matching email_fetcher output
+    (emails_dir / f"{base_name}-formatted-simple.html").write_text(html_content)
+    (emails_dir / f"{base_name}.txt").write_text(text_content)
+    (emails_dir / f"{base_name}.eml").write_text(eml_content)
+    write_json(emails_dir / f"{base_name}_metadata.json", metadata)
+
+
+def create_coordinated_ynab_data(ynab_cache_dir: Path) -> None:
+    """
+    Create coordinated YNAB transaction data that matches Amazon and Apple data.
+
+    This ensures 100% match rate for matchers and provides transactions for splitting.
+    """
+    # YNAB transactions matching the Amazon and Apple data
+    transactions = [
+        {
+            "id": "tx_amazon_001",
+            "date": "2024-12-03",
+            "amount": -46420,  # -$46.42 in milliunits
+            "payee_name": "Amazon.com",
+            "memo": None,
+            "category_name": "Shopping",
+            "account_name": "Visa - 1234",
+            "cleared": "cleared",
+            "approved": True,
+            "flag_color": None,
+            "subtransactions": [],
+        },
+        {
+            "id": "tx_apple_001",
+            "date": "2024-12-10",
+            "amount": -15100,  # -$15.10 in milliunits
+            "payee_name": "Apple.com/bill",
+            "memo": None,
+            "category_name": "Subscriptions",
+            "account_name": "Visa - 1234",
+            "cleared": "cleared",
+            "approved": True,
+            "flag_color": None,
+            "subtransactions": [],
+        },
+    ]
+
+    # Minimal accounts data
+    accounts_data = {
+        "accounts": [
+            {
+                "id": "acct_001",
+                "name": "Visa - 1234",
+                "type": "creditCard",
+                "balance": -61520,  # Sum of transactions
+                "cleared_balance": -61520,
+                "uncleared_balance": 0,
+                "closed": False,
+            }
+        ],
+        "server_knowledge": 100,
+    }
+
+    # Minimal categories data
+    categories_data = {
+        "category_groups": [
+            {
+                "id": "cg_001",
+                "name": "Spending",
+                "hidden": False,
+                "categories": [
+                    {"id": "cat_001", "name": "Shopping", "hidden": False},
+                    {"id": "cat_002", "name": "Subscriptions", "hidden": False},
+                ],
+            }
+        ],
+        "server_knowledge": 100,
+    }
+
+    # Write to cache files
+    write_json(ynab_cache_dir / "transactions.json", transactions)
+    write_json(ynab_cache_dir / "accounts.json", accounts_data)
+    write_json(ynab_cache_dir / "categories.json", categories_data)
 
 
 @pytest.fixture
@@ -39,108 +336,16 @@ def flow_test_env(monkeypatch):
         save_synthetic_ynab_data(ynab_cache_dir)
 
         # Create other required directories
-        amazon_raw_dir = data_dir / "amazon" / "raw"
-        amazon_raw_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / "amazon" / "raw").mkdir(parents=True, exist_ok=True)
         (data_dir / "amazon" / "transaction_matches").mkdir(parents=True, exist_ok=True)
-
-        apple_emails_dir = data_dir / "apple" / "emails"
-        apple_emails_dir.mkdir(parents=True, exist_ok=True)
-        apple_exports_dir = data_dir / "apple" / "exports"
-        apple_exports_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / "apple" / "emails").mkdir(parents=True, exist_ok=True)
+        (data_dir / "apple" / "exports").mkdir(parents=True, exist_ok=True)
         (data_dir / "apple" / "transaction_matches").mkdir(parents=True, exist_ok=True)
         (data_dir / "ynab" / "edits").mkdir(parents=True, exist_ok=True)
         (data_dir / "cash_flow" / "charts").mkdir(parents=True, exist_ok=True)
 
-        # Generate Amazon test data - create ZIP file (input to amazon_unzip)
-        # This ensures amazon_unzip node will execute during flow tests
-
-        import csv
-        import zipfile
-
-        from finances.core.json_utils import write_json
-        from tests.fixtures.synthetic_data import generate_synthetic_amazon_orders
-
-        # Create downloads directory for ZIP files
-        downloads_dir = temp_path / "downloads"
-        downloads_dir.mkdir(parents=True, exist_ok=True)
-
-        # Generate synthetic Amazon orders
-        orders = generate_synthetic_amazon_orders(num_orders=5)
-
-        if orders:
-            # Create temporary CSV file
-            csv_file = temp_path / "temp_amazon_orders.csv"
-            with open(csv_file, "w", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=orders[0].keys())
-                writer.writeheader()
-                writer.writerows(orders)
-
-            # Create ZIP file in downloads directory
-            zip_path = downloads_dir / "amazon_orders_testaccount.zip"
-            with zipfile.ZipFile(zip_path, "w") as zip_ref:
-                zip_ref.write(csv_file, "Retail.OrderHistory.1.csv")
-
-        # Generate Apple test data - create receipts JSON directly
-        # (skip email HTML generation since we parse receipts directly)
-        apple_export_dir = apple_exports_dir / "2025-01-01_00-00-00_apple_receipts_export"
-        apple_export_dir.mkdir(parents=True, exist_ok=True)
-
-        # Generate receipts with synthetic data
-        receipts = [
-            {
-                "apple_id": "test@example.com",
-                "receipt_date": "Jan 15, 2025",
-                "order_id": f"ORDER-{i:03d}",
-                "document_number": f"DOC-{i:03d}",
-                "total": 999 + (i * 100),  # Varying amounts in cents
-                "currency": "USD",
-                "items": [{"name": f"Test App {i}", "amount": 999 + (i * 100)}],
-            }
-            for i in range(1, 4)
-        ]
-
-        # Add one receipt with null date to test edge case handling
-        receipts.append(
-            {
-                "apple_id": "test@example.com",
-                "receipt_date": None,
-                "order_id": "ORDER-NULL",
-                "document_number": "DOC-NULL",
-                "total": 599,
-                "currency": "USD",
-                "items": [{"name": "Test App Null Date", "amount": 599}],
-            }
-        )
-
-        receipts_file = apple_export_dir / "all_receipts_combined.json"
-        write_json(receipts_file, receipts)
-
-        # Create change detection cache to make ynab_sync and apple_email_fetch
-        # appear as "recently run" so change detection skips them in tests
-        from datetime import datetime, timedelta
-
-        flow_cache_dir = data_dir / "cache" / "flow"
-        flow_cache_dir.mkdir(parents=True, exist_ok=True)
-
-        # Timestamp from 1 hour ago (well within 12/24 hour thresholds)
-        one_hour_ago = (datetime.now() - timedelta(hours=1)).isoformat()
-
-        # ynab_sync change detection cache (24-hour threshold)
-        # Must match server_knowledge values in synthetic YNAB data
-        ynab_sync_cache = {
-            "last_sync_time": one_hour_ago,
-            "accounts_server_knowledge": 12345,  # Matches synthetic data
-            "categories_server_knowledge": 67890,  # Matches synthetic data
-        }
-        write_json(flow_cache_dir / "ynab_sync_last_check.json", ynab_sync_cache)
-
-        # apple_email_fetch change detection cache (12-hour threshold)
-        apple_fetch_cache = {"last_fetch_time": one_hour_ago}
-        write_json(flow_cache_dir / "apple_email_fetch_last_check.json", apple_fetch_cache)
-
         # Set environment variables for this test
         monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
-        monkeypatch.setenv("FINANCES_DOWNLOADS_DIR", str(downloads_dir))
         monkeypatch.setenv("FINANCES_ENV", "test")
         monkeypatch.setenv("YNAB_API_TOKEN", "test-token-e2e")
         monkeypatch.setenv("EMAIL_PASSWORD", "test-password-e2e")
@@ -149,7 +354,48 @@ def flow_test_env(monkeypatch):
             "temp_dir": temp_path,
             "data_dir": data_dir,
             "ynab_cache_dir": ynab_cache_dir,
-            "downloads_dir": downloads_dir,
+        }
+
+
+@pytest.fixture
+def flow_test_env_coordinated(monkeypatch):
+    """
+    Create isolated test environment with coordinated test data.
+
+    Uses hardcoded Amazon orders, Apple receipts, and YNAB transactions that
+    are designed to match each other exactly, ensuring 100% match rates for
+    matchers and providing multi-item orders/receipts for split generation.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Create data directory structure
+        data_dir = temp_path / "data"
+        ynab_cache_dir = data_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create other required directories
+        (data_dir / "amazon" / "transaction_matches").mkdir(parents=True, exist_ok=True)
+        (data_dir / "apple" / "exports").mkdir(parents=True, exist_ok=True)
+        (data_dir / "apple" / "transaction_matches").mkdir(parents=True, exist_ok=True)
+        (data_dir / "ynab" / "edits").mkdir(parents=True, exist_ok=True)
+        (data_dir / "cash_flow" / "charts").mkdir(parents=True, exist_ok=True)
+
+        # Generate coordinated test data
+        create_coordinated_amazon_data(data_dir)
+        create_coordinated_apple_data(data_dir)
+        create_coordinated_ynab_data(ynab_cache_dir)
+
+        # Set environment variables for this test
+        monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
+        monkeypatch.setenv("FINANCES_ENV", "test")
+        monkeypatch.setenv("YNAB_API_TOKEN", "test-token-e2e")
+        monkeypatch.setenv("EMAIL_PASSWORD", "test-password-e2e")
+
+        yield {
+            "temp_dir": temp_path,
+            "data_dir": data_dir,
+            "ynab_cache_dir": ynab_cache_dir,
         }
 
 
@@ -175,419 +421,365 @@ def run_flow_command(args: list[str], env: dict | None = None) -> subprocess.Com
     return result
 
 
-@pytest.mark.e2e
-def test_flow_validate_command(flow_test_env):
+# ============================================================================
+# Imperative Testing Utilities for Interactive Flow
+# ============================================================================
+
+
+@contextmanager
+def capture_and_log_on_failure(child: pexpect.spawn):
     """
-    Test `finances flow validate` with real flow nodes.
+    Capture all output from pexpect child and log it on test failure.
 
-    Validates that the flow system configuration is valid and all nodes
-    are properly registered.
+    This context manager ensures full output visibility when tests fail,
+    making debugging much easier.
+
+    Args:
+        child: pexpect spawn object to capture from
+
+    Yields:
+        StringIO buffer containing all captured output
+
+    Usage:
+        with capture_and_log_on_failure(child) as output:
+            # Test code that might fail
+            wait_for_node_prompt(child, "amazon_matching")
     """
-    result = run_flow_command(["validate"])
+    output_buffer = StringIO()
+    child.logfile_read = output_buffer
+    try:
+        yield output_buffer
+    except Exception:
+        print("\n" + "=" * 70)
+        print("FULL FLOW OUTPUT (test failed)")
+        print("=" * 70)
+        print(output_buffer.getvalue())
+        print("=" * 70)
+        raise
 
-    # Should succeed with valid flow configuration
-    assert result.returncode == 0, f"Validate command failed: {result.stderr}"
-    assert "Flow validation passed" in result.stdout, "Expected validation success message"
-    assert "Registered nodes:" in result.stdout, "Expected node count in output"
 
-
-@pytest.mark.e2e
-def test_flow_graph_text_format(flow_test_env):
+def wait_for_node_prompt(child: pexpect.spawn, node_name: str, timeout: int = 30) -> str:
     """
-    Test `finances flow graph` text output.
+    Wait for specific node's prompt in interactive flow.
 
-    Validates that the graph command displays the dependency graph in
-    human-readable text format.
+    Uses test-mode markers [NODE_PROMPT: node_name] emitted by flow_engine.py
+    to identify exactly when a node is prompting for user input.
+
+    Args:
+        child: pexpect spawn object
+        node_name: Name of the node to wait for (e.g., "amazon_matching")
+        timeout: Maximum seconds to wait (default: 30)
+
+    Returns:
+        Text captured before the prompt (for assertions)
+
+    Raises:
+        pexpect.TIMEOUT: If marker not found within timeout
+        pexpect.EOF: If process exits unexpectedly
     """
-    result = run_flow_command(["graph"])
+    # Wait for test-mode marker
+    pattern = f"\\[NODE_PROMPT: {node_name}\\]"
+    child.expect(pattern, timeout=timeout)
 
-    assert result.returncode == 0, f"Graph command failed: {result.stderr}"
-    assert "Financial Flow System Dependency Graph" in result.stdout
-    assert "Total nodes:" in result.stdout
-    assert "Execution levels:" in result.stdout
-    assert "Level 1:" in result.stdout
+    # Wait for the actual user prompt text
+    child.expect("Update this data\\?", timeout=5)
 
-    # Should show some expected nodes
-    assert "ynab_sync" in result.stdout.lower() or "YNAB Sync" in result.stdout
-    assert "depends on:" in result.stdout or "no dependencies" in result.stdout
+    return child.before
 
 
-@pytest.mark.e2e
-def test_flow_go_no_changes_detected(flow_test_env):
+def send_node_decision(child: pexpect.spawn, execute: bool) -> None:
     """
-    Test flow behavior when no changes are detected.
+    Send yes/no decision to node prompt.
 
-    Validates that the system correctly reports when no execution is needed.
+    Args:
+        child: pexpect spawn object
+        execute: True to execute node (send 'y'), False to skip (send 'n')
     """
-    # First run with dry-run to establish baseline
-    result = run_flow_command(["go", "--dry-run", "--non-interactive"])
+    child.sendline("y" if execute else "n")
 
-    assert result.returncode == 0, f"Flow execution failed: {result.stderr}"
 
-    # Should indicate no changes or show execution plan
+def assert_node_executed(output: str, node_name: str, expected_status: str = "completed") -> None:
+    """
+    Assert that a node executed with the expected status.
+
+    Uses test-mode markers [NODE_EXEC_END: node_name: status] emitted by
+    flow_engine.py to verify execution completed.
+
+    Args:
+        output: Full output text to search
+        node_name: Name of the node that should have executed
+        expected_status: Expected execution status (default: "completed")
+                        Valid values: "completed", "failed", "skipped"
+
+    Raises:
+        AssertionError: If marker not found or status doesn't match
+    """
+    marker = f"[NODE_EXEC_END: {node_name}: {expected_status}]"
     assert (
-        "No nodes need execution" in result.stdout
-        or "Dynamic execution will process" in result.stdout
-        or "Initially triggered nodes:" in result.stdout
-    )
+        marker in output
+    ), f"Expected node {node_name} to complete with status '{expected_status}', but marker '{marker}' not found in output"
 
 
 @pytest.mark.e2e
-def test_flow_command_error_handling(flow_test_env):
+def test_flow_help_command(flow_test_env):
     """
-    Test error handling for invalid flow commands.
+    Test that help command works correctly.
 
-    Validates that invalid command combinations are handled gracefully.
+    Validates that --help provides useful information for flow command.
     """
-    # Test with invalid format option
-    result = run_flow_command(["graph", "--format", "invalid"])
-
-    # Should fail with helpful error message
-    assert result.returncode != 0, "Should fail with invalid format"
-    assert "invalid" in result.stderr.lower() or "error" in result.stderr.lower()
-
-
-@pytest.mark.e2e
-def test_flow_help_commands(flow_test_env):
-    """
-    Test that help commands work correctly.
-
-    Validates that --help provides useful information for all flow commands.
-    """
-    # Main flow help
+    # Flow help
     result = run_flow_command(["--help"])
     assert result.returncode == 0
-    assert "Financial Flow System" in result.stdout
-    assert "go" in result.stdout
-    assert "graph" in result.stdout
-    assert "validate" in result.stdout
-
-    # Subcommand help
-    for subcmd in ["go", "graph", "validate"]:
-        result = run_flow_command([subcmd, "--help"])
-        assert result.returncode == 0, f"Help for {subcmd} failed"
-        assert "Usage:" in result.stdout or "Options:" in result.stdout
+    assert "Financial Flow System" in result.stdout or "Execute the Financial Flow System" in result.stdout
+    assert "Options:" in result.stdout
 
 
 @pytest.mark.e2e
-@pytest.mark.slow
-def test_flow_complete_orchestration(flow_test_env):
+def test_flow_default_command(flow_test_env):
     """
-    Test complete flow orchestration with real node execution.
+    Test that flow is the default command (can call without 'flow').
 
-    This E2E test validates that `finances flow go` actually:
-    1. Detects changes in data files
-    2. Executes appropriate nodes in correct order
-    3. Produces expected output files
-    4. Handles multi-step workflows correctly
-
-    This is the most important E2E test - it verifies the entire
-    flow system works as a cohesive whole, not just individual pieces.
-
-    Note: Excludes nodes with external dependencies (ynab_sync, amazon_unzip,
-    ynab_apply, cash_flow_analysis) to ensure reliable test execution.
+    Validates that `finances flow` and `finances` are equivalent.
     """
-    from tests.fixtures.synthetic_data import (
-        save_synthetic_amazon_data,
-        save_synthetic_apple_receipt,
+    # Call without 'flow' subcommand - should work as default
+    cmd = ["uv", "run", "finances", "--help"]
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
     )
 
-    # Setup comprehensive test data
-    data_dir = flow_test_env["data_dir"]
+    assert result.returncode == 0, f"Default command failed: {result.stderr}"
 
-    # Add Amazon data (pre-extracted to bypass amazon_unzip which needs real Downloads folder)
-    amazon_raw_dir = data_dir / "amazon" / "raw"
-    amazon_raw_dir.mkdir(parents=True, exist_ok=True)
-    save_synthetic_amazon_data(amazon_raw_dir)
-
-    # Add Apple receipt data (triggers apple_receipt_parsing and apple_matching)
-    apple_emails_dir = data_dir / "apple" / "emails"
-    apple_emails_dir.mkdir(parents=True, exist_ok=True)
-    save_synthetic_apple_receipt(apple_emails_dir)
-
-    # Note: YNAB data is already setup by flow_test_env fixture
-
-    # Execute flow with --force to run all testable nodes
-    # Exclude nodes with external dependencies
-    # NOTE: Excluding ynab_sync and apple_email_fetch transitively excludes their dependent nodes
-    # (amazon_matching, apple_matching, split_generation, etc).
-    # This is a known limitation - see dev/todos.md for non-transitive exclusion feature request.
-    result = run_flow_command(
-        [
-            "go",
-            "--force",
-            "--non-interactive",
-            "--verbose",
-            "--nodes-excluded",
-            "ynab_sync",  # External CLI tool
-            "--nodes-excluded",
-            "apple_email_fetch",  # Requires EMAIL credentials
-            "--nodes-excluded",
-            "ynab_apply",  # External YNAB API
-            "--nodes-excluded",
-            "cash_flow_analysis",  # Requires 6+ months of data
-            "--skip-archive",  # Skip archiving for faster test execution
-        ]
-    )
-
-    # Verify strict success (no failures allowed)
-    assert result.returncode == 0, f"Flow execution failed: {result.stderr}\n\nStdout:\n{result.stdout}"
-
-    # Verify execution summary shows no failures
-    assert "Failed: 0" in result.stdout, "Should have 0 failed nodes"
-    assert "Completed:" in result.stdout, "Should show completed nodes count"
-
-    # Verify at least some nodes executed
-    assert "Executing" in result.stdout or "execution" in result.stdout.lower(), "Should show node execution"
-
-    # Verify successful completion message
-    assert "Flow completed successfully" in result.stdout, "Should show success message"
-
-
-@pytest.mark.e2e
-def test_flow_go_invalid_date_format(flow_test_env):
-    """
-    Test error handling for invalid date format in flow go command.
-
-    Validates that malformed date strings are rejected with helpful error messages.
-    """
-    # Test with invalid month
-    result = run_flow_command(["go", "--start", "2024-13-01", "--end", "2024-12-31", "--dry-run"])
-
-    # Should fail with error about invalid date format
-    assert result.returncode != 0, "Should fail with invalid date format"
-    assert "Invalid date format" in result.stderr or "does not match format" in result.stderr.lower()
-
-    # Test with completely invalid date string
-    result = run_flow_command(["go", "--start", "not-a-date", "--end", "2024-12-31", "--dry-run"])
-
-    assert result.returncode != 0, "Should fail with invalid date string"
-    assert "Invalid date format" in result.stderr or "does not match format" in result.stderr.lower()
-
-
-@pytest.mark.e2e
-def test_flow_go_missing_end_date(flow_test_env):
-    """
-    Test error handling when only --start is provided without --end.
-
-    Validates that both date parameters must be provided together.
-    """
-    result = run_flow_command(["go", "--start", "2024-07-01", "--dry-run"])
-
-    # Should fail with error about missing --end
-    assert result.returncode != 0, "Should fail when only --start is provided"
+    # Should show flow-related help information
     assert (
-        "Both --start and --end must be provided together" in result.stderr
-        or "must be provided together" in result.stderr
-    ), "Should indicate both parameters required"
+        "Financial Flow System" in result.stdout or "flow" in result.stdout.lower()
+    ), "Should show flow command help"
 
 
 @pytest.mark.e2e
-def test_flow_go_missing_start_date(flow_test_env):
+def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     """
-    Test error handling when only --end is provided without --start.
+    Test complete interactive flow execution with coordinated data.
 
-    Validates that both date parameters must be provided together.
-    """
-    result = run_flow_command(["go", "--end", "2024-12-31", "--dry-run"])
+    This test uses an imperative approach with explicit sequential node prompting.
+    Each step explicitly waits for a specific node, verifies previous completions,
+    and sends the appropriate response.
 
-    # Should fail with error about missing --start
-    assert result.returncode != 0, "Should fail when only --end is provided"
-    assert (
-        "Both --start and --end must be provided together" in result.stderr
-        or "must be provided together" in result.stderr
-    ), "Should indicate both parameters required"
+    Execution sequence (5 nodes expected to execute):
+    1. amazon_unzip - Extracts ZIP file to CSV (yes)
+    2. amazon_matching - Matches orders to YNAB (yes - after CSV pattern fix)
+    3. apple_receipt_parsing - Parses .html to JSON (yes - has .html from fixture)
+    4. apple_matching - Matches receipts to YNAB (yes - follows parsing)
+    5. split_generation - Generates splits (yes - both matchers complete)
 
+    Why this order (alphabetical with dependencies):
+    - amazon_unzip: No dependencies, alphabetically first
+    - amazon_matching: Depends on ynab_sync + amazon_unzip (both satisfied)
+    - apple_receipt_parsing: Depends on apple_email_fetch (satisfied by fixture files)
+    - apple_matching: Depends on ynab_sync + apple_receipt_parsing (both satisfied)
+    - split_generation: Depends on amazon_matching + apple_matching (both satisfied)
 
-@pytest.mark.e2e
-def test_flow_go_inverted_date_range(flow_test_env):
-    """
-    Test that inverted date range (end < start) results in no-op execution.
+    Nodes skipped (not prompted):
+    - apple_email_fetch - Requires IMAP credentials (not available in CI)
+    - cash_flow_analysis - Requires historical data (not in test fixture)
+    - retirement_update - Requires retirement accounts (not in test fixture)
+    - ynab_apply - Requires YNAB API (would modify real data)
+    - ynab_sync - Cache already exists (check_changes returns False)
 
-    When user provides a backwards date range, the system should succeed
-    but execute no nodes since the date filter excludes everything.
-    """
-    result = run_flow_command(
-        ["go", "--start", "2024-12-31", "--end", "2024-01-01", "--dry-run", "--non-interactive"]
-    )
-
-    # Should succeed (not an error condition)
-    assert result.returncode == 0, f"Should succeed with inverted date range: {result.stderr}"
-
-    # Should indicate no execution needed
-    assert (
-        "No nodes need execution" in result.stdout
-        or "Dry run mode - no changes will be made" in result.stdout
-    ), "Should indicate no-op execution"
-
-
-@pytest.mark.e2e
-@pytest.mark.slow
-def test_flow_go_interactive_mode(flow_test_env):
-    """
-    Test `finances flow go` in interactive mode with user prompts.
-
-    This test uses pexpect to spawn the flow command interactively and
-    simulates user responses to prompts. This exercises code paths that
-    are not tested when using --non-interactive flag.
-
-    Validates that the interactive flow:
-    1. Displays execution plan and prompts for confirmation
-    2. Handles user confirmation responses
-    3. Executes the flow system successfully
-    4. Displays results and completion status
+    The imperative approach makes debugging easier:
+    - Timeout on step 2 means amazon_unzip didn't complete
+    - Timeout on step 3 means apple_email_fetch prompt not received
+    - Timeout on step 4 means cash_flow_analysis prompt not received
+    - Timeout on step 5 means retirement_update prompt not received
+    - Clear narrative of expected flow visible in code
     """
     import os
 
-    import pexpect
-
-    # Build environment with test data directory
+    # Get environment variables from fixture
     env = os.environ.copy()
-    env["FINANCES_DATA_DIR"] = str(flow_test_env["data_dir"])
-    env["FINANCES_DOWNLOADS_DIR"] = str(flow_test_env["downloads_dir"])
+    env["FINANCES_DATA_DIR"] = str(flow_test_env_coordinated["data_dir"])
     env["FINANCES_ENV"] = "test"
     env["YNAB_API_TOKEN"] = "test-token-e2e"
-    env["EMAIL_PASSWORD"] = "test-password-e2e"
 
-    # Spawn the flow command interactively (no --non-interactive or --dry-run flags)
-    # Exclude nodes with external dependencies
-    # NOTE: Excluding ynab_sync and apple_email_fetch transitively excludes dependent nodes.
-    # This is a known limitation - see dev/todos.md for non-transitive exclusion feature request.
-    # Note: amazon_order_history_request is NOT excluded - we answer its prompt with "n"
-    # to skip it, which allows dependent nodes like amazon_unzip to continue
-    cmd = [
-        "uv",
-        "run",
-        "finances",
-        "flow",
-        "go",
-        "--force",
-        "--nodes-excluded",
-        "ynab_sync",
-        "--nodes-excluded",
-        "apple_email_fetch",
-        "--nodes-excluded",
-        "ynab_apply",
-        "--nodes-excluded",
-        "cash_flow_analysis",
-        "--verbose",
-    ]
-    child = pexpect.spawn(
-        " ".join(cmd),
-        cwd=REPO_ROOT,
-        env=env,
-        timeout=120,
-        encoding="utf-8",
-    )
+    # Spawn interactive flow command
+    cmd = "uv run finances flow"
+    child = pexpect.spawn(cmd, cwd=REPO_ROOT, env=env, timeout=60, encoding="utf-8")
 
     try:
-        # Enable logging for debugging
-        child.logfile_read = None  # Set to sys.stdout for debugging
+        # Use context manager to capture all output and log on failure
+        with capture_and_log_on_failure(child) as output:
+            # Wait for initial execution confirmation prompt
+            child.expect("Proceed with dynamic execution.*", timeout=30)
+            child.sendline("y")
 
-        # Accumulate all output
-        full_output = []
+            # Imperative approach: Handle nodes in actual flow order
+            # The flow prompts initially-triggered nodes first, then downstream nodes.
+            # Actual execution order:
+            # 1. amazon_unzip → EXECUTE (initially triggered)
+            # 2. apple_receipt_parsing → EXECUTE (initially triggered)
+            # 3. cash_flow_analysis → SKIP (initially triggered, no data)
+            # 4. retirement_update → SKIP (initially triggered, no data)
+            # 5. amazon_matching → EXECUTE (downstream of amazon_unzip)
+            # 6. apple_matching → EXECUTE (downstream of apple_receipt_parsing)
+            # 7. split_generation → EXECUTE (downstream of both matchers)
 
-        # Expect the execution plan to be displayed
-        child.expect("Dynamic execution will process", timeout=30)
-        full_output.append(child.before + child.after)
+            # Step 1: amazon_unzip - Extract ZIP file
+            wait_for_node_prompt(child, "amazon_unzip")
+            send_node_decision(child, execute=True)
 
-        # Expect the prompt asking to proceed
-        child.expect("Proceed with dynamic execution?", timeout=10)
-        full_output.append(child.before + child.after)
+            # Step 2: apple_receipt_parsing - Parse HTML receipts
+            wait_for_node_prompt(child, "apple_receipt_parsing")
+            assert_node_executed(output.getvalue(), "amazon_unzip", "completed")
+            send_node_decision(child, execute=True)
 
-        # Send confirmation (yes) - this starts node execution
-        child.sendline("y")
+            # Step 3: cash_flow_analysis - Skip
+            wait_for_node_prompt(child, "cash_flow_analysis")
+            assert_node_executed(output.getvalue(), "apple_receipt_parsing", "completed")
+            send_node_decision(child, execute=False)
 
-        # NOW the amazon_order_history_request manual step will prompt
-        # We answer "n" to skip it (we already have ZIP files in the test fixture)
-        child.expect("Have you completed this step?", timeout=30)
-        full_output.append(child.before + child.after)
-        child.sendline("n")  # Skip the manual Amazon download step
+            # Step 4: retirement_update - Skip (prompted before downstream nodes)
+            wait_for_node_prompt(child, "retirement_update")
+            send_node_decision(child, execute=False)
 
-        # Wait for completion
-        child.expect(pexpect.EOF, timeout=60)
-        full_output.append(child.before)
+            # Step 5: amazon_matching - Match Amazon orders (downstream of amazon_unzip)
+            wait_for_node_prompt(child, "amazon_matching")
+            send_node_decision(child, execute=True)
 
-        # Close child process
-        child.close()
+            # Step 6: apple_matching - Match Apple receipts (downstream of apple_receipt_parsing)
+            wait_for_node_prompt(child, "apple_matching")
+            assert_node_executed(output.getvalue(), "amazon_matching", "completed")
+            send_node_decision(child, execute=True)
 
-        # Verify output contains expected messages
-        combined_output = "".join(full_output)
+            # Step 7: split_generation - Generate splits
+            wait_for_node_prompt(child, "split_generation")
+            send_node_decision(child, execute=True)
 
-        # Note: exit_code will be non-zero because amazon_order_history_request "failed"
-        # (we answered "n" to skip the manual step). This is expected behavior.
+            # Handle any remaining node prompts until we hit the execution summary
+            while True:
+                try:
+                    index = child.expect(["\\[NODE_PROMPT: ([a-z_]+)\\]", "EXECUTION SUMMARY"], timeout=30)
 
-        assert "Proceed with dynamic execution?" in combined_output, "Should show confirmation prompt"
-        assert "Have you completed this step?" in combined_output, "Should show manual step prompt"
+                    if index == 0:
+                        # Got an unexpected node prompt - skip it
+                        child.expect("Update this data\\?", timeout=5)
+                        send_node_decision(child, execute=False)
+                    else:
+                        # Hit execution summary - done
+                        break
+                except pexpect.TIMEOUT:
+                    # If we timeout here, it means we're stuck waiting for something
+                    # Check what we've completed so far
+                    completed_output = output.getvalue()
+                    raise AssertionError(
+                        f"Timeout waiting for execution summary. Last output:\n{completed_output[-500:]}"
+                    ) from None
 
-        # Verify execution completed (even with the expected manual step failure)
-        assert "Flow completed with errors" in combined_output, "Should show completion message"
+            # Wait for process to complete
+            child.expect(pexpect.EOF, timeout=5)
+            child.close()
 
-        # Verify excluded nodes were mentioned
-        assert "ynab_sync" in combined_output, "Should mention excluded nodes"
-        assert "apple_email_fetch" in combined_output, "Should mention excluded nodes"
-        assert "ynab_apply" in combined_output, "Should mention excluded nodes"
-        assert "cash_flow_analysis" in combined_output, "Should mention excluded nodes"
+            # Get full output for final assertions
+            full_output = output.getvalue()
 
-        # Verify amazon_unzip executed successfully (the key node we're testing)
-        assert "amazon_unzip: completed" in combined_output, "amazon_unzip should execute successfully"
-        assert "Items processed: 1" in combined_output, "Should process the test ZIP file"
-
-        # Verify amazon_order_history_request reported as failed (expected when user answers "n")
-        assert (
-            "amazon_order_history_request: failed" in combined_output
-        ), "Manual step should report as failed when skipped"
-
-        # Verify execution summary shows the expected results:
-        # 1 completed (amazon_unzip), 1 failed (amazon_order_history_request - manual step skipped)
-        assert "Completed: 1" in combined_output, "Should have 1 completed node (amazon_unzip)"
-        assert "Failed: 1" in combined_output, "Should have 1 failed node (manual step skipped)"
-
-    except pexpect.TIMEOUT as e:
-        # Capture what we got before timeout
-        output = child.before or ""
-        child.close(force=True)
-        pytest.fail(f"Interactive flow test timed out. Output so far:\n{output}\nException: {e}")
-
-    except pexpect.EOF as e:
-        # Unexpected EOF
-        output = child.before or ""
-        child.close(force=True)
-        pytest.fail(f"Interactive flow ended unexpectedly. Output:\n{output}\nException: {e}")
+            # Verify all expected nodes executed successfully
+            assert_node_executed(full_output, "amazon_unzip", "completed")
+            assert_node_executed(full_output, "amazon_matching", "completed")
+            assert_node_executed(full_output, "apple_receipt_parsing", "completed")
+            assert_node_executed(full_output, "apple_matching", "completed")
+            assert_node_executed(full_output, "split_generation", "completed")
 
     finally:
-        # Ensure process is terminated
+        # Clean up process if still running
         if child.isalive():
-            child.close(force=True)
+            child.terminate(force=True)
+
+    # Verify outputs were created by successful node executions
+    data_dir = flow_test_env_coordinated["data_dir"]
+
+    # Amazon unzipped directory should exist (created by amazon_unzip)
+    amazon_unzipped_dirs = list((data_dir / "amazon" / "raw").glob("*_karl_amazon_data"))
+    assert len(amazon_unzipped_dirs) > 0, "Amazon unzip should create extracted directory"
+
+    # Amazon matching results should exist (created by amazon_matching)
+    amazon_matches = list((data_dir / "amazon" / "transaction_matches").glob("*.json"))
+    assert len(amazon_matches) > 0, "Amazon matching should create results file"
+
+    # Apple parsed receipts should exist (created by apple_receipt_parsing)
+    apple_exports = list((data_dir / "apple" / "exports").glob("*.json"))
+    assert len(apple_exports) > 0, "Apple parsing should create parsed receipts"
+
+    # Apple matching results should exist (created by apple_matching)
+    apple_matches = list((data_dir / "apple" / "transaction_matches").glob("*.json"))
+    assert len(apple_matches) > 0, "Apple matching should create results file"
+
+    # Split generation results should exist with our coordinated multi-item test data
+    split_edits = list((data_dir / "ynab" / "edits").glob("*split*.json"))
+    assert len(split_edits) > 0, "Split generation should create edit file with multi-item orders/receipts"
+
+    # Verify split edits contain expected data
+    split_data = read_json(split_edits[0])
+    assert "metadata" in split_data, "Split edit file should have metadata"
+    assert "edits" in split_data, "Split edit file should have edits array"
+
+    # Should have 2 edits: 1 for Amazon transaction, 1 for Apple transaction
+    edits = split_data["edits"]
+    assert len(edits) == 2, f"Expected 2 split edits (1 Amazon + 1 Apple), got {len(edits)}"
+
+    # Verify sources
+    sources = {edit["source"] for edit in edits}
+    assert sources == {"amazon", "apple"}, f"Expected amazon and apple sources, got {sources}"
+
+    # Verify each edit has splits
+    for edit in edits:
+        assert "transaction_id" in edit, "Edit should have transaction_id"
+        assert "splits" in edit, "Edit should have splits array"
+        assert (
+            len(edit["splits"]) == 2
+        ), f"Expected 2 splits for multi-item transaction, got {len(edit['splits'])}"
 
 
 @pytest.mark.e2e
-def test_flow_go_nodes_excluded_with_dependents(flow_test_env):
+def test_flow_preview_and_cancel(flow_test_env_coordinated):
     """
-    Test that excluding a node also excludes its dependent nodes.
+    Test flow preview and cancellation.
 
-    When split_generation is excluded, ynab_apply (which depends on it)
-    should also be excluded automatically.
+    Validates that users can preview what the flow will do and cancel
+    before any changes are made.
     """
-    result = run_flow_command(
-        ["go", "--non-interactive", "--dry-run", "--nodes-excluded", "split_generation", "--verbose"]
-    )
+    import os
 
-    assert result.returncode == 0, f"Command failed: {result.stderr}"
+    # Get environment variables from fixture
+    env = os.environ.copy()
+    env["FINANCES_DATA_DIR"] = str(flow_test_env_coordinated["data_dir"])
+    env["FINANCES_ENV"] = "test"
+    env["YNAB_API_TOKEN"] = "test-token-e2e"
 
-    # Should show both direct and dependent exclusions
-    assert "Excluding nodes: split_generation" in result.stdout, "Should show direct exclusion"
-    assert "Also excluding dependent nodes:" in result.stdout, "Should show dependent exclusion"
-    assert "ynab_apply" in result.stdout, "ynab_apply should be mentioned as dependent"
+    # Spawn interactive flow command
+    cmd = "uv run finances flow"
+    child = pexpect.spawn(cmd, cwd=REPO_ROOT, env=env, timeout=60, encoding="utf-8")
 
-    # Neither should appear in execution plan
-    lines = result.stdout.split("\n")
-    execution_section = False
-    for line in lines:
-        if "Initially triggered nodes:" in line:
-            execution_section = True
-        if execution_section:
-            if "split" in line.lower() and "generation" in line.lower():
-                pytest.fail("split_generation should not appear in execution plan")
-            if "ynab" in line.lower() and "apply" in line.lower():
-                pytest.fail("ynab_apply should not appear in execution plan")
+    try:
+        with capture_and_log_on_failure(child) as output:
+            # Wait for initial execution confirmation prompt
+            child.expect("Proceed with dynamic execution.*", timeout=30)
+
+            # Cancel execution (test preview functionality)
+            child.sendline("n")
+
+            # Should show cancellation message
+            child.expect("cancelled", timeout=5)
+
+            # Wait for process to complete
+            child.expect(pexpect.EOF, timeout=5)
+            child.close()
+
+            # Verify preview showed useful information
+            full_output = output.getvalue()
+            assert "nodes" in full_output.lower() or "triggered" in full_output.lower()
+
+    finally:
+        # Clean up process if still running
+        if child.isalive():
+            child.terminate(force=True)

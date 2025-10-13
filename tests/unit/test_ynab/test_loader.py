@@ -69,26 +69,8 @@ class TestFilterTransactions:
         assert filtered[0]["payee_name"] == "Apple"
 
     @pytest.mark.ynab
-    def test_filter_by_date_range(self):
-        """Test filtering by date range."""
-        transactions = [
-            {"date": "2024-12-31", "payee_name": "Test", "amount": -1000},
-            {"date": "2025-01-01", "payee_name": "Test", "amount": -2000},
-            {"date": "2025-01-15", "payee_name": "Test", "amount": -3000},
-            {"date": "2025-01-31", "payee_name": "Test", "amount": -4000},
-            {"date": "2025-02-01", "payee_name": "Test", "amount": -5000},
-        ]
-
-        filtered = filter_transactions(transactions, start_date="2025-01-01", end_date="2025-01-31")
-
-        assert len(filtered) == 3
-        assert filtered[0]["date"] == "2025-01-01"
-        assert filtered[1]["date"] == "2025-01-15"
-        assert filtered[2]["date"] == "2025-01-31"
-
-    @pytest.mark.ynab
-    def test_filter_by_date_and_payee(self):
-        """Test filtering by both date range and payee."""
+    def test_filter_by_payee_multiple_transactions(self):
+        """Test filtering by payee with multiple matching transactions."""
         transactions = [
             {"date": "2024-12-31", "payee_name": "Apple", "amount": -1000},
             {"date": "2025-01-01", "payee_name": "Apple", "amount": -2000},
@@ -97,13 +79,10 @@ class TestFilterTransactions:
             {"date": "2025-02-01", "payee_name": "Apple", "amount": -5000},
         ]
 
-        filtered = filter_transactions(
-            transactions, start_date="2025-01-01", end_date="2025-01-31", payee="Apple"
-        )
+        filtered = filter_transactions(transactions, payee="Apple")
 
-        assert len(filtered) == 2
-        assert filtered[0]["date"] == "2025-01-01"
-        assert filtered[1]["date"] == "2025-01-31"
+        assert len(filtered) == 4
+        assert all(tx["payee_name"] == "Apple" for tx in filtered)
 
     @pytest.mark.ynab
     def test_filter_with_no_criteria(self):

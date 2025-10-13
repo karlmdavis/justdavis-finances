@@ -17,13 +17,13 @@ def transform_apple_receipt_data(
     """
     Transform Apple receipt data from parser format to calculator format.
 
-    Parser format uses float dollars and 'cost' field:
-        {"title": "Item", "cost": 10.99, ...}
-        {"subtotal": 13.98, "tax": 1.12, ...}
+    Parser format uses int cents and 'cost' field:
+        {"title": "Item", "cost": 1099, ...}  # cents
+        {"subtotal": 1398, "tax": 112, ...}   # cents
 
     Calculator format uses int cents and 'price' field:
-        {"name": "Item", "price": 1099}
-        subtotal: 1398, tax: 112
+        {"name": "Item", "price": 1099}  # cents
+        subtotal: 1398, tax: 112         # cents
 
     Args:
         receipt_data: Raw receipt data from parser
@@ -31,18 +31,16 @@ def transform_apple_receipt_data(
     Returns:
         Tuple of (items, subtotal_cents, tax_cents)
     """
-    # Transform items: float dollars + 'cost' → int cents + 'price'
+    # Transform items: rename 'cost' → 'price' for calculator
+    # Parser stores amounts in cents (int), so no conversion needed
     raw_items = receipt_data.get("items", [])
     transformed_items = []
 
     for item in raw_items:
-        # Get cost as float (parser stores dollars as float)
-        cost_dollars = item.get("cost", 0.0)
-        if not isinstance(cost_dollars, (int, float)):
-            cost_dollars = 0.0
-
-        # Convert dollars to cents
-        cost_cents = int(cost_dollars * 100)
+        # Get cost in cents (parser already stores as int cents)
+        cost_cents = item.get("cost", 0)
+        if not isinstance(cost_cents, int):
+            cost_cents = 0
 
         # Create transformed item with 'price' field (not 'cost')
         transformed_item = {
@@ -51,17 +49,14 @@ def transform_apple_receipt_data(
         }
         transformed_items.append(transformed_item)
 
-    # Transform subtotal: float dollars → int cents
-    subtotal_dollars = receipt_data.get("subtotal")
-    subtotal_cents = None
-    if subtotal_dollars is not None and isinstance(subtotal_dollars, (int, float)):
-        subtotal_cents = int(subtotal_dollars * 100)
+    # Get subtotal and tax in cents (parser stores as int cents, no conversion needed)
+    subtotal_cents = receipt_data.get("subtotal")
+    if subtotal_cents is not None and not isinstance(subtotal_cents, int):
+        subtotal_cents = None
 
-    # Transform tax: float dollars → int cents
-    tax_dollars = receipt_data.get("tax")
-    tax_cents = None
-    if tax_dollars is not None and isinstance(tax_dollars, (int, float)):
-        tax_cents = int(tax_dollars * 100)
+    tax_cents = receipt_data.get("tax")
+    if tax_cents is not None and not isinstance(tax_cents, int):
+        tax_cents = None
 
     return transformed_items, subtotal_cents, tax_cents
 
@@ -183,15 +178,12 @@ class SplitGenerationFlowNode(FlowNode):
                         # Extract transaction info
                         ynab_tx = match.get("ynab_transaction", {})
                         tx_id = ynab_tx.get("id")
-                        tx_amount_cents = ynab_tx.get("amount")
+                        tx_amount_milliunits = ynab_tx.get("amount")  # Already in milliunits
 
-                        if not tx_id or tx_amount_cents is None:
+                        if not tx_id or tx_amount_milliunits is None:
                             continue
 
-                        # Convert cents to milliunits (YNAB format)
-                        from ..core.currency import cents_to_milliunits
-
-                        tx_amount_milliunits = -cents_to_milliunits(tx_amount_cents)  # Negative for expenses
+                        # Amount is already in milliunits and already negative for expenses
 
                         # Extract items from first order
                         amazon_order = best_match["amazon_orders"][0]
@@ -247,8 +239,6 @@ class SplitGenerationFlowNode(FlowNode):
                             receipt_data = read_json(receipt_file)
 
                             # Transform receipt data from parser format to calculator format
-                            # Parser uses float dollars and 'cost' field
-                            # Calculator expects int cents and 'price' field
                             items, subtotal, tax = transform_apple_receipt_data(receipt_data)
 
                             if not items:
