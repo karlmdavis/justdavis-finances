@@ -3,8 +3,6 @@
 
 from datetime import date
 
-import pytest
-
 from finances.core import FinancialDate, Money, Receipt, Transaction
 
 

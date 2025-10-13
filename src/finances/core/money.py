@@ -7,7 +7,6 @@ Prevents floating-point errors and provides type-safe currency operations.
 """
 
 from dataclasses import dataclass
-from typing import Union
 
 from .currency import (
     cents_to_dollars_str,
@@ -33,7 +32,7 @@ class Money:
         return cls(cents=abs(milliunits // 10))
 
     @classmethod
-    def from_dollars(cls, dollars: Union[str, int]) -> "Money":
+    def from_dollars(cls, dollars: str | int) -> "Money":
         """
         Parse from dollar string like '$123.45' or integer dollars.
 

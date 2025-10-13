@@ -34,7 +34,6 @@ from .currency import (
     validate_sum_equals_total,
 )
 from .dates import FinancialDate
-from .money import Money
 from .models import (
     Account,
     Category,
@@ -48,6 +47,7 @@ from .models import (
     validate_receipt,
     validate_transaction,
 )
+from .money import Money
 
 __all__ = [
     "Account",

@@ -15,7 +15,7 @@ from typing import Any
 
 import pandas as pd
 
-from ..core.currency import format_cents, milliunits_to_cents
+from ..core.currency import format_cents
 from ..core.money import Money
 from .grouper import GroupingLevel, get_order_candidates, group_orders
 from .scorer import ConfidenceThresholds, MatchScorer, MatchType

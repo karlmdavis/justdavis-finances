@@ -69,28 +69,28 @@ class Transaction:
         if isinstance(self.date, str):
             date_str = self.date
             try:
-                object.__setattr__(self, 'date', datetime.strptime(date_str, "%Y-%m-%d").date())
+                object.__setattr__(self, "date", datetime.strptime(date_str, "%Y-%m-%d").date())
             except ValueError:
                 # Try other common formats
                 for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
                     try:
-                        object.__setattr__(self, 'date', datetime.strptime(date_str, fmt).date())
+                        object.__setattr__(self, "date", datetime.strptime(date_str, fmt).date())
                         break
                     except ValueError:
                         continue
 
         # Sync amount_money with legacy amount field
         if self.amount_money is not None and self.amount == 0:
-            object.__setattr__(self, 'amount', self.amount_money.to_milliunits())
+            object.__setattr__(self, "amount", self.amount_money.to_milliunits())
         elif self.amount_money is None and self.amount != 0:
             # Create Money from legacy milliunits
-            object.__setattr__(self, 'amount_money', Money.from_milliunits(self.amount))
+            object.__setattr__(self, "amount_money", Money.from_milliunits(self.amount))
 
         # Sync date_obj with legacy date field
         if self.date_obj is not None and isinstance(self.date, str):
-            object.__setattr__(self, 'date', self.date_obj.date)
+            object.__setattr__(self, "date", self.date_obj.date)
         elif self.date_obj is None and isinstance(self.date, date):
-            object.__setattr__(self, 'date_obj', FinancialDate(date=self.date))
+            object.__setattr__(self, "date_obj", FinancialDate(date=self.date))
 
     @property
     def transaction_type(self) -> TransactionType:
@@ -162,31 +162,31 @@ class Receipt:
         if isinstance(self.date, str):
             date_str = self.date
             try:
-                object.__setattr__(self, 'date', datetime.strptime(date_str, "%Y-%m-%d").date())
+                object.__setattr__(self, "date", datetime.strptime(date_str, "%Y-%m-%d").date())
             except ValueError:
                 # Try other common formats
                 for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
                     try:
-                        object.__setattr__(self, 'date', datetime.strptime(date_str, fmt).date())
+                        object.__setattr__(self, "date", datetime.strptime(date_str, fmt).date())
                         break
                     except ValueError:
                         continue
 
         # Sync total_money with legacy total_amount
         if self.total_money is not None and self.total_amount == 0:
-            object.__setattr__(self, 'total_amount', self.total_money.to_cents())
+            object.__setattr__(self, "total_amount", self.total_money.to_cents())
         elif self.total_money is None and self.total_amount != 0:
-            object.__setattr__(self, 'total_money', Money.from_cents(self.total_amount))
+            object.__setattr__(self, "total_money", Money.from_cents(self.total_amount))
 
         # Sync date_obj
         if self.date_obj is None and isinstance(self.date, date):
-            object.__setattr__(self, 'date_obj', FinancialDate(date=self.date))
+            object.__setattr__(self, "date_obj", FinancialDate(date=self.date))
 
         # Sync subtotal and tax
         if self.subtotal_money is None and self.subtotal is not None:
-            object.__setattr__(self, 'subtotal_money', Money.from_cents(self.subtotal))
+            object.__setattr__(self, "subtotal_money", Money.from_cents(self.subtotal))
         if self.tax_money is None and self.tax_amount is not None:
-            object.__setattr__(self, 'tax_money', Money.from_cents(self.tax_amount))
+            object.__setattr__(self, "tax_money", Money.from_cents(self.tax_amount))
 
     @property
     def item_count(self) -> int:

@@ -14,9 +14,8 @@ from typing import Any
 import pandas as pd
 
 from ..core.currency import format_cents, milliunits_to_cents
-from ..core.dates import FinancialDate
-from ..core.money import Money
 from ..core.models import MatchResult, Receipt, Transaction
+from ..core.money import Money
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +52,9 @@ class AppleMatcher:
         Returns:
             MatchResult with details of the match
         """
-        # Convert to Money and FinancialDate
+        # Convert to Money
         tx_amount_money = Money.from_milliunits(ynab_transaction["amount"])
         tx_amount_cents = tx_amount_money.to_cents()
-        tx_date_obj = FinancialDate.from_string(ynab_transaction["date"])
         tx_date = datetime.strptime(ynab_transaction["date"], "%Y-%m-%d")
         tx_id = ynab_transaction["id"]
 

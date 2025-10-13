@@ -30,8 +30,7 @@ class SplitCalculationError(Exception):
 
 
 def calculate_amazon_splits(
-    transaction_amount: int | Money,  # Accept both types
-    amazon_items: list[dict[str, Any]]
+    transaction_amount: int | Money, amazon_items: list[dict[str, Any]]  # Accept both types
 ) -> list[dict[str, Any]]:
     """
     Calculate splits for Amazon transaction using pre-allocated item totals.
@@ -61,10 +60,7 @@ def calculate_amazon_splits(
     for item in amazon_items:
         # Handle Money or int for item amounts
         item_amount = item["amount"]
-        if isinstance(item_amount, Money):
-            item_amount_cents = item_amount.to_cents()
-        else:
-            item_amount_cents = item_amount
+        item_amount_cents = item_amount.to_cents() if isinstance(item_amount, Money) else item_amount
 
         item_amount_milliunits = cents_to_milliunits(item_amount_cents)
 
