@@ -30,26 +30,27 @@ This minimizes rework by defining the target interface before refactoring intern
 ## Phases
 
 ### [Phase 1: CLI Simplification](phase-1-cli-simplification.md)
-**Status:** 🔵 Ready to start
-**Effort:** 7-11 hours (1-2 days)
-**Dependencies:** None
+**Status:** 🟢 Complete
+**Completed:** 2024-10-13
+**PR:** #10
 
 Transform from 5 CLI command files with 20+ commands to a single `finances flow` command
 with interactive prompts showing data summary/age and asking user whether to update.
 
 **Key Changes:**
-- Remove all individual CLI commands
-- Add interactive node prompts with data summaries
+- Removed all individual CLI commands
+- Added interactive node prompts with data summaries
 - Users just run `finances flow` and answer questions
+- FlowNode pattern with dependency management
 
 **Impact:** Immediate UX improvement, massively simplified interface
 
 ---
 
 ### [Phase 2: Primitive Types](phase-2-primitive-types.md)
-**Status:** ⏳ Waiting for Phase 1
-**Effort:** 18-26 hours (3-4 days)
-**Dependencies:** Phase 1
+**Status:** 🟢 Complete
+**Completed:** 2024-10-13
+**PR:** #11
 
 Introduce `Money` and `FinancialDate` wrapper classes for type-safe currency and date handling.
 
@@ -57,24 +58,27 @@ Introduce `Money` and `FinancialDate` wrapper classes for type-safe currency and
 - `Money` class wraps currency (no more raw ints)
 - `FinancialDate` class wraps dates (consistent formatting)
 - Type system prevents mixing incompatible units
+- Full migration of all domains to new types
 
 **Impact:** Zero floating-point violations, type-safe operations
 
 ---
 
 ### [Phase 3: DataStore Infrastructure](phase-3-datastore-infrastructure.md)
-**Status:** ⏳ Waiting for Phase 2
-**Effort:** 18-25 hours (3-4 days)
-**Dependencies:** Phases 1-2
+**Status:** 🔵 Ready to start
+**Effort:** 13-19 hours (2-3 days) - *revised down from 18-25 hours*
+**Dependencies:** ✅ Phases 1-2 complete
 
-Create consistent data persistence API with DataStore protocol and per-domain implementations.
+Extract data management logic from FlowNodes into reusable DataStore components for better
+separation of concerns and testability.
 
 **Key Changes:**
-- DataStore protocol with standard interface
-- 5 domain-specific DataStore implementations
-- Integration with archive system
+- DataStore protocol matching NodeDataSummary interface
+- 8 domain-specific DataStore implementations
+- FlowNodes delegate to DataStores for data access
+- Archive system integration
 
-**Impact:** Consistent patterns, easier testing, simpler code
+**Impact:** Separation of concerns, better testability, eliminates code duplication
 
 ---
 
@@ -133,12 +137,22 @@ Update all documentation to reflect new architecture and clean up technical debt
 
 ## Total Effort Estimate
 
-**Sequential execution:** 116-161 hours (18-25 work days, ~4-5 weeks)
+**Original estimate:** 116-161 hours (18-25 work days, ~4-5 weeks)
+
+**Revised estimate (post-Phases 1 & 2):**
+- ✅ Phase 1: ~11 hours (complete)
+- ✅ Phase 2: ~20 hours (complete)
+- Phase 3: 13-19 hours (revised down from 18-25)
+- Phase 4: 32-42 hours
+- Phase 5: 24-33 hours
+- Phase 6: 17-24 hours
+
+**Remaining work:** 86-118 hours (14-19 work days, ~3-4 weeks)
 
 **With parallelization opportunities:**
-- Phase 5 can overlap with Phases 2-4
+- Phase 5 can overlap with Phases 3-4
 - Some phases can be split into sub-phases
-- Realistic timeline: ~3-4 weeks with focused effort
+- Realistic timeline: ~2-3 weeks with focused effort
 
 ## Success Metrics
 
