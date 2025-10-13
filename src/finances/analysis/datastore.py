@@ -9,11 +9,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from finances.core.datastore_mixin import DataStoreMixin
+
 if TYPE_CHECKING:
     from finances.core.flow import NodeDataSummary
 
 
-class CashFlowResultsStore:
+class CashFlowResultsStore(DataStoreMixin):
     """
     DataStore for cash flow analysis results.
 
@@ -28,7 +30,9 @@ class CashFlowResultsStore:
         Args:
             charts_dir: Directory containing chart files (data/cash_flow/charts)
         """
+        super().__init__()
         self.charts_dir = charts_dir
+        self._glob_pattern = "*.png"
 
     def exists(self) -> bool:
         """Check if cash flow charts exist."""

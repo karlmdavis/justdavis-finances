@@ -9,13 +9,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from finances.core.datastore_mixin import DataStoreMixin
+
 from finances.core.json_utils import read_json, write_json
 
 if TYPE_CHECKING:
     from finances.core.flow import NodeDataSummary
 
 
-class YnabCacheStore:
+class YnabCacheStore(DataStoreMixin):
     """
     DataStore for YNAB cached data.
 
@@ -30,7 +32,9 @@ class YnabCacheStore:
         Args:
             cache_dir: Directory containing YNAB cache files (data/ynab/cache)
         """
+        super().__init__()
         self.cache_dir = cache_dir
+        self._glob_pattern = "transactions.json"
         self.transactions_file = cache_dir / "transactions.json"
 
     def exists(self) -> bool:
@@ -144,7 +148,7 @@ class YnabCacheStore:
         )
 
 
-class YnabEditsStore:
+class YnabEditsStore(DataStoreMixin):
     """
     DataStore for YNAB transaction edits.
 
@@ -159,7 +163,9 @@ class YnabEditsStore:
         Args:
             edits_dir: Directory containing edit files (data/ynab/edits)
         """
+        super().__init__()
         self.edits_dir = edits_dir
+        self._glob_pattern = "*.json"
 
     def exists(self) -> bool:
         """Check if any edit files exist."""

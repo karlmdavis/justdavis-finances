@@ -32,7 +32,7 @@ class DataStoreMixin:
     - summary_text() -> str
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize mixin state."""
         self._file_cache: list[Path] | None = None
         self._cache_timestamp: float | None = None

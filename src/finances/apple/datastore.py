@@ -9,13 +9,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from finances.core.datastore_mixin import DataStoreMixin
+
 from finances.core.json_utils import read_json, write_json
 
 if TYPE_CHECKING:
     from finances.core.flow import NodeDataSummary
 
 
-class AppleEmailStore:
+class AppleEmailStore(DataStoreMixin):
     """
     DataStore for Apple receipt emails.
 
@@ -29,7 +31,9 @@ class AppleEmailStore:
         Args:
             emails_dir: Directory containing email files (data/apple/emails)
         """
+        super().__init__()
         self.emails_dir = emails_dir
+        self._glob_pattern = "*.eml"
 
     def exists(self) -> bool:
         """Check if Apple email files exist."""
@@ -118,7 +122,7 @@ class AppleEmailStore:
         )
 
 
-class AppleReceiptStore:
+class AppleReceiptStore(DataStoreMixin):
     """
     DataStore for parsed Apple receipts.
 
@@ -132,7 +136,9 @@ class AppleReceiptStore:
         Args:
             exports_dir: Directory containing parsed receipt JSON files
         """
+        super().__init__()
         self.exports_dir = exports_dir
+        self._glob_pattern = "*.json"
 
     def exists(self) -> bool:
         """Check if parsed receipt files exist."""
@@ -221,7 +227,7 @@ class AppleReceiptStore:
         )
 
 
-class AppleMatchResultsStore:
+class AppleMatchResultsStore(DataStoreMixin):
     """
     DataStore for Apple transaction matching results.
 
@@ -236,7 +242,9 @@ class AppleMatchResultsStore:
         Args:
             matches_dir: Directory containing match result files
         """
+        super().__init__()
         self.matches_dir = matches_dir
+        self._glob_pattern = "*.json"
 
     def exists(self) -> bool:
         """Check if matching results exist."""
