@@ -8,7 +8,7 @@ Handles both legacy and modern Apple receipt email formats with robust extractio
 
 import logging
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -67,25 +67,33 @@ class ParsedReceipt:
 
         Note: Converts Money to cents and FinancialDate to string for JSON compatibility.
         """
-        result = {}
-        for key, value in asdict(self).items():
-            if isinstance(value, Money):
-                result[key] = value.to_cents()
-            elif isinstance(value, FinancialDate):
-                result[key] = value.to_iso_string()
-            elif isinstance(value, list):
-                # Handle list of ParsedItem objects
-                result[key] = [
-                    {
-                        **item_dict,
-                        "cost": item_dict["cost"].to_cents() if isinstance(item_dict.get("cost"), Money) else item_dict.get("cost")
-                    }
-                    if isinstance(item_dict, dict) else item_dict
-                    for item_dict in [asdict(item) if hasattr(item, "__dict__") else item for item in value]
-                ]
-            else:
-                result[key] = value
-        return result
+        # Manually handle each field to avoid asdict() recursive conversion issues
+        return {
+            "format_detected": self.format_detected,
+            "apple_id": self.apple_id,
+            "receipt_date": self.receipt_date.to_iso_string() if self.receipt_date else None,
+            "order_id": self.order_id,
+            "document_number": self.document_number,
+            "subtotal": self.subtotal.to_cents() if self.subtotal else None,
+            "tax": self.tax.to_cents() if self.tax else None,
+            "total": self.total.to_cents() if self.total else None,
+            "currency": self.currency,
+            "payment_method": self.payment_method,
+            "billed_to": self.billed_to,
+            "items": [
+                {
+                    "title": item.title,
+                    "cost": item.cost.to_cents(),
+                    "quantity": item.quantity,
+                    "subscription": item.subscription,
+                    "item_type": item.item_type,
+                    "metadata": item.metadata,
+                }
+                for item in self.items
+            ],
+            "parsing_metadata": self.parsing_metadata,
+            "base_name": self.base_name,
+        }
 
     def add_item(self, title: str, cost: Money, **kwargs: Any) -> None:
         """Add an item to the receipt."""
@@ -455,7 +463,9 @@ class AppleReceiptParser:
                     if cost is not None:
                         items.append(
                             ParsedItem(
-                                title=item_name, cost=Money.from_cents(cost), metadata={"extraction_method": "list_based"}
+                                title=item_name,
+                                cost=Money.from_cents(cost),
+                                metadata={"extraction_method": "list_based"},
                             )
                         )
 
@@ -486,7 +496,9 @@ class AppleReceiptParser:
             if item_name and item_cost is not None:
                 items.append(
                     ParsedItem(
-                        title=item_name, cost=Money.from_cents(item_cost), metadata={"extraction_method": "legacy_format"}
+                        title=item_name,
+                        cost=Money.from_cents(item_cost),
+                        metadata={"extraction_method": "legacy_format"},
                     )
                 )
 
@@ -517,7 +529,9 @@ class AppleReceiptParser:
             if item_name and item_cost is not None:
                 items.append(
                     ParsedItem(
-                        title=item_name, cost=Money.from_cents(item_cost), metadata={"extraction_method": "modern_format"}
+                        title=item_name,
+                        cost=Money.from_cents(item_cost),
+                        metadata={"extraction_method": "modern_format"},
                     )
                 )
 

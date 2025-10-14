@@ -65,9 +65,11 @@ class AmazonOrderItem:
         order_date_val = row.get("Order Date")
         if isinstance(order_date_val, str):
             order_date = FinancialDate.from_string(order_date_val)
-        else:
+        elif order_date_val is not None:
             # Assume it's already a datetime/date object
             order_date = FinancialDate(date=order_date_val)
+        else:
+            raise ValueError("Order Date is required but was None")
 
         # Parse ship date (optional)
         ship_date_val = row.get("Ship Date")
@@ -114,8 +116,8 @@ class AmazonOrderItem:
             "Quantity": self.quantity,
             "Unit Price": self.unit_price.to_cents(),
             "Total Owed": self.total_owed.to_cents(),
-            "Order Date": self.order_date.to_string(),
-            "Ship Date": self.ship_date.to_string() if self.ship_date else None,
+            "Order Date": self.order_date.to_iso_string(),
+            "Ship Date": self.ship_date.to_iso_string() if self.ship_date else None,
             "Category": self.category,
             "Seller": self.seller,
             "Condition": self.condition,
@@ -166,7 +168,7 @@ class AmazonOrderSummary:
             if item.ship_date:
                 ship_dates_set.add(item.ship_date)
 
-        ship_dates = sorted(list(ship_dates_set), key=lambda d: d.to_string())
+        ship_dates = sorted(ship_dates_set, key=lambda d: d.to_iso_string())
 
         return cls(
             order_id=order_id,

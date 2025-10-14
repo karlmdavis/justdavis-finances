@@ -6,171 +6,19 @@ Utilities for loading cached YNAB data (accounts, categories, transactions)
 from local JSON files.
 
 Functions:
-- load_transactions: Load transactions as domain models (NEW)
-- load_accounts: Load accounts as domain models (NEW)
-- load_categories: Load categories as domain models (NEW)
-- load_category_groups: Load category groups as domain models (NEW)
-- filter_transactions_by_payee: Filter transactions by payee (NEW)
-- load_ynab_transactions: DEPRECATED - use load_transactions instead
-- load_ynab_accounts: DEPRECATED - use load_accounts instead
-- load_ynab_categories: DEPRECATED - use load_categories instead
-- filter_transactions: DEPRECATED - use filter_transactions_by_payee instead
+- load_transactions: Load transactions as domain models
+- load_accounts: Load accounts as domain models
+- load_categories: Load categories as domain models
+- load_category_groups: Load category groups as domain models
+- filter_transactions_by_payee: Filter transactions by payee
 """
 
 import json
-import warnings
 from pathlib import Path
 from typing import Any
 
 from ..core.config import get_config
 from .models import YnabAccount, YnabCategory, YnabCategoryGroup, YnabTransaction
-
-
-def load_ynab_transactions(cache_dir: str | Path | None = None) -> list[dict[str, Any]]:
-    """
-    Load YNAB transactions from cache.
-
-    Args:
-        cache_dir: Directory containing cached YNAB data.
-                   If None, uses config.data_dir/ynab/cache
-
-    Returns:
-        List of transaction dictionaries with fields:
-        - id: Transaction ID
-        - date: Transaction date (YYYY-MM-DD)
-        - amount: Amount in milliunits (1000 = $1.00)
-        - payee_name: Payee name
-        - account_id: Account ID
-        - account_name: Account name (if available)
-        - memo: Transaction memo
-        - cleared: Transaction cleared status
-
-    Raises:
-        FileNotFoundError: If cache directory or transactions file not found
-    """
-    if cache_dir is None:
-        config = get_config()
-        cache_dir = config.data_dir / "ynab" / "cache"
-    else:
-        cache_dir = Path(cache_dir)
-
-    transactions_file = cache_dir / "transactions.json"
-
-    if not transactions_file.exists():
-        raise FileNotFoundError(f"YNAB transactions cache not found: {transactions_file}")
-
-    with open(transactions_file) as f:
-        data: Any = json.load(f)
-
-    # Handle both array format and object format
-    if isinstance(data, dict):
-        transactions_list: list[dict[str, Any]] = data.get("transactions", [])
-        return transactions_list
-
-    return data if isinstance(data, list) else []
-
-
-def load_ynab_accounts(cache_dir: str | Path | None = None) -> list[dict[str, Any]]:
-    """
-    Load YNAB accounts from cache.
-
-    Args:
-        cache_dir: Directory containing cached YNAB data.
-                   If None, uses config.data_dir/ynab/cache
-
-    Returns:
-        List of account dictionaries
-
-    Raises:
-        FileNotFoundError: If cache directory or accounts file not found
-    """
-    if cache_dir is None:
-        config = get_config()
-        cache_dir = config.data_dir / "ynab" / "cache"
-    else:
-        cache_dir = Path(cache_dir)
-
-    accounts_file = cache_dir / "accounts.json"
-
-    if not accounts_file.exists():
-        raise FileNotFoundError(f"YNAB accounts cache not found: {accounts_file}")
-
-    with open(accounts_file) as f:
-        data: Any = json.load(f)
-
-    # Handle object format with "accounts" key
-    if isinstance(data, dict) and "accounts" in data:
-        accounts_list: list[dict[str, Any]] = data["accounts"]
-        return accounts_list
-
-    return data if isinstance(data, list) else []
-
-
-def load_ynab_categories(cache_dir: str | Path | None = None) -> list[dict[str, Any]]:
-    """
-    Load YNAB category groups from cache.
-
-    Args:
-        cache_dir: Directory containing cached YNAB data.
-                   If None, uses config.data_dir/ynab/cache
-
-    Returns:
-        List of category group dictionaries
-
-    Raises:
-        FileNotFoundError: If cache directory or categories file not found
-    """
-    if cache_dir is None:
-        config = get_config()
-        cache_dir = config.data_dir / "ynab" / "cache"
-    else:
-        cache_dir = Path(cache_dir)
-
-    categories_file = cache_dir / "categories.json"
-
-    if not categories_file.exists():
-        raise FileNotFoundError(f"YNAB categories cache not found: {categories_file}")
-
-    with open(categories_file) as f:
-        data: Any = json.load(f)
-
-    # Handle object format with "category_groups" key
-    if isinstance(data, dict) and "category_groups" in data:
-        categories_list: list[dict[str, Any]] = data["category_groups"]
-        return categories_list
-
-    return data if isinstance(data, list) else []
-
-
-def filter_transactions(
-    transactions: list[dict[str, Any]],
-    payee: str | None = None,
-) -> list[dict[str, Any]]:
-    """
-    Filter transactions by payee name.
-
-    DEPRECATED: Use filter_transactions_by_payee instead.
-
-    Args:
-        transactions: List of transaction dictionaries
-        payee: Payee name pattern (case-insensitive substring match)
-
-    Returns:
-        Filtered list of transactions
-    """
-    warnings.warn(
-        "filter_transactions is deprecated, use filter_transactions_by_payee instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    if not payee:
-        return transactions
-
-    payee_lower = payee.lower()
-    return [tx for tx in transactions if payee_lower in (tx.get("payee_name") or "").lower()]
-
-
-# New domain model-based functions
 
 
 def load_transactions(cache_dir: str | Path | None = None) -> list[YnabTransaction]:
@@ -336,8 +184,9 @@ def load_categories(cache_dir: str | Path | None = None) -> list[YnabCategory]:
     for group in groups_list:
         group_name = group.get("name")
         categories_in_group = group.get("categories", [])
-        for cat in categories_in_group:
-            all_categories.append(YnabCategory.from_dict(cat, category_group_name=group_name))
+        all_categories.extend(
+            YnabCategory.from_dict(cat, category_group_name=group_name) for cat in categories_in_group
+        )
 
     return all_categories
 

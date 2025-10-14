@@ -52,6 +52,7 @@ def test_parse_legacy_aapl_format_complete(parser, fixtures_dir):
     # Parser now returns Money objects
     assert receipt.total is not None
     from finances.core.money import Money
+
     assert isinstance(receipt.total, Money)
 
     # Verify items extraction - should find at least one item with "Procreate"
@@ -170,10 +171,14 @@ def test_currency_values_are_money_objects(parser, fixtures_dir):
     if receipt.total is not None:
         assert isinstance(receipt.total, Money), f"total must be Money object, got {type(receipt.total)}"
         # Verify reasonable range - should be in cents (e.g., 4599 not 45.99)
-        assert receipt.total.to_cents() > 100, f"total={receipt.total.to_cents()} should be in cents (>100), not dollars"
+        assert (
+            receipt.total.to_cents() > 100
+        ), f"total={receipt.total.to_cents()} should be in cents (>100), not dollars"
 
     if receipt.subtotal is not None:
-        assert isinstance(receipt.subtotal, Money), f"subtotal must be Money object, got {type(receipt.subtotal)}"
+        assert isinstance(
+            receipt.subtotal, Money
+        ), f"subtotal must be Money object, got {type(receipt.subtotal)}"
 
     if receipt.tax is not None:
         assert isinstance(receipt.tax, Money), f"tax must be Money object, got {type(receipt.tax)}"
@@ -185,7 +190,9 @@ def test_currency_values_are_money_objects(parser, fixtures_dir):
         ), f"item '{item.title}' cost must be Money object, got {type(item.cost)}"
         # Verify reasonable range for items
         if item.cost.to_cents() > 0:
-            assert item.cost.to_cents() > 50, f"item '{item.title}' cost={item.cost.to_cents()} should be in cents, not dollars"
+            assert (
+                item.cost.to_cents() > 50
+            ), f"item '{item.title}' cost={item.cost.to_cents()} should be in cents, not dollars"
 
 
 @pytest.mark.integration

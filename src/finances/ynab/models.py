@@ -148,15 +148,17 @@ class YnabCategory:
             goal_target_month=data.get("goal_target_month"),
             goal_percentage_complete=data.get("goal_percentage_complete"),
             goal_months_to_budget=data.get("goal_months_to_budget"),
-            goal_under_funded=Money.from_milliunits(data["goal_under_funded"])
-            if data.get("goal_under_funded")
-            else None,
-            goal_overall_funded=Money.from_milliunits(data["goal_overall_funded"])
-            if data.get("goal_overall_funded")
-            else None,
-            goal_overall_left=Money.from_milliunits(data["goal_overall_left"])
-            if data.get("goal_overall_left")
-            else None,
+            goal_under_funded=(
+                Money.from_milliunits(data["goal_under_funded"]) if data.get("goal_under_funded") else None
+            ),
+            goal_overall_funded=(
+                Money.from_milliunits(data["goal_overall_funded"])
+                if data.get("goal_overall_funded")
+                else None
+            ),
+            goal_overall_left=(
+                Money.from_milliunits(data["goal_overall_left"]) if data.get("goal_overall_left") else None
+            ),
         )
 
     @property
@@ -256,7 +258,7 @@ class YnabTransaction:
             YnabTransaction instance
         """
         subtransactions = None
-        if "subtransactions" in data and data["subtransactions"]:
+        if data.get("subtransactions"):
             subtransactions = [YnabSubtransaction.from_dict(sub) for sub in data["subtransactions"]]
 
         return cls(
@@ -264,9 +266,9 @@ class YnabTransaction:
             date=FinancialDate.from_string(data["date"]),
             amount=Money.from_milliunits(data["amount"]),
             memo=data.get("memo"),
-            cleared=data["cleared"],
-            approved=data["approved"],
-            account_id=data["account_id"],
+            cleared=data.get("cleared", "uncleared"),  # Default to uncleared if not present
+            approved=data.get("approved", True),  # Default to approved if not present
+            account_id=data.get("account_id", "unknown"),  # Default to unknown if not present
             account_name=data.get("account_name"),
             payee_id=data.get("payee_id"),
             payee_name=data.get("payee_name"),
