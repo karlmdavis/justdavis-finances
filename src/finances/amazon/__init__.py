@@ -25,11 +25,15 @@ from .grouper import (
 )
 from .loader import (
     find_latest_amazon_export,
-    get_account_summary,
-    load_amazon_data,
+    load_orders,
+    orders_to_dataframe,
 )
 from .matcher import (
     SimplifiedMatcher,
+)
+from .models import (
+    AmazonOrderItem,
+    AmazonOrderSummary,
 )
 from .scorer import (
     ConfidenceThresholds,
@@ -41,11 +45,14 @@ from .split_matcher import (
 )
 
 __all__ = [
+    # Domain models
+    "AmazonOrderItem",
+    "AmazonOrderSummary",
+    # Match scoring
     "ConfidenceThresholds",
     # Order grouping
     "GroupingLevel",
     "MatchScorer",
-    # Match scoring
     "MatchType",
     # Main matcher
     "SimplifiedMatcher",
@@ -53,8 +60,8 @@ __all__ = [
     "SplitPaymentMatcher",
     # Data loading
     "find_latest_amazon_export",
-    "get_account_summary",
     "get_order_candidates",
     "group_orders",
-    "load_amazon_data",
+    "load_orders",
+    "orders_to_dataframe",
 ]

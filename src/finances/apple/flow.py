@@ -234,17 +234,34 @@ class AppleMatchingFlowNode(FlowNode):
         import pandas as pd
 
         from ..core.json_utils import read_json
-        from ..ynab import filter_transactions, load_ynab_transactions
+        from ..ynab import filter_transactions_by_payee, load_transactions
         from .loader import normalize_apple_receipt_data
         from .matcher import batch_match_transactions
 
         try:
-            # Load YNAB transactions
+            # Load YNAB transactions using new domain model function
             ynab_cache_dir = self.data_dir / "ynab" / "cache"
-            all_transactions = load_ynab_transactions(ynab_cache_dir)
+            all_transactions_models = load_transactions(ynab_cache_dir)
 
             # Filter for Apple transactions
-            transactions = filter_transactions(all_transactions, payee="Apple")
+            apple_transactions_models = filter_transactions_by_payee(all_transactions_models, payee="Apple")
+
+            # Convert YnabTransaction models to dicts for matcher (temporary adapter)
+            transactions = [
+                {
+                    "id": tx.id,
+                    "amount": tx.amount.to_milliunits(),
+                    "date": tx.date.to_iso_string(),
+                    "payee_name": tx.payee_name,
+                    "memo": tx.memo,
+                    "account_name": tx.account_name,
+                    "cleared": tx.cleared,
+                    "approved": tx.approved,
+                    "account_id": tx.account_id,
+                    "category_name": tx.category_name,
+                }
+                for tx in apple_transactions_models
+            ]
 
             if not transactions:
                 return FlowResult(

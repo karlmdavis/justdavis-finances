@@ -26,10 +26,18 @@ Safety Features:
 """
 
 from .loader import (
-    filter_transactions,
-    load_ynab_accounts,
-    load_ynab_categories,
-    load_ynab_transactions,
+    filter_transactions_by_payee,
+    load_accounts,
+    load_categories,
+    load_category_groups,
+    load_transactions,
+)
+from .models import (
+    YnabAccount,
+    YnabCategory,
+    YnabCategoryGroup,
+    YnabSubtransaction,
+    YnabTransaction,
 )
 from .retirement import (
     RetirementAccount,
@@ -48,22 +56,29 @@ from .split_calculator import (
 )
 
 __all__ = [
-    "RetirementAccount",
-    "SplitCalculationError",
     # Retirement management
-    "YnabRetirementService",
+    "RetirementAccount",
     # Split calculation
+    "SplitCalculationError",
+    # Domain models
+    "YnabAccount",
+    "YnabCategory",
+    "YnabCategoryGroup",
+    "YnabRetirementService",
+    "YnabSubtransaction",
+    "YnabTransaction",
     "calculate_amazon_splits",
     "calculate_apple_splits",
     "calculate_generic_splits",
     "create_split_summary",
     "discover_retirement_accounts",
     # Data loading
-    "filter_transactions",
+    "filter_transactions_by_payee",
     "generate_retirement_edits",
-    "load_ynab_accounts",
-    "load_ynab_categories",
-    "load_ynab_transactions",
+    "load_accounts",
+    "load_categories",
+    "load_category_groups",
+    "load_transactions",
     "sort_splits_for_stability",
     "validate_split_calculation",
 ]

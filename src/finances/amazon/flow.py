@@ -9,9 +9,10 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+import pandas as pd
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
-from . import SimplifiedMatcher, load_amazon_data
+from . import SimplifiedMatcher, load_orders, orders_to_dataframe
 from .unzipper import extract_amazon_zip_files
 
 
@@ -161,21 +162,45 @@ class AmazonMatchingFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute Amazon transaction matching."""
-        from ..ynab import filter_transactions, load_ynab_transactions
+        from ..ynab import filter_transactions_by_payee, load_transactions
 
         try:
             # Initialize matcher
             matcher = SimplifiedMatcher()
 
-            # Load data
+            # Load data using new domain model functions
             amazon_data_dir = self.data_dir / "amazon" / "raw"
             ynab_cache_dir = self.data_dir / "ynab" / "cache"
 
-            account_data = load_amazon_data(amazon_data_dir)
-            all_transactions = load_ynab_transactions(ynab_cache_dir)
+            # Load domain models
+            orders_by_account = load_orders(amazon_data_dir)
+            all_transactions = load_transactions(ynab_cache_dir)
 
-            # Filter transactions for Amazon
-            transactions = filter_transactions(all_transactions, payee="Amazon")
+            # Filter for Amazon transactions using domain model function
+            amazon_transactions = filter_transactions_by_payee(all_transactions, payee="Amazon")
+
+            # Convert domain models to DataFrames for matcher (temporary adapter)
+            account_data = {
+                account: (orders_to_dataframe(orders), pd.DataFrame())  # (retail_df, digital_df)
+                for account, orders in orders_by_account.items()
+            }
+
+            # Convert YnabTransaction models to dicts for matcher (temporary adapter)
+            transactions = [
+                {
+                    "id": tx.id,
+                    "amount": tx.amount.to_milliunits(),
+                    "date": tx.date.to_iso_string(),
+                    "payee_name": tx.payee_name,
+                    "memo": tx.memo,
+                    "account_name": tx.account_name,
+                    "cleared": tx.cleared,
+                    "approved": tx.approved,
+                    "account_id": tx.account_id,
+                    "category_name": tx.category_name,
+                }
+                for tx in amazon_transactions
+            ]
 
             if not transactions:
                 return FlowResult(
