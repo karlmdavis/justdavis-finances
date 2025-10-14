@@ -2,22 +2,25 @@
 """
 Amazon Order Data Loader
 
-Utilities for loading Amazon order history CSV files into structured DataFrames
+Utilities for loading Amazon order history CSV files into structured data
 for transaction matching.
 
 Functions:
 - find_latest_amazon_export: Discover most recent Amazon data export
-- load_amazon_data: Load Amazon order CSVs into matcher-compatible format
+- load_orders: Load Amazon order CSVs as domain models (NEW)
+- load_amazon_data: DEPRECATED - Load Amazon order CSVs as DataFrames
 """
 
 import logging
 import re
+import warnings
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from ..core.config import get_config
+from .models import AmazonOrderItem
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +166,8 @@ def get_account_summary(account_data: dict[str, tuple[pd.DataFrame, pd.DataFrame
     """
     Generate summary statistics for loaded Amazon account data.
 
+    DEPRECATED: Use load_orders and work with domain models instead.
+
     Args:
         account_data: Dictionary of account data from load_amazon_data()
 
@@ -173,6 +178,11 @@ def get_account_summary(account_data: dict[str, tuple[pd.DataFrame, pd.DataFrame
         - total_orders: Total number of retail orders across all accounts
         - orders_by_account: Dictionary mapping account names to order counts
     """
+    warnings.warn(
+        "get_account_summary is deprecated, use load_orders and work with domain models instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     total_orders = 0
     orders_by_account: dict[str, int] = {}
 
@@ -189,3 +199,112 @@ def get_account_summary(account_data: dict[str, tuple[pd.DataFrame, pd.DataFrame
     }
 
     return summary
+
+
+# New domain model-based functions
+
+
+def load_orders(
+    data_dir: str | Path | None = None, accounts: tuple[str, ...] = ()
+) -> dict[str, list[AmazonOrderItem]]:
+    """
+    Load Amazon order data from CSV files as domain models.
+
+    Discovers all Amazon account directories and loads retail order history
+    CSV files into AmazonOrderItem domain models.
+
+    Args:
+        data_dir: Base directory containing Amazon data exports.
+                  If None, uses config.data_dir/amazon/raw
+        accounts: Tuple of specific account names to load.
+                  If empty, loads all discovered accounts.
+
+    Returns:
+        Dictionary mapping account names to lists of AmazonOrderItem objects.
+        Each item represents one CSV row (one product within an order).
+
+    Raises:
+        FileNotFoundError: If data directory doesn't exist or no account data found
+
+    Example:
+        >>> orders_by_account = load_orders()
+        >>> # Returns: {"karl": [AmazonOrderItem, ...], "erica": [AmazonOrderItem, ...]}
+        >>> karl_orders = orders_by_account["karl"]
+        >>> for order_item in karl_orders:
+        ...     print(f"{order_item.product_name}: {order_item.total_owed}")
+    """
+    if data_dir is None:
+        config = get_config()
+        data_dir = config.data_dir / "amazon" / "raw"
+    else:
+        data_dir = Path(data_dir)
+
+    if not data_dir.exists():
+        raise FileNotFoundError(f"Amazon data directory not found: {data_dir}")
+
+    # Find all Amazon account directories
+    amazon_dirs = [
+        d
+        for d in data_dir.iterdir()
+        if d.is_dir() and d.name.endswith("_amazon_data") and d.name[0:4].isdigit()
+    ]
+
+    if not amazon_dirs:
+        raise FileNotFoundError(f"No Amazon data directories found in {data_dir}")
+
+    orders_by_account: dict[str, list[AmazonOrderItem]] = {}
+    accounts_filter = set(accounts) if accounts else None
+
+    # Regex pattern to extract account name from directory
+    dir_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}_(.+?)_amazon_data$")
+
+    for account_dir in amazon_dirs:
+        # Extract account name from directory
+        match = dir_pattern.match(account_dir.name)
+        if not match:
+            logger.warning("Skipping malformed directory name: %s", account_dir.name)
+            continue
+
+        account_name = match.group(1)
+
+        # Skip if filtering accounts and this account not in filter
+        if accounts_filter and account_name not in accounts_filter:
+            continue
+
+        # Load retail order CSV
+        retail_csv_pattern = "Retail.OrderHistory.*.csv"
+        retail_csv_files = list(account_dir.glob(retail_csv_pattern))
+
+        if not retail_csv_files:
+            continue
+
+        # Load the retail CSV file (take first if multiple)
+        retail_csv = retail_csv_files[0]
+        try:
+            # Load CSV with pandas to get parsed dates
+            retail_df = pd.read_csv(retail_csv, parse_dates=["Order Date", "Ship Date"])
+
+            # Convert each row to AmazonOrderItem
+            order_items: list[AmazonOrderItem] = []
+            for _, row in retail_df.iterrows():
+                try:
+                    item = AmazonOrderItem.from_csv_row(row.to_dict())
+                    order_items.append(item)
+                except (ValueError, KeyError, TypeError) as e:
+                    logger.warning("Failed to parse row in %s: %s", retail_csv, e)
+                    continue
+
+            if order_items:
+                orders_by_account[account_name] = order_items
+
+        except (pd.errors.ParserError, FileNotFoundError, ValueError) as e:
+            logger.warning("Failed to load %s: %s", retail_csv, e)
+            continue
+
+    if not orders_by_account:
+        raise FileNotFoundError(
+            f"No valid Amazon account data found in {data_dir}"
+            + (f" for accounts: {list(accounts_filter)}" if accounts_filter else "")
+        )
+
+    return orders_by_account
