@@ -15,6 +15,9 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
+from ..core.dates import FinancialDate
+from ..core.money import Money
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,7 +26,7 @@ class ParsedItem:
     """Represents a single purchased item from an Apple receipt."""
 
     title: str
-    cost: int  # Amount in cents (e.g., 4599 for $45.99)
+    cost: Money  # Item cost (upgraded from int cents to Money type)
     quantity: int = 1
     subscription: bool = False
     item_type: str | None = None
@@ -37,14 +40,14 @@ class ParsedReceipt:
     # Core metadata
     format_detected: str | None = None
     apple_id: str | None = None
-    receipt_date: str | None = None
+    receipt_date: FinancialDate | None = None  # Upgraded from str to FinancialDate
     order_id: str | None = None
     document_number: str | None = None
 
-    # Financial data (amounts in cents, e.g., 4599 for $45.99)
-    subtotal: int | None = None
-    tax: int | None = None
-    total: int | None = None
+    # Financial data (upgraded from int cents to Money type)
+    subtotal: Money | None = None
+    tax: Money | None = None
+    total: Money | None = None
     currency: str = "USD"
 
     # Billing information
@@ -59,11 +62,33 @@ class ParsedReceipt:
     base_name: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return asdict(self)
+        """
+        Convert to dictionary for JSON serialization.
 
-    def add_item(self, title: str, cost: int, **kwargs: Any) -> None:
-        """Add an item to the receipt (cost in cents)."""
+        Note: Converts Money to cents and FinancialDate to string for JSON compatibility.
+        """
+        result = {}
+        for key, value in asdict(self).items():
+            if isinstance(value, Money):
+                result[key] = value.to_cents()
+            elif isinstance(value, FinancialDate):
+                result[key] = value.to_string()
+            elif isinstance(value, list):
+                # Handle list of ParsedItem objects
+                result[key] = [
+                    {
+                        **item_dict,
+                        "cost": item_dict["cost"].to_cents() if isinstance(item_dict.get("cost"), Money) else item_dict.get("cost")
+                    }
+                    if isinstance(item_dict, dict) else item_dict
+                    for item_dict in [asdict(item) if hasattr(item, "__dict__") else item for item in value]
+                ]
+            else:
+                result[key] = value
+        return result
+
+    def add_item(self, title: str, cost: Money, **kwargs: Any) -> None:
+        """Add an item to the receipt."""
         item = ParsedItem(title=title, cost=cost, **kwargs)
         self.items.append(item)
 
@@ -217,14 +242,14 @@ class AppleReceiptParser:
         # Extract Apple ID
         receipt.apple_id = self._extract_apple_id(soup)
 
-        # Extract receipt date
+        # Extract receipt date (returns FinancialDate now)
         receipt.receipt_date = self._extract_receipt_date(soup)
 
         # Extract order/document ID
         receipt.order_id = self._extract_order_id(soup)
         receipt.document_number = self._extract_document_number(soup)
 
-        # Extract financial totals
+        # Extract financial totals (returns Money now)
         receipt.subtotal = self._extract_subtotal(soup)
         receipt.tax = self._extract_tax(soup)
         receipt.total = self._extract_total(soup)
@@ -248,8 +273,8 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "Apple ID")
         return str(result) if result is not None else None
 
-    def _extract_receipt_date(self, soup: BeautifulSoup) -> str | None:
-        """Extract receipt date."""
+    def _extract_receipt_date(self, soup: BeautifulSoup) -> FinancialDate | None:
+        """Extract receipt date as FinancialDate."""
         selectors = [
             # Legacy formats
             {"selector": ".aapl-receipt-date, .aapl-date", "method": "text"},
@@ -262,7 +287,13 @@ class AppleReceiptParser:
 
         date_text = self._try_selectors(soup, selectors, "receipt date")
         if date_text:
-            return self._normalize_date(date_text)
+            normalized_date = self._normalize_date(date_text)
+            if normalized_date:
+                try:
+                    return FinancialDate.from_string(normalized_date)
+                except (ValueError, TypeError):
+                    logger.warning(f"Failed to parse date: {normalized_date}")
+                    return None
         return None
 
     def _extract_order_id(self, soup: BeautifulSoup) -> str | None:
@@ -291,8 +322,8 @@ class AppleReceiptParser:
         result = self._try_selectors(soup, selectors, "document number")
         return str(result) if result is not None else None
 
-    def _extract_subtotal(self, soup: BeautifulSoup) -> int | None:
-        """Extract subtotal amount in cents."""
+    def _extract_subtotal(self, soup: BeautifulSoup) -> Money | None:
+        """Extract subtotal amount as Money."""
         selectors = [
             {"selector": ".aapl-subtotal, .subtotal", "method": "currency"},
             {"selector": 'td:contains("Subtotal"), th:contains("Subtotal")', "method": "sibling_currency"},
@@ -300,10 +331,12 @@ class AppleReceiptParser:
         ]
 
         result = self._try_selectors(soup, selectors, "subtotal")
-        return int(result) if result is not None and not isinstance(result, str) else None
+        if result is not None and not isinstance(result, str):
+            return Money.from_cents(int(result))
+        return None
 
-    def _extract_tax(self, soup: BeautifulSoup) -> int | None:
-        """Extract tax amount in cents."""
+    def _extract_tax(self, soup: BeautifulSoup) -> Money | None:
+        """Extract tax amount as Money."""
         selectors = [
             {"selector": ".aapl-tax, .tax", "method": "currency"},
             {"selector": 'td:contains("Tax"), th:contains("Tax")', "method": "sibling_currency"},
@@ -311,10 +344,12 @@ class AppleReceiptParser:
         ]
 
         result = self._try_selectors(soup, selectors, "tax")
-        return int(result) if result is not None and not isinstance(result, str) else None
+        if result is not None and not isinstance(result, str):
+            return Money.from_cents(int(result))
+        return None
 
-    def _extract_total(self, soup: BeautifulSoup) -> int | None:
-        """Extract total amount in cents."""
+    def _extract_total(self, soup: BeautifulSoup) -> Money | None:
+        """Extract total amount as Money."""
         selectors = [
             {"selector": ".aapl-total, .total, .grand-total", "method": "currency"},
             {"selector": 'td:contains("Total"), th:contains("Total")', "method": "sibling_currency"},
@@ -326,7 +361,9 @@ class AppleReceiptParser:
         ]
 
         result = self._try_selectors(soup, selectors, "total")
-        return int(result) if result is not None and not isinstance(result, str) else None
+        if result is not None and not isinstance(result, str):
+            return Money.from_cents(int(result))
+        return None
 
     def _extract_payment_method(self, soup: BeautifulSoup) -> str | None:
         """Extract payment method."""
@@ -390,7 +427,7 @@ class AppleReceiptParser:
                                 items.append(
                                     ParsedItem(
                                         title=item_name,
-                                        cost=cost,
+                                        cost=Money.from_cents(cost),
                                         metadata={"extraction_method": "table_based"},
                                     )
                                 )
@@ -418,7 +455,7 @@ class AppleReceiptParser:
                     if cost is not None:
                         items.append(
                             ParsedItem(
-                                title=item_name, cost=cost, metadata={"extraction_method": "list_based"}
+                                title=item_name, cost=Money.from_cents(cost), metadata={"extraction_method": "list_based"}
                             )
                         )
 
@@ -449,7 +486,7 @@ class AppleReceiptParser:
             if item_name and item_cost is not None:
                 items.append(
                     ParsedItem(
-                        title=item_name, cost=item_cost, metadata={"extraction_method": "legacy_format"}
+                        title=item_name, cost=Money.from_cents(item_cost), metadata={"extraction_method": "legacy_format"}
                     )
                 )
 
@@ -480,7 +517,7 @@ class AppleReceiptParser:
             if item_name and item_cost is not None:
                 items.append(
                     ParsedItem(
-                        title=item_name, cost=item_cost, metadata={"extraction_method": "modern_format"}
+                        title=item_name, cost=Money.from_cents(item_cost), metadata={"extraction_method": "modern_format"}
                     )
                 )
 
