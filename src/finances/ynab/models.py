@@ -251,6 +251,15 @@ class YnabTransaction:
         """
         Create YnabTransaction from API dict.
 
+        This method provides sensible defaults for optional fields to handle
+        minimal test data and partial API responses gracefully:
+        - cleared: Defaults to "uncleared" (safest assumption for new transactions)
+        - approved: Defaults to True (most transactions are automatically approved)
+        - account_id: Defaults to "unknown" (allows parsing to succeed even with incomplete data)
+
+        These defaults are intentionally permissive to support testing and handle
+        edge cases where the API might not provide all fields.
+
         Args:
             data: Dictionary from YNAB API (transactions.json)
 

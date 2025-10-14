@@ -162,7 +162,7 @@ class AmazonMatchingFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute Amazon transaction matching."""
-        from ..ynab import load_transactions
+        from ..ynab import filter_transactions_by_payee, load_transactions
 
         try:
             # Initialize matcher
@@ -176,6 +176,9 @@ class AmazonMatchingFlowNode(FlowNode):
             orders_by_account = load_orders(amazon_data_dir)
             all_transactions = load_transactions(ynab_cache_dir)
 
+            # Filter for Amazon transactions using domain model function
+            amazon_transactions = filter_transactions_by_payee(all_transactions, payee="Amazon")
+
             # Convert domain models to DataFrames for matcher (temporary adapter)
             account_data = {
                 account: (orders_to_dataframe(orders), pd.DataFrame())  # (retail_df, digital_df)
@@ -183,7 +186,7 @@ class AmazonMatchingFlowNode(FlowNode):
             }
 
             # Convert YnabTransaction models to dicts for matcher (temporary adapter)
-            all_transactions_dicts = [
+            transactions = [
                 {
                     "id": tx.id,
                     "amount": tx.amount.to_milliunits(),
@@ -196,15 +199,8 @@ class AmazonMatchingFlowNode(FlowNode):
                     "account_id": tx.account_id,
                     "category_name": tx.category_name,
                 }
-                for tx in all_transactions
+                for tx in amazon_transactions
             ]
-
-            # Filter transactions for Amazon
-            transactions = []
-            for tx_dict in all_transactions_dicts:
-                payee_name = tx_dict.get("payee_name")
-                if isinstance(payee_name, str) and "amazon" in payee_name.lower():
-                    transactions.append(tx_dict)
 
             if not transactions:
                 return FlowResult(
