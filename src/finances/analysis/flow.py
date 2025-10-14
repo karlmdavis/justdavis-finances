@@ -5,7 +5,6 @@ Cash Flow Analysis Flow Node
 Flow node implementation for cash flow analysis and dashboard generation.
 """
 
-from datetime import datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
@@ -19,58 +18,38 @@ class CashFlowAnalysisFlowNode(FlowNode):
         self.data_dir = data_dir
         self._dependencies = {"ynab_sync"}
 
+        # Initialize DataStore
+        from .datastore import CashFlowResultsStore
+
+        self.store = CashFlowResultsStore(data_dir / "cash_flow" / "charts")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if cash flow analysis needs updating."""
         ynab_cache = self.data_dir / "ynab" / "cache" / "transactions.json"
-        charts_dir = self.data_dir / "cash_flow" / "charts"
 
         if not ynab_cache.exists():
             return False, ["No YNAB cache available"]
 
-        if not charts_dir.exists() or not list(charts_dir.glob("*.png")):
+        if not self.store.exists():
             return True, ["No cash flow charts found"]
 
         # Check if YNAB data is newer than charts
-        latest_chart = max(charts_dir.glob("*.png"), key=lambda p: p.stat().st_mtime)
+        latest_chart_time = self.store.last_modified()
         ynab_mtime = ynab_cache.stat().st_mtime
 
-        if ynab_mtime > latest_chart.stat().st_mtime:
+        if latest_chart_time and ynab_mtime > latest_chart_time.timestamp():
             return True, ["YNAB data updated since last analysis"]
 
         # Check if charts are more than 7 days old
-        age_days = (datetime.now().timestamp() - latest_chart.stat().st_mtime) / 86400
-        if age_days > 7:
-            return True, [f"Charts are {age_days:.0f} days old"]
+        age_days = self.store.age_days()
+        if age_days and age_days > 7:
+            return True, [f"Charts are {age_days} days old"]
 
         return False, ["Cash flow analysis is up to date"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get cash flow analysis summary."""
-        charts_dir = self.data_dir / "cash_flow" / "charts"
-
-        if not charts_dir.exists() or not list(charts_dir.glob("*.png")):
-            return NodeDataSummary(
-                exists=False,
-                last_updated=None,
-                age_days=None,
-                item_count=None,
-                size_bytes=None,
-                summary_text="No cash flow charts found",
-            )
-
-        chart_files = list(charts_dir.glob("*.png"))
-        latest_file = max(chart_files, key=lambda p: p.stat().st_mtime)
-        mtime = datetime.fromtimestamp(latest_file.stat().st_mtime)
-        age = (datetime.now() - mtime).days
-
-        return NodeDataSummary(
-            exists=True,
-            last_updated=mtime,
-            age_days=age,
-            item_count=len(chart_files),
-            size_bytes=sum(f.stat().st_size for f in chart_files),
-            summary_text=f"Cash flow charts: {len(chart_files)} files",
-        )
+        return self.store.to_node_data_summary()
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute cash flow analysis and generate dashboard."""

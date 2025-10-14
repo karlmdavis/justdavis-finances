@@ -9,7 +9,6 @@ from datetime import datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
-from ..core.json_utils import read_json
 
 
 class AppleEmailFetchFlowNode(FlowNode):
@@ -19,50 +18,26 @@ class AppleEmailFetchFlowNode(FlowNode):
         super().__init__("apple_email_fetch")
         self.data_dir = data_dir
 
+        # Initialize DataStore
+        from .datastore import AppleEmailStore
+
+        self.store = AppleEmailStore(data_dir / "apple" / "emails")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new Apple receipt emails should be fetched."""
-        emails_dir = self.data_dir / "apple" / "emails"
-
-        if not emails_dir.exists() or not list(emails_dir.glob("*.eml")):
+        if not self.store.exists():
             return True, ["No Apple emails found"]
 
         # Check age of most recent email
-        email_files = list(emails_dir.glob("*.eml"))
-        latest = max(email_files, key=lambda p: p.stat().st_mtime)
-        age_days = (datetime.now().timestamp() - latest.stat().st_mtime) / 86400
-
-        if age_days > 7:
-            return True, [f"Latest email is {age_days:.0f} days old"]
+        age_days = self.store.age_days()
+        if age_days and age_days > 7:
+            return True, [f"Latest email is {age_days} days old"]
 
         return False, ["Apple emails are recent"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple emails summary."""
-        emails_dir = self.data_dir / "apple" / "emails"
-
-        if not emails_dir.exists() or not list(emails_dir.glob("*.eml")):
-            return NodeDataSummary(
-                exists=False,
-                last_updated=None,
-                age_days=None,
-                item_count=None,
-                size_bytes=None,
-                summary_text="No Apple emails found",
-            )
-
-        email_files = list(emails_dir.glob("*.eml"))
-        latest_file = max(email_files, key=lambda p: p.stat().st_mtime)
-        mtime = datetime.fromtimestamp(latest_file.stat().st_mtime)
-        age = (datetime.now() - mtime).days
-
-        return NodeDataSummary(
-            exists=True,
-            last_updated=mtime,
-            age_days=age,
-            item_count=len(email_files),
-            size_bytes=sum(f.stat().st_size for f in email_files),
-            summary_text=f"Apple emails: {len(email_files)} receipts",
-        )
+        return self.store.to_node_data_summary()
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Fetch Apple receipt emails."""
@@ -117,53 +92,32 @@ class AppleReceiptParsingFlowNode(FlowNode):
         self.data_dir = data_dir
         self._dependencies = {"apple_email_fetch"}
 
+        # Initialize DataStores
+        from .datastore import AppleEmailStore, AppleReceiptStore
+
+        self.email_store = AppleEmailStore(data_dir / "apple" / "emails")
+        self.receipt_store = AppleReceiptStore(data_dir / "apple" / "exports")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new emails need parsing."""
-        emails_dir = self.data_dir / "apple" / "emails"
-        exports_dir = self.data_dir / "apple" / "exports"
-
-        if not emails_dir.exists() or not list(emails_dir.glob("*.eml")):
+        if not self.email_store.exists():
             return False, ["No Apple emails to parse"]
 
-        if not exports_dir.exists() or not list(exports_dir.glob("*.json")):
+        if not self.receipt_store.exists():
             return True, ["No parsed receipts found"]
 
         # Check timestamps
-        latest_email = max(emails_dir.glob("*.eml"), key=lambda p: p.stat().st_mtime)
-        latest_export = max(exports_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        email_time = self.email_store.last_modified()
+        receipt_time = self.receipt_store.last_modified()
 
-        if latest_email.stat().st_mtime > latest_export.stat().st_mtime:
+        if email_time and receipt_time and email_time > receipt_time:
             return True, ["New emails detected"]
 
         return False, ["Parsed receipts are up to date"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get parsed Apple receipts summary."""
-        exports_dir = self.data_dir / "apple" / "exports"
-
-        if not exports_dir.exists() or not list(exports_dir.glob("*.json")):
-            return NodeDataSummary(
-                exists=False,
-                last_updated=None,
-                age_days=None,
-                item_count=None,
-                size_bytes=None,
-                summary_text="No parsed Apple receipts found",
-            )
-
-        json_files = list(exports_dir.glob("*.json"))
-        latest_file = max(json_files, key=lambda p: p.stat().st_mtime)
-        mtime = datetime.fromtimestamp(latest_file.stat().st_mtime)
-        age = (datetime.now() - mtime).days
-
-        return NodeDataSummary(
-            exists=True,
-            last_updated=mtime,
-            age_days=age,
-            item_count=len(json_files),
-            size_bytes=sum(f.stat().st_size for f in json_files),
-            summary_text=f"Parsed receipts: {len(json_files)} files",
-        )
+        return self.receipt_store.to_node_data_summary()
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Parse Apple receipt emails."""
@@ -241,11 +195,16 @@ class AppleMatchingFlowNode(FlowNode):
         self.data_dir = data_dir
         self._dependencies = {"ynab_sync", "apple_receipt_parsing"}
 
+        # Initialize DataStores
+        from .datastore import AppleMatchResultsStore, AppleReceiptStore
+
+        self.receipt_store = AppleReceiptStore(data_dir / "apple" / "exports")
+        self.match_store = AppleMatchResultsStore(data_dir / "apple" / "transaction_matches")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new Apple receipts or YNAB data requires matching."""
         # Check if parsed receipts exist
-        exports_dir = self.data_dir / "apple" / "exports"
-        if not exports_dir.exists() or not list(exports_dir.glob("*.json")):
+        if not self.receipt_store.exists():
             return False, ["No parsed Apple receipts available"]
 
         # Check if YNAB cache exists
@@ -254,57 +213,27 @@ class AppleMatchingFlowNode(FlowNode):
             return False, ["No YNAB cache available"]
 
         # Check if matching results exist
-        matches_dir = self.data_dir / "apple" / "transaction_matches"
-        if not matches_dir.exists() or not list(matches_dir.glob("*.json")):
+        if not self.match_store.exists():
             return True, ["No previous matching results"]
 
         # Compare timestamps
-        latest_match = max(matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        latest_match_time = self.match_store.last_modified()
         ynab_mtime = ynab_cache.stat().st_mtime
 
-        if ynab_mtime > latest_match.stat().st_mtime:
+        if latest_match_time and ynab_mtime > latest_match_time.timestamp():
             return True, ["YNAB data updated since last match"]
 
         return False, ["Matching results are up to date"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple matching results summary."""
-        matches_dir = self.data_dir / "apple" / "transaction_matches"
-
-        if not matches_dir.exists() or not list(matches_dir.glob("*.json")):
-            return NodeDataSummary(
-                exists=False,
-                last_updated=None,
-                age_days=None,
-                item_count=None,
-                size_bytes=None,
-                summary_text="No Apple matches found",
-            )
-
-        latest_file = max(matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
-        mtime = datetime.fromtimestamp(latest_file.stat().st_mtime)
-        age = (datetime.now() - mtime).days
-
-        try:
-            data = read_json(latest_file)
-            count = len(data.get("matches", [])) if isinstance(data, dict) else 0
-        except Exception:
-            count = 0
-
-        return NodeDataSummary(
-            exists=True,
-            last_updated=mtime,
-            age_days=age,
-            item_count=count,
-            size_bytes=latest_file.stat().st_size,
-            summary_text=f"Apple matches: {count} transactions",
-        )
+        return self.match_store.to_node_data_summary()
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute Apple transaction matching."""
         import pandas as pd
 
-        from ..core.json_utils import write_json
+        from ..core.json_utils import read_json
         from ..ynab import filter_transactions, load_ynab_transactions
         from .loader import normalize_apple_receipt_data
         from .matcher import batch_match_transactions
@@ -354,12 +283,8 @@ class AppleMatchingFlowNode(FlowNode):
             total_confidence = sum(result.confidence for result in match_results if result.receipts)
             avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
 
-            # Write results
-            output_dir = self.data_dir / "apple" / "transaction_matches"
-            output_dir.mkdir(parents=True, exist_ok=True)
-
+            # Write results using DataStore
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            output_file = output_dir / f"{timestamp}_apple_matching_results.json"
 
             result_data = {
                 "metadata": {
@@ -387,7 +312,11 @@ class AppleMatchingFlowNode(FlowNode):
                 ],
             }
 
-            write_json(output_file, result_data)
+            self.match_store.save(result_data)
+
+            # Get output file path for FlowResult
+            output_dir = self.data_dir / "apple" / "transaction_matches"
+            output_file = output_dir / f"{timestamp}_apple_matching_results.json"
 
             return FlowResult(
                 success=True,

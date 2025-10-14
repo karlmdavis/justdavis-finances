@@ -11,7 +11,6 @@ from pathlib import Path
 import click
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
-from ..core.json_utils import read_json, write_json_with_defaults
 from . import SimplifiedMatcher, load_amazon_data
 from .unzipper import extract_amazon_zip_files
 
@@ -52,6 +51,11 @@ class AmazonUnzipFlowNode(FlowNode):
         self.data_dir = data_dir
         self._dependencies = {"amazon_order_history_request"}
 
+        # Initialize DataStore
+        from .datastore import AmazonRawDataStore
+
+        self.store = AmazonRawDataStore(data_dir / "amazon" / "raw")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new ZIP files are available in amazon/raw."""
         raw_dir = self.data_dir / "amazon" / "raw"
@@ -65,46 +69,21 @@ class AmazonUnzipFlowNode(FlowNode):
             return False, ["No Amazon ZIP files to extract"]
 
         # Check if we have any extracted data
-        if not list(raw_dir.glob("**/Retail.OrderHistory.*.csv")):
+        if not self.store.exists():
             return True, [f"Found {len(zip_files)} ZIP file(s) to extract"]
 
         # Check if ZIPs are newer than extracted data
         latest_zip = max(zip_files, key=lambda p: p.stat().st_mtime)
-        csv_files = list(raw_dir.glob("**/Retail.OrderHistory.*.csv"))
-        latest_csv = max(csv_files, key=lambda p: p.stat().st_mtime)
+        latest_csv_mtime = self.store.last_modified()
 
-        if latest_zip.stat().st_mtime > latest_csv.stat().st_mtime:
+        if latest_csv_mtime and latest_zip.stat().st_mtime > latest_csv_mtime.timestamp():
             return True, ["New ZIP files detected"]
 
         return False, ["No new Amazon data to extract"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon raw data summary."""
-        raw_dir = self.data_dir / "amazon" / "raw"
-
-        if not raw_dir.exists() or not list(raw_dir.glob("**/Retail.OrderHistory.*.csv")):
-            return NodeDataSummary(
-                exists=False,
-                last_updated=None,
-                age_days=None,
-                item_count=None,
-                size_bytes=None,
-                summary_text="No Amazon raw data found",
-            )
-
-        csv_files = list(raw_dir.glob("**/Retail.OrderHistory.*.csv"))
-        latest_file = max(csv_files, key=lambda p: p.stat().st_mtime)
-        mtime = datetime.fromtimestamp(latest_file.stat().st_mtime)
-        age = (datetime.now() - mtime).days
-
-        return NodeDataSummary(
-            exists=True,
-            last_updated=mtime,
-            age_days=age,
-            item_count=len(csv_files),
-            size_bytes=sum(f.stat().st_size for f in csv_files),
-            summary_text=f"Amazon data: {len(csv_files)} account(s)",
-        )
+        return self.store.to_node_data_summary()
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Extract Amazon ZIP files from amazon/raw directory."""
@@ -142,13 +121,18 @@ class AmazonMatchingFlowNode(FlowNode):
         self.data_dir = data_dir
         self._dependencies = {"ynab_sync", "amazon_unzip"}
 
+        # Initialize DataStores
+        from .datastore import AmazonMatchResultsStore, AmazonRawDataStore
+
+        self.raw_store = AmazonRawDataStore(data_dir / "amazon" / "raw")
+        self.match_store = AmazonMatchResultsStore(data_dir / "amazon" / "transaction_matches")
+
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new Amazon data or YNAB data requires matching."""
         reasons = []
 
         # Check if Amazon raw data exists
-        raw_dir = self.data_dir / "amazon" / "raw"
-        if not raw_dir.exists() or not list(raw_dir.glob("**/Retail.OrderHistory.*.csv")):
+        if not self.raw_store.exists():
             return False, ["No Amazon raw data available"]
 
         # Check if YNAB cache exists
@@ -157,16 +141,15 @@ class AmazonMatchingFlowNode(FlowNode):
             return False, ["No YNAB cache available"]
 
         # Check if matching results exist
-        matches_dir = self.data_dir / "amazon" / "transaction_matches"
-        if not matches_dir.exists() or not list(matches_dir.glob("*.json")):
+        if not self.match_store.exists():
             reasons.append("No previous matching results")
             return True, reasons
 
         # Compare timestamps
-        latest_match = max(matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        latest_match_time = self.match_store.last_modified()
         ynab_mtime = ynab_cache.stat().st_mtime
 
-        if ynab_mtime > latest_match.stat().st_mtime:
+        if latest_match_time and ynab_mtime > latest_match_time.timestamp():
             reasons.append("YNAB data updated since last match")
             return True, reasons
 
@@ -174,36 +157,7 @@ class AmazonMatchingFlowNode(FlowNode):
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon matching results summary."""
-        matches_dir = self.data_dir / "amazon" / "transaction_matches"
-
-        if not matches_dir.exists() or not list(matches_dir.glob("*.json")):
-            return NodeDataSummary(
-                exists=False,
-                last_updated=None,
-                age_days=None,
-                item_count=None,
-                size_bytes=None,
-                summary_text="No Amazon matches found",
-            )
-
-        latest_file = max(matches_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
-        mtime = datetime.fromtimestamp(latest_file.stat().st_mtime)
-        age = (datetime.now() - mtime).days
-
-        try:
-            data = read_json(latest_file)
-            count = len(data.get("matches", [])) if isinstance(data, dict) else 0
-        except Exception:
-            count = 0
-
-        return NodeDataSummary(
-            exists=True,
-            last_updated=mtime,
-            age_days=age,
-            item_count=count,
-            size_bytes=latest_file.stat().st_size,
-            summary_text=f"Amazon matches: {count} transactions",
-        )
+        return self.match_store.to_node_data_summary()
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute Amazon transaction matching."""
@@ -246,12 +200,8 @@ class AmazonMatchingFlowNode(FlowNode):
             match_rate = matched_count / len(transactions) if transactions else 0.0
             avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
 
-            # Write results
-            output_dir = self.data_dir / "amazon" / "transaction_matches"
-            output_dir.mkdir(parents=True, exist_ok=True)
-
+            # Write results using DataStore
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            output_file = output_dir / f"{timestamp}_amazon_matching_results.json"
 
             result_data = {
                 "metadata": {
@@ -267,8 +217,11 @@ class AmazonMatchingFlowNode(FlowNode):
                 "matches": matches,
             }
 
-            # Use write_json_with_defaults to handle pandas Timestamps from CSV parsing
-            write_json_with_defaults(output_file, result_data, default=str)
+            self.match_store.save(result_data)
+
+            # Get output file path for FlowResult
+            output_dir = self.data_dir / "amazon" / "transaction_matches"
+            output_file = output_dir / f"{timestamp}_amazon_matching_results.json"
 
             return FlowResult(
                 success=True,
