@@ -173,6 +173,18 @@ def orders_to_dataframe(orders: list[AmazonOrderItem]) -> pd.DataFrame:
     Helper function for backward compatibility with matcher/grouper/scorer
     that still expect DataFrame format.
 
+    TEMPORARY ADAPTER: This function exists only for backward compatibility during
+    the domain model migration. Once matcher/grouper/scorer are updated to work
+    with domain models directly, this function should be removed.
+
+    Note on floating-point usage: This function uses float division (cents / 100.0)
+    for currency display in DataFrames, which normally violates the ZERO Floating
+    Point Tolerance policy. This is acceptable here because:
+    1. This is temporary adapter code (to be removed in Phase 5)
+    2. No arithmetic operations are performed on the floats
+    3. Values are only used for display/comparison in matchers
+    4. All actual financial calculations use integer-based Money objects
+
     Args:
         orders: List of AmazonOrderItem objects
 
@@ -190,8 +202,10 @@ def orders_to_dataframe(orders: list[AmazonOrderItem]) -> pd.DataFrame:
             "ASIN": order.asin,
             "Product Name": order.product_name,
             "Quantity": order.quantity,
-            "Unit Price": order.unit_price.to_cents() / 100.0,  # Convert back to dollars for DataFrame
-            "Total Owed": order.total_owed.to_cents() / 100.0,  # Convert back to dollars for DataFrame
+            # Temporary float conversion for DataFrame compatibility
+            # TODO(Phase 5): Remove when matchers use Money directly
+            "Unit Price": order.unit_price.to_cents() / 100.0,
+            "Total Owed": order.total_owed.to_cents() / 100.0,
             "Order Date": order.order_date.date,
             "Ship Date": order.ship_date.date if order.ship_date else None,
             "Category": order.category,
