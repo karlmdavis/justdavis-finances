@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from finances.core.datastore_mixin import DataStoreMixin
-
 from finances.core.json_utils import read_json, write_json
 
 if TYPE_CHECKING:

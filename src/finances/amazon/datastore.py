@@ -13,7 +13,7 @@ from finances.core.datastore_mixin import DataStoreMixin
 from finances.core.json_utils import read_json
 
 if TYPE_CHECKING:
-    from finances.core.flow import NodeDataSummary
+    pass
 
 
 class AmazonRawDataStore(DataStoreMixin):
@@ -153,9 +153,7 @@ class AmazonMatchResultsStore(DataStoreMixin):
 
         result = read_json(latest_file)
         if not isinstance(result, dict):
-            raise ValueError(
-                f"Invalid match data format: expected dict, got {type(result).__name__}"
-            )
+            raise ValueError(f"Invalid match data format: expected dict, got {type(result).__name__}")
         return result
 
     def save(self, data: dict) -> None:
