@@ -72,7 +72,7 @@ class ParsedReceipt:
             if isinstance(value, Money):
                 result[key] = value.to_cents()
             elif isinstance(value, FinancialDate):
-                result[key] = value.to_string()
+                result[key] = value.to_iso_string()
             elif isinstance(value, list):
                 # Handle list of ParsedItem objects
                 result[key] = [

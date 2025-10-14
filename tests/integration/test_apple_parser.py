@@ -44,14 +44,15 @@ def test_parse_legacy_aapl_format_complete(parser, fixtures_dir):
     # Order ID extraction may vary based on HTML structure - just verify something was found
     assert receipt.order_id is not None
 
-    # Receipt date should be parsed
+    # Receipt date should be parsed as FinancialDate
     assert receipt.receipt_date is not None
-    assert "2024" in receipt.receipt_date
+    assert "2024" in receipt.receipt_date.to_iso_string()
 
     # Financial data - verify currency values were extracted (parser may extract multiple)
-    # Parser now returns integer cents (e.g., 12340 for $123.40)
+    # Parser now returns Money objects
     assert receipt.total is not None
-    assert isinstance(receipt.total, int)
+    from finances.core.money import Money
+    assert isinstance(receipt.total, Money)
 
     # Verify items extraction - should find at least one item with "Procreate"
     assert len(receipt.items) > 0
@@ -150,13 +151,14 @@ def test_parse_malformed_receipt_gracefully(parser, fixtures_dir):
 
 @pytest.mark.integration
 @pytest.mark.apple
-def test_currency_values_are_integers_in_cents(parser, fixtures_dir):
+def test_currency_values_are_money_objects(parser, fixtures_dir):
     """
-    Verify parser returns currency as integer cents, not float dollars.
+    Verify parser returns currency as Money objects, not raw integers or floats.
 
-    This is a regression test for the currency unit mismatch bug where the parser
-    returned float dollars (e.g., 45.99) but the matcher expected integer cents (4599).
+    Updated from original test to validate type-safe Money objects.
     """
+    from finances.core.money import Money
+
     html_path = fixtures_dir / "legacy_aapl_receipt.html"
 
     with open(html_path, encoding="utf-8") as f:
@@ -164,26 +166,26 @@ def test_currency_values_are_integers_in_cents(parser, fixtures_dir):
 
     receipt = parser.parse_html_content(html_content, "currency_test")
 
-    # Verify all currency fields are integers in cents (not floats in dollars)
+    # Verify all currency fields are Money objects
     if receipt.total is not None:
-        assert isinstance(receipt.total, int), f"total must be int cents, got {type(receipt.total)}"
+        assert isinstance(receipt.total, Money), f"total must be Money object, got {type(receipt.total)}"
         # Verify reasonable range - should be in cents (e.g., 4599 not 45.99)
-        assert receipt.total > 100, f"total={receipt.total} should be in cents (>100), not dollars"
+        assert receipt.total.to_cents() > 100, f"total={receipt.total.to_cents()} should be in cents (>100), not dollars"
 
     if receipt.subtotal is not None:
-        assert isinstance(receipt.subtotal, int), f"subtotal must be int cents, got {type(receipt.subtotal)}"
+        assert isinstance(receipt.subtotal, Money), f"subtotal must be Money object, got {type(receipt.subtotal)}"
 
     if receipt.tax is not None:
-        assert isinstance(receipt.tax, int), f"tax must be int cents, got {type(receipt.tax)}"
+        assert isinstance(receipt.tax, Money), f"tax must be Money object, got {type(receipt.tax)}"
 
-    # Verify all items have integer cent costs
+    # Verify all items have Money cost objects
     for item in receipt.items:
         assert isinstance(
-            item.cost, int
-        ), f"item '{item.title}' cost must be int cents, got {type(item.cost)}"
+            item.cost, Money
+        ), f"item '{item.title}' cost must be Money object, got {type(item.cost)}"
         # Verify reasonable range for items
-        if item.cost > 0:
-            assert item.cost > 50, f"item '{item.title}' cost={item.cost} should be in cents, not dollars"
+        if item.cost.to_cents() > 0:
+            assert item.cost.to_cents() > 50, f"item '{item.title}' cost={item.cost.to_cents()} should be in cents, not dollars"
 
 
 @pytest.mark.integration
@@ -209,11 +211,13 @@ def test_parse_receipt_from_file_system(parser, fixtures_dir, temp_dir):
     receipt = parser.parse_receipt(test_base_name, content_dir)
 
     # Verify successful parsing
+    from finances.core.money import Money
+
     assert receipt.base_name == test_base_name
     assert receipt.format_detected == "legacy_aapl"
     assert receipt.apple_id == "test@example.com"
     assert receipt.total is not None
-    assert isinstance(receipt.total, int)  # Parser now returns integer cents
+    assert isinstance(receipt.total, Money)  # Parser now returns Money objects
 
 
 @pytest.mark.integration
@@ -265,21 +269,23 @@ def test_receipt_to_dict_serialization(parser, fixtures_dir):
 @pytest.mark.apple
 def test_add_item_to_receipt(parser):
     """Test adding items to receipt programmatically."""
+    from finances.core.money import Money
+
     receipt = ParsedReceipt(base_name="test_receipt")
 
-    # Add items
-    receipt.add_item("Test App 1", 9.99, quantity=1)
-    receipt.add_item("Test App 2", 4.99, quantity=2, subscription=True)
+    # Add items (now using Money objects)
+    receipt.add_item("Test App 1", Money.from_cents(999), quantity=1)
+    receipt.add_item("Test App 2", Money.from_cents(499), quantity=2, subscription=True)
 
     # Verify items added
     assert len(receipt.items) == 2
     assert receipt.items[0].title == "Test App 1"
-    assert receipt.items[0].cost == 9.99
+    assert receipt.items[0].cost.to_cents() == 999
     assert receipt.items[0].quantity == 1
     assert receipt.items[0].subscription is False
 
     assert receipt.items[1].title == "Test App 2"
-    assert receipt.items[1].cost == 4.99
+    assert receipt.items[1].cost.to_cents() == 499
     assert receipt.items[1].quantity == 2
     assert receipt.items[1].subscription is True
 
