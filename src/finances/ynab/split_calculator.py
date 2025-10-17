@@ -173,10 +173,7 @@ def calculate_generic_splits(
 
     for item in items:
         # Accept either Money object or int cents
-        if isinstance(item["amount"], Money):
-            item_amount_cents = item["amount"].to_cents()
-        else:
-            item_amount_cents = item["amount"]
+        item_amount_cents = item["amount"].to_cents() if isinstance(item["amount"], Money) else item["amount"]
 
         item_amount_milliunits = cents_to_milliunits(item_amount_cents)
 

@@ -165,8 +165,8 @@ class MatchScorer:
         Returns:
             AmazonMatch domain model instance
         """
-        from .models import AmazonMatch
         from ..core.money import Money
+        from .models import AmazonMatch
 
         total_match_amount = sum(order.get("total", 0) for order in amazon_orders)
 

@@ -55,10 +55,7 @@ class AppleMatcher:
             MatchResult with details of the match
         """
         # Filter to receipts with required fields (date and total)
-        valid_receipts = [
-            r for r in apple_receipts
-            if r.receipt_date is not None and r.total is not None
-        ]
+        valid_receipts = [r for r in apple_receipts if r.receipt_date is not None and r.total is not None]
 
         # Get absolute value for matching (receipts are always positive, transactions are negative for expenses)
         tx_amount_cents = transaction.amount.abs().to_cents()
@@ -184,14 +181,15 @@ class AppleMatcher:
             # We know receipt_date and total are not None due to filter in match_single_transaction
             receipt_datetime = datetime.combine(receipt.receipt_date.date, datetime.min.time())  # type: ignore[union-attr]
 
-            # Check if within date window
-            if start_date <= receipt_datetime <= end_date:
-                # Check for exact amount match
-                if receipt.total.to_cents() == tx_amount:  # type: ignore[union-attr]
-                    date_diff = abs((receipt_datetime - tx_date).days)
-                    if date_diff < best_date_diff:
-                        best_match = receipt
-                        best_date_diff = date_diff
+            # Check if within date window and exact amount match
+            if (
+                start_date <= receipt_datetime <= end_date
+                and receipt.total.to_cents() == tx_amount  # type: ignore[union-attr]
+            ):
+                date_diff = abs((receipt_datetime - tx_date).days)
+                if date_diff < best_date_diff:
+                    best_match = receipt
+                    best_date_diff = date_diff
 
         if best_match:
             logger.debug(

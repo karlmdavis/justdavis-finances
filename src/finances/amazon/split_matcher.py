@@ -301,8 +301,8 @@ class SplitPaymentMatcher:
         # Split payment indicator - slightly reduce confidence for splits
         confidence *= 0.95
 
-        from .models import AmazonMatch
         from ..core.money import Money
+        from .models import AmazonMatch
 
         return AmazonMatch(
             account=account_name,
