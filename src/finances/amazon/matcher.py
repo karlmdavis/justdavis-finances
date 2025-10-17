@@ -140,7 +140,6 @@ class SimplifiedMatcher:
 
                 if ConfidenceThresholds.meets_threshold(confidence, MatchType.COMPLETE_ORDER):
                     # Convert OrderGroup to dict format for match result
-                    # TODO: Update MatchScorer to accept OrderGroup directly
                     order_dict = order_group.to_dict()
 
                     match_result = MatchScorer.create_match_result(
@@ -174,8 +173,7 @@ class SimplifiedMatcher:
 
         # order_groups is dict[str, OrderGroup] for ORDER level
         for order_group in order_groups.values():
-            # Convert OrderGroup to dict for split_matcher (legacy interface)
-            # TODO: Update split_matcher to accept OrderGroup directly
+            # Convert OrderGroup to dict for split_matcher
             order_dict = order_group.to_dict()
 
             # Try split payment matching

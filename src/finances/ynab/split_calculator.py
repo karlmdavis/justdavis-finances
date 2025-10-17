@@ -12,7 +12,7 @@ Key Features:
 - Sum verification for exact total matching
 """
 
-from typing import Any, overload
+from typing import Any
 
 from ..amazon.models import MatchedOrderItem
 from ..apple.parser import ParsedReceipt
@@ -80,63 +80,25 @@ def calculate_amazon_splits(
     return splits
 
 
-@overload
 def calculate_apple_splits(
-    transaction_amount: YnabTransaction,
-    apple_items: ParsedReceipt,
-) -> list[YnabSplit]: ...
-
-
-@overload
-def calculate_apple_splits(
-    transaction_amount: int,
-    apple_items: list[dict[str, Any]],
-    receipt_subtotal: int | None = None,
-    receipt_tax: int | None = None,
-) -> list[dict[str, Any]]: ...
-
-
-def calculate_apple_splits(
-    transaction_amount: int | YnabTransaction,
-    apple_items: list[dict[str, Any]] | ParsedReceipt,
-    receipt_subtotal: int | None = None,
-    receipt_tax: int | None = None,
-) -> list[dict[str, Any]] | list[YnabSplit]:
+    transaction: YnabTransaction,
+    receipt: ParsedReceipt,
+) -> list[YnabSplit]:
     """
     Calculate splits for Apple transaction with proportional tax allocation.
 
     Apple provides subtotal and tax separately, requiring proportional allocation.
 
-    Supports two signatures:
-    1. New: calculate_apple_splits(transaction: YnabTransaction, receipt: ParsedReceipt) -> list[YnabSplit]
-    2. Legacy: calculate_apple_splits(amount: int, items: list[dict], subtotal, tax) -> list[dict]
-
     Args:
-        transaction_amount: YNAB transaction (new) or amount in milliunits (legacy)
-        apple_items: ParsedReceipt (new) or list of dicts (legacy)
-        receipt_subtotal: Receipt subtotal in cents (legacy only)
-        receipt_tax: Receipt tax in cents (legacy only)
+        transaction: YNAB transaction domain model
+        receipt: ParsedReceipt domain model with items, subtotal, and tax
 
     Returns:
-        List of YnabSplit (new) or split dictionaries (legacy)
+        List of YnabSplit domain models
 
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
     """
-    # Detect which signature is being used
-    if isinstance(transaction_amount, YnabTransaction):
-        # New signature: domain models
-        return _calculate_apple_splits_domain_models(transaction_amount, apple_items)  # type: ignore[arg-type]
-    else:
-        # Legacy signature: dicts
-        return _calculate_apple_splits_legacy(transaction_amount, apple_items, receipt_subtotal, receipt_tax)  # type: ignore[arg-type]
-
-
-def _calculate_apple_splits_domain_models(
-    transaction: YnabTransaction,
-    receipt: ParsedReceipt,
-) -> list[YnabSplit]:
-    """Calculate Apple splits using domain models (new implementation)."""
     tx_milliunits = transaction.amount.to_milliunits()
 
     if not receipt.items:
@@ -179,65 +141,6 @@ def _calculate_apple_splits_domain_models(
         total_splits = sum(s.amount.to_milliunits() for s in splits)
         raise SplitCalculationError(
             f"Apple splits total {total_splits} doesn't match transaction {tx_milliunits}"
-        )
-
-    return splits
-
-
-def _calculate_apple_splits_legacy(
-    transaction_amount: int,
-    apple_items: list[dict[str, Any]],
-    receipt_subtotal: int | None = None,
-    receipt_tax: int | None = None,
-) -> list[dict[str, Any]]:
-    """Calculate Apple splits using legacy dict format."""
-    if not apple_items:
-        raise SplitCalculationError("No Apple items provided for split calculation")
-
-    # Calculate item subtotals
-    item_subtotals = []
-    calculated_subtotal = 0
-
-    for item in apple_items:
-        item_price = item.get("price", 0)
-        item_subtotals.append(item_price)
-        calculated_subtotal += item_price
-
-    # Use provided subtotal if available, otherwise calculated
-    total_subtotal = receipt_subtotal if receipt_subtotal is not None else calculated_subtotal
-    total_tax = receipt_tax if receipt_tax is not None else 0
-
-    # Calculate proportional tax for each item
-    item_taxes = []
-    if total_tax > 0 and total_subtotal > 0:
-        for item_subtotal in item_subtotals:
-            proportional_tax = safe_divide_proportional(item_subtotal, total_subtotal, total_tax)
-            item_taxes.append(proportional_tax)
-
-        # Allocate any remainder to ensure exact total
-        item_taxes = allocate_remainder(item_taxes, total_tax)
-    else:
-        item_taxes = [0] * len(item_subtotals)
-
-    # Create splits
-    splits = []
-    for i, item in enumerate(apple_items):
-        item_total = item_subtotals[i] + item_taxes[i]
-        item_amount_milliunits = cents_to_milliunits(item_total)
-
-        # YNAB uses negative amounts for expenses
-        split_amount = -item_amount_milliunits
-
-        memo = item["name"]
-        split = {"amount": split_amount, "memo": memo}
-
-        splits.append(split)
-
-    # Verify splits sum to transaction total
-    if not validate_sum_equals_total(splits, transaction_amount):
-        total_splits = sum(split["amount"] for split in splits)
-        raise SplitCalculationError(
-            f"Apple splits total {total_splits} doesn't match transaction {transaction_amount}"
         )
 
     return splits

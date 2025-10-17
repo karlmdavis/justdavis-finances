@@ -42,14 +42,10 @@ class Transaction:
     """
 
     id: str
-    date: date | str
-    amount: int  # In milliunits (YNAB standard) - LEGACY
+    date_obj: FinancialDate
+    amount_money: Money
     description: str
     account_name: str
-
-    # New type-safe fields
-    amount_money: Money | None = None
-    date_obj: FinancialDate | None = None
 
     # Optional fields
     payee_name: str | None = None
@@ -63,39 +59,70 @@ class Transaction:
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    def __post_init__(self) -> None:
-        """Normalize data and sync legacy/modern fields."""
-        # Convert string dates to date objects (legacy behavior)
-        if isinstance(self.date, str):
-            date_str = self.date
-            try:
-                object.__setattr__(self, "date", datetime.strptime(date_str, "%Y-%m-%d").date())
-            except ValueError:
-                # Try other common formats
-                for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
-                    try:
-                        object.__setattr__(self, "date", datetime.strptime(date_str, fmt).date())
-                        break
-                    except ValueError:
-                        continue
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Transaction":
+        """
+        Create Transaction from dict with flexible field names.
 
-        # Sync amount_money with legacy amount field
-        if self.amount_money is not None and self.amount == 0:
-            object.__setattr__(self, "amount", self.amount_money.to_milliunits())
-        elif self.amount_money is None and self.amount != 0:
-            # Create Money from legacy milliunits
-            object.__setattr__(self, "amount_money", Money.from_milliunits(self.amount))
+        Supports both old (amount, date) and new (amount_money, date_obj) field names.
+        """
+        # Handle date field
+        if "date_obj" in data:
+            date_obj = data["date_obj"]
+        elif "date" in data:
+            date_value = data["date"]
+            if isinstance(date_value, FinancialDate):
+                date_obj = date_value
+            elif isinstance(date_value, str):
+                date_obj = FinancialDate.from_string(date_value)
+            else:
+                date_obj = FinancialDate(date=date_value)
+        else:
+            raise ValueError("Transaction requires either 'date' or 'date_obj'")
 
-        # Sync date_obj with legacy date field
-        if self.date_obj is not None and isinstance(self.date, str):
-            object.__setattr__(self, "date", self.date_obj.date)
-        elif self.date_obj is None and isinstance(self.date, date):
-            object.__setattr__(self, "date_obj", FinancialDate(date=self.date))
+        # Handle amount field
+        if "amount_money" in data:
+            amount_money = data["amount_money"]
+        elif "amount" in data:
+            amount_value = data["amount"]
+            if isinstance(amount_value, Money):
+                amount_money = amount_value
+            else:
+                # Assume milliunits
+                amount_money = Money.from_milliunits(amount_value)
+        else:
+            raise ValueError("Transaction requires either 'amount' or 'amount_money'")
+
+        return cls(
+            id=data["id"],
+            date_obj=date_obj,
+            amount_money=amount_money,
+            description=data["description"],
+            account_name=data["account_name"],
+            payee_name=data.get("payee_name"),
+            category_name=data.get("category_name"),
+            memo=data.get("memo"),
+            cleared=data.get("cleared", True),
+            approved=data.get("approved", True),
+            source=data.get("source", "unknown"),
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at"),
+        )
+
+    @property
+    def date(self) -> date:
+        """Get date as Python date object for backward compatibility."""
+        return self.date_obj.date
+
+    @property
+    def amount(self) -> int:
+        """Get amount in milliunits for backward compatibility."""
+        return self.amount_money.to_milliunits()
 
     @property
     def transaction_type(self) -> TransactionType:
         """Determine transaction type based on amount."""
-        amount_val = self.amount_money.to_cents() if self.amount_money else self.amount
+        amount_val = self.amount_money.to_cents()
         if amount_val < 0:
             return TransactionType.EXPENSE
         elif amount_val > 0:
@@ -106,17 +133,11 @@ class Transaction:
     @property
     def amount_cents(self) -> int:
         """Get amount in cents."""
-        # amount_money is always set by __post_init__
-        if self.amount_money is None:
-            raise ValueError("amount_money not initialized")
         return self.amount_money.to_cents()
 
     @property
     def amount_dollars(self) -> str:
         """Get formatted amount as dollar string."""
-        # amount_money is always set by __post_init__
-        if self.amount_money is None:
-            raise ValueError("amount_money not initialized")
         return str(self.amount_money)
 
 
@@ -130,17 +151,11 @@ class Receipt:
     """
 
     id: str
-    date: date | str
+    date_obj: FinancialDate
     vendor: str
-    total_amount: int  # In cents - LEGACY
-
-    # New type-safe fields
-    total_money: Money | None = None
-    date_obj: FinancialDate | None = None
+    total_money: Money
 
     # Optional fields
-    subtotal: int | None = None  # In cents - LEGACY
-    tax_amount: int | None = None  # In cents - LEGACY
     subtotal_money: Money | None = None
     tax_money: Money | None = None
     customer_id: str | None = None
@@ -154,37 +169,88 @@ class Receipt:
     created_at: datetime | None = None
     raw_data: dict[str, Any] | None = None
 
-    def __post_init__(self) -> None:
-        """Normalize data and sync legacy/modern fields."""
-        # Date conversion (legacy)
-        if isinstance(self.date, str):
-            date_str = self.date
-            try:
-                object.__setattr__(self, "date", datetime.strptime(date_str, "%Y-%m-%d").date())
-            except ValueError:
-                # Try other common formats
-                for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
-                    try:
-                        object.__setattr__(self, "date", datetime.strptime(date_str, fmt).date())
-                        break
-                    except ValueError:
-                        continue
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Receipt":
+        """
+        Create Receipt from dict with flexible field names.
 
-        # Sync total_money with legacy total_amount
-        if self.total_money is not None and self.total_amount == 0:
-            object.__setattr__(self, "total_amount", self.total_money.to_cents())
-        elif self.total_money is None and self.total_amount != 0:
-            object.__setattr__(self, "total_money", Money.from_cents(self.total_amount))
+        Supports both old (date, total_amount, subtotal, tax_amount) and
+        new (date_obj, total_money, subtotal_money, tax_money) field names.
+        """
+        # Handle date field
+        if "date_obj" in data:
+            date_obj = data["date_obj"]
+        elif "date" in data:
+            date_value = data["date"]
+            if isinstance(date_value, FinancialDate):
+                date_obj = date_value
+            elif isinstance(date_value, str):
+                date_obj = FinancialDate.from_string(date_value)
+            else:
+                date_obj = FinancialDate(date=date_value)
+        else:
+            raise ValueError("Receipt requires either 'date' or 'date_obj'")
 
-        # Sync date_obj
-        if self.date_obj is None and isinstance(self.date, date):
-            object.__setattr__(self, "date_obj", FinancialDate(date=self.date))
+        # Handle total_money field
+        if "total_money" in data:
+            total_money = data["total_money"]
+        elif "total_amount" in data:
+            total_value = data["total_amount"]
+            if isinstance(total_value, Money):
+                total_money = total_value
+            else:
+                # Assume cents
+                total_money = Money.from_cents(total_value)
+        else:
+            raise ValueError("Receipt requires either 'total_amount' or 'total_money'")
 
-        # Sync subtotal and tax
-        if self.subtotal_money is None and self.subtotal is not None:
-            object.__setattr__(self, "subtotal_money", Money.from_cents(self.subtotal))
-        if self.tax_money is None and self.tax_amount is not None:
-            object.__setattr__(self, "tax_money", Money.from_cents(self.tax_amount))
+        # Handle optional subtotal/tax
+        subtotal_money = None
+        if "subtotal_money" in data:
+            subtotal_money = data["subtotal_money"]
+        elif "subtotal" in data and data["subtotal"] is not None:
+            subtotal_money = Money.from_cents(data["subtotal"])
+
+        tax_money = None
+        if "tax_money" in data:
+            tax_money = data["tax_money"]
+        elif "tax_amount" in data and data["tax_amount"] is not None:
+            tax_money = Money.from_cents(data["tax_amount"])
+
+        return cls(
+            id=data["id"],
+            date_obj=date_obj,
+            vendor=data["vendor"],
+            total_money=total_money,
+            subtotal_money=subtotal_money,
+            tax_money=tax_money,
+            customer_id=data.get("customer_id"),
+            order_number=data.get("order_number"),
+            items=data.get("items", []),
+            source=data.get("source", "unknown"),
+            created_at=data.get("created_at"),
+            raw_data=data.get("raw_data"),
+        )
+
+    @property
+    def date(self) -> date:
+        """Get date as Python date object for backward compatibility."""
+        return self.date_obj.date
+
+    @property
+    def total_amount(self) -> int:
+        """Get total in cents for backward compatibility."""
+        return self.total_money.to_cents()
+
+    @property
+    def subtotal(self) -> int | None:
+        """Get subtotal in cents for backward compatibility."""
+        return self.subtotal_money.to_cents() if self.subtotal_money else None
+
+    @property
+    def tax_amount(self) -> int | None:
+        """Get tax in cents for backward compatibility."""
+        return self.tax_money.to_cents() if self.tax_money else None
 
     @property
     def item_count(self) -> int:
@@ -194,11 +260,7 @@ class Receipt:
     @property
     def total_dollars(self) -> str:
         """Get formatted total as dollar string."""
-        if self.total_money:
-            return str(self.total_money)
-        from .currency import format_cents
-
-        return format_cents(self.total_amount)
+        return str(self.total_money)
 
 
 @dataclass
@@ -366,10 +428,10 @@ def validate_transaction(transaction: Transaction) -> bool:
     """Validate a transaction has required fields."""
     return bool(
         transaction.id
-        and transaction.date
+        and transaction.date_obj
         and transaction.description
         and transaction.account_name
-        and isinstance(transaction.amount, int)
+        and transaction.amount_money
     )
 
 
@@ -377,10 +439,10 @@ def validate_receipt(receipt: Receipt) -> bool:
     """Validate a receipt has required fields."""
     return bool(
         receipt.id
-        and receipt.date
+        and receipt.date_obj
         and receipt.vendor
-        and isinstance(receipt.total_amount, int)
-        and receipt.total_amount >= 0
+        and receipt.total_money
+        and receipt.total_money.to_cents() >= 0
     )
 
 
