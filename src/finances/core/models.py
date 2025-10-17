@@ -171,6 +171,23 @@ class MatchResult:
         """Get total amount of all matched receipts in cents."""
         return sum(receipt.total_money.to_cents() for receipt in self.receipts)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert match result to dict for JSON serialization."""
+        return {
+            "transaction_id": self.transaction.id,
+            "transaction_date": self.transaction.date_obj.to_iso_string(),
+            "transaction_amount": self.transaction.amount_money.to_milliunits(),
+            "receipt_ids": [r.id for r in self.receipts],
+            "matched": bool(self.receipts),
+            "confidence": self.confidence,
+            "match_method": self.match_method,
+            "date_difference": self.date_difference,
+            "amount_difference": self.amount_difference,
+            "unmatched_amount": self.unmatched_amount,
+            "strategy_used": self.strategy_used,
+            "notes": self.notes,
+        }
+
 
 @dataclass
 class Account:

@@ -8,7 +8,10 @@ Provides match scoring for Amazon transaction matching with precise calculations
 
 from datetime import date
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .models import AmazonMatch
 
 
 class MatchType(Enum):
@@ -147,31 +150,34 @@ class MatchScorer:
         confidence: float,
         account: str,
         unmatched_amount: int = 0,
-    ) -> dict[str, Any]:
+    ) -> "AmazonMatch":
         """
         Create standardized match result structure.
 
         Args:
             ynab_tx: YNAB transaction data
-            amazon_orders: List of matched Amazon orders
+            amazon_orders: List of matched Amazon orders (OrderGroup dicts)
             match_method: Method used for matching
             confidence: Calculated confidence score
             account: Amazon account name
-            unmatched_amount: Amount not matched (for partial matches)
+            unmatched_amount: Amount not matched (for partial matches) in cents
 
         Returns:
-            Standardized match result dictionary
+            AmazonMatch domain model instance
         """
+        from .models import AmazonMatch
+        from ..core.money import Money
+
         total_match_amount = sum(order.get("total", 0) for order in amazon_orders)
 
-        return {
-            "account": account,
-            "amazon_orders": amazon_orders,
-            "match_method": match_method,
-            "confidence": confidence,
-            "total_match_amount": total_match_amount,
-            "unmatched_amount": unmatched_amount,
-        }
+        return AmazonMatch(
+            account=account,
+            amazon_orders=amazon_orders,
+            match_method=match_method,
+            confidence=confidence,
+            total_match_amount=Money.from_cents(total_match_amount),
+            unmatched_amount=Money.from_cents(unmatched_amount),
+        )
 
 
 class ConfidenceThresholds:

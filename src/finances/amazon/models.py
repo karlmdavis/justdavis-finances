@@ -290,9 +290,12 @@ class AmazonMatch:
 
     Represents one possible match between a YNAB transaction and
     Amazon order(s), with confidence scoring and match method.
+
+    Note: amazon_orders contains OrderGroup-like dicts (not raw AmazonOrderItem objects).
+    Each dict has: order_id, items (list of MatchedOrderItem dicts), total, ship_dates, order_date
     """
 
-    amazon_orders: list[AmazonOrderItem]
+    amazon_orders: list[dict[str, Any]]  # List of OrderGroup-like dicts
     match_method: str  # "complete_order", "complete_shipment", "split_payment", etc.
     confidence: float  # 0.0 to 1.0
     account: str  # Amazon account name (e.g., "karl", "erica")
@@ -310,6 +313,46 @@ class AmazonMatch:
         if not self.amazon_orders:
             raise ValueError("AmazonMatch must have at least one order")
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AmazonMatch":
+        """
+        Create AmazonMatch from dict (for JSON deserialization).
+
+        Args:
+            data: Dictionary with match data
+
+        Returns:
+            AmazonMatch instance
+        """
+        return cls(
+            amazon_orders=data["amazon_orders"],
+            match_method=data["match_method"],
+            confidence=float(data["confidence"]),
+            account=data["account"],
+            total_match_amount=Money.from_cents(data["total_match_amount"]),
+            unmatched_amount=Money.from_cents(data.get("unmatched_amount", 0)),
+            matched_item_indices=data.get("matched_item_indices", []),
+            metadata=data.get("metadata", {}),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert to dict for JSON serialization.
+
+        Returns:
+            Dictionary with all match fields in JSON-compatible format
+        """
+        return {
+            "account": self.account,
+            "amazon_orders": self.amazon_orders,
+            "match_method": self.match_method,
+            "confidence": self.confidence,
+            "total_match_amount": self.total_match_amount.to_cents(),
+            "unmatched_amount": self.unmatched_amount.to_cents(),
+            "matched_item_indices": self.matched_item_indices,
+            "metadata": self.metadata,
+        }
+
 
 @dataclass
 class AmazonMatchResult:
@@ -318,14 +361,11 @@ class AmazonMatchResult:
 
     Contains the YNAB transaction, all match candidates, the best match,
     and optional messaging about the match process.
-
-    NOTE: During Phase 4.5 migration, matches/best_match are dict types.
-    TODO(Phase 5): Convert to full AmazonMatch domain models.
     """
 
     transaction: "YnabTransaction"  # Forward reference to avoid circular import
-    matches: list[Any]  # TODO(Phase 5): Change to list[AmazonMatch]
-    best_match: Any | None  # TODO(Phase 5): Change to AmazonMatch | None
+    matches: list[AmazonMatch]  # All match candidates
+    best_match: AmazonMatch | None  # Best match selected
 
     # Optional fields
     message: str | None = None  # e.g., "Not an Amazon transaction"

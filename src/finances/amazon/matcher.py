@@ -11,7 +11,7 @@ All matches require penny-perfect amounts - no tolerance for differences.
 """
 
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..core.currency import format_cents
 from ..ynab.models import YnabTransaction
@@ -19,6 +19,9 @@ from .grouper import GroupingLevel, group_orders
 from .models import AmazonMatchResult, AmazonOrderItem, OrderGroup
 from .scorer import ConfidenceThresholds, MatchScorer, MatchType
 from .split_matcher import SplitPaymentMatcher
+
+if TYPE_CHECKING:
+    from .models import AmazonMatch
 
 
 class SimplifiedMatcher:
@@ -94,8 +97,8 @@ class SimplifiedMatcher:
         best_match = self._select_best_match(all_matches)
 
         # Record split payment match if found
-        if best_match and best_match["match_method"] == "split_payment":
-            order = best_match["amazon_orders"][0]
+        if best_match and best_match.match_method == "split_payment":
+            order = best_match.amazon_orders[0]
             self.split_matcher.record_match(
                 transaction.id, order["order_id"], order.get("matched_item_indices", [])
             )
@@ -108,9 +111,11 @@ class SimplifiedMatcher:
 
     def _find_complete_matches(
         self, ynab_amount: int, ynab_date: date, orders: list[AmazonOrderItem], account_name: str
-    ) -> list[dict[str, Any]]:
+    ) -> list["AmazonMatch"]:
         """Find complete order/shipment matches using domain models."""
-        matches = []
+        from .models import AmazonMatch
+
+        matches: list[AmazonMatch] = []
 
         # Group orders at ORDER level only (SHIPMENT/DAILY_SHIPMENT not yet implemented)
         order_groups_result = group_orders(orders, GroupingLevel.ORDER)
@@ -160,9 +165,11 @@ class SimplifiedMatcher:
         ynab_date: date,
         orders: list[AmazonOrderItem],
         account_name: str,
-    ) -> list[dict[str, Any]]:
+    ) -> list["AmazonMatch"]:
         """Find split payment matches using domain models."""
-        matches: list[dict[str, Any]] = []
+        from .models import AmazonMatch
+
+        matches: list[AmazonMatch] = []
 
         # Group by complete orders to find candidates for split payments
         order_groups_result = group_orders(orders, GroupingLevel.ORDER)
@@ -184,21 +191,23 @@ class SimplifiedMatcher:
             )
 
             if split_match and ConfidenceThresholds.meets_threshold(
-                split_match["confidence"], MatchType.SPLIT_PAYMENT
+                split_match.confidence, MatchType.SPLIT_PAYMENT
             ):
                 matches.append(split_match)
 
         return matches
 
-    def _select_best_match(self, matches: list[dict[str, Any]]) -> dict[str, Any] | None:
+    def _select_best_match(self, matches: list["AmazonMatch"]) -> "AmazonMatch | None":
         """Select the best match from available options."""
+        from .models import AmazonMatch
+
         if not matches:
             return None
 
         # Sort by confidence (highest first), then by match method preference
-        def match_priority(match: dict[str, Any]) -> float:
-            confidence = float(match["confidence"])
-            method = match["match_method"]
+        def match_priority(match: AmazonMatch) -> float:
+            confidence = float(match.confidence)
+            method = match.match_method
 
             # Complete matches get priority over split payments
             if method.startswith("complete_"):

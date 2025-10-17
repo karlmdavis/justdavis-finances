@@ -84,8 +84,8 @@ class TestSimplifiedMatcherDomainModels:
         assert result.transaction == transaction
         assert result.has_matches
         assert result.best_match is not None
-        # Note: best_match is still dict internally (converted in Layer 4)
-        assert result.best_match["confidence"] > 0.8  # type: ignore[index]
+        # best_match is now AmazonMatch domain model
+        assert result.best_match.confidence > 0.8
 
     @pytest.mark.amazon
     def test_match_transaction_domain_models_no_match(self, matcher):

@@ -112,8 +112,8 @@ class TestSimplifiedMatcher:
         assert result.best_match is not None
 
         # Should match the $45.99 order
-        assert result.best_match["amazon_orders"][0]["order_id"] == "111-2223334-5556667"
-        assert result.best_match["confidence"] >= 0.9  # High confidence for exact match
+        assert result.best_match.amazon_orders[0]["order_id"] == "111-2223334-5556667"
+        assert result.best_match.confidence >= 0.9  # High confidence for exact match
 
     @pytest.mark.amazon
     def test_multi_item_order_match(self, matcher, sample_amazon_orders):
@@ -135,8 +135,8 @@ class TestSimplifiedMatcher:
         assert result.best_match is not None
 
         # Should match the multi-item $129.99 order
-        assert result.best_match["amazon_orders"][0]["order_id"] == "111-2223334-9990001"
-        assert len(result.best_match["amazon_orders"][0]["items"]) == 2
+        assert result.best_match.amazon_orders[0]["order_id"] == "111-2223334-9990001"
+        assert len(result.best_match.amazon_orders[0]["items"]) == 2
 
     @pytest.mark.amazon
     def test_date_window_matching(self, matcher, sample_amazon_orders):
@@ -156,7 +156,7 @@ class TestSimplifiedMatcher:
 
         assert len(result.matches) > 0
         # Should still find the order shipped on 2024-08-17
-        order_ids = [m["amazon_orders"][0]["order_id"] for m in result.matches]
+        order_ids = [m.amazon_orders[0]["order_id"] for m in result.matches]
         assert "111-2223334-7778889" in order_ids
 
     @pytest.mark.amazon
@@ -176,7 +176,7 @@ class TestSimplifiedMatcher:
         result = matcher.match_transaction(transaction, orders_by_account)
 
         # Should return empty list or very low confidence matches
-        high_confidence_matches = [m for m in result.matches if m["confidence"] > 0.5]
+        high_confidence_matches = [m for m in result.matches if m.confidence > 0.5]
         assert len(high_confidence_matches) == 0
 
     @pytest.mark.amazon
@@ -217,9 +217,9 @@ class TestSimplifiedMatcher:
         fair_result = matcher.match_transaction(fair_transaction, orders_by_account)
 
         if perfect_result.matches and good_result.matches and fair_result.matches:
-            perfect_conf = max(m["confidence"] for m in perfect_result.matches)
-            good_conf = max(m["confidence"] for m in good_result.matches)
-            fair_conf = max(m["confidence"] for m in fair_result.matches)
+            perfect_conf = max(m.confidence for m in perfect_result.matches)
+            good_conf = max(m.confidence for m in good_result.matches)
+            fair_conf = max(m.confidence for m in fair_result.matches)
 
             # Confidence should decrease with date distance
             assert perfect_conf >= good_conf
@@ -270,10 +270,7 @@ class TestSimplifiedMatcher:
         assert len(result.matches) > 0
 
         # Check if any match indicates split payment possibility
-        any(
-            m.get("split_payment_candidate", False) or m.get("match_method") == "split_payment"
-            for m in result.matches
-        )
+        any(m.match_method == "split_payment" for m in result.matches)
         # Note: This depends on the matcher implementation
 
 

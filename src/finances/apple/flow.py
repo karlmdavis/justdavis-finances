@@ -294,24 +294,7 @@ class AppleMatchingFlowNode(FlowNode):
                     "match_rate": match_rate,
                     "average_confidence": avg_confidence,
                 },
-                "matches": [
-                    {
-                        "transaction_id": result.transaction.id if result.transaction else None,
-                        "transaction_date": (
-                            result.transaction.date_obj.date.isoformat() if result.transaction else None
-                        ),
-                        "transaction_amount": (
-                            result.transaction.amount_money.to_milliunits() if result.transaction else None
-                        ),
-                        "receipt_ids": [r.id for r in result.receipts] if result.receipts else [],
-                        "matched": bool(result.receipts),
-                        "confidence": result.confidence,
-                        "match_method": result.match_method,
-                        "date_difference": result.date_difference,
-                        "amount_difference": result.amount_difference,
-                    }
-                    for result in match_results
-                ],
+                "matches": [result.to_dict() for result in match_results],
             }
 
             self.match_store.save(result_data)

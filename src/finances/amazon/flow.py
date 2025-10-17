@@ -196,7 +196,6 @@ class AmazonMatchingFlowNode(FlowNode):
                 match_result = matcher.match_transaction(transaction, orders_by_account)
 
                 # Convert AmazonMatchResult to dict for JSON storage
-                # Note: best_match is still dict internally (will be AmazonMatch in future refactor)
                 match_dict = {
                     "ynab_transaction": {
                         "id": match_result.transaction.id,
@@ -206,16 +205,14 @@ class AmazonMatchingFlowNode(FlowNode):
                         "memo": match_result.transaction.memo,
                         "account_name": match_result.transaction.account_name,
                     },
-                    "matches": match_result.matches,
-                    "best_match": match_result.best_match,
+                    "matches": [m.to_dict() for m in match_result.matches],
+                    "best_match": match_result.best_match.to_dict() if match_result.best_match else None,
                     "message": match_result.message,
                 }
 
                 if match_result.best_match:
                     matched_count += 1
-                    # Note: best_match is still dict internally (will be AmazonMatch in future refactor)
-                    best_match_dict = cast(dict[str, Any], match_result.best_match)
-                    total_confidence += best_match_dict.get("confidence", 0.0)
+                    total_confidence += match_result.best_match.confidence
                 matches.append(match_dict)
 
             # Calculate statistics

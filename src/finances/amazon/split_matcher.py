@@ -10,11 +10,14 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from ..core.json_utils import read_json, write_json_with_defaults
+
+if TYPE_CHECKING:
+    from .models import AmazonMatch
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +191,7 @@ class SplitPaymentMatcher:
 
         return unique_results
 
-    def match_split_payment(self, ynab_tx: dict, order_data: dict, account_name: str) -> dict | None:
+    def match_split_payment(self, ynab_tx: dict, order_data: dict, account_name: str) -> "AmazonMatch | None":
         """
         Attempt to match a YNAB transaction to part of an order.
 
@@ -298,9 +301,12 @@ class SplitPaymentMatcher:
         # Split payment indicator - slightly reduce confidence for splits
         confidence *= 0.95
 
-        match_result = {
-            "account": account_name,
-            "amazon_orders": [
+        from .models import AmazonMatch
+        from ..core.money import Money
+
+        return AmazonMatch(
+            account=account_name,
+            amazon_orders=[
                 {
                     "order_id": order_id,
                     "items": matched_items_data,
@@ -311,12 +317,12 @@ class SplitPaymentMatcher:
                     "matched_item_indices": best_combination,
                 }
             ],
-            "match_method": "split_payment",
-            "confidence": round(confidence, 2),
-            "unmatched_amount": ynab_amount - matched_total,
-        }
-
-        return match_result
+            match_method="split_payment",
+            confidence=round(confidence, 2),
+            total_match_amount=Money.from_cents(matched_total),
+            unmatched_amount=Money.from_cents(ynab_amount - matched_total),
+            matched_item_indices=best_combination,
+        )
 
     def record_match(self, transaction_id: str, order_id: str, item_indices: list[int]) -> None:
         """
