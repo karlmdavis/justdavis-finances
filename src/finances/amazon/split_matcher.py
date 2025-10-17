@@ -321,12 +321,25 @@ class SplitPaymentMatcher:
                 except (ValueError, TypeError):
                     continue
 
+        # Parse order_date robustly (might be datetime, pandas Timestamp, or string)
+        order_date_raw = order_data.get("order_date")
+        if hasattr(order_date_raw, "date"):
+            # pandas Timestamp or datetime object
+            order_date_parsed = FinancialDate(date=order_date_raw.date())  # type: ignore[union-attr]
+        elif isinstance(order_date_raw, str):
+            # String - extract just the date part (handle "YYYY-MM-DDTHH:MM:SS" format)
+            date_str = order_date_raw.split("T")[0] if "T" in order_date_raw else order_date_raw
+            order_date_parsed = FinancialDate.from_string(date_str)
+        else:
+            # Fallback to today if order_date is missing or invalid
+            order_date_parsed = FinancialDate.today()
+
         # Create OrderGroup domain model for split payment match
         order_group = OrderGroup(
             order_id=order_id,
             items=matched_items_models,
             total=Money.from_cents(matched_total),
-            order_date=FinancialDate.from_string(order_data.get("order_date", "")),
+            order_date=order_date_parsed,
             ship_dates=ship_dates_parsed,
             grouping_level="order",
         )
