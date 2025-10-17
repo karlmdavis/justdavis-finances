@@ -246,21 +246,37 @@ class AppleMatcher:
         Returns:
             Receipt object
         """
-        # Use from_dict() to handle legacy field names
-        receipt_dict = {
-            "id": receipt_data.get("order_id", "") or receipt_data.get("base_name", ""),
-            "date": receipt_data.get("receipt_date"),
-            "vendor": "Apple",
-            "total_amount": receipt_data.get("total", 0),
-            "subtotal": receipt_data.get("subtotal"),
-            "tax_amount": receipt_data.get("tax"),
-            "customer_id": receipt_data.get("apple_id", ""),
-            "order_number": receipt_data.get("document_number", ""),
-            "items": receipt_data.get("items", []),
-            "source": "apple_email",
-            "raw_data": receipt_data,
-        }
-        return Receipt.from_dict(receipt_dict)
+        from ..core.dates import FinancialDate
+
+        # Handle receipt_date - could be pandas Timestamp, string, or datetime
+        receipt_date_raw = receipt_data.get("receipt_date")
+        if isinstance(receipt_date_raw, str):
+            receipt_date_obj = FinancialDate.from_string(receipt_date_raw)
+        elif hasattr(receipt_date_raw, "date"):  # pandas Timestamp or datetime
+            receipt_date_obj = FinancialDate(date=receipt_date_raw.date())
+        else:
+            # Fallback to current date if invalid
+            receipt_date_obj = FinancialDate.from_string("2000-01-01")
+
+        # Create Money objects
+        total_money = Money.from_cents(receipt_data.get("total", 0))
+        subtotal_money = Money.from_cents(receipt_data["subtotal"]) if receipt_data.get("subtotal") else None
+        # Field name is "tax" in the DataFrame, not "tax_amount"
+        tax_money = Money.from_cents(receipt_data["tax"]) if receipt_data.get("tax") else None
+
+        return Receipt(
+            id=receipt_data.get("order_id", "") or receipt_data.get("base_name", ""),
+            date_obj=receipt_date_obj,
+            vendor="Apple",
+            total_money=total_money,
+            subtotal_money=subtotal_money,
+            tax_money=tax_money,
+            customer_id=receipt_data.get("apple_id", ""),
+            order_number=receipt_data.get("document_number", ""),
+            items=receipt_data.get("items", []),
+            source="apple_email",
+            raw_data=receipt_data,
+        )
 
 
 def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:

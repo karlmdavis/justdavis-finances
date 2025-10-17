@@ -59,66 +59,6 @@ class Transaction:
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Transaction":
-        """
-        Create Transaction from dict with flexible field names.
-
-        Supports both old (amount, date) and new (amount_money, date_obj) field names.
-        """
-        # Handle date field
-        if "date_obj" in data:
-            date_obj = data["date_obj"]
-        elif "date" in data:
-            date_value = data["date"]
-            if isinstance(date_value, FinancialDate):
-                date_obj = date_value
-            elif isinstance(date_value, str):
-                date_obj = FinancialDate.from_string(date_value)
-            else:
-                date_obj = FinancialDate(date=date_value)
-        else:
-            raise ValueError("Transaction requires either 'date' or 'date_obj'")
-
-        # Handle amount field
-        if "amount_money" in data:
-            amount_money = data["amount_money"]
-        elif "amount" in data:
-            amount_value = data["amount"]
-            if isinstance(amount_value, Money):
-                amount_money = amount_value
-            else:
-                # Assume milliunits
-                amount_money = Money.from_milliunits(amount_value)
-        else:
-            raise ValueError("Transaction requires either 'amount' or 'amount_money'")
-
-        return cls(
-            id=data["id"],
-            date_obj=date_obj,
-            amount_money=amount_money,
-            description=data["description"],
-            account_name=data["account_name"],
-            payee_name=data.get("payee_name"),
-            category_name=data.get("category_name"),
-            memo=data.get("memo"),
-            cleared=data.get("cleared", True),
-            approved=data.get("approved", True),
-            source=data.get("source", "unknown"),
-            created_at=data.get("created_at"),
-            updated_at=data.get("updated_at"),
-        )
-
-    @property
-    def date(self) -> date:
-        """Get date as Python date object for backward compatibility."""
-        return self.date_obj.date
-
-    @property
-    def amount(self) -> int:
-        """Get amount in milliunits for backward compatibility."""
-        return self.amount_money.to_milliunits()
-
     @property
     def transaction_type(self) -> TransactionType:
         """Determine transaction type based on amount."""
@@ -168,89 +108,6 @@ class Receipt:
     source: str = "unknown"
     created_at: datetime | None = None
     raw_data: dict[str, Any] | None = None
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Receipt":
-        """
-        Create Receipt from dict with flexible field names.
-
-        Supports both old (date, total_amount, subtotal, tax_amount) and
-        new (date_obj, total_money, subtotal_money, tax_money) field names.
-        """
-        # Handle date field
-        if "date_obj" in data:
-            date_obj = data["date_obj"]
-        elif "date" in data:
-            date_value = data["date"]
-            if isinstance(date_value, FinancialDate):
-                date_obj = date_value
-            elif isinstance(date_value, str):
-                date_obj = FinancialDate.from_string(date_value)
-            else:
-                date_obj = FinancialDate(date=date_value)
-        else:
-            raise ValueError("Receipt requires either 'date' or 'date_obj'")
-
-        # Handle total_money field
-        if "total_money" in data:
-            total_money = data["total_money"]
-        elif "total_amount" in data:
-            total_value = data["total_amount"]
-            if isinstance(total_value, Money):
-                total_money = total_value
-            else:
-                # Assume cents
-                total_money = Money.from_cents(total_value)
-        else:
-            raise ValueError("Receipt requires either 'total_amount' or 'total_money'")
-
-        # Handle optional subtotal/tax
-        subtotal_money = None
-        if "subtotal_money" in data:
-            subtotal_money = data["subtotal_money"]
-        elif "subtotal" in data and data["subtotal"] is not None:
-            subtotal_money = Money.from_cents(data["subtotal"])
-
-        tax_money = None
-        if "tax_money" in data:
-            tax_money = data["tax_money"]
-        elif "tax_amount" in data and data["tax_amount"] is not None:
-            tax_money = Money.from_cents(data["tax_amount"])
-
-        return cls(
-            id=data["id"],
-            date_obj=date_obj,
-            vendor=data["vendor"],
-            total_money=total_money,
-            subtotal_money=subtotal_money,
-            tax_money=tax_money,
-            customer_id=data.get("customer_id"),
-            order_number=data.get("order_number"),
-            items=data.get("items", []),
-            source=data.get("source", "unknown"),
-            created_at=data.get("created_at"),
-            raw_data=data.get("raw_data"),
-        )
-
-    @property
-    def date(self) -> date:
-        """Get date as Python date object for backward compatibility."""
-        return self.date_obj.date
-
-    @property
-    def total_amount(self) -> int:
-        """Get total in cents for backward compatibility."""
-        return self.total_money.to_cents()
-
-    @property
-    def subtotal(self) -> int | None:
-        """Get subtotal in cents for backward compatibility."""
-        return self.subtotal_money.to_cents() if self.subtotal_money else None
-
-    @property
-    def tax_amount(self) -> int | None:
-        """Get tax in cents for backward compatibility."""
-        return self.tax_money.to_cents() if self.tax_money else None
 
     @property
     def item_count(self) -> int:
@@ -312,7 +169,7 @@ class MatchResult:
     @property
     def total_receipt_amount(self) -> int:
         """Get total amount of all matched receipts in cents."""
-        return sum(receipt.total_amount for receipt in self.receipts)
+        return sum(receipt.total_money.to_cents() for receipt in self.receipts)
 
 
 @dataclass
