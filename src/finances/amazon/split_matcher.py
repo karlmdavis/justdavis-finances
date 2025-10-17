@@ -301,22 +301,39 @@ class SplitPaymentMatcher:
         # Split payment indicator - slightly reduce confidence for splits
         confidence *= 0.95
 
+        from ..core.dates import FinancialDate
         from ..core.money import Money
-        from .models import AmazonMatch
+        from .models import AmazonMatch, MatchedOrderItem, OrderGroup
+
+        # Convert matched items data to MatchedOrderItem domain models
+        matched_items_models = [MatchedOrderItem.from_dict(item) for item in matched_items_data]
+
+        # Parse ship dates to FinancialDate objects
+        ship_dates_parsed = []
+        for ship_date in order_data.get("ship_dates", []):
+            if pd.isna(ship_date):
+                continue
+            if hasattr(ship_date, "date"):
+                ship_dates_parsed.append(FinancialDate(date=ship_date.date()))
+            elif isinstance(ship_date, str):
+                try:
+                    ship_dates_parsed.append(FinancialDate.from_string(ship_date))
+                except (ValueError, TypeError):
+                    continue
+
+        # Create OrderGroup domain model for split payment match
+        order_group = OrderGroup(
+            order_id=order_id,
+            items=matched_items_models,
+            total=Money.from_cents(matched_total),
+            order_date=FinancialDate.from_string(order_data.get("order_date", "")),
+            ship_dates=ship_dates_parsed,
+            grouping_level="order",
+        )
 
         return AmazonMatch(
             account=account_name,
-            amazon_orders=[
-                {
-                    "order_id": order_id,
-                    "items": matched_items_data,
-                    "total": matched_total,
-                    "ship_dates": order_data.get("ship_dates", []),
-                    "order_date": order_data.get("order_date"),
-                    "is_partial": True,
-                    "matched_item_indices": best_combination,
-                }
-            ],
+            amazon_orders=[order_group],
             match_method="split_payment",
             confidence=round(confidence, 2),
             total_match_amount=Money.from_cents(matched_total),

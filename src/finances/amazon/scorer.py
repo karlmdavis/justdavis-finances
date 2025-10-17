@@ -11,7 +11,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .models import AmazonMatch
+    from .models import AmazonMatch, OrderGroup
 
 
 class MatchType(Enum):
@@ -145,7 +145,7 @@ class MatchScorer:
     @staticmethod
     def create_match_result(
         ynab_tx: dict[str, Any],
-        amazon_orders: list,
+        amazon_orders: list["OrderGroup"],
         match_method: str,
         confidence: float,
         account: str,
@@ -156,7 +156,7 @@ class MatchScorer:
 
         Args:
             ynab_tx: YNAB transaction data
-            amazon_orders: List of matched Amazon orders (OrderGroup dicts)
+            amazon_orders: List of matched OrderGroup domain models
             match_method: Method used for matching
             confidence: Calculated confidence score
             account: Amazon account name
@@ -168,7 +168,7 @@ class MatchScorer:
         from ..core.money import Money
         from .models import AmazonMatch
 
-        total_match_amount = sum(order.get("total", 0) for order in amazon_orders)
+        total_match_amount = sum(order.total.to_cents() for order in amazon_orders)
 
         return AmazonMatch(
             account=account,

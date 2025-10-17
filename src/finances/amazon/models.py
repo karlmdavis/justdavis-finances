@@ -291,11 +291,11 @@ class AmazonMatch:
     Represents one possible match between a YNAB transaction and
     Amazon order(s), with confidence scoring and match method.
 
-    Note: amazon_orders contains OrderGroup-like dicts (not raw AmazonOrderItem objects).
-    Each dict has: order_id, items (list of MatchedOrderItem dicts), total, ship_dates, order_date
+    Domain model migration: amazon_orders now stores OrderGroup domain models
+    instead of dicts. Serialization to dict happens at the JSON boundary in to_dict().
     """
 
-    amazon_orders: list[dict[str, Any]]  # List of OrderGroup-like dicts
+    amazon_orders: list[OrderGroup]  # OrderGroup domain models
     match_method: str  # "complete_order", "complete_shipment", "split_payment", etc.
     confidence: float  # 0.0 to 1.0
     account: str  # Amazon account name (e.g., "karl", "erica")
@@ -322,10 +322,13 @@ class AmazonMatch:
             data: Dictionary with match data
 
         Returns:
-            AmazonMatch instance
+            AmazonMatch instance with OrderGroup domain models
         """
+        # Convert amazon_orders dicts back to OrderGroup domain models
+        amazon_orders = [OrderGroup.from_dict(order_dict) for order_dict in data["amazon_orders"]]
+
         return cls(
-            amazon_orders=data["amazon_orders"],
+            amazon_orders=amazon_orders,
             match_method=data["match_method"],
             confidence=float(data["confidence"]),
             account=data["account"],
@@ -340,11 +343,12 @@ class AmazonMatch:
         Convert to dict for JSON serialization.
 
         Returns:
-            Dictionary with all match fields in JSON-compatible format
+            Dictionary with all match fields in JSON-compatible format.
+            OrderGroup domain models are converted to dicts at this boundary.
         """
         return {
             "account": self.account,
-            "amazon_orders": self.amazon_orders,
+            "amazon_orders": [order.to_dict() for order in self.amazon_orders],
             "match_method": self.match_method,
             "confidence": self.confidence,
             "total_match_amount": self.total_match_amount.to_cents(),

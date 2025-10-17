@@ -99,9 +99,7 @@ class SimplifiedMatcher:
         # Record split payment match if found
         if best_match and best_match.match_method == "split_payment":
             order = best_match.amazon_orders[0]
-            self.split_matcher.record_match(
-                transaction.id, order["order_id"], order.get("matched_item_indices", [])
-            )
+            self.split_matcher.record_match(transaction.id, order.order_id, best_match.matched_item_indices)
 
         return AmazonMatchResult(
             transaction=transaction,
@@ -144,12 +142,10 @@ class SimplifiedMatcher:
                 )
 
                 if ConfidenceThresholds.meets_threshold(confidence, MatchType.COMPLETE_ORDER):
-                    # Convert OrderGroup to dict format for match result
-                    order_dict = order_group.to_dict()
-
+                    # Pass OrderGroup domain model directly (no dict conversion needed)
                     match_result = MatchScorer.create_match_result(
                         ynab_tx={"amount": ynab_amount, "date": ynab_date},
-                        amazon_orders=[order_dict],
+                        amazon_orders=[order_group],
                         match_method=f"complete_{order_group.grouping_level}",
                         confidence=confidence,
                         account=account_name,

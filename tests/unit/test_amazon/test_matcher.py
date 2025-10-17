@@ -111,8 +111,8 @@ class TestSimplifiedMatcher:
         assert len(result.matches) > 0
         assert result.best_match is not None
 
-        # Should match the $45.99 order
-        assert result.best_match.amazon_orders[0]["order_id"] == "111-2223334-5556667"
+        # Should match the $45.99 order (amazon_orders now contains OrderGroup domain models)
+        assert result.best_match.amazon_orders[0].order_id == "111-2223334-5556667"
         assert result.best_match.confidence >= 0.9  # High confidence for exact match
 
     @pytest.mark.amazon
@@ -134,9 +134,9 @@ class TestSimplifiedMatcher:
         assert len(result.matches) > 0
         assert result.best_match is not None
 
-        # Should match the multi-item $129.99 order
-        assert result.best_match.amazon_orders[0]["order_id"] == "111-2223334-9990001"
-        assert len(result.best_match.amazon_orders[0]["items"]) == 2
+        # Should match the multi-item $129.99 order (amazon_orders now contains OrderGroup domain models)
+        assert result.best_match.amazon_orders[0].order_id == "111-2223334-9990001"
+        assert len(result.best_match.amazon_orders[0].items) == 2
 
     @pytest.mark.amazon
     def test_date_window_matching(self, matcher, sample_amazon_orders):
@@ -155,8 +155,8 @@ class TestSimplifiedMatcher:
         result = matcher.match_transaction(transaction, orders_by_account)
 
         assert len(result.matches) > 0
-        # Should still find the order shipped on 2024-08-17
-        order_ids = [m.amazon_orders[0]["order_id"] for m in result.matches]
+        # Should still find the order shipped on 2024-08-17 (amazon_orders now contains OrderGroup domain models)
+        order_ids = [m.amazon_orders[0].order_id for m in result.matches]
         assert "111-2223334-7778889" in order_ids
 
     @pytest.mark.amazon
