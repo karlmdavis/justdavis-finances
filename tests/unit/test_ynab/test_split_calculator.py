@@ -102,58 +102,6 @@ class TestAmazonSplitCalculationDomainModels:
             calculate_amazon_splits(transaction, items)
 
 
-class TestAppleSplitCalculation:
-    """Test Apple transaction split calculation."""
-
-    @pytest.mark.ynab
-    def test_single_app_purchase(self):
-        """Test single app purchase."""
-        transaction_amount = -29990  # $29.99 in milliunits
-        # Transform Apple receipt format to what split calculator expects
-        items = [{"name": "Procreate", "price": 2999}]  # $29.99 in cents
-
-        splits = calculate_apple_splits(transaction_amount, items)
-
-        assert len(splits) == 1
-        assert splits[0]["amount"] == transaction_amount
-        assert "Procreate" in splits[0]["memo"]
-        # Memo should contain the item title
-        assert splits[0]["memo"] == "Procreate"
-
-    @pytest.mark.ynab
-    def test_multiple_app_purchases(self):
-        """Test multiple app purchases with different costs."""
-        transaction_amount = -599960  # $599.96 in milliunits (299.99+199.99+49.99+49.99)
-        # Transform Apple receipt format to what split calculator expects
-        items = [
-            {"name": "Final Cut Pro", "price": 29999},  # $299.99 in cents
-            {"name": "Logic Pro", "price": 19999},  # $199.99 in cents
-            {"name": "Compressor", "price": 4999},  # $49.99 in cents
-            {"name": "Motion", "price": 4999},  # $49.99 in cents
-        ]
-
-        splits = calculate_apple_splits(transaction_amount, items)
-
-        assert len(splits) == 4
-
-        # Check amounts match costs (converted to negative milliunits)
-        expected_amounts = [-299990, -199990, -49990, -49990]  # Correct milliunits
-        actual_amounts = [split["amount"] for split in splits]
-        assert actual_amounts == expected_amounts
-
-    @pytest.mark.ynab
-    def test_subscription_handling(self):
-        """Test handling of subscription renewals."""
-        transaction_amount = -9990  # $9.99 in milliunits
-        # Transform Apple receipt format to what split calculator expects
-        items = [{"name": "Apple Music (Monthly)", "price": 999}]  # $9.99 in cents
-
-        splits = calculate_apple_splits(transaction_amount, items)
-
-        assert len(splits) == 1
-        assert "subscription" in splits[0]["memo"].lower() or "monthly" in splits[0]["memo"].lower()
-
-
 class TestAppleSplitCalculationDomainModels:
     """Test Apple split calculation with domain models (new signatures)."""
 

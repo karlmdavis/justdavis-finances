@@ -67,8 +67,8 @@ class AppleMatcher:
         # Create Transaction object for MatchResult
         tx_obj = Transaction(
             id=transaction.id,
-            date=transaction.date.date,
-            amount=transaction.amount.to_milliunits(),
+            date_obj=transaction.date,
+            amount_money=transaction.amount,
             description=transaction.payee_name or "",
             account_name=transaction.account_name or "",
             memo=transaction.memo or "",
@@ -246,30 +246,21 @@ class AppleMatcher:
         Returns:
             Receipt object
         """
-        receipt_date_raw = receipt_data.get("receipt_date")
-        receipt_date: date | str
-        if isinstance(receipt_date_raw, str):
-            receipt_date = datetime.strptime(receipt_date_raw, "%Y-%m-%d").date()
-        elif receipt_date_raw is not None and hasattr(receipt_date_raw, "date"):
-            receipt_date = receipt_date_raw.date()
-        else:
-            # Fallback to empty string if date is None
-            receipt_date = ""
-
-        return Receipt(
-            id=receipt_data.get("order_id", "")
-            or receipt_data.get("base_name", ""),  # Prefer order_id, fallback to base_name
-            date=receipt_date,
-            vendor="Apple",
-            total_amount=receipt_data.get("total", 0),
-            subtotal=receipt_data.get("subtotal"),
-            tax_amount=receipt_data.get("tax"),
-            customer_id=receipt_data.get("apple_id", ""),
-            order_number=receipt_data.get("document_number", ""),
-            items=receipt_data.get("items", []),
-            source="apple_email",
-            raw_data=receipt_data,
-        )
+        # Use from_dict() to handle legacy field names
+        receipt_dict = {
+            "id": receipt_data.get("order_id", "") or receipt_data.get("base_name", ""),
+            "date": receipt_data.get("receipt_date"),
+            "vendor": "Apple",
+            "total_amount": receipt_data.get("total", 0),
+            "subtotal": receipt_data.get("subtotal"),
+            "tax_amount": receipt_data.get("tax"),
+            "customer_id": receipt_data.get("apple_id", ""),
+            "order_number": receipt_data.get("document_number", ""),
+            "items": receipt_data.get("items", []),
+            "source": "apple_email",
+            "raw_data": receipt_data,
+        }
+        return Receipt.from_dict(receipt_dict)
 
 
 def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
