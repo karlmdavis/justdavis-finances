@@ -140,12 +140,16 @@ select = [
 ]
 ignore = [
     "E501",  # line too long, handled by black
+    "RUF022",  # unsorted __all__ - we organize logically by domain
+    "PERF401",  # list comprehension - readability over micro-optimization
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101", "S603"]  # allow assert statements and subprocess calls in tests
 "tests/fixtures/synthetic_data.py" = ["S311"]  # allow standard random for test data generation
 "tests/e2e/**/*" = ["S105", "S607"]  # allow test tokens and partial executable paths for CLI testing
+"src/finances/amazon/matcher.py" = ["S101"]  # allow assert for type narrowing
+"src/finances/apple/parser.py" = ["PERF401"]  # complex construction, readability over performance
 
 # MyPy configuration
 [tool.mypy]
