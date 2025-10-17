@@ -39,11 +39,13 @@ class Transaction:
 
     Represents a financial transaction from any source (YNAB, bank, etc.)
     with standardized fields for consistent processing.
+
+    Note: Field names match YnabTransaction for consistency (date, amount).
     """
 
     id: str
-    date_obj: FinancialDate
-    amount_money: Money
+    date: FinancialDate
+    amount: Money
     description: str
     account_name: str
 
@@ -62,7 +64,7 @@ class Transaction:
     @property
     def transaction_type(self) -> TransactionType:
         """Determine transaction type based on amount."""
-        amount_val = self.amount_money.to_cents()
+        amount_val = self.amount.to_cents()
         if amount_val < 0:
             return TransactionType.EXPENSE
         elif amount_val > 0:
@@ -73,12 +75,12 @@ class Transaction:
     @property
     def amount_cents(self) -> int:
         """Get amount in cents."""
-        return self.amount_money.to_cents()
+        return self.amount.to_cents()
 
     @property
     def amount_dollars(self) -> str:
         """Get formatted amount as dollar string."""
-        return str(self.amount_money)
+        return str(self.amount)
 
 
 @dataclass
@@ -88,16 +90,18 @@ class Receipt:
 
     Represents a receipt from any vendor (Amazon, Apple, etc.)
     with standardized fields for consistent processing.
+
+    Note: Field names match other domain models for consistency (date, total, etc.).
     """
 
     id: str
-    date_obj: FinancialDate
+    date: FinancialDate
     vendor: str
-    total_money: Money
+    total: Money
 
     # Optional fields
-    subtotal_money: Money | None = None
-    tax_money: Money | None = None
+    subtotal: Money | None = None
+    tax: Money | None = None
     customer_id: str | None = None
     order_number: str | None = None
 
@@ -117,7 +121,7 @@ class Receipt:
     @property
     def total_dollars(self) -> str:
         """Get formatted total as dollar string."""
-        return str(self.total_money)
+        return str(self.total)
 
 
 @dataclass
@@ -169,14 +173,14 @@ class MatchResult:
     @property
     def total_receipt_amount(self) -> int:
         """Get total amount of all matched receipts in cents."""
-        return sum(receipt.total_money.to_cents() for receipt in self.receipts)
+        return sum(receipt.total.to_cents() for receipt in self.receipts)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert match result to dict for JSON serialization."""
         return {
             "transaction_id": self.transaction.id,
-            "transaction_date": self.transaction.date_obj.to_iso_string(),
-            "transaction_amount": self.transaction.amount_money.to_milliunits(),
+            "transaction_date": self.transaction.date.to_iso_string(),
+            "transaction_amount": self.transaction.amount.to_milliunits(),
             "receipt_ids": [r.id for r in self.receipts],
             "matched": bool(self.receipts),
             "confidence": self.confidence,
@@ -302,21 +306,17 @@ def validate_transaction(transaction: Transaction) -> bool:
     """Validate a transaction has required fields."""
     return bool(
         transaction.id
-        and transaction.date_obj
+        and transaction.date
         and transaction.description
         and transaction.account_name
-        and transaction.amount_money
+        and transaction.amount
     )
 
 
 def validate_receipt(receipt: Receipt) -> bool:
     """Validate a receipt has required fields."""
     return bool(
-        receipt.id
-        and receipt.date_obj
-        and receipt.vendor
-        and receipt.total_money
-        and receipt.total_money.to_cents() >= 0
+        receipt.id and receipt.date and receipt.vendor and receipt.total and receipt.total.to_cents() >= 0
     )
 
 

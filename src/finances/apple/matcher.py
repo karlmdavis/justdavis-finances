@@ -71,8 +71,8 @@ class AppleMatcher:
         # Create Transaction object for MatchResult
         tx_obj = Transaction(
             id=transaction.id,
-            date_obj=transaction.date,
-            amount_money=transaction.amount,
+            date=transaction.date,
+            amount=transaction.amount,
             description=transaction.payee_name or "",
             account_name=transaction.account_name or "",
             memo=transaction.memo or "",
@@ -262,11 +262,11 @@ class AppleMatcher:
 
         return Receipt(
             id=parsed_receipt.order_id or parsed_receipt.base_name or "",
-            date_obj=parsed_receipt.receipt_date,  # type: ignore[arg-type]
+            date=parsed_receipt.receipt_date,  # type: ignore[arg-type]
             vendor="Apple",
-            total_money=parsed_receipt.total,  # type: ignore[arg-type]
-            subtotal_money=parsed_receipt.subtotal,
-            tax_money=parsed_receipt.tax,
+            total=parsed_receipt.total,  # type: ignore[arg-type]
+            subtotal=parsed_receipt.subtotal,
+            tax=parsed_receipt.tax,
             customer_id=parsed_receipt.apple_id or "",
             order_number=parsed_receipt.document_number or "",
             items=items_dicts,
@@ -292,9 +292,9 @@ def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
         return {"total_transactions": 0}
 
     # Calculate amounts using Money type directly
-    total_money = Money.from_cents(sum(r.transaction.amount_money.abs().to_cents() for r in results))
+    total_money = Money.from_cents(sum(r.transaction.amount.abs().to_cents() for r in results))
     matched_money = Money.from_cents(
-        sum(r.transaction.amount_money.abs().to_cents() for r in results if r.receipts)
+        sum(r.transaction.amount.abs().to_cents() for r in results if r.receipts)
     )
     unmatched_money = Money.from_cents(total_money.to_cents() - matched_money.to_cents())
 
