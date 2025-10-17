@@ -27,22 +27,26 @@ class TestAppleMatcherDomainModels:
     def test_match_single_transaction_with_domain_model(self, matcher):
         """Test matcher accepts YnabTransaction and returns MatchResult."""
         # Create YnabTransaction
-        transaction = YnabTransaction.from_dict({
-            "id": "tx-123",
-            "date": "2024-10-15",
-            "amount": -45990,  # $45.99 expense (milliunits: 1 dollar = 1000 milliunits)
-            "payee_name": "Apple.com/bill",
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx-123",
+                "date": "2024-10-15",
+                "amount": -45990,  # $45.99 expense (milliunits: 1 dollar = 1000 milliunits)
+                "payee_name": "Apple.com/bill",
+            }
+        )
 
         # Create Apple receipts DataFrame
-        receipts_data = [{
-            "order_id": "ABC123456",
-            "receipt_date": pd.Timestamp("2024-10-15"),
-            "total": 4599,  # $45.99 in cents
-            "subtotal": 4299,
-            "tax": 300,
-            "items": [{"name": "App Purchase", "cost": 4299}],
-        }]
+        receipts_data = [
+            {
+                "order_id": "ABC123456",
+                "receipt_date": pd.Timestamp("2024-10-15"),
+                "total": 4599,  # $45.99 in cents
+                "subtotal": 4299,
+                "tax": 300,
+                "items": [{"name": "App Purchase", "cost": 4299}],
+            }
+        ]
         receipts_df = pd.DataFrame(receipts_data)
 
         # Call matcher with new signature
@@ -58,12 +62,14 @@ class TestAppleMatcherDomainModels:
     def test_match_single_transaction_domain_model_no_match(self, matcher):
         """Test domain model signature with no matching receipt."""
         # Create YnabTransaction
-        transaction = YnabTransaction.from_dict({
-            "id": "tx-456",
-            "date": "2024-10-15",
-            "amount": -45990,  # $45.99 expense (milliunits)
-            "payee_name": "Apple.com/bill",
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx-456",
+                "date": "2024-10-15",
+                "amount": -45990,  # $45.99 expense (milliunits)
+                "payee_name": "Apple.com/bill",
+            }
+        )
 
         # Empty receipts DataFrame
         receipts_df = pd.DataFrame()
@@ -89,14 +95,16 @@ class TestAppleMatcherDomainModels:
         }
 
         # Create Apple receipts DataFrame
-        receipts_data = [{
-            "order_id": "ABC123456",
-            "receipt_date": pd.Timestamp("2024-10-15"),
-            "total": 4599,
-            "subtotal": 4299,
-            "tax": 300,
-            "items": [{"name": "App Purchase", "cost": 4299}],
-        }]
+        receipts_data = [
+            {
+                "order_id": "ABC123456",
+                "receipt_date": pd.Timestamp("2024-10-15"),
+                "total": 4599,
+                "subtotal": 4299,
+                "tax": 300,
+                "items": [{"name": "App Purchase", "cost": 4299}],
+            }
+        ]
         receipts_df = pd.DataFrame(receipts_data)
 
         # Call matcher with legacy signature

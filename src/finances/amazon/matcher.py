@@ -10,13 +10,10 @@ Core matching engine that implements the 3-strategy system:
 All matches require penny-perfect amounts - no tolerance for differences.
 """
 
-from datetime import date, datetime
-from typing import Any, overload
-
-import pandas as pd
+from datetime import date
+from typing import Any
 
 from ..core.currency import format_cents
-from ..core.money import Money
 from ..ynab.models import YnabTransaction
 from .grouper import GroupingLevel, group_orders
 from .models import AmazonMatchResult, AmazonOrderItem, OrderGroup
@@ -84,9 +81,7 @@ class SimplifiedMatcher:
                 continue
 
             # Strategy 1: Complete Match
-            complete_matches = self._find_complete_matches(
-                ynab_amount_cents, ynab_date, orders, account_name
-            )
+            complete_matches = self._find_complete_matches(ynab_amount_cents, ynab_date, orders, account_name)
             all_matches.extend(complete_matches)
 
             # Strategy 2: Split Payment
@@ -159,7 +154,12 @@ class SimplifiedMatcher:
         return matches
 
     def _find_split_payment_matches(
-        self, transaction: YnabTransaction, ynab_amount: int, ynab_date: date, orders: list[AmazonOrderItem], account_name: str
+        self,
+        transaction: YnabTransaction,
+        ynab_amount: int,
+        ynab_date: date,
+        orders: list[AmazonOrderItem],
+        account_name: str,
     ) -> list[dict[str, Any]]:
         """Find split payment matches using domain models."""
         matches: list[dict[str, Any]] = []

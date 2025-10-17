@@ -13,7 +13,6 @@ from typing import Any
 
 import pandas as pd
 
-from ..core.currency import safe_currency_to_cents
 from ..core.money import Money
 from .models import AmazonOrderItem, MatchedOrderItem, OrderGroup
 
@@ -101,26 +100,3 @@ def _group_by_daily_shipment(orders: list[AmazonOrderItem]) -> list[OrderGroup]:
     """Group orders by Order ID + Ship Date (date only, ignoring time)."""
     # TODO: Implement daily shipment-level grouping with domain models
     raise NotImplementedError("Daily shipment-level grouping not yet implemented with domain models")
-
-
-def get_order_candidates(
-    orders_df: pd.DataFrame, ynab_amount: int, ynab_date: date, tolerance: int = 100
-) -> dict[str, list[dict[str, Any]]]:
-    """
-    DEPRECATED: Get order candidates at all grouping levels (legacy DataFrame signature).
-
-    This function is deprecated and will be removed. Matcher should use domain models directly.
-
-    Args:
-        orders_df: DataFrame with order data
-        ynab_amount: Transaction amount in cents
-        ynab_date: Transaction date
-        tolerance: Amount tolerance in cents (default $1.00)
-
-    Returns:
-        Dictionary with candidates from each grouping level
-    """
-    # TODO: Remove this function when matcher is refactored to use domain models
-    raise NotImplementedError(
-        "get_order_candidates is deprecated - matcher should use domain models and group_orders() directly"
-    )

@@ -79,11 +79,13 @@ class TestAmazonMatchResult:
     @pytest.mark.amazon
     def test_amazon_match_result_creation(self):
         """Test creating AmazonMatchResult with transaction and matches."""
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -29990,  # $29.99 expense
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -29990,  # $29.99 expense
+            }
+        )
 
         order_item = AmazonOrderItem(
             order_id="123-456",
@@ -119,11 +121,13 @@ class TestAmazonMatchResult:
     @pytest.mark.amazon
     def test_amazon_match_result_no_matches(self):
         """Test AmazonMatchResult with no matches."""
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -29990,
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -29990,
+            }
+        )
 
         result = AmazonMatchResult(
             transaction=transaction,
@@ -140,11 +144,13 @@ class TestAmazonMatchResult:
     @pytest.mark.amazon
     def test_amazon_match_result_multiple_matches(self):
         """Test AmazonMatchResult with multiple match candidates."""
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -29990,
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -29990,
+            }
+        )
 
         order_item1 = AmazonOrderItem(
             order_id="123-456",
@@ -197,11 +203,13 @@ class TestAmazonMatchResult:
     @pytest.mark.amazon
     def test_amazon_match_result_has_matches_property(self):
         """Test AmazonMatchResult has_matches property."""
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -29990,
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -29990,
+            }
+        )
 
         order_item = AmazonOrderItem(
             order_id="123-456",
@@ -217,13 +225,15 @@ class TestAmazonMatchResult:
         # Result with matches
         result_with_matches = AmazonMatchResult(
             transaction=transaction,
-            matches=[AmazonMatch(
-                amazon_orders=[order_item],
-                match_method="test",
-                confidence=0.9,
-                account="karl",
-                total_match_amount=Money.from_cents(2999),
-            )],
+            matches=[
+                AmazonMatch(
+                    amazon_orders=[order_item],
+                    match_method="test",
+                    confidence=0.9,
+                    account="karl",
+                    total_match_amount=Money.from_cents(2999),
+                )
+            ],
             best_match=None,
         )
         assert result_with_matches.has_matches is True

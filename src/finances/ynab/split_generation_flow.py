@@ -205,11 +205,13 @@ class SplitGenerationFlowNode(FlowNode):
 
                             # Create YnabTransaction domain model
                             # Note: tx_amount is already in milliunits (from Apple matcher)
-                            transaction = YnabTransaction.from_dict({
-                                "id": tx_id,
-                                "date": match.get("transaction_date", ""),
-                                "amount": tx_amount,
-                            })
+                            transaction = YnabTransaction.from_dict(
+                                {
+                                    "id": tx_id,
+                                    "date": match.get("transaction_date", ""),
+                                    "amount": tx_amount,
+                                }
+                            )
 
                             # Generate splits using domain model signature
                             splits = calculate_apple_splits(transaction, receipt)

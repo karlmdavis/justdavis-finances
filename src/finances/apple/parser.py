@@ -129,9 +129,7 @@ class ParsedReceipt:
             format_detected=data.get("format_detected"),
             apple_id=data.get("apple_id"),
             receipt_date=(
-                FinancialDate.from_string(data["receipt_date"])
-                if data.get("receipt_date")
-                else None
+                FinancialDate.from_string(data["receipt_date"]) if data.get("receipt_date") else None
             ),
             order_id=data.get("order_id"),
             document_number=data.get("document_number"),

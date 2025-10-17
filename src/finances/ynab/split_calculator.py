@@ -80,8 +80,6 @@ def calculate_amazon_splits(
     return splits
 
 
-
-
 @overload
 def calculate_apple_splits(
     transaction_amount: YnabTransaction,

@@ -122,12 +122,14 @@ class TestTransactionSplitEdit:
     @pytest.mark.ynab
     def test_transaction_split_edit_to_dict(self):
         """Test conversion to JSON-serializable dict."""
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -15990,  # milliunits
-            "memo": None,
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -15990,  # milliunits
+                "memo": None,
+            }
+        )
         splits = [
             YnabSplit(amount=Money.from_dollars("-$10.00"), memo="Item 1"),
             YnabSplit(amount=Money.from_dollars("-$5.99"), memo="Item 2"),
@@ -153,11 +155,13 @@ class TestTransactionSplitEdit:
     @pytest.mark.ynab
     def test_transaction_split_edit_dict_excludes_none_confidence(self):
         """Test that confidence is not included in dict when None."""
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -15990,  # milliunits
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -15990,  # milliunits
+            }
+        )
         splits = [YnabSplit(amount=Money.from_dollars("-$15.99"), memo="Item")]
 
         edit = TransactionSplitEdit(
@@ -179,16 +183,20 @@ class TestSplitEditBatch:
     @pytest.mark.ynab
     def test_split_edit_batch_creation(self):
         """Test creating a SplitEditBatch."""
-        tx1 = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -10000,  # milliunits
-        })
-        tx2 = YnabTransaction.from_dict({
-            "id": "tx2",
-            "date": "2024-10-15",
-            "amount": -20000,  # milliunits
-        })
+        tx1 = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -10000,  # milliunits
+            }
+        )
+        tx2 = YnabTransaction.from_dict(
+            {
+                "id": "tx2",
+                "date": "2024-10-15",
+                "amount": -20000,  # milliunits
+            }
+        )
 
         edits = [
             TransactionSplitEdit(
@@ -220,16 +228,20 @@ class TestSplitEditBatch:
     @pytest.mark.ynab
     def test_split_edit_batch_to_dict(self):
         """Test batch conversion to JSON format for file output."""
-        tx1 = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -10000,  # milliunits
-        })
-        tx2 = YnabTransaction.from_dict({
-            "id": "tx2",
-            "date": "2024-10-15",
-            "amount": -20000,  # milliunits
-        })
+        tx1 = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -10000,  # milliunits
+            }
+        )
+        tx2 = YnabTransaction.from_dict(
+            {
+                "id": "tx2",
+                "date": "2024-10-15",
+                "amount": -20000,  # milliunits
+            }
+        )
 
         edits = [
             TransactionSplitEdit(

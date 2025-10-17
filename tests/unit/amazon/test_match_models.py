@@ -5,11 +5,9 @@ Unit tests for Amazon match-layer domain models.
 Tests MatchedOrderItem and OrderGroup models used in matching pipeline.
 """
 
-import pytest
-from datetime import date
 
 from finances.amazon.models import AmazonOrderItem, MatchedOrderItem, OrderGroup
-from finances.core import Money, FinancialDate
+from finances.core import FinancialDate, Money
 
 
 class TestMatchedOrderItem:

@@ -71,10 +71,11 @@ class TestAppleReceiptLoader:
                 },
             ]
 
-            # Write test receipts to JSON file
-            receipts_file = export_path / "all_receipts_combined.json"
-            with open(receipts_file, "w") as f:
-                json.dump(test_receipts, f, indent=2)
+            # Write test receipts as individual JSON files (matches actual system behavior)
+            for i, receipt in enumerate(test_receipts):
+                receipt_file = export_path / f"{receipt['order_id']}.json"
+                with open(receipt_file, "w") as f:
+                    json.dump(receipt, f, indent=2)
 
             yield str(export_path)
 
@@ -92,9 +93,9 @@ class TestAppleReceiptLoader:
         # Assert - Check return type
         assert isinstance(receipts, list), "Should return a list"
         assert len(receipts) == 2, "Should load both test receipts"
-        assert all(isinstance(r, ParsedReceipt) for r in receipts), (
-            "All items should be ParsedReceipt instances, not dicts"
-        )
+        assert all(
+            isinstance(r, ParsedReceipt) for r in receipts
+        ), "All items should be ParsedReceipt instances, not dicts"
 
     @pytest.mark.apple
     def test_loaded_receipts_have_typed_fields(self, temp_export_dir):
@@ -109,13 +110,11 @@ class TestAppleReceiptLoader:
         # Assert - Check first receipt has proper types
         first_receipt = receipts[0]
         assert isinstance(first_receipt.total, Money), "total should be Money type"
-        assert isinstance(first_receipt.receipt_date, FinancialDate), (
-            "receipt_date should be FinancialDate type"
-        )
+        assert isinstance(
+            first_receipt.receipt_date, FinancialDate
+        ), "receipt_date should be FinancialDate type"
         assert first_receipt.total.to_cents() == 3299, "Should correctly parse $32.99"
-        assert first_receipt.receipt_date.to_iso_string() == "2024-10-15", (
-            "Should correctly parse date"
-        )
+        assert first_receipt.receipt_date.to_iso_string() == "2024-10-15", "Should correctly parse date"
 
     @pytest.mark.apple
     def test_loaded_receipts_preserve_all_fields(self, temp_export_dir):

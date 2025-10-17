@@ -27,11 +27,13 @@ class TestAmazonSplitCalculationDomainModels:
     def test_amazon_splits_with_domain_models(self):
         """Test calculate_amazon_splits accepts MatchedOrderItem list and returns YnabSplit list."""
         # Create transaction
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -89900,  # $89.90 expense
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -89900,  # $89.90 expense
+            }
+        )
 
         # Create MatchedOrderItem (match-layer domain models)
         items = [
@@ -77,11 +79,13 @@ class TestAmazonSplitCalculationDomainModels:
     @pytest.mark.ynab
     def test_amazon_splits_domain_models_validation(self):
         """Test split validation with domain models."""
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -50000,  # $50.00
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -50000,  # $50.00
+            }
+        )
 
         # Items that don't sum to transaction amount
         items = [
@@ -157,11 +161,13 @@ class TestAppleSplitCalculationDomainModels:
     def test_apple_splits_with_domain_models(self):
         """Test calculate_apple_splits accepts ParsedReceipt and returns YnabSplit list."""
         # Create transaction
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -599960,  # $599.96 total in milliunits
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -599960,  # $599.96 total in milliunits
+            }
+        )
 
         # Create ParsedReceipt with multiple items
         receipt = ParsedReceipt(
@@ -228,11 +234,13 @@ class TestAppleSplitCalculationDomainModels:
     def test_apple_splits_domain_models_with_tax(self):
         """Test Apple splits with tax allocation."""
         # Create transaction
-        transaction = YnabTransaction.from_dict({
-            "id": "tx1",
-            "date": "2024-10-15",
-            "amount": -108000,  # $108.00 total with tax in milliunits
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -108000,  # $108.00 total with tax in milliunits
+            }
+        )
 
         # Receipt with subtotal and tax
         receipt = ParsedReceipt(

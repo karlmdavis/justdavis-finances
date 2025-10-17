@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import click
-import pandas as pd
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
 from . import SimplifiedMatcher, load_orders

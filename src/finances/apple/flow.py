@@ -9,7 +9,6 @@ from datetime import date, datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
-from ..core.money import Money
 
 
 class AppleEmailFetchFlowNode(FlowNode):
@@ -232,11 +231,9 @@ class AppleMatchingFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute Apple transaction matching."""
-        import pandas as pd
 
-        from ..core.json_utils import read_json
         from ..ynab import filter_transactions_by_payee, load_transactions
-        from .loader import normalize_apple_receipt_data
+        from .loader import load_apple_receipts, receipts_to_dataframe
         from .matcher import AppleMatcher
 
         try:
@@ -254,23 +251,18 @@ class AppleMatchingFlowNode(FlowNode):
                     metadata={"message": "No Apple transactions to match"},
                 )
 
-            # Load Apple receipts from JSON files
-            exports_dir = self.data_dir / "apple" / "exports"
-            receipt_files = list(exports_dir.glob("*.json"))
-
-            if not receipt_files:
+            # Load Apple receipts as domain models
+            exports_dir = str(self.data_dir / "apple" / "exports")
+            try:
+                receipt_models = load_apple_receipts(exports_dir)
+            except FileNotFoundError:
                 return FlowResult(
                     success=False,
                     error_message="No parsed Apple receipts found",
                 )
 
-            receipts = []
-            for receipt_file in receipt_files:
-                receipt_data = read_json(receipt_file)
-                receipts.append(receipt_data)
-
-            # Normalize Apple receipts to DataFrame (matcher still uses DataFrame internally)
-            apple_df = normalize_apple_receipt_data(receipts)
+            # Convert domain models to DataFrame (matcher still uses DataFrame internally)
+            apple_df = receipts_to_dataframe(receipt_models)
 
             # Initialize matcher
             matcher = AppleMatcher()
@@ -294,7 +286,7 @@ class AppleMatchingFlowNode(FlowNode):
             result_data = {
                 "metadata": {
                     "timestamp": timestamp,
-                    "receipts_count": len(receipts),
+                    "receipts_count": len(receipt_models),
                 },
                 "summary": {
                     "total_transactions": len(apple_transactions),
@@ -312,7 +304,7 @@ class AppleMatchingFlowNode(FlowNode):
                         ),
                         "transaction_amount": (
                             result.transaction.amount.to_milliunits()
-                            if result.transaction and hasattr(result.transaction.amount, 'to_milliunits')
+                            if result.transaction and hasattr(result.transaction.amount, "to_milliunits")
                             else result.transaction.amount if result.transaction else None
                         ),
                         "receipt_ids": [r.id for r in result.receipts] if result.receipts else [],

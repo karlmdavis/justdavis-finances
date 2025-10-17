@@ -299,7 +299,7 @@ class AmazonMatch:
     total_match_amount: Money  # Total amount matched
 
     # Optional fields
-    unmatched_amount: Money = Money.from_cents(0)  # For split payments
+    unmatched_amount: Money = field(default_factory=lambda: Money.from_cents(0))  # For split payments
     matched_item_indices: list[int] = field(default_factory=list)  # For split payments
     metadata: dict[str, Any] = field(default_factory=dict)
 

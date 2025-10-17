@@ -17,13 +17,15 @@ def create_test_transaction(
     account_name: str = "Test Account",
 ) -> YnabTransaction:
     """Helper to create YnabTransaction for testing with minimal fields."""
-    return YnabTransaction.from_dict({
-        "id": id,
-        "date": date,
-        "amount": amount,
-        "payee_name": payee_name,
-        "account_name": account_name,
-    })
+    return YnabTransaction.from_dict(
+        {
+            "id": id,
+            "date": date,
+            "amount": amount,
+            "payee_name": payee_name,
+            "account_name": account_name,
+        }
+    )
 
 
 def convert_test_data_to_order_items(orders):

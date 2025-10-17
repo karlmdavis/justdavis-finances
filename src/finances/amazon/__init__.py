@@ -20,7 +20,6 @@ Current Performance: 94.7% match rate with simplified architecture
 
 from .grouper import (
     GroupingLevel,
-    get_order_candidates,
     group_orders,
 )
 from .loader import (
@@ -69,7 +68,6 @@ __all__ = [
     "SplitPaymentMatcher",
     # Data loading
     "find_latest_amazon_export",
-    "get_order_candidates",
     "group_orders",
     "load_orders",
 ]

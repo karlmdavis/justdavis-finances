@@ -6,11 +6,10 @@ Tests grouper refactored to use list[AmazonOrderItem] input
 and OrderGroup output (no DataFrames).
 """
 
-import pytest
 
 from finances.amazon.grouper import GroupingLevel, group_orders
 from finances.amazon.models import AmazonOrderItem, OrderGroup
-from finances.core import Money, FinancialDate
+from finances.core import FinancialDate, Money
 
 
 class TestGroupOrdersByOrderId:

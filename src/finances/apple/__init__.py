@@ -44,8 +44,8 @@ from .loader import (
     find_latest_apple_export,
     get_apple_receipt_summary,
     load_apple_receipts,
-    normalize_apple_receipt_data,
     parse_apple_date,
+    receipts_to_dataframe,
 )
 from .matcher import (
     AppleMatcher,
@@ -78,6 +78,6 @@ __all__ = [
     "generate_match_summary",
     "get_apple_receipt_summary",
     "load_apple_receipts",
-    "normalize_apple_receipt_data",
     "parse_apple_date",
+    "receipts_to_dataframe",
 ]

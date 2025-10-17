@@ -47,25 +47,31 @@ class TestSimplifiedMatcherDomainModels:
     def test_match_transaction_with_domain_models(self, matcher):
         """Test matcher accepts YnabTransaction and returns AmazonMatchResult."""
         # Create YnabTransaction
-        transaction = YnabTransaction.from_dict({
-            "id": "tx-123",
-            "date": "2024-10-15",
-            "amount": -45990,  # $45.99 expense
-            "payee_name": "AMZN Mktp US*TEST123",
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx-123",
+                "date": "2024-10-15",
+                "amount": -45990,  # $45.99 expense
+                "payee_name": "AMZN Mktp US*TEST123",
+            }
+        )
 
         # Create Amazon order data
-        orders = [{
-            "order_id": "111-2223334-5556667",
-            "order_date": "2024-10-15",
-            "ship_date": "2024-10-15",
-            "items": [{
-                "name": "Echo Dot (4th Gen) - Charcoal",
-                "quantity": 1,
-                "amount": 4599,
-                "asin": "B084J4KNDS",
-            }],
-        }]
+        orders = [
+            {
+                "order_id": "111-2223334-5556667",
+                "order_date": "2024-10-15",
+                "ship_date": "2024-10-15",
+                "items": [
+                    {
+                        "name": "Echo Dot (4th Gen) - Charcoal",
+                        "quantity": 1,
+                        "amount": 4599,
+                        "asin": "B084J4KNDS",
+                    }
+                ],
+            }
+        ]
 
         order_items = convert_test_data_to_order_items(orders)
         account_data = {"karl": order_items}
@@ -85,12 +91,14 @@ class TestSimplifiedMatcherDomainModels:
     def test_match_transaction_domain_models_no_match(self, matcher):
         """Test domain model signature with no Amazon transaction."""
         # Create non-Amazon transaction
-        transaction = YnabTransaction.from_dict({
-            "id": "tx-456",
-            "date": "2024-10-15",
-            "amount": -45990,
-            "payee_name": "Starbucks",
-        })
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx-456",
+                "date": "2024-10-15",
+                "amount": -45990,
+                "payee_name": "Starbucks",
+            }
+        )
 
         # Empty account data
         account_data = {"karl": []}
