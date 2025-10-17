@@ -6,7 +6,6 @@ import pytest
 
 from finances.apple import AppleMatcher, receipts_to_dataframe
 from finances.apple.parser import ParsedReceipt
-from finances.core import FinancialDate, Money
 from finances.ynab.models import YnabTransaction
 
 
@@ -222,26 +221,32 @@ class TestAppleMatcher:
     def test_confidence_scoring_by_date_distance(self, matcher, sample_apple_receipts):
         """Test confidence scoring based on date distance."""
         # Same amount, different dates
-        same_day_transaction = dict_to_ynab_transaction({
-            "id": "test-same-day",
-            "date": "2024-08-15",
-            "amount": -32970,
-            "payee_name": "Apple Store",
-        })
+        same_day_transaction = dict_to_ynab_transaction(
+            {
+                "id": "test-same-day",
+                "date": "2024-08-15",
+                "amount": -32970,
+                "payee_name": "Apple Store",
+            }
+        )
 
-        one_day_off_transaction = dict_to_ynab_transaction({
-            "id": "test-one-day",
-            "date": "2024-08-16",
-            "amount": -32970,
-            "payee_name": "Apple Store",
-        })
+        one_day_off_transaction = dict_to_ynab_transaction(
+            {
+                "id": "test-one-day",
+                "date": "2024-08-16",
+                "amount": -32970,
+                "payee_name": "Apple Store",
+            }
+        )
 
-        two_days_off_transaction = dict_to_ynab_transaction({
-            "id": "test-two-days",
-            "date": "2024-08-17",
-            "amount": -32970,
-            "payee_name": "Apple Store",
-        })
+        two_days_off_transaction = dict_to_ynab_transaction(
+            {
+                "id": "test-two-days",
+                "date": "2024-08-17",
+                "amount": -32970,
+                "payee_name": "Apple Store",
+            }
+        )
 
         # Normalize receipts data like the real system does
         receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
@@ -299,7 +304,12 @@ class TestAppleEdgeCases:
     @pytest.mark.apple
     def test_empty_receipts_list(self, matcher):
         """Test matching with empty receipts list."""
-        transaction_dict = {"id": "test-txn", "date": "2024-08-15", "amount": -32970, "payee_name": "Apple Store"}
+        transaction_dict = {
+            "id": "test-txn",
+            "date": "2024-08-15",
+            "amount": -32970,
+            "payee_name": "Apple Store",
+        }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
 
@@ -311,7 +321,12 @@ class TestAppleEdgeCases:
     @pytest.mark.apple
     def test_malformed_receipt_data(self, matcher):
         """Test handling of malformed receipt data."""
-        transaction_dict = {"id": "test-txn", "date": "2024-08-15", "amount": -32970, "payee_name": "Apple Store"}
+        transaction_dict = {
+            "id": "test-txn",
+            "date": "2024-08-15",
+            "amount": -32970,
+            "payee_name": "Apple Store",
+        }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
 

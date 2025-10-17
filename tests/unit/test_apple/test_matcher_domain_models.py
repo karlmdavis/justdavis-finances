@@ -82,4 +82,3 @@ class TestAppleMatcherDomainModels:
         assert result.transaction.id == transaction.id
         assert len(result.receipts) == 0
         assert result.confidence == 0.0
-
