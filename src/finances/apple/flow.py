@@ -298,14 +298,14 @@ class AppleMatchingFlowNode(FlowNode):
                     {
                         "transaction_id": result.transaction.id if result.transaction else None,
                         "transaction_date": (
-                            result.transaction.date.isoformat()
-                            if result.transaction and isinstance(result.transaction.date, date)
-                            else result.transaction.date if result.transaction else None
+                            result.transaction.date_obj.date.isoformat()
+                            if result.transaction
+                            else None
                         ),
                         "transaction_amount": (
-                            result.transaction.amount.to_milliunits()
-                            if result.transaction and hasattr(result.transaction.amount, "to_milliunits")
-                            else result.transaction.amount if result.transaction else None
+                            result.transaction.amount_money.to_milliunits()
+                            if result.transaction
+                            else None
                         ),
                         "receipt_ids": [r.id for r in result.receipts] if result.receipts else [],
                         "matched": bool(result.receipts),

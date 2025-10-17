@@ -252,7 +252,7 @@ class AppleMatcher:
         receipt_date_raw = receipt_data.get("receipt_date")
         if isinstance(receipt_date_raw, str):
             receipt_date_obj = FinancialDate.from_string(receipt_date_raw)
-        elif hasattr(receipt_date_raw, "date"):  # pandas Timestamp or datetime
+        elif receipt_date_raw is not None and hasattr(receipt_date_raw, "date"):  # pandas Timestamp or datetime
             receipt_date_obj = FinancialDate(date=receipt_date_raw.date())
         else:
             # Fallback to current date if invalid
@@ -297,10 +297,10 @@ def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:
 
     # Calculate amounts using Money type directly
     total_money = Money.from_cents(
-        sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results)
+        sum(r.transaction.amount_money.abs().to_cents() for r in results)
     )
     matched_money = Money.from_cents(
-        sum(Money.from_milliunits(r.transaction.amount).abs().to_cents() for r in results if r.receipts)
+        sum(r.transaction.amount_money.abs().to_cents() for r in results if r.receipts)
     )
     unmatched_money = Money.from_cents(total_money.to_cents() - matched_money.to_cents())
 
