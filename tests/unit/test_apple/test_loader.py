@@ -72,7 +72,7 @@ class TestAppleReceiptLoader:
             ]
 
             # Write test receipts as individual JSON files (matches actual system behavior)
-            for i, receipt in enumerate(test_receipts):
+            for receipt in test_receipts:
                 receipt_file = export_path / f"{receipt['order_id']}.json"
                 with open(receipt_file, "w") as f:
                     json.dump(receipt, f, indent=2)
@@ -107,14 +107,17 @@ class TestAppleReceiptLoader:
         # Act
         receipts = load_apple_receipts(temp_export_dir)
 
-        # Assert - Check first receipt has proper types
-        first_receipt = receipts[0]
-        assert isinstance(first_receipt.total, Money), "total should be Money type"
+        # Assert - Check receipts have proper types (order-independent)
+        # Find the M123456789 receipt (glob may return files in any order)
+        receipt_m123 = next((r for r in receipts if r.order_id == "M123456789"), None)
+        assert receipt_m123 is not None, "Should load M123456789 receipt"
+
+        assert isinstance(receipt_m123.total, Money), "total should be Money type"
         assert isinstance(
-            first_receipt.receipt_date, FinancialDate
+            receipt_m123.receipt_date, FinancialDate
         ), "receipt_date should be FinancialDate type"
-        assert first_receipt.total.to_cents() == 3299, "Should correctly parse $32.99"
-        assert first_receipt.receipt_date.to_iso_string() == "2024-10-15", "Should correctly parse date"
+        assert receipt_m123.total.to_cents() == 3299, "Should correctly parse $32.99"
+        assert receipt_m123.receipt_date.to_iso_string() == "2024-10-15", "Should correctly parse date"
 
     @pytest.mark.apple
     def test_loaded_receipts_preserve_all_fields(self, temp_export_dir):
@@ -122,14 +125,17 @@ class TestAppleReceiptLoader:
         # Act
         receipts = load_apple_receipts(temp_export_dir)
 
-        # Assert - Check all fields present
-        first_receipt = receipts[0]
-        assert first_receipt.order_id == "M123456789"
-        assert first_receipt.apple_id == "test@example.com"
-        assert first_receipt.format_detected == "modern_custom"
-        assert first_receipt.document_number == "DOC001"
-        assert first_receipt.subtotal.to_cents() == 2999
-        assert first_receipt.tax.to_cents() == 300
-        assert len(first_receipt.items) == 1
-        assert first_receipt.items[0].title == "Procreate"
-        assert first_receipt.items[0].cost.to_cents() == 2999
+        # Assert - Check all fields present (order-independent)
+        # Find the M123456789 receipt
+        receipt_m123 = next((r for r in receipts if r.order_id == "M123456789"), None)
+        assert receipt_m123 is not None, "Should load M123456789 receipt"
+
+        assert receipt_m123.order_id == "M123456789"
+        assert receipt_m123.apple_id == "test@example.com"
+        assert receipt_m123.format_detected == "modern_custom"
+        assert receipt_m123.document_number == "DOC001"
+        assert receipt_m123.subtotal.to_cents() == 2999
+        assert receipt_m123.tax.to_cents() == 300
+        assert len(receipt_m123.items) == 1
+        assert receipt_m123.items[0].title == "Procreate"
+        assert receipt_m123.items[0].cost.to_cents() == 2999

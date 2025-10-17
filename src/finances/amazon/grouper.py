@@ -7,11 +7,7 @@ Provides multiple levels of Amazon order grouping for transaction matching.
 """
 
 from collections import defaultdict
-from datetime import date
 from enum import Enum
-from typing import Any
-
-import pandas as pd
 
 from ..core.money import Money
 from .models import AmazonOrderItem, MatchedOrderItem, OrderGroup
