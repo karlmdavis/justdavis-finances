@@ -115,7 +115,8 @@ class SimplifiedMatcher:
         # Group orders at ORDER level only (SHIPMENT/DAILY_SHIPMENT not yet implemented)
         order_groups_result = group_orders(orders, GroupingLevel.ORDER)
         # Type narrowing: ORDER level always returns dict[str, OrderGroup]
-        assert isinstance(order_groups_result, dict), "ORDER level must return dict"
+        if not isinstance(order_groups_result, dict):
+            raise TypeError(f"ORDER level must return dict, got {type(order_groups_result)}")
         order_groups: dict[str, OrderGroup] = order_groups_result
 
         # order_groups is dict[str, OrderGroup] for ORDER level
@@ -167,7 +168,8 @@ class SimplifiedMatcher:
         # Group by complete orders to find candidates for split payments
         order_groups_result = group_orders(orders, GroupingLevel.ORDER)
         # Type narrowing: ORDER level always returns dict[str, OrderGroup]
-        assert isinstance(order_groups_result, dict), "ORDER level must return dict"
+        if not isinstance(order_groups_result, dict):
+            raise TypeError(f"ORDER level must return dict, got {type(order_groups_result)}")
         order_groups: dict[str, OrderGroup] = order_groups_result
 
         # order_groups is dict[str, OrderGroup] for ORDER level

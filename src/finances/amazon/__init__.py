@@ -47,26 +47,18 @@ from .split_matcher import (
 )
 
 __all__ = [
-    # Domain models - CSV layer
-    "AmazonOrderItem",
-    "AmazonOrderSummary",
-    # Domain models - Match layer
-    "MatchedOrderItem",
-    "OrderGroup",
-    # Domain models - Match results
     "AmazonMatch",
     "AmazonMatchResult",
-    # Match scoring
+    "AmazonOrderItem",
+    "AmazonOrderSummary",
     "ConfidenceThresholds",
-    # Order grouping
     "GroupingLevel",
     "MatchScorer",
     "MatchType",
-    # Main matcher
+    "MatchedOrderItem",
+    "OrderGroup",
     "SimplifiedMatcher",
-    # Split payment matching
     "SplitPaymentMatcher",
-    # Data loading
     "find_latest_amazon_export",
     "group_orders",
     "load_orders",

@@ -112,18 +112,17 @@ class ParsedReceipt:
             ParsedReceipt instance with typed fields
         """
         # Convert items from dicts to ParsedItem instances
-        items = []
-        for item_data in data.get("items", []):
-            items.append(
-                ParsedItem(
-                    title=item_data["title"],
-                    cost=Money.from_cents(item_data["cost"]),
-                    quantity=item_data.get("quantity", 1),
-                    subscription=item_data.get("subscription", False),
-                    item_type=item_data.get("item_type"),
-                    metadata=item_data.get("metadata", {}),
-                )
+        items = [
+            ParsedItem(
+                title=item_data["title"],
+                cost=Money.from_cents(item_data["cost"]),
+                quantity=item_data.get("quantity", 1),
+                subscription=item_data.get("subscription", False),
+                item_type=item_data.get("item_type"),
+                metadata=item_data.get("metadata", {}),
             )
+            for item_data in data.get("items", [])
+        ]
 
         return cls(
             format_detected=data.get("format_detected"),
