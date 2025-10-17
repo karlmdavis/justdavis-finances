@@ -233,7 +233,7 @@ class AppleMatchingFlowNode(FlowNode):
         """Execute Apple transaction matching."""
 
         from ..ynab import filter_transactions_by_payee, load_transactions
-        from .loader import load_apple_receipts, receipts_to_dataframe
+        from .loader import load_apple_receipts
         from .matcher import AppleMatcher
 
         try:
@@ -261,17 +261,14 @@ class AppleMatchingFlowNode(FlowNode):
                     error_message="No parsed Apple receipts found",
                 )
 
-            # Convert domain models to DataFrame (matcher still uses DataFrame internally)
-            apple_df = receipts_to_dataframe(receipt_models)
-
             # Initialize matcher
             matcher = AppleMatcher()
 
-            # Match transactions using domain model signature
+            # Match transactions using pure domain model signature
             match_results = []
             for transaction in apple_transactions:
-                # Use new domain model signature: YnabTransaction -> MatchResult
-                result = matcher.match_single_transaction(transaction, apple_df)
+                # Pass ParsedReceipt list directly (no DataFrame conversion needed)
+                result = matcher.match_single_transaction(transaction, receipt_models)
                 match_results.append(result)
 
             # Calculate statistics

@@ -4,16 +4,15 @@
 
 import pytest
 
-from finances.apple import AppleMatcher, receipts_to_dataframe
+from finances.apple import AppleMatcher
 from finances.apple.parser import ParsedReceipt
 from finances.ynab.models import YnabTransaction
 
 
-def receipts_to_df_for_testing(receipt_dicts):
-    """Convert raw receipt dicts to DataFrame for testing (mimics real system flow)."""
-    # Convert dicts to domain models, then to DataFrame (matches production flow)
-    receipt_models = [ParsedReceipt.from_dict(r) for r in receipt_dicts]
-    return receipts_to_dataframe(receipt_models)
+def receipts_to_list_for_testing(receipt_dicts):
+    """Convert raw receipt dicts to list[ParsedReceipt] for testing (mimics real system flow)."""
+    # Convert dicts to domain models (matches production flow)
+    return [ParsedReceipt.from_dict(r) for r in receipt_dicts]
 
 
 def dict_to_ynab_transaction(tx_dict):
@@ -87,7 +86,7 @@ class TestAppleMatcher:
         transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         assert len(result.receipts) > 0
@@ -111,7 +110,7 @@ class TestAppleMatcher:
         transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         assert len(result.receipts) > 0
@@ -135,7 +134,7 @@ class TestAppleMatcher:
         transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -162,7 +161,7 @@ class TestAppleMatcher:
         transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -183,7 +182,7 @@ class TestAppleMatcher:
         transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -207,7 +206,7 @@ class TestAppleMatcher:
         transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -249,7 +248,7 @@ class TestAppleMatcher:
         )
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
 
         same_day_result = matcher.match_single_transaction(same_day_transaction, receipts_df)
         one_day_result = matcher.match_single_transaction(one_day_off_transaction, receipts_df)
@@ -286,7 +285,7 @@ class TestAppleMatcher:
         ]
 
         # Normalize receipts data like the real system does
-        receipts_df = receipts_to_df_for_testing(additional_receipts)
+        receipts_df = receipts_to_list_for_testing(additional_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         # Should find at least one match
@@ -314,7 +313,7 @@ class TestAppleEdgeCases:
         transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize empty receipts data
-        receipts_df = receipts_to_df_for_testing([])
+        receipts_df = receipts_to_list_for_testing([])
         result = matcher.match_single_transaction(transaction, receipts_df)
         assert not result.receipts
 
@@ -339,7 +338,7 @@ class TestAppleEdgeCases:
 
         # Should handle gracefully
         try:
-            receipts_df = receipts_to_df_for_testing(malformed_receipts)
+            receipts_df = receipts_to_list_for_testing(malformed_receipts)
             result = matcher.match_single_transaction(transaction, receipts_df)
             assert isinstance(result.receipts, list)
         except (KeyError, ValueError, TypeError, AttributeError):
@@ -368,7 +367,7 @@ class TestAppleEdgeCases:
             }
         ]
 
-        receipts_df = receipts_to_df_for_testing(receipts)
+        receipts_df = receipts_to_list_for_testing(receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         # Should handle free transactions
@@ -396,7 +395,7 @@ class TestAppleEdgeCases:
             }
         ]
 
-        receipts_df = receipts_to_df_for_testing(receipts)
+        receipts_df = receipts_to_list_for_testing(receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         assert result.receipts
@@ -430,7 +429,7 @@ class TestAppleEdgeCases:
         import time
 
         start_time = time.time()
-        receipts_df = receipts_to_df_for_testing(large_receipts)
+        receipts_df = receipts_to_list_for_testing(large_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         end_time = time.time()
 
@@ -472,7 +471,7 @@ def test_currency_unit_consistency_with_ynab():
 
     transaction = dict_to_ynab_transaction(transaction_dict)
 
-    receipts_df = receipts_to_df_for_testing(receipts)
+    receipts_df = receipts_to_list_for_testing(receipts)
     result = matcher.match_single_transaction(transaction, receipts_df)
 
     # Should match because both represent $45.99 (just in different units)

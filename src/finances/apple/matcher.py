@@ -9,14 +9,15 @@ Implements a simplified 2-strategy system optimized for Apple's 1:1 transaction 
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any
 
 from ..core.currency import format_cents
 from ..core.models import MatchResult, Receipt, Transaction
 from ..core.money import Money
 from ..ynab.models import YnabTransaction
+
+if TYPE_CHECKING:
+    from .parser import ParsedReceipt
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +42,24 @@ class AppleMatcher:
         self.date_window_days = date_window_days
 
     def match_single_transaction(
-        self, transaction: YnabTransaction, apple_receipts_df: pd.DataFrame
+        self, transaction: YnabTransaction, apple_receipts: list["ParsedReceipt"]
     ) -> MatchResult:
         """
         Match a single YNAB transaction to Apple receipts.
 
         Args:
             transaction: YnabTransaction domain model
-            apple_receipts_df: DataFrame of Apple receipts
+            apple_receipts: List of ParsedReceipt domain models
 
         Returns:
             MatchResult with details of the match
         """
+        # Filter to receipts with required fields (date and total)
+        valid_receipts = [
+            r for r in apple_receipts
+            if r.receipt_date is not None and r.total is not None
+        ]
+
         # Get absolute value for matching (receipts are always positive, transactions are negative for expenses)
         tx_amount_cents = transaction.amount.abs().to_cents()
         tx_date = datetime.combine(transaction.date.date, datetime.min.time())
@@ -76,10 +83,10 @@ class AppleMatcher:
         )
 
         # Strategy 1: Exact Date and Amount Match
-        exact_match = self._find_exact_match(tx_date, tx_amount_cents, apple_receipts_df)
+        exact_match = self._find_exact_match(tx_date, tx_amount_cents, valid_receipts)
         if exact_match:
-            receipt = self._create_receipt_from_data(exact_match)
-            confidence = self._calculate_confidence(tx_amount_cents, exact_match["total"], 0)
+            receipt = self._create_receipt_from_parsed(exact_match)
+            confidence = self._calculate_confidence(tx_amount_cents, exact_match.total.to_cents(), 0)  # type: ignore[union-attr]
 
             return MatchResult(
                 transaction=tx_obj,
@@ -92,10 +99,10 @@ class AppleMatcher:
             )
 
         # Strategy 2: Date Window Match
-        window_match, date_diff = self._find_date_window_match(tx_date, tx_amount_cents, apple_receipts_df)
+        window_match, date_diff = self._find_date_window_match(tx_date, tx_amount_cents, valid_receipts)
         if window_match:
-            receipt = self._create_receipt_from_data(window_match)
-            confidence = self._calculate_confidence(tx_amount_cents, window_match["total"], date_diff)
+            receipt = self._create_receipt_from_parsed(window_match)
+            confidence = self._calculate_confidence(tx_amount_cents, window_match.total.to_cents(), date_diff)  # type: ignore[union-attr]
 
             return MatchResult(
                 transaction=tx_obj,
@@ -118,86 +125,79 @@ class AppleMatcher:
         )
 
     def _find_exact_match(
-        self, tx_date: datetime, tx_amount: int, receipts_df: pd.DataFrame
-    ) -> dict[str, Any] | None:
+        self, tx_date: datetime, tx_amount: int, receipts: list["ParsedReceipt"]
+    ) -> "ParsedReceipt | None":
         """
         Find receipts that match exactly on date and amount.
 
         Args:
             tx_date: Transaction date
             tx_amount: Transaction amount in cents
-            receipts_df: DataFrame of Apple receipts
+            receipts: List of ParsedReceipt domain models
 
         Returns:
-            Matching receipt dictionary or None
+            Matching ParsedReceipt or None
         """
-        if receipts_df.empty:
+        if not receipts:
             return None
 
-        # Filter to same date
-        same_date_mask = receipts_df["receipt_date"].dt.date == tx_date.date()
-        same_date_receipts = receipts_df[same_date_mask]
-
-        if same_date_receipts.empty:
-            return None
-
-        # Find exact amount matches
-        for _, receipt in same_date_receipts.iterrows():
-            if receipt["total"] == tx_amount:
+        # Find exact date and amount matches
+        for receipt in receipts:
+            # We know receipt_date and total are not None due to filter in match_single_transaction
+            receipt_datetime = datetime.combine(receipt.receipt_date.date, datetime.min.time())  # type: ignore[union-attr]
+            if receipt_datetime.date() == tx_date.date() and receipt.total.to_cents() == tx_amount:  # type: ignore[union-attr]
                 logger.debug(
                     "Found exact match: Receipt %s for %s",
-                    receipt["order_id"],
-                    format_cents(receipt["total"]),
+                    receipt.order_id or receipt.base_name,
+                    format_cents(receipt.total.to_cents()),  # type: ignore[union-attr]
                 )
-                receipt_dict: dict[str, Any] = receipt.to_dict()
-                return receipt_dict
+                return receipt
 
         return None
 
     def _find_date_window_match(
-        self, tx_date: datetime, tx_amount: int, receipts_df: pd.DataFrame
-    ) -> tuple[dict[str, Any] | None, int]:
+        self, tx_date: datetime, tx_amount: int, receipts: list["ParsedReceipt"]
+    ) -> tuple["ParsedReceipt | None", int]:
         """
         Find receipts within the date window that match the amount.
 
         Args:
             tx_date: Transaction date
             tx_amount: Transaction amount in cents
-            receipts_df: DataFrame of Apple receipts
+            receipts: List of ParsedReceipt domain models
 
         Returns:
-            Tuple of (matching receipt dictionary or None, date difference in days)
+            Tuple of (matching ParsedReceipt or None, date difference in days)
         """
-        if receipts_df.empty:
+        if not receipts:
             return None, 0
 
         # Define date window
         start_date = tx_date - timedelta(days=self.date_window_days)
         end_date = tx_date + timedelta(days=self.date_window_days)
 
-        # Filter to date window
-        date_mask = (receipts_df["receipt_date"] >= start_date) & (receipts_df["receipt_date"] <= end_date)
-        window_receipts = receipts_df[date_mask]
-
-        if window_receipts.empty:
-            return None, 0
-
-        # Find amount matches, prioritizing closer dates
+        # Find amount matches within date window, prioritizing closer dates
         best_match = None
         best_date_diff = 999999  # Large integer instead of float('inf')
 
-        for _, receipt in window_receipts.iterrows():
-            if receipt["total"] == tx_amount:
-                date_diff = abs((receipt["receipt_date"] - tx_date).days)
-                if date_diff < best_date_diff:
-                    best_match = receipt.to_dict()
-                    best_date_diff = date_diff
+        for receipt in receipts:
+            # We know receipt_date and total are not None due to filter in match_single_transaction
+            receipt_datetime = datetime.combine(receipt.receipt_date.date, datetime.min.time())  # type: ignore[union-attr]
+
+            # Check if within date window
+            if start_date <= receipt_datetime <= end_date:
+                # Check for exact amount match
+                if receipt.total.to_cents() == tx_amount:  # type: ignore[union-attr]
+                    date_diff = abs((receipt_datetime - tx_date).days)
+                    if date_diff < best_date_diff:
+                        best_match = receipt
+                        best_date_diff = date_diff
 
         if best_match:
             logger.debug(
                 "Found date window match: Receipt %s for %s, %d days off",
-                best_match["order_id"],
-                format_cents(best_match["total"]),
+                best_match.order_id or best_match.base_name,
+                format_cents(best_match.total.to_cents()),  # type: ignore[union-attr]
                 best_date_diff,
             )
             return best_match, best_date_diff
@@ -236,48 +236,44 @@ class AppleMatcher:
 
         return round(confidence, 2)
 
-    def _create_receipt_from_data(self, receipt_data: dict[str, Any]) -> Receipt:
+    def _create_receipt_from_parsed(self, parsed_receipt: "ParsedReceipt") -> Receipt:
         """
-        Create a Receipt object from raw receipt data.
+        Create a Receipt object from ParsedReceipt domain model.
 
         Args:
-            receipt_data: Raw receipt data dictionary
+            parsed_receipt: ParsedReceipt domain model
 
         Returns:
             Receipt object
         """
-        from ..core.dates import FinancialDate
+        # We know receipt_date and total are not None due to filter in match_single_transaction
+        # but for creating Receipt, we need to handle other optional fields properly
 
-        # Handle receipt_date - could be pandas Timestamp, string, or datetime
-        receipt_date_raw = receipt_data.get("receipt_date")
-        if isinstance(receipt_date_raw, str):
-            receipt_date_obj = FinancialDate.from_string(receipt_date_raw)
-        elif receipt_date_raw is not None and hasattr(
-            receipt_date_raw, "date"
-        ):  # pandas Timestamp or datetime
-            receipt_date_obj = FinancialDate(date=receipt_date_raw.date())
-        else:
-            # Fallback to current date if invalid
-            receipt_date_obj = FinancialDate.from_string("2000-01-01")
-
-        # Create Money objects
-        total_money = Money.from_cents(receipt_data.get("total", 0))
-        subtotal_money = Money.from_cents(receipt_data["subtotal"]) if receipt_data.get("subtotal") else None
-        # Field name is "tax" in the DataFrame, not "tax_amount"
-        tax_money = Money.from_cents(receipt_data["tax"]) if receipt_data.get("tax") else None
+        # Convert ParsedItem list to list of dicts for Receipt.items
+        items_dicts = [
+            {
+                "title": item.title,
+                "cost": item.cost.to_cents(),
+                "quantity": item.quantity,
+                "subscription": item.subscription,
+                "item_type": item.item_type,
+                "metadata": item.metadata,
+            }
+            for item in parsed_receipt.items
+        ]
 
         return Receipt(
-            id=receipt_data.get("order_id", "") or receipt_data.get("base_name", ""),
-            date_obj=receipt_date_obj,
+            id=parsed_receipt.order_id or parsed_receipt.base_name or "",
+            date_obj=parsed_receipt.receipt_date,  # type: ignore[arg-type]
             vendor="Apple",
-            total_money=total_money,
-            subtotal_money=subtotal_money,
-            tax_money=tax_money,
-            customer_id=receipt_data.get("apple_id", ""),
-            order_number=receipt_data.get("document_number", ""),
-            items=receipt_data.get("items", []),
+            total_money=parsed_receipt.total,  # type: ignore[arg-type]
+            subtotal_money=parsed_receipt.subtotal,
+            tax_money=parsed_receipt.tax,
+            customer_id=parsed_receipt.apple_id or "",
+            order_number=parsed_receipt.document_number or "",
+            items=items_dicts,
             source="apple_email",
-            raw_data=receipt_data,
+            raw_data=parsed_receipt.to_dict(),
         )
 
 

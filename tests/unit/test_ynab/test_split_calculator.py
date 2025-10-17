@@ -240,43 +240,67 @@ class TestGenericSplitCalculation:
 
     @pytest.mark.ynab
     def test_even_split(self):
-        """Test even split across categories."""
-        transaction_amount = -60000  # $60.00 in milliunits
+        """Test even split across categories with domain models."""
+        # Create transaction
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -60000,  # $60.00 in milliunits
+            }
+        )
+
         items = [
             {"name": "Groceries", "amount": 2000},  # $20.00 in cents
             {"name": "Household", "amount": 2000},  # $20.00 in cents
             {"name": "Personal Care", "amount": 2000},  # $20.00 in cents
         ]
 
-        splits = calculate_generic_splits(transaction_amount, items)
+        splits = calculate_generic_splits(transaction, items)
 
+        # Should return list of YnabSplit
+        assert isinstance(splits, list)
         assert len(splits) == 3
+        assert all(isinstance(s, YnabSplit) for s in splits)
+
         # Should split evenly: $20.00 each in milliunits
         for split in splits:
-            assert split["amount"] == -20000
+            assert split.amount.to_milliunits() == -20000
 
-        total = sum(split["amount"] for split in splits)
-        assert total == transaction_amount
+        total = sum(s.amount.to_milliunits() for s in splits)
+        assert total == transaction.amount.to_milliunits()
 
     @pytest.mark.ynab
     def test_weighted_split(self):
-        """Test weighted split with custom amounts."""
-        transaction_amount = -100000  # $100.00 in milliunits
+        """Test weighted split with custom amounts and domain models."""
+        # Create transaction
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -100000,  # $100.00 in milliunits
+            }
+        )
+
         items = [
             {"name": "Groceries", "amount": 6000},  # $60.00 in cents
             {"name": "Household", "amount": 2500},  # $25.00 in cents
             {"name": "Personal Care", "amount": 1500},  # $15.00 in cents
         ]
 
-        splits = calculate_generic_splits(transaction_amount, items)
+        splits = calculate_generic_splits(transaction, items)
 
+        # Should return list of YnabSplit
+        assert isinstance(splits, list)
         assert len(splits) == 3
-        assert splits[0]["amount"] == -60000  # $60.00 in milliunits
-        assert splits[1]["amount"] == -25000  # $25.00 in milliunits
-        assert splits[2]["amount"] == -15000  # $15.00 in milliunits
+        assert all(isinstance(s, YnabSplit) for s in splits)
 
-        total = sum(split["amount"] for split in splits)
-        assert total == transaction_amount
+        assert splits[0].amount.to_milliunits() == -60000  # $60.00 in milliunits
+        assert splits[1].amount.to_milliunits() == -25000  # $25.00 in milliunits
+        assert splits[2].amount.to_milliunits() == -15000  # $15.00 in milliunits
+
+        total = sum(s.amount.to_milliunits() for s in splits)
+        assert total == transaction.amount.to_milliunits()
 
 
 class TestSplitValidation:

@@ -4,14 +4,17 @@ Tests for Apple matcher with domain model signatures.
 
 Tests the new domain model-based interface for AppleMatcher:
 - Accepts YnabTransaction instead of dict
+- Accepts list[ParsedReceipt] instead of DataFrame
 - Returns MatchResult (already domain model)
 """
 
-import pandas as pd
 import pytest
 
 from finances.apple.matcher import AppleMatcher
+from finances.apple.parser import ParsedItem, ParsedReceipt
+from finances.core.dates import FinancialDate
 from finances.core.models import MatchResult
+from finances.core.money import Money
 from finances.ynab.models import YnabTransaction
 
 
@@ -25,7 +28,7 @@ class TestAppleMatcherDomainModels:
 
     @pytest.mark.apple
     def test_match_single_transaction_with_domain_model(self, matcher):
-        """Test matcher accepts YnabTransaction and returns MatchResult."""
+        """Test matcher accepts YnabTransaction and list[ParsedReceipt], returns MatchResult."""
         # Create YnabTransaction
         transaction = YnabTransaction.from_dict(
             {
@@ -36,21 +39,35 @@ class TestAppleMatcherDomainModels:
             }
         )
 
-        # Create Apple receipts DataFrame
-        receipts_data = [
-            {
-                "order_id": "ABC123456",
-                "receipt_date": pd.Timestamp("2024-10-15"),
-                "total": 4599,  # $45.99 in cents
-                "subtotal": 4299,
-                "tax": 300,
-                "items": [{"name": "App Purchase", "cost": 4299}],
-            }
+        # Create ParsedReceipt list
+        receipts_list = [
+            ParsedReceipt(
+                format_detected="modern",
+                apple_id="test@example.com",
+                receipt_date=FinancialDate.from_string("2024-10-15"),
+                order_id="ABC123456",
+                document_number="DOC123",
+                subtotal=Money.from_cents(4299),
+                tax=Money.from_cents(300),
+                total=Money.from_cents(4599),  # $45.99 in cents
+                currency="USD",
+                payment_method=None,
+                billed_to=None,
+                items=[
+                    ParsedItem(
+                        title="App Purchase",
+                        cost=Money.from_cents(4299),
+                        quantity=1,
+                        subscription=False,
+                    )
+                ],
+                parsing_metadata={},
+                base_name="test_receipt",
+            )
         ]
-        receipts_df = pd.DataFrame(receipts_data)
 
-        # Call matcher with new signature
-        result = matcher.match_single_transaction(transaction, receipts_df)
+        # Call matcher with new signature (list[ParsedReceipt])
+        result = matcher.match_single_transaction(transaction, receipts_list)
 
         # Should return MatchResult
         assert isinstance(result, MatchResult)
@@ -71,11 +88,11 @@ class TestAppleMatcherDomainModels:
             }
         )
 
-        # Empty receipts DataFrame
-        receipts_df = pd.DataFrame()
+        # Empty receipts list
+        receipts_list = []
 
-        # Call matcher with new signature
-        result = matcher.match_single_transaction(transaction, receipts_df)
+        # Call matcher with new signature (empty list)
+        result = matcher.match_single_transaction(transaction, receipts_list)
 
         # Should return MatchResult with no matches
         assert isinstance(result, MatchResult)

@@ -147,42 +147,56 @@ def calculate_apple_splits(
 
 
 def calculate_generic_splits(
-    transaction_amount: int, items: list[dict[str, Any]], category_id: str | None = None
-) -> list[dict[str, Any]]:
+    transaction: YnabTransaction,
+    items: list[dict[str, Any]],
+    category_id: str | None = None,
+) -> list[YnabSplit]:
     """
     Calculate splits for generic transaction with simple item amounts.
 
+    This function is for future vendor support (Costco, Target, etc.) and provides
+    a simple split calculation when no vendor-specific logic is needed.
+
     Args:
-        transaction_amount: YNAB transaction amount in milliunits (negative for expenses)
-        items: List of items with 'name', 'amount' (cents)
+        transaction: YNAB transaction domain model
+        items: List of items with 'name', 'amount' (Money or int cents)
         category_id: Optional category ID for all splits
 
     Returns:
-        List of split dictionaries for YNAB with amount, memo, category_id
+        List of YnabSplit domain models
 
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
     """
-    splits = []
+    tx_milliunits = transaction.amount.to_milliunits()
+    splits: list[YnabSplit] = []
 
     for item in items:
-        item_amount_milliunits = cents_to_milliunits(item["amount"])
+        # Accept either Money object or int cents
+        if isinstance(item["amount"], Money):
+            item_amount_cents = item["amount"].to_cents()
+        else:
+            item_amount_cents = item["amount"]
+
+        item_amount_milliunits = cents_to_milliunits(item_amount_cents)
 
         # YNAB uses negative amounts for expenses
-        split_amount = -item_amount_milliunits
+        split_amount = Money.from_milliunits(-item_amount_milliunits)
 
-        split = {"amount": split_amount, "memo": item["name"]}
-
-        if category_id:
-            split["category_id"] = category_id
-
-        splits.append(split)
+        splits.append(
+            YnabSplit(
+                amount=split_amount,
+                memo=item["name"],
+                category_id=category_id,
+            )
+        )
 
     # Verify splits sum to transaction total
-    if not validate_sum_equals_total(splits, transaction_amount):
-        total_splits = sum(split["amount"] for split in splits)
+    split_dicts = [{"amount": s.amount.to_milliunits(), "memo": s.memo} for s in splits]
+    if not validate_sum_equals_total(split_dicts, tx_milliunits):
+        total_splits = sum(s.amount.to_milliunits() for s in splits)
         raise SplitCalculationError(
-            f"Generic splits total {total_splits} doesn't match transaction {transaction_amount}"
+            f"Generic splits total {total_splits} doesn't match transaction {tx_milliunits}"
         )
 
     return splits
