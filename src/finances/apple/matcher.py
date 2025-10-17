@@ -9,7 +9,7 @@ Implements a simplified 2-strategy system optimized for Apple's 1:1 transaction 
 import logging
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Any, overload
+from typing import Any
 
 import pandas as pd
 
@@ -40,85 +40,38 @@ class AppleMatcher:
         """
         self.date_window_days = date_window_days
 
-    @overload
     def match_single_transaction(
-        self, ynab_transaction: YnabTransaction, apple_receipts_df: pd.DataFrame
-    ) -> MatchResult: ...
-
-    @overload
-    def match_single_transaction(
-        self, ynab_transaction: dict[str, Any], apple_receipts_df: pd.DataFrame
-    ) -> MatchResult: ...
-
-    def match_single_transaction(
-        self, ynab_transaction: YnabTransaction | dict[str, Any], apple_receipts_df: pd.DataFrame
+        self, transaction: YnabTransaction, apple_receipts_df: pd.DataFrame
     ) -> MatchResult:
         """
         Match a single YNAB transaction to Apple receipts.
 
-        Supports two signatures:
-        1. New: match_single_transaction(transaction: YnabTransaction, receipts_df) -> MatchResult
-        2. Legacy: match_single_transaction(ynab_transaction: dict, receipts_df) -> MatchResult
-
         Args:
-            ynab_transaction: YnabTransaction (new) or YNAB transaction dict (legacy)
+            transaction: YnabTransaction domain model
             apple_receipts_df: DataFrame of Apple receipts
 
         Returns:
             MatchResult with details of the match
         """
-        # Detect which signature is being used
-        if isinstance(ynab_transaction, YnabTransaction):
-            # New signature: domain models
-            return self._match_single_transaction_domain_model(ynab_transaction, apple_receipts_df)
-        else:
-            # Legacy signature: dicts
-            return self._match_single_transaction_legacy(ynab_transaction, apple_receipts_df)
-
-    def _match_single_transaction_domain_model(
-        self, transaction: YnabTransaction, apple_receipts_df: pd.DataFrame
-    ) -> MatchResult:
-        """Match transaction using domain model (new implementation)."""
-        # Convert to legacy format for matching logic
-        # This will be refactored in Layer 4
-        legacy_tx = {
-            "id": transaction.id,
-            "date": transaction.date.to_iso_string(),
-            "amount": transaction.amount.to_milliunits(),
-            "payee_name": transaction.payee_name or "",
-            "account_name": transaction.account_name or "",
-            "memo": transaction.memo or "",
-        }
-
-        # Use legacy matching logic
-        return self._match_single_transaction_legacy(legacy_tx, apple_receipts_df)
-
-    def _match_single_transaction_legacy(
-        self, ynab_transaction: dict[str, Any], apple_receipts_df: pd.DataFrame
-    ) -> MatchResult:
-        """Match transaction using legacy dict format."""
-        # Convert to Money and get absolute value for matching
-        # (receipts are always positive, transactions are negative for expenses)
-        tx_amount_money = Money.from_milliunits(ynab_transaction["amount"])
-        tx_amount_cents = tx_amount_money.abs().to_cents()
-        tx_date = datetime.strptime(ynab_transaction["date"], "%Y-%m-%d")
-        tx_id = ynab_transaction["id"]
+        # Get absolute value for matching (receipts are always positive, transactions are negative for expenses)
+        tx_amount_cents = transaction.amount.abs().to_cents()
+        tx_date = datetime.combine(transaction.date.date, datetime.min.time())
 
         logger.debug(
             "Matching transaction %s: %s on %s",
-            tx_id,
+            transaction.id,
             format_cents(tx_amount_cents),
-            tx_date.strftime("%Y-%m-%d"),
+            transaction.date.to_iso_string(),
         )
 
-        # Create Transaction object
-        transaction = Transaction(
-            id=tx_id,
-            date=tx_date.date(),
-            amount=ynab_transaction["amount"],  # Keep original milliunits
-            description=ynab_transaction.get("payee_name", ""),
-            account_name=ynab_transaction.get("account_name", ""),
-            memo=ynab_transaction.get("memo", ""),
+        # Create Transaction object for MatchResult
+        tx_obj = Transaction(
+            id=transaction.id,
+            date=transaction.date.date,
+            amount=transaction.amount.to_milliunits(),
+            description=transaction.payee_name or "",
+            account_name=transaction.account_name or "",
+            memo=transaction.memo or "",
             source="ynab",
         )
 
@@ -129,7 +82,7 @@ class AppleMatcher:
             confidence = self._calculate_confidence(tx_amount_cents, exact_match["total"], 0)
 
             return MatchResult(
-                transaction=transaction,
+                transaction=tx_obj,
                 receipts=[receipt],
                 confidence=confidence,
                 match_method="exact_date_amount",
@@ -145,7 +98,7 @@ class AppleMatcher:
             confidence = self._calculate_confidence(tx_amount_cents, window_match["total"], date_diff)
 
             return MatchResult(
-                transaction=transaction,
+                transaction=tx_obj,
                 receipts=[receipt],
                 confidence=confidence,
                 match_method="date_window_match",
@@ -156,7 +109,7 @@ class AppleMatcher:
 
         # No match found
         return MatchResult(
-            transaction=transaction,
+            transaction=tx_obj,
             receipts=[],
             confidence=0.0,
             match_method="no_match",
@@ -317,41 +270,6 @@ class AppleMatcher:
             source="apple_email",
             raw_data=receipt_data,
         )
-
-
-def batch_match_transactions(
-    ynab_transactions_df: pd.DataFrame,
-    apple_receipts_df: pd.DataFrame,
-    matcher: AppleMatcher | None = None,
-) -> list[MatchResult]:
-    """
-    Match a batch of YNAB transactions to Apple receipts.
-
-    Args:
-        ynab_transactions_df: DataFrame of YNAB transactions
-        apple_receipts_df: DataFrame of Apple receipts
-        matcher: Optional AppleMatcher instance
-
-    Returns:
-        List of MatchResult objects
-    """
-    if matcher is None:
-        matcher = AppleMatcher()
-
-    results = []
-
-    logger.info(
-        "Matching %d YNAB transactions to %d Apple receipts",
-        len(ynab_transactions_df),
-        len(apple_receipts_df),
-    )
-
-    for _, transaction in ynab_transactions_df.iterrows():
-        tx_dict = transaction.to_dict()
-        result = matcher.match_single_transaction(tx_dict, apple_receipts_df)
-        results.append(result)
-
-    return results
 
 
 def generate_match_summary(results: list[MatchResult]) -> dict[str, Any]:

@@ -50,7 +50,6 @@ from .loader import (
 from .matcher import (
     AppleMatcher,
     MatchStrategy,
-    batch_match_transactions,
     generate_match_summary,
 )
 from .parser import (
@@ -71,7 +70,6 @@ __all__ = [
     "MatchStrategy",
     "ParsedItem",
     "ParsedReceipt",
-    "batch_match_transactions",
     "filter_receipts_by_date_range",
     # Receipt loading
     "find_latest_apple_export",

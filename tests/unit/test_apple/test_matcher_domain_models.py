@@ -83,34 +83,3 @@ class TestAppleMatcherDomainModels:
         assert len(result.receipts) == 0
         assert result.confidence == 0.0
 
-    @pytest.mark.apple
-    def test_legacy_dict_signature_still_works(self, matcher):
-        """Test that legacy dict signature still works (backward compatibility)."""
-        # Create dict transaction (legacy)
-        transaction = {
-            "id": "tx-legacy",
-            "date": "2024-10-15",
-            "amount": -45990,  # $45.99 expense (milliunits)
-            "payee_name": "Apple.com/bill",
-        }
-
-        # Create Apple receipts DataFrame
-        receipts_data = [
-            {
-                "order_id": "ABC123456",
-                "receipt_date": pd.Timestamp("2024-10-15"),
-                "total": 4599,
-                "subtotal": 4299,
-                "tax": 300,
-                "items": [{"name": "App Purchase", "cost": 4299}],
-            }
-        ]
-        receipts_df = pd.DataFrame(receipts_data)
-
-        # Call matcher with legacy signature
-        result = matcher.match_single_transaction(transaction, receipts_df)
-
-        # Should return MatchResult
-        assert isinstance(result, MatchResult)
-        assert result.transaction.id == "tx-legacy"
-        assert len(result.receipts) > 0
