@@ -100,6 +100,52 @@ class ParsedReceipt:
         item = ParsedItem(title=title, cost=cost, **kwargs)
         self.items.append(item)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ParsedReceipt":
+        """
+        Create ParsedReceipt from dictionary (inverse of to_dict).
+
+        Args:
+            data: Dictionary with receipt data (from JSON)
+
+        Returns:
+            ParsedReceipt instance with typed fields
+        """
+        # Convert items from dicts to ParsedItem instances
+        items = []
+        for item_data in data.get("items", []):
+            items.append(
+                ParsedItem(
+                    title=item_data["title"],
+                    cost=Money.from_cents(item_data["cost"]),
+                    quantity=item_data.get("quantity", 1),
+                    subscription=item_data.get("subscription", False),
+                    item_type=item_data.get("item_type"),
+                    metadata=item_data.get("metadata", {}),
+                )
+            )
+
+        return cls(
+            format_detected=data.get("format_detected"),
+            apple_id=data.get("apple_id"),
+            receipt_date=(
+                FinancialDate.from_string(data["receipt_date"])
+                if data.get("receipt_date")
+                else None
+            ),
+            order_id=data.get("order_id"),
+            document_number=data.get("document_number"),
+            subtotal=Money.from_cents(data["subtotal"]) if data.get("subtotal") is not None else None,
+            tax=Money.from_cents(data["tax"]) if data.get("tax") is not None else None,
+            total=Money.from_cents(data["total"]) if data.get("total") is not None else None,
+            currency=data.get("currency", "USD"),
+            payment_method=data.get("payment_method"),
+            billed_to=data.get("billed_to"),
+            items=items,
+            parsing_metadata=data.get("parsing_metadata", {}),
+            base_name=data.get("base_name"),
+        )
+
 
 class AppleReceiptParser:
     """
@@ -569,7 +615,7 @@ class AppleReceiptParser:
         if billing_info:
             receipt.billed_to = billing_info
 
-    def _try_selectors(self, soup: BeautifulSoup, selectors: list[dict], field_name: str) -> Any:
+    def _try_selectors(self, soup: BeautifulSoup, selectors: list[dict[str, Any]], field_name: str) -> Any:
         """Try multiple selectors and return first successful result."""
         for selector_config in selectors:
             try:

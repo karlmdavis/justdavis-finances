@@ -11,13 +11,15 @@ All matches require penny-perfect amounts - no tolerance for differences.
 """
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, overload
 
 import pandas as pd
 
 from ..core.currency import format_cents
 from ..core.money import Money
-from .grouper import GroupingLevel, get_order_candidates, group_orders
+from ..ynab.models import YnabTransaction
+from .grouper import GroupingLevel, group_orders
+from .models import AmazonMatchResult, AmazonOrderItem, OrderGroup
 from .scorer import ConfidenceThresholds, MatchScorer, MatchType
 from .split_matcher import SplitPaymentMatcher
 
@@ -47,54 +49,49 @@ class SimplifiedMatcher:
         return any(pattern in payee_lower for pattern in patterns)
 
     def match_transaction(
-        self, ynab_tx: dict[str, Any], account_data: dict[str, tuple[pd.DataFrame, pd.DataFrame]]
-    ) -> dict[str, Any]:
+        self,
+        transaction: YnabTransaction,
+        orders_by_account: dict[str, list[AmazonOrderItem]],
+    ) -> AmazonMatchResult:
         """
         Match a single YNAB transaction against Amazon order data.
 
         Args:
-            ynab_tx: YNAB transaction data with id, amount, date, payee_name
-            account_data: Dict of {account_name: (retail_df, digital_df)}
+            transaction: YNAB transaction domain model
+            orders_by_account: Dict of {account_name: list[AmazonOrderItem]}
 
         Returns:
-            Match result with transaction, matches, and best_match
+            AmazonMatchResult with match details
         """
-        # Convert YNAB amount to Money
-        ynab_amount_money = Money.from_milliunits(ynab_tx["amount"])
-        ynab_amount_cents = ynab_amount_money.to_cents()  # Still use cents internally
-        ynab_date = datetime.strptime(ynab_tx["date"], "%Y-%m-%d").date()
-
         # Check if this is an Amazon transaction
-        if not self.is_amazon_transaction(ynab_tx.get("payee_name", "")):
-            return {
-                "ynab_transaction": {
-                    "id": ynab_tx["id"],
-                    "amount": ynab_tx["amount"],  # Keep original milliunits, not cents
-                    "date": ynab_tx["date"],
-                    "payee_name": ynab_tx.get("payee_name", ""),
-                    "memo": ynab_tx.get("memo", ""),
-                },
-                "matches": [],
-                "best_match": None,
-                "message": "Not an Amazon transaction",
-            }
+        if not self.is_amazon_transaction(transaction.payee_name or ""):
+            return AmazonMatchResult(
+                transaction=transaction,
+                matches=[],
+                best_match=None,
+                message="Not an Amazon transaction",
+            )
+
+        # Convert transaction to internal format for matching
+        ynab_amount_cents = transaction.amount.abs().to_cents()  # Use absolute value for matching
+        ynab_date = transaction.date.date
 
         all_matches = []
 
         # Try matching against each account
-        for account_name, (retail_df, _digital_df) in account_data.items():
-            if retail_df.empty:
+        for account_name, orders in orders_by_account.items():
+            if not orders:
                 continue
 
             # Strategy 1: Complete Match
             complete_matches = self._find_complete_matches(
-                ynab_amount_cents, ynab_date, retail_df, account_name
+                ynab_amount_cents, ynab_date, orders, account_name
             )
             all_matches.extend(complete_matches)
 
             # Strategy 2: Split Payment
             split_matches = self._find_split_payment_matches(
-                ynab_tx, ynab_amount_cents, ynab_date, retail_df, account_name
+                transaction, ynab_amount_cents, ynab_date, orders, account_name
             )
             all_matches.extend(split_matches)
 
@@ -105,78 +102,84 @@ class SimplifiedMatcher:
         if best_match and best_match["match_method"] == "split_payment":
             order = best_match["amazon_orders"][0]
             self.split_matcher.record_match(
-                ynab_tx["id"], order["order_id"], order.get("matched_item_indices", [])
+                transaction.id, order["order_id"], order.get("matched_item_indices", [])
             )
 
-        return {
-            "ynab_transaction": {
-                "id": ynab_tx["id"],
-                "amount": ynab_tx["amount"],  # Legacy milliunits
-                "amount_money": ynab_amount_money,  # NEW
-                "date": ynab_tx["date"],
-                "payee_name": ynab_tx.get("payee_name", ""),
-                "memo": ynab_tx.get("memo", ""),
-            },
-            "matches": all_matches,
-            "best_match": best_match,
-        }
+        return AmazonMatchResult(
+            transaction=transaction,
+            matches=all_matches,
+            best_match=best_match,
+        )
 
     def _find_complete_matches(
-        self, ynab_amount: int, ynab_date: date, orders_df: pd.DataFrame, account_name: str
+        self, ynab_amount: int, ynab_date: date, orders: list[AmazonOrderItem], account_name: str
     ) -> list[dict[str, Any]]:
-        """Find complete order/shipment matches."""
+        """Find complete order/shipment matches using domain models."""
         matches = []
 
-        # Get candidates at all grouping levels
-        candidates = get_order_candidates(orders_df, ynab_amount, ynab_date, tolerance=0)
+        # Group orders at ORDER level only (SHIPMENT/DAILY_SHIPMENT not yet implemented)
+        order_groups_result = group_orders(orders, GroupingLevel.ORDER)
+        # Type narrowing: ORDER level always returns dict[str, OrderGroup]
+        assert isinstance(order_groups_result, dict), "ORDER level must return dict"
+        order_groups: dict[str, OrderGroup] = order_groups_result
 
-        # Process each candidate type
-        for candidate_list in candidates.values():
-            for candidate in candidate_list:
-                if candidate["amount_diff"] == 0:  # Exact match only
-                    # Calculate confidence
-                    ship_dates = candidate.get("ship_dates", [candidate.get("ship_date")])
-                    ship_dates = [d for d in ship_dates if d is not None]
+        # order_groups is dict[str, OrderGroup] for ORDER level
+        for order_group in order_groups.values():
+            # Check for exact amount match
+            amazon_total = order_group.total.to_cents()
+            amount_diff = abs(ynab_amount - amazon_total)
 
-                    confidence = MatchScorer.calculate_confidence(
-                        ynab_amount=ynab_amount,
-                        amazon_total=candidate["total"],
-                        ynab_date=ynab_date,
-                        amazon_ship_dates=ship_dates,
-                        match_type=MatchType.COMPLETE_ORDER,
-                        multi_day=len(ship_dates) > 1,
+            if amount_diff == 0:  # Exact match only
+                # Calculate confidence
+                ship_dates = [d.date for d in order_group.ship_dates]
+
+                confidence = MatchScorer.calculate_confidence(
+                    ynab_amount=ynab_amount,
+                    amazon_total=amazon_total,
+                    ynab_date=ynab_date,
+                    amazon_ship_dates=ship_dates,
+                    match_type=MatchType.COMPLETE_ORDER,
+                    multi_day=len(ship_dates) > 1,
+                )
+
+                if ConfidenceThresholds.meets_threshold(confidence, MatchType.COMPLETE_ORDER):
+                    # Convert OrderGroup to dict format for match result
+                    # TODO: Update MatchScorer to accept OrderGroup directly
+                    order_dict = order_group.to_dict()
+
+                    match_result = MatchScorer.create_match_result(
+                        ynab_tx={"amount": ynab_amount, "date": ynab_date},
+                        amazon_orders=[order_dict],
+                        match_method=f"complete_{order_group.grouping_level}",
+                        confidence=confidence,
+                        account=account_name,
                     )
-
-                    if ConfidenceThresholds.meets_threshold(confidence, MatchType.COMPLETE_ORDER):
-                        match_result = MatchScorer.create_match_result(
-                            ynab_tx={"amount": ynab_amount, "date": ynab_date},
-                            amazon_orders=[candidate],
-                            match_method=f"complete_{candidate['grouping_level']}",
-                            confidence=confidence,
-                            account=account_name,
-                        )
-                        matches.append(match_result)
+                    matches.append(match_result)
 
         return matches
 
     def _find_split_payment_matches(
-        self, ynab_tx: dict, ynab_amount: int, ynab_date: date, orders_df: pd.DataFrame, account_name: str
+        self, transaction: YnabTransaction, ynab_amount: int, ynab_date: date, orders: list[AmazonOrderItem], account_name: str
     ) -> list[dict[str, Any]]:
-        """Find split payment matches."""
+        """Find split payment matches using domain models."""
         matches: list[dict[str, Any]] = []
 
         # Group by complete orders to find candidates for split payments
-        complete_orders = group_orders(orders_df, GroupingLevel.ORDER)
+        order_groups_result = group_orders(orders, GroupingLevel.ORDER)
+        # Type narrowing: ORDER level always returns dict[str, OrderGroup]
+        assert isinstance(order_groups_result, dict), "ORDER level must return dict"
+        order_groups: dict[str, OrderGroup] = order_groups_result
 
-        # complete_orders is always a dict when using GroupingLevel.ORDER
-        if not isinstance(complete_orders, dict):
-            return matches
+        # order_groups is dict[str, OrderGroup] for ORDER level
+        for order_group in order_groups.values():
+            # Convert OrderGroup to dict for split_matcher (legacy interface)
+            # TODO: Update split_matcher to accept OrderGroup directly
+            order_dict = order_group.to_dict()
 
-        for order_data in complete_orders.values():
             # Try split payment matching
             split_match = self.split_matcher.match_split_payment(
-                ynab_tx={"amount": ynab_amount, "date": ynab_tx["date"]},
-                order_data=order_data,
+                ynab_tx={"amount": ynab_amount, "date": transaction.date.to_iso_string()},
+                order_data=order_dict,
                 account_name=account_name,
             )
 

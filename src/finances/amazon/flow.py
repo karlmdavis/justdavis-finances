@@ -7,12 +7,13 @@ Flow node implementations for Amazon transaction matching.
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 import click
 import pandas as pd
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
-from . import SimplifiedMatcher, load_orders, orders_to_dataframe
+from . import SimplifiedMatcher, load_orders
 from .unzipper import extract_amazon_zip_files
 
 
@@ -179,50 +180,47 @@ class AmazonMatchingFlowNode(FlowNode):
             # Filter for Amazon transactions using domain model function
             amazon_transactions = filter_transactions_by_payee(all_transactions, payee="Amazon")
 
-            # Convert domain models to DataFrames for matcher (temporary adapter)
-            account_data = {
-                account: (orders_to_dataframe(orders), pd.DataFrame())  # (retail_df, digital_df)
-                for account, orders in orders_by_account.items()
-            }
-
-            # Convert YnabTransaction models to dicts for matcher (temporary adapter)
-            transactions = [
-                {
-                    "id": tx.id,
-                    "amount": tx.amount.to_milliunits(),
-                    "date": tx.date.to_iso_string(),
-                    "payee_name": tx.payee_name,
-                    "memo": tx.memo,
-                    "account_name": tx.account_name,
-                    "cleared": tx.cleared,
-                    "approved": tx.approved,
-                    "account_id": tx.account_id,
-                    "category_name": tx.category_name,
-                }
-                for tx in amazon_transactions
-            ]
-
-            if not transactions:
+            if not amazon_transactions:
                 return FlowResult(
                     success=True,
                     items_processed=0,
                     metadata={"message": "No Amazon transactions to match"},
                 )
 
-            # Match transactions
+            # Match transactions using domain model signature
             matches = []
             matched_count = 0
             total_confidence = 0.0
 
-            for tx in transactions:
-                match_result = matcher.match_transaction(tx, account_data)
-                if match_result.get("best_match"):
+            for transaction in amazon_transactions:
+                # Use new domain model signature: YnabTransaction, dict[str, list[AmazonOrderItem]]
+                match_result = matcher.match_transaction(transaction, orders_by_account)
+
+                # Convert AmazonMatchResult to dict for JSON storage
+                # Note: best_match is still dict internally (will be AmazonMatch in future refactor)
+                match_dict = {
+                    "ynab_transaction": {
+                        "id": match_result.transaction.id,
+                        "amount": match_result.transaction.amount.to_milliunits(),
+                        "date": match_result.transaction.date.to_iso_string(),
+                        "payee_name": match_result.transaction.payee_name,
+                        "memo": match_result.transaction.memo,
+                        "account_name": match_result.transaction.account_name,
+                    },
+                    "matches": match_result.matches,
+                    "best_match": match_result.best_match,
+                    "message": match_result.message,
+                }
+
+                if match_result.best_match:
                     matched_count += 1
-                    total_confidence += match_result["best_match"].get("confidence", 0.0)
-                matches.append(match_result)
+                    # Note: best_match is still dict internally (will be AmazonMatch in future refactor)
+                    best_match_dict = cast(dict[str, Any], match_result.best_match)
+                    total_confidence += best_match_dict.get("confidence", 0.0)
+                matches.append(match_dict)
 
             # Calculate statistics
-            match_rate = matched_count / len(transactions) if transactions else 0.0
+            match_rate = matched_count / len(amazon_transactions) if amazon_transactions else 0.0
             avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
 
             # Write results using DataStore
@@ -234,7 +232,7 @@ class AmazonMatchingFlowNode(FlowNode):
                     "accounts": "all",
                 },
                 "summary": {
-                    "total_transactions": len(transactions),
+                    "total_transactions": len(amazon_transactions),
                     "matched_transactions": matched_count,
                     "match_rate": match_rate,
                     "average_confidence": avg_confidence,
@@ -250,7 +248,7 @@ class AmazonMatchingFlowNode(FlowNode):
 
             return FlowResult(
                 success=True,
-                items_processed=len(transactions),
+                items_processed=len(amazon_transactions),
                 new_items=matched_count,
                 outputs=[output_file],
                 metadata={

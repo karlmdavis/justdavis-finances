@@ -33,9 +33,12 @@ from .loader import (
     load_transactions,
 )
 from .models import (
+    SplitEditBatch,
+    TransactionSplitEdit,
     YnabAccount,
     YnabCategory,
     YnabCategoryGroup,
+    YnabSplit,
     YnabSubtransaction,
     YnabTransaction,
 )
@@ -61,10 +64,13 @@ __all__ = [
     # Split calculation
     "SplitCalculationError",
     # Domain models
+    "SplitEditBatch",
+    "TransactionSplitEdit",
     "YnabAccount",
     "YnabCategory",
     "YnabCategoryGroup",
     "YnabRetirementService",
+    "YnabSplit",
     "YnabSubtransaction",
     "YnabTransaction",
     "calculate_amazon_splits",

@@ -15,6 +15,7 @@ from typing import Any
 import pandas as pd
 
 from ..core.config import get_config
+from .parser import ParsedReceipt
 
 logger = logging.getLogger(__name__)
 
@@ -62,15 +63,15 @@ def find_latest_apple_export(base_path: str | None = None) -> str | None:
     return str(latest_dir)
 
 
-def load_apple_receipts(export_path: str | None = None) -> list[dict[str, Any]]:
+def load_apple_receipts(export_path: str | None = None) -> list[ParsedReceipt]:
     """
-    Load Apple receipts from the latest export.
+    Load Apple receipts from the latest export as domain models.
 
     Args:
         export_path: Optional specific export path, otherwise finds latest
 
     Returns:
-        List of receipt dictionaries
+        List of ParsedReceipt domain models with typed fields (Money, FinancialDate)
     """
     if export_path is None:
         # Find the latest export directory
@@ -87,13 +88,85 @@ def load_apple_receipts(export_path: str | None = None) -> list[dict[str, Any]]:
     with open(receipts_file) as f:
         receipts_data: list[dict[str, Any]] = json.load(f)
 
-    logger.info("Loaded %d Apple receipts from %s", len(receipts_data), export_path)
-    return receipts_data
+    # Convert dicts to domain models
+    receipts = [ParsedReceipt.from_dict(receipt_dict) for receipt_dict in receipts_data]
+
+    logger.info("Loaded %d Apple receipts from %s", len(receipts), export_path)
+    return receipts
+
+
+def receipts_to_dataframe(receipts: list[ParsedReceipt]) -> pd.DataFrame:
+    """
+    Convert ParsedReceipt domain models to DataFrame (temporary adapter).
+
+    This is a temporary adapter for code that still uses DataFrames.
+    New code should work directly with ParsedReceipt domain models.
+
+    Args:
+        receipts: List of ParsedReceipt domain models
+
+    Returns:
+        DataFrame with receipt data
+    """
+    normalized_data = []
+
+    for receipt in receipts:
+        # Convert domain model to dict format for DataFrame
+        try:
+            # Get receipt date as datetime
+            receipt_date = None
+            receipt_date_str = ""
+            if receipt.receipt_date:
+                receipt_date_str = receipt.receipt_date.to_iso_string()
+                receipt_date = parse_apple_date(receipt_date_str)
+
+            # Create normalized record
+            normalized_record = {
+                "apple_id": receipt.apple_id or "",
+                "receipt_date": receipt_date,
+                "receipt_date_str": receipt_date_str,
+                "order_id": receipt.order_id or "",
+                "document_number": receipt.document_number or "",
+                "total": receipt.total.to_cents() if receipt.total else 0,
+                "currency": receipt.currency,
+                "subtotal": receipt.subtotal.to_cents() if receipt.subtotal else None,
+                "tax": receipt.tax.to_cents() if receipt.tax else None,
+                "items": [
+                    {
+                        "title": item.title,
+                        "cost": item.cost.to_cents(),
+                        "quantity": item.quantity,
+                        "subscription": item.subscription,
+                    }
+                    for item in receipt.items
+                ],
+                "format_detected": receipt.format_detected or "",
+                "base_name": receipt.base_name or "",
+                "item_count": len(receipt.items),
+            }
+
+            normalized_data.append(normalized_record)
+
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Failed to convert receipt %s: %s", receipt.order_id or "unknown", e)
+            continue
+
+    df = pd.DataFrame(normalized_data)
+
+    # Sort by receipt date for easier processing
+    if not df.empty and "receipt_date" in df.columns:
+        df = df.sort_values("receipt_date")
+
+    logger.info("Converted %d receipts to DataFrame", len(df))
+    return df
 
 
 def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame:
     """
     Normalize Apple receipt data into a standardized DataFrame.
+
+    DEPRECATED: This function is kept for backward compatibility during migration.
+    Use receipts_to_dataframe() with ParsedReceipt domain models instead.
 
     Args:
         receipts: Raw receipt data from JSON

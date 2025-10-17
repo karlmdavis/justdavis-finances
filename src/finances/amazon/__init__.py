@@ -26,14 +26,17 @@ from .grouper import (
 from .loader import (
     find_latest_amazon_export,
     load_orders,
-    orders_to_dataframe,
 )
 from .matcher import (
     SimplifiedMatcher,
 )
 from .models import (
+    AmazonMatch,
+    AmazonMatchResult,
     AmazonOrderItem,
     AmazonOrderSummary,
+    MatchedOrderItem,
+    OrderGroup,
 )
 from .scorer import (
     ConfidenceThresholds,
@@ -45,9 +48,15 @@ from .split_matcher import (
 )
 
 __all__ = [
-    # Domain models
+    # Domain models - CSV layer
     "AmazonOrderItem",
     "AmazonOrderSummary",
+    # Domain models - Match layer
+    "MatchedOrderItem",
+    "OrderGroup",
+    # Domain models - Match results
+    "AmazonMatch",
+    "AmazonMatchResult",
     # Match scoring
     "ConfidenceThresholds",
     # Order grouping
@@ -63,5 +72,4 @@ __all__ = [
     "get_order_candidates",
     "group_orders",
     "load_orders",
-    "orders_to_dataframe",
 ]

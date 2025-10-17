@@ -9,13 +9,14 @@ Implements a simplified 2-strategy system optimized for Apple's 1:1 transaction 
 import logging
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, overload
 
 import pandas as pd
 
 from ..core.currency import format_cents
 from ..core.models import MatchResult, Receipt, Transaction
 from ..core.money import Money
+from ..ynab.models import YnabTransaction
 
 logger = logging.getLogger(__name__)
 
@@ -39,19 +40,63 @@ class AppleMatcher:
         """
         self.date_window_days = date_window_days
 
+    @overload
+    def match_single_transaction(
+        self, ynab_transaction: YnabTransaction, apple_receipts_df: pd.DataFrame
+    ) -> MatchResult: ...
+
+    @overload
     def match_single_transaction(
         self, ynab_transaction: dict[str, Any], apple_receipts_df: pd.DataFrame
+    ) -> MatchResult: ...
+
+    def match_single_transaction(
+        self, ynab_transaction: YnabTransaction | dict[str, Any], apple_receipts_df: pd.DataFrame
     ) -> MatchResult:
         """
         Match a single YNAB transaction to Apple receipts.
 
+        Supports two signatures:
+        1. New: match_single_transaction(transaction: YnabTransaction, receipts_df) -> MatchResult
+        2. Legacy: match_single_transaction(ynab_transaction: dict, receipts_df) -> MatchResult
+
         Args:
-            ynab_transaction: YNAB transaction data (normalized)
+            ynab_transaction: YnabTransaction (new) or YNAB transaction dict (legacy)
             apple_receipts_df: DataFrame of Apple receipts
 
         Returns:
             MatchResult with details of the match
         """
+        # Detect which signature is being used
+        if isinstance(ynab_transaction, YnabTransaction):
+            # New signature: domain models
+            return self._match_single_transaction_domain_model(ynab_transaction, apple_receipts_df)
+        else:
+            # Legacy signature: dicts
+            return self._match_single_transaction_legacy(ynab_transaction, apple_receipts_df)
+
+    def _match_single_transaction_domain_model(
+        self, transaction: YnabTransaction, apple_receipts_df: pd.DataFrame
+    ) -> MatchResult:
+        """Match transaction using domain model (new implementation)."""
+        # Convert to legacy format for matching logic
+        # This will be refactored in Layer 4
+        legacy_tx = {
+            "id": transaction.id,
+            "date": transaction.date.to_iso_string(),
+            "amount": transaction.amount.to_milliunits(),
+            "payee_name": transaction.payee_name or "",
+            "account_name": transaction.account_name or "",
+            "memo": transaction.memo or "",
+        }
+
+        # Use legacy matching logic
+        return self._match_single_transaction_legacy(legacy_tx, apple_receipts_df)
+
+    def _match_single_transaction_legacy(
+        self, ynab_transaction: dict[str, Any], apple_receipts_df: pd.DataFrame
+    ) -> MatchResult:
+        """Match transaction using legacy dict format."""
         # Convert to Money and get absolute value for matching
         # (receipts are always positive, transactions are negative for expenses)
         tx_amount_money = Money.from_milliunits(ynab_transaction["amount"])

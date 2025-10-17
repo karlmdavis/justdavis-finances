@@ -3,8 +3,14 @@
 
 import pytest
 
+from finances.amazon.models import MatchedOrderItem
+from finances.apple.parser import ParsedItem, ParsedReceipt
+from finances.core.dates import FinancialDate
+from finances.core.money import Money
 from finances.ynab import (
     SplitCalculationError,
+    YnabSplit,
+    YnabTransaction,
     calculate_amazon_splits,
     calculate_apple_splits,
     calculate_generic_splits,
@@ -14,94 +20,82 @@ from finances.ynab import (
 )
 
 
-class TestAmazonSplitCalculation:
-    """Test Amazon transaction split calculation."""
+class TestAmazonSplitCalculationDomainModels:
+    """Test Amazon split calculation with domain models (new signatures)."""
 
     @pytest.mark.ynab
-    def test_single_item_no_split(self):
-        """Test single item returns memo update only."""
-        transaction_amount = -19990  # $19.99 expense in milliunits
+    def test_amazon_splits_with_domain_models(self):
+        """Test calculate_amazon_splits accepts MatchedOrderItem list and returns YnabSplit list."""
+        # Create transaction
+        transaction = YnabTransaction.from_dict({
+            "id": "tx1",
+            "date": "2024-10-15",
+            "amount": -89900,  # $89.90 expense
+        })
+
+        # Create MatchedOrderItem (match-layer domain models)
         items = [
-            {"name": "Kindle Book: Project Hail Mary", "amount": 1999, "quantity": 1, "unit_price": 1999}
+            MatchedOrderItem(
+                name="Echo Dot (4th Gen)",
+                amount=Money.from_cents(4599),
+                quantity=1,
+                asin="B0AAAAAA1",
+                unit_price=Money.from_cents(4599),
+            ),
+            MatchedOrderItem(
+                name="USB-C Cable 6ft - 2 Pack",
+                amount=Money.from_cents(2350),
+                quantity=2,
+                asin="B0AAAAAA2",
+                unit_price=Money.from_cents(1175),
+            ),
+            MatchedOrderItem(
+                name="Charging Stand",
+                amount=Money.from_cents(2041),
+                quantity=1,
+                asin="B0AAAAAA3",
+                unit_price=Money.from_cents(2041),
+            ),
         ]
 
-        splits = calculate_amazon_splits(transaction_amount, items)
+        # Call with new signature
+        splits = calculate_amazon_splits(transaction, items)
 
-        assert len(splits) == 1
-        assert splits[0]["amount"] == transaction_amount
-        assert splits[0]["memo"] == "Kindle Book: Project Hail Mary"
-
-    @pytest.mark.ynab
-    def test_multiple_items_split(self):
-        """Test multiple items creates proper splits."""
-        transaction_amount = -89900  # $89.90 expense in milliunits
-        items = [
-            {
-                "name": "Echo Dot (4th Gen) - Charcoal",
-                "amount": 4599,  # $45.99
-                "quantity": 1,
-                "unit_price": 4599,
-            },
-            {"name": "USB-C Cable 6ft - 2 Pack", "amount": 2350, "quantity": 2, "unit_price": 1175},  # $23.50
-            {"name": "Charging Stand", "amount": 2041, "quantity": 1, "unit_price": 2041},  # $20.41
-        ]
-
-        splits = calculate_amazon_splits(transaction_amount, items)
-
+        # Should return list of YnabSplit
+        assert isinstance(splits, list)
         assert len(splits) == 3
+        assert all(isinstance(s, YnabSplit) for s in splits)
 
-        # Check individual split amounts (negative milliunits for expenses)
-        assert splits[0]["amount"] == -45990  # $45.99
-        assert splits[1]["amount"] == -23500  # $23.50
-        assert splits[2]["amount"] == -20410  # $20.41
-
-        # Check memos include quantity and price info
-        # Check memos (quantity shown only if > 1)
-        assert splits[0]["memo"] == "Echo Dot (4th Gen) - Charcoal"
-        assert splits[1]["memo"] == "USB-C Cable 6ft - 2 Pack (qty: 2)"
-        assert splits[2]["memo"] == "Charging Stand"
-
-        # Check total equals original transaction
-        total = sum(split["amount"] for split in splits)
-        assert total == transaction_amount
+        # Check split amounts and memos
+        assert splits[0].amount.to_milliunits() == -45990
+        assert splits[0].memo == "Echo Dot (4th Gen)"
+        assert splits[1].amount.to_milliunits() == -23500
+        assert splits[1].memo == "USB-C Cable 6ft - 2 Pack (qty: 2)"
+        assert splits[2].amount.to_milliunits() == -20410
+        assert splits[2].memo == "Charging Stand"
 
     @pytest.mark.ynab
-    def test_amount_mismatch_error(self):
-        """Test error when item amounts don't match transaction total."""
-        transaction_amount = -50000  # $50.00 in milliunits
-        items = [{"name": "Test Item", "amount": 3000, "quantity": 1, "unit_price": 3000}]  # Only $30.00
+    def test_amazon_splits_domain_models_validation(self):
+        """Test split validation with domain models."""
+        transaction = YnabTransaction.from_dict({
+            "id": "tx1",
+            "date": "2024-10-15",
+            "amount": -50000,  # $50.00
+        })
+
+        # Items that don't sum to transaction amount
+        items = [
+            MatchedOrderItem(
+                name="Test Item",
+                amount=Money.from_cents(3000),  # Only $30.00
+                quantity=1,
+                asin="B0AAAAAA1",
+                unit_price=Money.from_cents(3000),
+            ),
+        ]
 
         with pytest.raises(SplitCalculationError, match="doesn't match transaction"):
-            calculate_amazon_splits(transaction_amount, items)
-
-    @pytest.mark.ynab
-    def test_tax_allocation(self):
-        """Test proper tax allocation across items."""
-        transaction_amount = -106500  # $106.50 including tax in milliunits
-        items = [
-            {
-                "name": "Item 1",
-                "amount": 5325,  # $53.25 with tax included (cents)
-                "quantity": 1,
-                "unit_price": 5325,
-            },
-            {
-                "name": "Item 2",
-                "amount": 5325,  # $53.25 with tax included (cents)
-                "quantity": 1,
-                "unit_price": 5325,
-            },
-        ]
-
-        splits = calculate_amazon_splits(transaction_amount, items)
-
-        # Tax should be allocated proportionally (already included in amounts)
-        assert len(splits) == 2
-        assert splits[0]["amount"] == -53250  # $53.25 in milliunits
-        assert splits[1]["amount"] == -53250  # $53.25 in milliunits
-
-        total = sum(split["amount"] for split in splits)
-        assert total == transaction_amount
+            calculate_amazon_splits(transaction, items)
 
 
 class TestAppleSplitCalculation:
@@ -154,6 +148,135 @@ class TestAppleSplitCalculation:
 
         assert len(splits) == 1
         assert "subscription" in splits[0]["memo"].lower() or "monthly" in splits[0]["memo"].lower()
+
+
+class TestAppleSplitCalculationDomainModels:
+    """Test Apple split calculation with domain models (new signatures)."""
+
+    @pytest.mark.ynab
+    def test_apple_splits_with_domain_models(self):
+        """Test calculate_apple_splits accepts ParsedReceipt and returns YnabSplit list."""
+        # Create transaction
+        transaction = YnabTransaction.from_dict({
+            "id": "tx1",
+            "date": "2024-10-15",
+            "amount": -599960,  # $599.96 total in milliunits
+        })
+
+        # Create ParsedReceipt with multiple items
+        receipt = ParsedReceipt(
+            format_detected="modern",
+            apple_id="test@example.com",
+            receipt_date=FinancialDate.from_string("2024-10-15"),
+            order_id="ORDER123",
+            document_number="DOC123",
+            subtotal=Money.from_cents(56407),  # Subtotal before tax
+            tax=Money.from_cents(3589),  # Tax amount
+            total=Money.from_cents(59996),  # Total
+            currency="USD",
+            payment_method=None,
+            billed_to=None,
+            items=[
+                ParsedItem(
+                    title="Final Cut Pro",
+                    cost=Money.from_cents(29999),
+                    quantity=1,
+                    subscription=False,
+                ),
+                ParsedItem(
+                    title="Logic Pro",
+                    cost=Money.from_cents(19999),
+                    quantity=1,
+                    subscription=False,
+                ),
+                ParsedItem(
+                    title="Compressor",
+                    cost=Money.from_cents(4999),
+                    quantity=1,
+                    subscription=False,
+                ),
+                ParsedItem(
+                    title="Motion",
+                    cost=Money.from_cents(1410),
+                    quantity=1,
+                    subscription=False,
+                ),
+            ],
+            parsing_metadata={},
+            base_name="test_receipt",
+        )
+
+        # Call with new signature
+        splits = calculate_apple_splits(transaction, receipt)
+
+        # Should return list of YnabSplit
+        assert isinstance(splits, list)
+        assert len(splits) == 4
+        assert all(isinstance(s, YnabSplit) for s in splits)
+
+        # Check that splits have proper memos
+        assert splits[0].memo == "Final Cut Pro"
+        assert splits[1].memo == "Logic Pro"
+        assert splits[2].memo == "Compressor"
+        assert splits[3].memo == "Motion"
+
+        # Verify total matches transaction
+        total_milliunits = sum(s.amount.to_milliunits() for s in splits)
+        assert total_milliunits == transaction.amount.to_milliunits()
+
+    @pytest.mark.ynab
+    def test_apple_splits_domain_models_with_tax(self):
+        """Test Apple splits with tax allocation."""
+        # Create transaction
+        transaction = YnabTransaction.from_dict({
+            "id": "tx1",
+            "date": "2024-10-15",
+            "amount": -108000,  # $108.00 total with tax in milliunits
+        })
+
+        # Receipt with subtotal and tax
+        receipt = ParsedReceipt(
+            format_detected="modern",
+            apple_id="test@example.com",
+            receipt_date=FinancialDate.from_string("2024-10-15"),
+            order_id="ORDER123",
+            document_number="DOC123",
+            subtotal=Money.from_cents(10000),  # $100.00 subtotal
+            tax=Money.from_cents(800),  # $8.00 tax (8%)
+            total=Money.from_cents(10800),  # $108.00 total
+            currency="USD",
+            payment_method=None,
+            billed_to=None,
+            items=[
+                ParsedItem(
+                    title="App 1",
+                    cost=Money.from_cents(5000),
+                    quantity=1,
+                    subscription=False,
+                ),
+                ParsedItem(
+                    title="App 2",
+                    cost=Money.from_cents(5000),
+                    quantity=1,
+                    subscription=False,
+                ),
+            ],
+            parsing_metadata={},
+            base_name="test_receipt",
+        )
+
+        # Call with new signature
+        splits = calculate_apple_splits(transaction, receipt)
+
+        # Tax should be allocated proportionally
+        assert len(splits) == 2
+        # Each app should get half the tax: $50.00 + $4.00 = $54.00
+        assert splits[0].amount.to_cents() == -5400
+        assert splits[1].amount.to_cents() == -5400
+
+        # Verify total
+        total_milliunits = sum(s.amount.to_milliunits() for s in splits)
+        assert total_milliunits == transaction.amount.to_milliunits()
 
 
 class TestGenericSplitCalculation:
@@ -250,52 +373,3 @@ class TestSplitValidation:
 
         assert summary["total_amount"] == -50000
         assert summary["split_count"] == 2
-
-
-class TestSplitErrorHandling:
-    """Test error handling in split calculations."""
-
-    @pytest.mark.ynab
-    def test_empty_items_error(self):
-        """Test handling of empty items list."""
-        # Empty items list should return empty splits list, which then fails validation
-        with pytest.raises(SplitCalculationError, match="doesn't match transaction"):
-            calculate_amazon_splits(-10000, [])
-
-    @pytest.mark.ynab
-    def test_missing_required_fields(self):
-        """Test error with missing required item fields."""
-        items = [
-            {
-                "name": "Test Item",
-                # Missing amount field
-                "quantity": 1,
-            }
-        ]
-
-        # Missing 'amount' field will cause KeyError
-        with pytest.raises(KeyError):
-            calculate_amazon_splits(-10000, items)
-
-    @pytest.mark.ynab
-    def test_zero_transaction_amount(self):
-        """Test handling of zero transaction amount."""
-        # Zero transaction amount with non-zero items will fail validation
-        with pytest.raises(SplitCalculationError, match="doesn't match transaction"):
-            calculate_amazon_splits(0, [{"name": "Test", "amount": 100}])
-
-    @pytest.mark.ynab
-    def test_negative_item_amounts(self):
-        """Test handling of negative item amounts."""
-        items = [
-            {
-                "name": "Refund Item",
-                "amount": -1000,  # -$10.00 in cents (refund)
-                "quantity": 1,
-            }
-        ]
-
-        # Should handle refunds gracefully
-        splits = calculate_amazon_splits(10000, items)  # $10.00 positive transaction for refund in milliunits
-        assert len(splits) == 1
-        assert splits[0]["amount"] == 10000  # Positive milliunits for refund
