@@ -5,7 +5,7 @@ Apple Flow Nodes
 Flow node implementations for Apple receipt processing and transaction matching.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
@@ -298,14 +298,10 @@ class AppleMatchingFlowNode(FlowNode):
                     {
                         "transaction_id": result.transaction.id if result.transaction else None,
                         "transaction_date": (
-                            result.transaction.date_obj.date.isoformat()
-                            if result.transaction
-                            else None
+                            result.transaction.date_obj.date.isoformat() if result.transaction else None
                         ),
                         "transaction_amount": (
-                            result.transaction.amount_money.to_milliunits()
-                            if result.transaction
-                            else None
+                            result.transaction.amount_money.to_milliunits() if result.transaction else None
                         ),
                         "receipt_ids": [r.id for r in result.receipts] if result.receipts else [],
                         "matched": bool(result.receipts),

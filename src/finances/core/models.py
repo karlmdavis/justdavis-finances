@@ -7,7 +7,7 @@ These models provide type safety and consistent interfaces for financial data.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
