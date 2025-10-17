@@ -88,11 +88,13 @@ def _group_by_order_id(orders: list[AmazonOrderItem]) -> dict[str, OrderGroup]:
 
 def _group_by_shipment(orders: list[AmazonOrderItem]) -> list[OrderGroup]:
     """Group orders by Order ID + exact Ship Date combination."""
-    # TODO: Implement shipment-level grouping with domain models
+    # TODO(#15): Implement shipment-level grouping with domain models
+    # See https://github.com/karlmdavis/justdavis-finances/issues/15
     raise NotImplementedError("Shipment-level grouping not yet implemented with domain models")
 
 
 def _group_by_daily_shipment(orders: list[AmazonOrderItem]) -> list[OrderGroup]:
     """Group orders by Order ID + Ship Date (date only, ignoring time)."""
-    # TODO: Implement daily shipment-level grouping with domain models
+    # TODO(#15): Implement daily shipment-level grouping with domain models
+    # See https://github.com/karlmdavis/justdavis-finances/issues/15
     raise NotImplementedError("Daily shipment-level grouping not yet implemented with domain models")
