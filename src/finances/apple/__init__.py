@@ -44,13 +44,12 @@ from .loader import (
     find_latest_apple_export,
     get_apple_receipt_summary,
     load_apple_receipts,
-    normalize_apple_receipt_data,
     parse_apple_date,
+    receipts_to_dataframe,
 )
 from .matcher import (
     AppleMatcher,
     MatchStrategy,
-    batch_match_transactions,
     generate_match_summary,
 )
 from .parser import (
@@ -71,13 +70,12 @@ __all__ = [
     "MatchStrategy",
     "ParsedItem",
     "ParsedReceipt",
-    "batch_match_transactions",
     "filter_receipts_by_date_range",
     # Receipt loading
     "find_latest_apple_export",
     "generate_match_summary",
     "get_apple_receipt_summary",
     "load_apple_receipts",
-    "normalize_apple_receipt_data",
     "parse_apple_date",
+    "receipts_to_dataframe",
 ]

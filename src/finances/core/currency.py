@@ -149,7 +149,7 @@ def dollars_to_cents(dollars: float | str) -> int:
     """
     if isinstance(dollars, str):
         return parse_dollars_to_cents(dollars)
-    # For float input (legacy code), convert carefully
+    # For float input, convert carefully to avoid precision errors
     return int(dollars * 100 + 0.5)
 
 

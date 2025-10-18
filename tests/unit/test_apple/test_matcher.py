@@ -4,7 +4,20 @@
 
 import pytest
 
-from finances.apple import AppleMatcher, normalize_apple_receipt_data
+from finances.apple import AppleMatcher
+from finances.apple.parser import ParsedReceipt
+from finances.ynab.models import YnabTransaction
+
+
+def receipts_to_list_for_testing(receipt_dicts):
+    """Convert raw receipt dicts to list[ParsedReceipt] for testing (mimics real system flow)."""
+    # Convert dicts to domain models (matches production flow)
+    return [ParsedReceipt.from_dict(r) for r in receipt_dicts]
+
+
+def dict_to_ynab_transaction(tx_dict):
+    """Convert dict to YnabTransaction for testing."""
+    return YnabTransaction.from_dict(tx_dict)
 
 
 class TestAppleMatcher:
@@ -22,11 +35,12 @@ class TestAppleMatcher:
 
         IMPORTANT: Amounts are in CENTS (as integers) because the parser now returns
         integer cents. The parser converts "$29.99" → 2999 cents.
+        Dates must be in ISO format (YYYY-MM-DD) for ParsedReceipt.from_dict().
         """
         return [
             {
                 "order_id": "ML7PQ2XYZ",
-                "receipt_date": "Aug 15, 2024",
+                "receipt_date": "2024-08-15",  # ISO format required
                 "apple_id": "test@example.com",
                 "subtotal": 2999,  # $29.99 → 2999 cents (parser output)
                 "tax": 298,  # $2.98 → 298 cents
@@ -35,7 +49,7 @@ class TestAppleMatcher:
             },
             {
                 "order_id": "NX8QR3ABC",
-                "receipt_date": "Aug 16, 2024",
+                "receipt_date": "2024-08-16",  # ISO format required
                 "apple_id": "family@example.com",
                 "subtotal": 999,  # $9.99 → 999 cents
                 "tax": 99,  # $0.99 → 99 cents
@@ -46,7 +60,7 @@ class TestAppleMatcher:
             },
             {
                 "order_id": "KL5MN4DEF",
-                "receipt_date": "Aug 14, 2024",
+                "receipt_date": "2024-08-14",  # ISO format required
                 "apple_id": "test@example.com",
                 "subtotal": 59998,  # $599.98 → 59998 cents
                 "tax": 5964,  # $59.64 → 5964 cents
@@ -61,7 +75,7 @@ class TestAppleMatcher:
     @pytest.mark.apple
     def test_exact_amount_and_date_match(self, matcher, sample_apple_receipts):
         """Test exact amount and date matching."""
-        transaction = {
+        transaction_dict = {
             "id": "test-txn-123",
             "date": "2024-08-15",
             "amount": -32970,  # $32.97 expense in milliunits
@@ -69,8 +83,10 @@ class TestAppleMatcher:
             "account_name": "Chase Credit Card",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         assert len(result.receipts) > 0
@@ -83,7 +99,7 @@ class TestAppleMatcher:
     @pytest.mark.apple
     def test_multi_app_purchase_match(self, matcher, sample_apple_receipts):
         """Test matching to multi-app purchase."""
-        transaction = {
+        transaction_dict = {
             "id": "test-txn-456",
             "date": "2024-08-14",
             "amount": -659620,  # $659.62 expense in milliunits
@@ -91,8 +107,10 @@ class TestAppleMatcher:
             "account_name": "Chase Credit Card",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         assert len(result.receipts) > 0
@@ -105,7 +123,7 @@ class TestAppleMatcher:
     @pytest.mark.apple
     def test_date_window_matching(self, matcher, sample_apple_receipts):
         """Test matching within date window (±2 days)."""
-        transaction = {
+        transaction_dict = {
             "id": "test-txn-789",
             "date": "2024-08-18",  # 2 days after receipt
             "amount": -10980,  # $10.98 expense in milliunits
@@ -113,8 +131,10 @@ class TestAppleMatcher:
             "account_name": "Chase Credit Card",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -130,7 +150,7 @@ class TestAppleMatcher:
     @pytest.mark.apple
     def test_no_matches_found(self, matcher, sample_apple_receipts):
         """Test case where no matches are found."""
-        transaction = {
+        transaction_dict = {
             "id": "test-txn-999",
             "date": "2024-08-20",
             "amount": -99999,  # $999.99 - no matching receipt
@@ -138,8 +158,10 @@ class TestAppleMatcher:
             "account_name": "Chase Credit Card",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -149,7 +171,7 @@ class TestAppleMatcher:
     @pytest.mark.apple
     def test_subscription_identification(self, matcher, sample_apple_receipts):
         """Test identification of subscription transactions."""
-        transaction = {
+        transaction_dict = {
             "id": "test-txn-sub",
             "date": "2024-08-16",
             "amount": -10980,  # $10.98 expense in milliunits
@@ -157,8 +179,10 @@ class TestAppleMatcher:
             "account_name": "Chase Credit Card",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -171,7 +195,7 @@ class TestAppleMatcher:
     @pytest.mark.apple
     def test_apple_id_attribution(self, matcher, sample_apple_receipts):
         """Test Apple ID attribution in matches."""
-        transaction = {
+        transaction_dict = {
             "id": "test-txn-attr",
             "date": "2024-08-15",
             "amount": -32970,  # $32.97 expense in milliunits
@@ -179,8 +203,10 @@ class TestAppleMatcher:
             "account_name": "Chase Credit Card",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         matches = [result] if result.receipts else []
 
@@ -194,29 +220,35 @@ class TestAppleMatcher:
     def test_confidence_scoring_by_date_distance(self, matcher, sample_apple_receipts):
         """Test confidence scoring based on date distance."""
         # Same amount, different dates
-        same_day_transaction = {
-            "id": "test-same-day",
-            "date": "2024-08-15",
-            "amount": -32970,
-            "payee_name": "Apple Store",
-        }
+        same_day_transaction = dict_to_ynab_transaction(
+            {
+                "id": "test-same-day",
+                "date": "2024-08-15",
+                "amount": -32970,
+                "payee_name": "Apple Store",
+            }
+        )
 
-        one_day_off_transaction = {
-            "id": "test-one-day",
-            "date": "2024-08-16",
-            "amount": -32970,
-            "payee_name": "Apple Store",
-        }
+        one_day_off_transaction = dict_to_ynab_transaction(
+            {
+                "id": "test-one-day",
+                "date": "2024-08-16",
+                "amount": -32970,
+                "payee_name": "Apple Store",
+            }
+        )
 
-        two_days_off_transaction = {
-            "id": "test-two-days",
-            "date": "2024-08-17",
-            "amount": -32970,
-            "payee_name": "Apple Store",
-        }
+        two_days_off_transaction = dict_to_ynab_transaction(
+            {
+                "id": "test-two-days",
+                "date": "2024-08-17",
+                "amount": -32970,
+                "payee_name": "Apple Store",
+            }
+        )
 
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(sample_apple_receipts)
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
 
         same_day_result = matcher.match_single_transaction(same_day_transaction, receipts_df)
         one_day_result = matcher.match_single_transaction(one_day_off_transaction, receipts_df)
@@ -231,19 +263,21 @@ class TestAppleMatcher:
     def test_multiple_apple_ids(self, matcher, sample_apple_receipts):
         """Test handling of multiple Apple IDs in receipt data."""
         # Transaction that could match receipts from different Apple IDs
-        transaction = {
+        transaction_dict = {
             "id": "test-multi-id",
             "date": "2024-08-15",
             "amount": -32970,
             "payee_name": "Apple Store",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Add receipt with different Apple ID but same amount/date
         additional_receipts = [
             *sample_apple_receipts,
             {
                 "order_id": "ZZ9YY8XXX",
-                "receipt_date": "Aug 15, 2024",
+                "receipt_date": "2024-08-15",
                 "apple_id": "another@example.com",
                 "total": 3297,  # $32.97 → 3297 cents
                 "items": [{"title": "Different App", "cost": 3297}],  # $32.97 → 3297 cents
@@ -251,7 +285,7 @@ class TestAppleMatcher:
         ]
 
         # Normalize receipts data like the real system does
-        receipts_df = normalize_apple_receipt_data(additional_receipts)
+        receipts_df = receipts_to_list_for_testing(additional_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         # Should find at least one match
@@ -269,17 +303,31 @@ class TestAppleEdgeCases:
     @pytest.mark.apple
     def test_empty_receipts_list(self, matcher):
         """Test matching with empty receipts list."""
-        transaction = {"id": "test-txn", "date": "2024-08-15", "amount": -32970, "payee_name": "Apple Store"}
+        transaction_dict = {
+            "id": "test-txn",
+            "date": "2024-08-15",
+            "amount": -32970,
+            "payee_name": "Apple Store",
+        }
+
+        transaction = dict_to_ynab_transaction(transaction_dict)
 
         # Normalize empty receipts data
-        receipts_df = normalize_apple_receipt_data([])
+        receipts_df = receipts_to_list_for_testing([])
         result = matcher.match_single_transaction(transaction, receipts_df)
         assert not result.receipts
 
     @pytest.mark.apple
     def test_malformed_receipt_data(self, matcher):
         """Test handling of malformed receipt data."""
-        transaction = {"id": "test-txn", "date": "2024-08-15", "amount": -32970, "payee_name": "Apple Store"}
+        transaction_dict = {
+            "id": "test-txn",
+            "date": "2024-08-15",
+            "amount": -32970,
+            "payee_name": "Apple Store",
+        }
+
+        transaction = dict_to_ynab_transaction(transaction_dict)
 
         malformed_receipts = [
             {
@@ -290,34 +338,36 @@ class TestAppleEdgeCases:
 
         # Should handle gracefully
         try:
-            receipts_df = normalize_apple_receipt_data(malformed_receipts)
+            receipts_df = receipts_to_list_for_testing(malformed_receipts)
             result = matcher.match_single_transaction(transaction, receipts_df)
             assert isinstance(result.receipts, list)
-        except (KeyError, ValueError, TypeError):
-            # Acceptable to raise validation errors
+        except (KeyError, ValueError, TypeError, AttributeError):
+            # Acceptable to raise validation errors (including AttributeError from pandas)
             pass
 
     @pytest.mark.apple
     def test_zero_amount_transactions(self, matcher):
         """Test handling of zero amount transactions (free apps)."""
-        transaction = {
+        transaction_dict = {
             "id": "test-free",
             "date": "2024-08-15",
             "amount": 0,  # Free app
             "payee_name": "Apple Store",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         receipts = [
             {
                 "order_id": "free-app",
-                "receipt_date": "Aug 15, 2024",
+                "receipt_date": "2024-08-15",
                 "apple_id": "test@example.com",
                 "total": 0,  # $0.00 → 0 cents
                 "items": [{"title": "Free App", "cost": 0}],  # Free
             }
         ]
 
-        receipts_df = normalize_apple_receipt_data(receipts)
+        receipts_df = receipts_to_list_for_testing(receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         # Should handle free transactions
@@ -326,24 +376,26 @@ class TestAppleEdgeCases:
     @pytest.mark.apple
     def test_very_small_amounts(self, matcher):
         """Test handling of very small transaction amounts."""
-        transaction = {
+        transaction_dict = {
             "id": "test-small",
             "date": "2024-08-15",
             "amount": -990,  # $0.99 in milliunits
             "payee_name": "Apple Store",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         receipts = [
             {
                 "order_id": "small-purchase",
-                "receipt_date": "Aug 15, 2024",
+                "receipt_date": "2024-08-15",
                 "apple_id": "test@example.com",
                 "total": 99,  # $0.99 in cents
                 "items": [{"title": "Small In-App Purchase", "cost": 99}],  # $0.99 in cents
             }
         ]
 
-        receipts_df = normalize_apple_receipt_data(receipts)
+        receipts_df = receipts_to_list_for_testing(receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
 
         assert result.receipts
@@ -352,18 +404,20 @@ class TestAppleEdgeCases:
     @pytest.mark.apple
     def test_large_receipt_collection(self, matcher):
         """Test performance with large number of receipts."""
-        transaction = {
+        transaction_dict = {
             "id": "test-large",
             "date": "2024-08-15",
             "amount": -29990,
             "payee_name": "Apple Store",
         }
 
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
         # Generate large collection of receipts
         large_receipts = [
             {
                 "order_id": f"receipt-{i}",
-                "receipt_date": "Aug 15, 2024",
+                "receipt_date": "2024-08-15",
                 "apple_id": f"user{i}@example.com",
                 "total": 1000 + i,  # Varying amounts in cents ($10.00, $10.01, $10.02, ...)
                 "items": [{"title": f"App {i}", "cost": 1000 + i}],
@@ -375,7 +429,7 @@ class TestAppleEdgeCases:
         import time
 
         start_time = time.time()
-        receipts_df = normalize_apple_receipt_data(large_receipts)
+        receipts_df = receipts_to_list_for_testing(large_receipts)
         result = matcher.match_single_transaction(transaction, receipts_df)
         end_time = time.time()
 
@@ -401,21 +455,23 @@ def test_currency_unit_consistency_with_ynab():
     receipts = [
         {
             "order_id": "TEST123",
-            "receipt_date": "Aug 15, 2024",
+            "receipt_date": "2024-08-15",
             "total": 4599,  # $45.99 in cents (as parser NOW returns)
             "items": [{"title": "Test App", "cost": 4599}],
         }
     ]
 
     # YNAB transaction in milliunits (negative for expense)
-    transaction = {
+    transaction_dict = {
         "id": "tx-001",
         "date": "2024-08-15",
         "amount": -45990,  # $45.99 in milliunits (negative for expense)
         "payee_name": "Apple",
     }
 
-    receipts_df = normalize_apple_receipt_data(receipts)
+    transaction = dict_to_ynab_transaction(transaction_dict)
+
+    receipts_df = receipts_to_list_for_testing(receipts)
     result = matcher.match_single_transaction(transaction, receipts_df)
 
     # Should match because both represent $45.99 (just in different units)

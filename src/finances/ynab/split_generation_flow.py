@@ -11,56 +11,6 @@ from pathlib import Path
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
 
 
-def transform_apple_receipt_data(
-    receipt_data: dict,
-) -> tuple[list[dict], int | None, int | None]:
-    """
-    Transform Apple receipt data from parser format to calculator format.
-
-    Parser format uses int cents and 'cost' field:
-        {"title": "Item", "cost": 1099, ...}  # cents
-        {"subtotal": 1398, "tax": 112, ...}   # cents
-
-    Calculator format uses int cents and 'price' field:
-        {"name": "Item", "price": 1099}  # cents
-        subtotal: 1398, tax: 112         # cents
-
-    Args:
-        receipt_data: Raw receipt data from parser
-
-    Returns:
-        Tuple of (items, subtotal_cents, tax_cents)
-    """
-    # Transform items: rename 'cost' → 'price' for calculator
-    # Parser stores amounts in cents (int), so no conversion needed
-    raw_items = receipt_data.get("items", [])
-    transformed_items = []
-
-    for item in raw_items:
-        # Get cost in cents (parser already stores as int cents)
-        cost_cents = item.get("cost", 0)
-        if not isinstance(cost_cents, int):
-            cost_cents = 0
-
-        # Create transformed item with 'price' field (not 'cost')
-        transformed_item = {
-            "name": item.get("title", "Unknown Item"),
-            "price": cost_cents,  # Calculator expects 'price' not 'cost'
-        }
-        transformed_items.append(transformed_item)
-
-    # Get subtotal and tax in cents (parser stores as int cents, no conversion needed)
-    subtotal_cents = receipt_data.get("subtotal")
-    if subtotal_cents is not None and not isinstance(subtotal_cents, int):
-        subtotal_cents = None
-
-    tax_cents = receipt_data.get("tax")
-    if tax_cents is not None and not isinstance(tax_cents, int):
-        tax_cents = None
-
-    return transformed_items, subtotal_cents, tax_cents
-
-
 class SplitGenerationFlowNode(FlowNode):
     """Generate YNAB splits from transaction matches (manual step)."""
 
@@ -151,7 +101,10 @@ class SplitGenerationFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute split generation from Amazon and Apple match results."""
+        from ..amazon.models import MatchedOrderItem
+        from ..apple.parser import ParsedReceipt
         from ..core.json_utils import read_json, write_json
+        from .models import YnabTransaction
         from .split_calculator import calculate_amazon_splits, calculate_apple_splits
 
         try:
@@ -175,30 +128,36 @@ class SplitGenerationFlowNode(FlowNode):
                         if not best_match or not best_match.get("amazon_orders"):
                             continue
 
-                        # Extract transaction info
-                        ynab_tx = match.get("ynab_transaction", {})
-                        tx_id = ynab_tx.get("id")
-                        tx_amount_milliunits = ynab_tx.get("amount")  # Already in milliunits
+                        # Extract transaction info and create domain model
+                        ynab_tx_dict = match.get("ynab_transaction", {})
+                        tx_id = ynab_tx_dict.get("id")
+                        tx_amount_milliunits = ynab_tx_dict.get("amount")  # Already in milliunits
 
                         if not tx_id or tx_amount_milliunits is None:
                             continue
 
-                        # Amount is already in milliunits and already negative for expenses
+                        # Create YnabTransaction domain model
+                        transaction = YnabTransaction.from_dict(ynab_tx_dict)
 
-                        # Extract items from first order
+                        # Extract items from first order and convert to domain models
                         amazon_order = best_match["amazon_orders"][0]
-                        items = amazon_order.get("items", [])
+                        item_dicts = amazon_order.get("items", [])
 
-                        if not items:
+                        if not item_dicts:
                             continue
 
-                        # Generate splits
+                        # Deserialize items from JSON using MatchedOrderItem (match-layer model)
+                        matched_items = [MatchedOrderItem.from_dict(item_dict) for item_dict in item_dicts]
+
+                        # Generate splits using domain model signature
                         try:
-                            splits = calculate_amazon_splits(tx_amount_milliunits, items)
+                            splits = calculate_amazon_splits(transaction, matched_items)
+                            # Convert YnabSplit objects to dicts for JSON
+                            split_dicts = [s.to_ynab_dict() for s in splits]
                             all_edits.append(
                                 {
                                     "transaction_id": tx_id,
-                                    "splits": splits,
+                                    "splits": split_dicts,
                                     "source": "amazon",
                                 }
                             )
@@ -238,25 +197,32 @@ class SplitGenerationFlowNode(FlowNode):
                         try:
                             receipt_data = read_json(receipt_file)
 
-                            # Transform receipt data from parser format to calculator format
-                            items, subtotal, tax = transform_apple_receipt_data(receipt_data)
+                            # Create ParsedReceipt domain model from dict
+                            receipt = ParsedReceipt.from_dict(receipt_data)
 
-                            if not items:
+                            if not receipt.items:
                                 continue
 
-                            # Convert transaction amount to milliunits
-                            # Note: tx_amount is already negative for expenses (sign preserved)
-                            from ..core.currency import cents_to_milliunits
+                            # Create YnabTransaction domain model
+                            # Note: tx_amount is already in milliunits (from Apple matcher)
+                            transaction = YnabTransaction.from_dict(
+                                {
+                                    "id": tx_id,
+                                    "date": match.get("transaction_date", ""),
+                                    "amount": tx_amount,
+                                }
+                            )
 
-                            tx_amount_milliunits = cents_to_milliunits(tx_amount)
+                            # Generate splits using domain model signature
+                            splits = calculate_apple_splits(transaction, receipt)
 
-                            # Generate splits
-                            splits = calculate_apple_splits(tx_amount_milliunits, items, subtotal, tax)
+                            # Convert YnabSplit objects to dicts for JSON
+                            split_dicts = [s.to_ynab_dict() for s in splits]
 
                             all_edits.append(
                                 {
                                     "transaction_id": tx_id,
-                                    "splits": splits,
+                                    "splits": split_dicts,
                                     "source": "apple",
                                 }
                             )

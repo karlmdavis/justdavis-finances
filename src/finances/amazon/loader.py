@@ -8,7 +8,6 @@ for transaction matching.
 Functions:
 - find_latest_amazon_export: Discover most recent Amazon data export
 - load_orders: Load Amazon order CSVs as domain models
-- orders_to_dataframe: Convert domain models to DataFrame for backward compatibility
 """
 
 import logging
@@ -164,63 +163,3 @@ def load_orders(
         )
 
     return orders_by_account
-
-
-def orders_to_dataframe(orders: list[AmazonOrderItem]) -> pd.DataFrame:
-    """
-    Convert list of AmazonOrderItem domain models to DataFrame.
-
-    Helper function for backward compatibility with matcher/grouper/scorer
-    that still expect DataFrame format.
-
-    TEMPORARY ADAPTER: This function exists only for backward compatibility during
-    the domain model migration. Once matcher/grouper/scorer are updated to work
-    with domain models directly, this function should be removed.
-
-    Note on floating-point usage: This function uses float division (cents / 100.0)
-    for currency display in DataFrames, which normally violates the ZERO Floating
-    Point Tolerance policy. This is acceptable here because:
-    1. This is temporary adapter code (to be removed in Phase 5)
-    2. No arithmetic operations are performed on the floats
-    3. Values are only used for display/comparison in matchers
-    4. All actual financial calculations use integer-based Money objects
-
-    Args:
-        orders: List of AmazonOrderItem objects
-
-    Returns:
-        pandas DataFrame with columns matching CSV format
-    """
-    if not orders:
-        return pd.DataFrame()
-
-    # Convert each order item to dict
-    rows = []
-    for order in orders:
-        row = {
-            "Order ID": order.order_id,
-            "ASIN": order.asin,
-            "Product Name": order.product_name,
-            "Quantity": order.quantity,
-            # Temporary float conversion for DataFrame compatibility
-            # TODO(Phase 5): Remove when matchers use Money directly
-            "Unit Price": order.unit_price.to_cents() / 100.0,
-            "Total Owed": order.total_owed.to_cents() / 100.0,
-            "Order Date": order.order_date.date,
-            "Ship Date": order.ship_date.date if order.ship_date else None,
-            "Category": order.category,
-            "Seller": order.seller,
-            "Condition": order.condition,
-        }
-        rows.append(row)
-
-    # Create DataFrame with proper dtypes
-    df = pd.DataFrame(rows)
-
-    # Ensure date columns are datetime64
-    if "Order Date" in df.columns:
-        df["Order Date"] = pd.to_datetime(df["Order Date"])
-    if "Ship Date" in df.columns:
-        df["Ship Date"] = pd.to_datetime(df["Ship Date"])
-
-    return df

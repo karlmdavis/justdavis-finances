@@ -40,6 +40,7 @@ from .models import (
     MatchResult,
     ProcessingResult,
     Receipt,
+    ReceiptItem,
     Transaction,
     TransactionType,
     validate_match_result,
@@ -60,6 +61,7 @@ __all__ = [
     "Money",
     "ProcessingResult",
     "Receipt",
+    "ReceiptItem",
     # Data models
     "Transaction",
     "TransactionType",

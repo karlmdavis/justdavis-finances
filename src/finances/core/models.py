@@ -7,7 +7,7 @@ These models provide type safety and consistent interfaces for financial data.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -39,17 +39,15 @@ class Transaction:
 
     Represents a financial transaction from any source (YNAB, bank, etc.)
     with standardized fields for consistent processing.
+
+    Note: Field names match YnabTransaction for consistency (date, amount).
     """
 
     id: str
-    date: date | str
-    amount: int  # In milliunits (YNAB standard) - LEGACY
+    date: FinancialDate
+    amount: Money
     description: str
     account_name: str
-
-    # New type-safe fields
-    amount_money: Money | None = None
-    date_obj: FinancialDate | None = None
 
     # Optional fields
     payee_name: str | None = None
@@ -63,39 +61,10 @@ class Transaction:
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    def __post_init__(self) -> None:
-        """Normalize data and sync legacy/modern fields."""
-        # Convert string dates to date objects (legacy behavior)
-        if isinstance(self.date, str):
-            date_str = self.date
-            try:
-                object.__setattr__(self, "date", datetime.strptime(date_str, "%Y-%m-%d").date())
-            except ValueError:
-                # Try other common formats
-                for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
-                    try:
-                        object.__setattr__(self, "date", datetime.strptime(date_str, fmt).date())
-                        break
-                    except ValueError:
-                        continue
-
-        # Sync amount_money with legacy amount field
-        if self.amount_money is not None and self.amount == 0:
-            object.__setattr__(self, "amount", self.amount_money.to_milliunits())
-        elif self.amount_money is None and self.amount != 0:
-            # Create Money from legacy milliunits
-            object.__setattr__(self, "amount_money", Money.from_milliunits(self.amount))
-
-        # Sync date_obj with legacy date field
-        if self.date_obj is not None and isinstance(self.date, str):
-            object.__setattr__(self, "date", self.date_obj.date)
-        elif self.date_obj is None and isinstance(self.date, date):
-            object.__setattr__(self, "date_obj", FinancialDate(date=self.date))
-
     @property
     def transaction_type(self) -> TransactionType:
         """Determine transaction type based on amount."""
-        amount_val = self.amount_money.to_cents() if self.amount_money else self.amount
+        amount_val = self.amount.to_cents()
         if amount_val < 0:
             return TransactionType.EXPENSE
         elif amount_val > 0:
@@ -106,18 +75,61 @@ class Transaction:
     @property
     def amount_cents(self) -> int:
         """Get amount in cents."""
-        # amount_money is always set by __post_init__
-        if self.amount_money is None:
-            raise ValueError("amount_money not initialized")
-        return self.amount_money.to_cents()
+        return self.amount.to_cents()
 
     @property
     def amount_dollars(self) -> str:
         """Get formatted amount as dollar string."""
-        # amount_money is always set by __post_init__
-        if self.amount_money is None:
-            raise ValueError("amount_money not initialized")
-        return str(self.amount_money)
+        return str(self.amount)
+
+
+@dataclass
+class ReceiptItem:
+    """
+    Individual line item from a receipt.
+
+    Provides type-safe representation of purchased items across all vendors.
+    Domain-specific models (ParsedItem, AmazonOrderItem) can extend this structure.
+    """
+
+    name: str
+    cost: Money
+    quantity: int = 1
+
+    # Optional fields
+    category: str | None = None
+    sku: str | None = None
+    unit_price: Money | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "name": self.name,
+            "cost": self.cost.to_cents(),
+            "quantity": self.quantity,
+            "category": self.category,
+            "sku": self.sku,
+            "unit_price": self.unit_price.to_cents() if self.unit_price else None,
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ReceiptItem":
+        """Create ReceiptItem from dictionary."""
+        return cls(
+            name=data["name"],
+            cost=Money.from_cents(data["cost"]) if isinstance(data["cost"], int) else data["cost"],
+            quantity=data.get("quantity", 1),
+            category=data.get("category"),
+            sku=data.get("sku"),
+            unit_price=(
+                Money.from_cents(data["unit_price"])
+                if data.get("unit_price") and isinstance(data["unit_price"], int)
+                else data.get("unit_price")
+            ),
+            metadata=data.get("metadata", {}),
+        )
 
 
 @dataclass
@@ -127,64 +139,28 @@ class Receipt:
 
     Represents a receipt from any vendor (Amazon, Apple, etc.)
     with standardized fields for consistent processing.
+
+    Note: Field names match other domain models for consistency (date, total, etc.).
     """
 
     id: str
-    date: date | str
+    date: FinancialDate
     vendor: str
-    total_amount: int  # In cents - LEGACY
-
-    # New type-safe fields
-    total_money: Money | None = None
-    date_obj: FinancialDate | None = None
+    total: Money
 
     # Optional fields
-    subtotal: int | None = None  # In cents - LEGACY
-    tax_amount: int | None = None  # In cents - LEGACY
-    subtotal_money: Money | None = None
-    tax_money: Money | None = None
+    subtotal: Money | None = None
+    tax: Money | None = None
     customer_id: str | None = None
     order_number: str | None = None
 
-    # Items
-    items: list[dict[str, Any]] = field(default_factory=list)
+    # Items (updated to use ReceiptItem dataclass)
+    items: list[ReceiptItem] = field(default_factory=list)
 
     # Metadata
     source: str = "unknown"
     created_at: datetime | None = None
     raw_data: dict[str, Any] | None = None
-
-    def __post_init__(self) -> None:
-        """Normalize data and sync legacy/modern fields."""
-        # Date conversion (legacy)
-        if isinstance(self.date, str):
-            date_str = self.date
-            try:
-                object.__setattr__(self, "date", datetime.strptime(date_str, "%Y-%m-%d").date())
-            except ValueError:
-                # Try other common formats
-                for fmt in ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
-                    try:
-                        object.__setattr__(self, "date", datetime.strptime(date_str, fmt).date())
-                        break
-                    except ValueError:
-                        continue
-
-        # Sync total_money with legacy total_amount
-        if self.total_money is not None and self.total_amount == 0:
-            object.__setattr__(self, "total_amount", self.total_money.to_cents())
-        elif self.total_money is None and self.total_amount != 0:
-            object.__setattr__(self, "total_money", Money.from_cents(self.total_amount))
-
-        # Sync date_obj
-        if self.date_obj is None and isinstance(self.date, date):
-            object.__setattr__(self, "date_obj", FinancialDate(date=self.date))
-
-        # Sync subtotal and tax
-        if self.subtotal_money is None and self.subtotal is not None:
-            object.__setattr__(self, "subtotal_money", Money.from_cents(self.subtotal))
-        if self.tax_money is None and self.tax_amount is not None:
-            object.__setattr__(self, "tax_money", Money.from_cents(self.tax_amount))
 
     @property
     def item_count(self) -> int:
@@ -194,11 +170,7 @@ class Receipt:
     @property
     def total_dollars(self) -> str:
         """Get formatted total as dollar string."""
-        if self.total_money:
-            return str(self.total_money)
-        from .currency import format_cents
-
-        return format_cents(self.total_amount)
+        return str(self.total)
 
 
 @dataclass
@@ -250,7 +222,24 @@ class MatchResult:
     @property
     def total_receipt_amount(self) -> int:
         """Get total amount of all matched receipts in cents."""
-        return sum(receipt.total_amount for receipt in self.receipts)
+        return sum(receipt.total.to_cents() for receipt in self.receipts)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert match result to dict for JSON serialization."""
+        return {
+            "transaction_id": self.transaction.id,
+            "transaction_date": self.transaction.date.to_iso_string(),
+            "transaction_amount": self.transaction.amount.to_milliunits(),
+            "receipt_ids": [r.id for r in self.receipts],
+            "matched": bool(self.receipts),
+            "confidence": self.confidence,
+            "match_method": self.match_method,
+            "date_difference": self.date_difference,
+            "amount_difference": self.amount_difference,
+            "unmatched_amount": self.unmatched_amount,
+            "strategy_used": self.strategy_used,
+            "notes": self.notes,
+        }
 
 
 @dataclass
@@ -369,18 +358,14 @@ def validate_transaction(transaction: Transaction) -> bool:
         and transaction.date
         and transaction.description
         and transaction.account_name
-        and isinstance(transaction.amount, int)
+        and transaction.amount
     )
 
 
 def validate_receipt(receipt: Receipt) -> bool:
     """Validate a receipt has required fields."""
     return bool(
-        receipt.id
-        and receipt.date
-        and receipt.vendor
-        and isinstance(receipt.total_amount, int)
-        and receipt.total_amount >= 0
+        receipt.id and receipt.date and receipt.vendor and receipt.total and receipt.total.to_cents() >= 0
     )
 
 

@@ -1,128 +1,92 @@
 #!/usr/bin/env python3
-"""Tests for core data models with Money and FinancialDate integration."""
+"""Tests for core data models with Money and FinancialDate."""
 
 from datetime import date
 
 from finances.core import FinancialDate, Money, Receipt, Transaction
 
 
-class TestTransactionWithMoney:
-    """Test Transaction integration with Money type."""
+class TestTransaction:
+    """Test Transaction model."""
 
-    def test_transaction_with_money_object(self):
-        """Test Transaction with explicit Money amount."""
+    def test_transaction_construction(self):
+        """Test Transaction with Money and FinancialDate."""
         tx = Transaction(
             id="test-1",
-            date=date(2024, 1, 15),
-            amount=0,  # Will be sync'd from amount_money
-            amount_money=Money.from_cents(1234),
+            date=FinancialDate(date=date(2024, 1, 15)),
+            amount=Money.from_cents(1234),
             description="Test transaction",
             account_name="Checking",
         )
-        assert tx.amount_money.to_cents() == 1234
-        assert tx.amount == 12340  # Auto-synced to milliunits
+        assert tx.amount.to_cents() == 1234
+        assert tx.date.date == date(2024, 1, 15)
 
-    def test_transaction_auto_creates_money_from_milliunits(self):
-        """Test Transaction auto-creates Money from legacy milliunits with sign preservation."""
+    def test_transaction_with_negative_amount(self):
+        """Test Transaction with negative Money (expense)."""
         tx = Transaction(
             id="test-2",
-            date=date(2024, 1, 15),
-            amount=-12340,  # Negative milliunits (expense)
+            date=FinancialDate(date=date(2024, 1, 15)),
+            amount=Money.from_cents(-1234),
             description="Test transaction",
             account_name="Checking",
         )
-        assert tx.amount_money is not None
-        assert tx.amount_money.to_cents() == -1234  # Sign preserved
-        assert tx.amount == -12340  # Legacy field preserved
+        assert tx.amount.to_cents() == -1234
+        assert tx.date.date == date(2024, 1, 15)
 
-    def test_transaction_amount_dollars_property(self):
-        """Test amount_dollars property uses Money if available."""
+    def test_transaction_properties(self):
+        """Test Transaction computed properties."""
         tx = Transaction(
             id="test-3",
-            date=date(2024, 1, 15),
-            amount=0,
-            amount_money=Money.from_cents(1234),
-            description="Test",
+            date=FinancialDate(date=date(2024, 1, 15)),
+            amount=Money.from_cents(1234),
+            description="Test transaction",
             account_name="Checking",
         )
+        assert tx.amount_cents == 1234
         assert tx.amount_dollars == "$12.34"
+        assert tx.transaction_type.value == "income"
 
 
-class TestTransactionWithFinancialDate:
-    """Test Transaction integration with FinancialDate type."""
+class TestReceipt:
+    """Test Receipt model."""
 
-    def test_transaction_with_financial_date_object(self):
-        """Test Transaction with explicit FinancialDate."""
-        fd = FinancialDate(date=date(2024, 1, 15))
-        tx = Transaction(
-            id="test-1",
-            date_obj=fd,
-            date=date(2024, 1, 15),
-            amount=12340,
-            description="Test transaction",
-            account_name="Checking",
-        )
-        assert tx.date_obj is not None
-        assert tx.date_obj.to_iso_string() == "2024-01-15"
-        assert tx.date == date(2024, 1, 15)
-
-    def test_transaction_auto_creates_financial_date_from_date(self):
-        """Test Transaction auto-creates FinancialDate from legacy date."""
-        tx = Transaction(
-            id="test-2",
-            date=date(2024, 1, 15),
-            amount=12340,
-            description="Test transaction",
-            account_name="Checking",
-        )
-        assert tx.date_obj is not None
-        assert tx.date_obj.date == date(2024, 1, 15)
-
-
-class TestReceiptWithMoney:
-    """Test Receipt integration with Money type."""
-
-    def test_receipt_with_money_objects(self):
-        """Test Receipt with explicit Money amounts."""
+    def test_receipt_construction(self):
+        """Test Receipt with Money and FinancialDate."""
         receipt = Receipt(
             id="receipt-1",
-            date=date(2024, 1, 15),
+            date=FinancialDate(date=date(2024, 1, 15)),
             vendor="Test Vendor",
-            total_amount=0,
-            total_money=Money.from_cents(1234),
-            subtotal_money=Money.from_cents(1000),
-            tax_money=Money.from_cents(234),
+            total=Money.from_cents(1234),
+            subtotal=Money.from_cents(1000),
+            tax=Money.from_cents(234),
         )
-        assert receipt.total_money.to_cents() == 1234
-        assert receipt.subtotal_money.to_cents() == 1000
-        assert receipt.tax_money.to_cents() == 234
+        assert receipt.total.to_cents() == 1234
+        assert receipt.subtotal.to_cents() == 1000
+        assert receipt.tax.to_cents() == 234
+        assert receipt.date.date == date(2024, 1, 15)
 
-    def test_receipt_auto_creates_money_from_cents(self):
-        """Test Receipt auto-creates Money from legacy cents."""
+    def test_receipt_without_optional_fields(self):
+        """Test Receipt without subtotal/tax."""
         receipt = Receipt(
             id="receipt-2",
-            date=date(2024, 1, 15),
+            date=FinancialDate(date=date(2024, 1, 15)),
             vendor="Test Vendor",
-            total_amount=1234,  # Legacy cents
-            subtotal=1000,
-            tax_amount=234,
+            total=Money.from_cents(1234),
         )
-        assert receipt.total_money is not None
-        assert receipt.total_money.to_cents() == 1234
-        assert receipt.subtotal_money.to_cents() == 1000
-        assert receipt.tax_money.to_cents() == 234
+        assert receipt.total.to_cents() == 1234
+        assert receipt.subtotal is None
+        assert receipt.tax is None
+        assert receipt.date.date == date(2024, 1, 15)
 
-
-class TestReceiptWithFinancialDate:
-    """Test Receipt integration with FinancialDate type."""
-
-    def test_receipt_auto_creates_financial_date(self):
-        """Test Receipt auto-creates FinancialDate from legacy date."""
+    def test_receipt_properties(self):
+        """Test Receipt computed properties."""
         receipt = Receipt(
-            id="receipt-1",
-            date=date(2024, 1, 15),
+            id="receipt-3",
+            date=FinancialDate(date=date(2024, 1, 15)),
             vendor="Test Vendor",
-            total_amount=1234,
+            total=Money.from_cents(1234),
+            subtotal=Money.from_cents(1000),
+            tax=Money.from_cents(234),
         )
-        assert receipt.date_obj is not None
-        assert receipt.date_obj.date == date(2024, 1, 15)
+        assert receipt.item_count == 0  # No items
+        assert receipt.total_dollars == "$12.34"

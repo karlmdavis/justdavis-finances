@@ -231,72 +231,49 @@ class AppleMatchingFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute Apple transaction matching."""
-        import pandas as pd
 
-        from ..core.json_utils import read_json
         from ..ynab import filter_transactions_by_payee, load_transactions
-        from .loader import normalize_apple_receipt_data
-        from .matcher import batch_match_transactions
+        from .loader import load_apple_receipts
+        from .matcher import AppleMatcher
 
         try:
-            # Load YNAB transactions using new domain model function
+            # Load YNAB transactions using domain model function
             ynab_cache_dir = self.data_dir / "ynab" / "cache"
             all_transactions_models = load_transactions(ynab_cache_dir)
 
-            # Filter for Apple transactions
-            apple_transactions_models = filter_transactions_by_payee(all_transactions_models, payee="Apple")
+            # Filter for Apple transactions using domain model function
+            apple_transactions = filter_transactions_by_payee(all_transactions_models, payee="Apple")
 
-            # Convert YnabTransaction models to dicts for matcher (temporary adapter)
-            transactions = [
-                {
-                    "id": tx.id,
-                    "amount": tx.amount.to_milliunits(),
-                    "date": tx.date.to_iso_string(),
-                    "payee_name": tx.payee_name,
-                    "memo": tx.memo,
-                    "account_name": tx.account_name,
-                    "cleared": tx.cleared,
-                    "approved": tx.approved,
-                    "account_id": tx.account_id,
-                    "category_name": tx.category_name,
-                }
-                for tx in apple_transactions_models
-            ]
-
-            if not transactions:
+            if not apple_transactions:
                 return FlowResult(
                     success=True,
                     items_processed=0,
                     metadata={"message": "No Apple transactions to match"},
                 )
 
-            # Convert YNAB transactions to DataFrame
-            ynab_df = pd.DataFrame(transactions)
-
-            # Load Apple receipts from JSON files
-            exports_dir = self.data_dir / "apple" / "exports"
-            receipt_files = list(exports_dir.glob("*.json"))
-
-            if not receipt_files:
+            # Load Apple receipts as domain models
+            exports_dir = str(self.data_dir / "apple" / "exports")
+            try:
+                receipt_models = load_apple_receipts(exports_dir)
+            except FileNotFoundError:
                 return FlowResult(
                     success=False,
                     error_message="No parsed Apple receipts found",
                 )
 
-            receipts = []
-            for receipt_file in receipt_files:
-                receipt_data = read_json(receipt_file)
-                receipts.append(receipt_data)
+            # Initialize matcher
+            matcher = AppleMatcher()
 
-            # Normalize Apple receipts to DataFrame
-            apple_df = normalize_apple_receipt_data(receipts)
-
-            # Match transactions
-            match_results = batch_match_transactions(ynab_df, apple_df)
+            # Match transactions using pure domain model signature
+            match_results = []
+            for transaction in apple_transactions:
+                # Pass ParsedReceipt list directly (no DataFrame conversion needed)
+                result = matcher.match_single_transaction(transaction, receipt_models)
+                match_results.append(result)
 
             # Calculate statistics
             matched_count = sum(1 for result in match_results if result.receipts)
-            match_rate = matched_count / len(transactions) if transactions else 0.0
+            match_rate = matched_count / len(apple_transactions) if apple_transactions else 0.0
             total_confidence = sum(result.confidence for result in match_results if result.receipts)
             avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
 
@@ -306,27 +283,15 @@ class AppleMatchingFlowNode(FlowNode):
             result_data = {
                 "metadata": {
                     "timestamp": timestamp,
-                    "receipts_count": len(receipts),
+                    "receipts_count": len(receipt_models),
                 },
                 "summary": {
-                    "total_transactions": len(transactions),
+                    "total_transactions": len(apple_transactions),
                     "matched_transactions": matched_count,
                     "match_rate": match_rate,
                     "average_confidence": avg_confidence,
                 },
-                "matches": [
-                    {
-                        "transaction_id": result.transaction.id if result.transaction else None,
-                        "transaction_amount": result.transaction.amount_cents if result.transaction else None,
-                        "receipt_ids": [r.id for r in result.receipts] if result.receipts else [],
-                        "matched": bool(result.receipts),
-                        "confidence": result.confidence,
-                        "match_method": result.match_method,
-                        "date_difference": result.date_difference,
-                        "amount_difference": result.amount_difference,
-                    }
-                    for result in match_results
-                ],
+                "matches": [result.to_dict() for result in match_results],
             }
 
             self.match_store.save(result_data)
@@ -337,7 +302,7 @@ class AppleMatchingFlowNode(FlowNode):
 
             return FlowResult(
                 success=True,
-                items_processed=len(transactions),
+                items_processed=len(apple_transactions),
                 new_items=matched_count,
                 outputs=[output_file],
                 metadata={

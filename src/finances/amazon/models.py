@@ -6,11 +6,14 @@ Type-safe models representing Amazon Order History CSV data.
 These models match the format of Amazon's Order History Reports CSV export.
 """
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 from ..core.dates import FinancialDate
 from ..core.money import Money
+
+if TYPE_CHECKING:
+    from ..ynab.models import YnabTransaction
 
 
 @dataclass
@@ -187,3 +190,197 @@ class AmazonOrderSummary:
     def item_names(self) -> list[str]:
         """Get list of all product names in this order."""
         return [item.product_name for item in self.items]
+
+
+@dataclass
+class MatchedOrderItem:
+    """
+    Match-layer domain model for items used in split generation.
+
+    Simplified from AmazonOrderItem - contains only fields needed for matching
+    and split generation (no CSV-specific fields like order/ship dates).
+    """
+
+    name: str
+    amount: Money
+    quantity: int
+    asin: str | None = None
+    unit_price: Money | None = None
+
+    @classmethod
+    def from_order_item(cls, item: AmazonOrderItem) -> "MatchedOrderItem":
+        """Create from full AmazonOrderItem (used by grouper)."""
+        return cls(
+            name=item.product_name,
+            amount=item.total_owed,
+            quantity=item.quantity,
+            asin=item.asin,
+            unit_price=item.unit_price,
+        )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "MatchedOrderItem":
+        """Create from dict (used for JSON deserialization only)."""
+        return cls(
+            name=data.get("name", ""),
+            amount=Money.from_cents(data.get("amount", 0)),
+            quantity=data.get("quantity", 1),
+            asin=data.get("asin"),
+            unit_price=Money.from_cents(data["unit_price"]) if data.get("unit_price") is not None else None,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dict for JSON serialization."""
+        return {
+            "name": self.name,
+            "amount": self.amount.to_cents(),
+            "quantity": self.quantity,
+            "asin": self.asin,
+            "unit_price": self.unit_price.to_cents() if self.unit_price is not None else None,
+        }
+
+
+@dataclass
+class OrderGroup:
+    """
+    Group of items representing a matched order/shipment.
+
+    Result of grouping AmazonOrderItems by order_id or shipment.
+    Contains MatchedOrderItem instances (not full AmazonOrderItems).
+    """
+
+    order_id: str
+    items: list[MatchedOrderItem]
+    total: Money
+    order_date: FinancialDate
+    ship_dates: list[FinancialDate]
+    grouping_level: str  # "order" or "shipment"
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "OrderGroup":
+        """Create from dict (used for JSON deserialization only)."""
+        items = [MatchedOrderItem.from_dict(item_dict) for item_dict in data.get("items", [])]
+        ship_dates = [FinancialDate.from_string(d) for d in data.get("ship_dates", [])]
+
+        return cls(
+            order_id=data.get("order_id", ""),
+            items=items,
+            total=Money.from_cents(data.get("total", 0)),
+            order_date=FinancialDate.from_string(data.get("order_date", "")),
+            ship_dates=ship_dates,
+            grouping_level=data.get("grouping_level", "order"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dict for JSON serialization."""
+        return {
+            "order_id": self.order_id,
+            "items": [item.to_dict() for item in self.items],
+            "total": self.total.to_cents(),
+            "order_date": self.order_date.to_iso_string(),
+            "ship_dates": [d.to_iso_string() for d in self.ship_dates],
+            "grouping_level": self.grouping_level,
+        }
+
+
+@dataclass
+class AmazonMatch:
+    """
+    Single Amazon match candidate for a YNAB transaction.
+
+    Represents one possible match between a YNAB transaction and
+    Amazon order(s), with confidence scoring and match method.
+
+    Domain model migration: amazon_orders now stores OrderGroup domain models
+    instead of dicts. Serialization to dict happens at the JSON boundary in to_dict().
+    """
+
+    amazon_orders: list[OrderGroup]  # OrderGroup domain models
+    match_method: str  # "complete_order", "complete_shipment", "split_payment", etc.
+    confidence: float  # 0.0 to 1.0
+    account: str  # Amazon account name (e.g., "karl", "erica")
+    total_match_amount: Money  # Total amount matched
+
+    # Optional fields
+    unmatched_amount: Money = field(default_factory=lambda: Money.from_cents(0))  # For split payments
+    matched_item_indices: list[int] = field(default_factory=list)  # For split payments
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate match data."""
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError(f"Confidence must be between 0.0 and 1.0, got {self.confidence}")
+        if not self.amazon_orders:
+            raise ValueError("AmazonMatch must have at least one order")
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AmazonMatch":
+        """
+        Create AmazonMatch from dict (for JSON deserialization).
+
+        Args:
+            data: Dictionary with match data
+
+        Returns:
+            AmazonMatch instance with OrderGroup domain models
+        """
+        # Convert amazon_orders dicts back to OrderGroup domain models
+        amazon_orders = [OrderGroup.from_dict(order_dict) for order_dict in data["amazon_orders"]]
+
+        return cls(
+            amazon_orders=amazon_orders,
+            match_method=data["match_method"],
+            confidence=float(data["confidence"]),
+            account=data["account"],
+            total_match_amount=Money.from_cents(data["total_match_amount"]),
+            unmatched_amount=Money.from_cents(data.get("unmatched_amount", 0)),
+            matched_item_indices=data.get("matched_item_indices", []),
+            metadata=data.get("metadata", {}),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert to dict for JSON serialization.
+
+        Returns:
+            Dictionary with all match fields in JSON-compatible format.
+            OrderGroup domain models are converted to dicts at this boundary.
+        """
+        return {
+            "account": self.account,
+            "amazon_orders": [order.to_dict() for order in self.amazon_orders],
+            "match_method": self.match_method,
+            "confidence": self.confidence,
+            "total_match_amount": self.total_match_amount.to_cents(),
+            "unmatched_amount": self.unmatched_amount.to_cents(),
+            "matched_item_indices": self.matched_item_indices,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class AmazonMatchResult:
+    """
+    Result of matching a YNAB transaction against Amazon orders.
+
+    Contains the YNAB transaction, all match candidates, the best match,
+    and optional messaging about the match process.
+    """
+
+    transaction: "YnabTransaction"  # Forward reference to avoid circular import
+    matches: list[AmazonMatch]  # All match candidates
+    best_match: AmazonMatch | None  # Best match selected
+
+    # Optional fields
+    message: str | None = None  # e.g., "Not an Amazon transaction"
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def has_matches(self) -> bool:
+        """Check if any matches were found."""
+        return len(self.matches) > 0
+
+    @property
+    def match_count(self) -> int:
+        """Get number of match candidates."""
+        return len(self.matches)

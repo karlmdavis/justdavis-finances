@@ -93,6 +93,161 @@ finances ynab generate-splits --input-file data/amazon/transaction_matches/resul
 - **Output**: `data/cash_flow/charts/` - Professional 6-panel dashboards.
 - **Features**: Statistical modeling, trend detection, volatility analysis, export options.
 
+### Domain Model Usage Examples
+
+The codebase uses typed domain models throughout for type safety and reliability.
+All financial processing uses pure Python dataclasses with Money and FinancialDate primitives.
+
+#### YNAB Split Generation Models
+
+**YnabSplit** - Individual split (subtransaction) for transaction edits:
+```python
+from finances.ynab.models import YnabSplit
+from finances.core import Money
+
+# Create a split for an Amazon item
+split = YnabSplit(
+    amount=Money.from_milliunits(-12340),  # -$12.34 (negative for expenses)
+    memo="Arduino Starter Kit (qty: 1)",
+    category_id="cat_abc123",  # Optional category assignment
+    payee_id=None  # Optional payee override
+)
+
+# Convert to YNAB API format
+split_dict = split.to_ynab_dict()
+# Result: {"amount": -12340, "memo": "Arduino Starter Kit (qty: 1)", "category_id": "cat_abc123"}
+```
+
+**TransactionSplitEdit** - Split edit for a single transaction:
+```python
+from finances.ynab.models import TransactionSplitEdit, YnabTransaction
+
+# Create edit batch for a transaction
+edit = TransactionSplitEdit(
+    transaction_id="tx_xyz789",
+    transaction=transaction_obj,  # Full YnabTransaction context
+    splits=[split1, split2, split3],  # List of YnabSplit objects
+    source="amazon",  # "amazon" or "apple"
+    confidence=0.95,  # Match confidence score
+    metadata={"order_id": "123-456"}  # Additional context
+)
+
+# Serialize for JSON output
+edit_dict = edit.to_dict()
+```
+
+**SplitEditBatch** - Batch of splits for file output:
+```python
+from finances.ynab.models import SplitEditBatch
+
+# Create batch of edits
+batch = SplitEditBatch(
+    edits=[edit1, edit2, edit3],
+    timestamp="2024-10-17_15-30-45",
+    amazon_count=2,
+    apple_count=1
+)
+
+# Write to JSON file
+batch_dict = batch.to_dict()
+# Structure: {"metadata": {...}, "edits": [...]}
+```
+
+#### Amazon Match Models
+
+**MatchedOrderItem** - Order item with allocated tax/shipping:
+```python
+from finances.amazon.models import MatchedOrderItem, AmazonOrderItem
+from finances.core import Money, FinancialDate
+
+# Convert raw order item to match-layer model
+order_item = AmazonOrderItem(...)  # From CSV loader
+matched_item = MatchedOrderItem.from_order_item(
+    order_item=order_item,
+    allocated_tax=Money.from_cents(127),  # Proportionally allocated tax
+    allocated_shipping=Money.from_cents(599)  # Proportionally allocated shipping
+)
+
+# Access total amount (item cost + allocated tax + shipping)
+total = matched_item.amount  # Money object with full allocated amount
+```
+
+**OrderGroup** - Grouped orders for matching strategies:
+```python
+from finances.amazon.models import OrderGroup
+
+# Group created by grouping logic
+group = OrderGroup(
+    order_id="123-456",
+    ship_date=FinancialDate.from_string("2024-10-15"),
+    items=[matched_item1, matched_item2],
+    total_amount=Money.from_cents(4599)
+)
+
+# Access group properties
+print(f"Order {group.order_id}: {group.total_amount} ({len(group.items)} items)")
+```
+
+#### Apple Receipt Models
+
+**ParsedReceipt** - Parsed Apple receipt with typed fields:
+```python
+from finances.apple.parser import ParsedReceipt, ParsedItem
+
+# Create receipt from parser
+receipt = ParsedReceipt(
+    order_id="M123456789",
+    receipt_date=FinancialDate.from_string("2024-10-15"),
+    apple_id="user@example.com",
+    total=Money.from_cents(3299),  # $32.99
+    subtotal=Money.from_cents(2999),
+    tax=Money.from_cents(300),
+    items=[
+        ParsedItem(
+            title="App Subscription",
+            cost=Money.from_cents(999),
+            quantity=1,
+            subscription=True
+        ),
+        ParsedItem(
+            title="In-App Purchase",
+            cost=Money.from_cents(2000),
+            quantity=1,
+            subscription=False
+        )
+    ],
+    format_detected="modern_custom"
+)
+
+# All fields are typed (Money, FinancialDate)
+assert isinstance(receipt.total, Money)
+assert isinstance(receipt.receipt_date, FinancialDate)
+```
+
+#### Working with Domain Models
+
+**Type Safety with Money Primitives:**
+```python
+# Using typed domain models
+tx_amount = transaction.amount  # Money object - type is explicit
+if tx_amount.to_cents() < 0:  # Explicit unit conversion required
+    # Handle expense
+    ...
+
+# Money enforces integer-only arithmetic
+split_amount = Money.from_milliunits(-12340)
+assert split_amount.to_cents() == -1234  # Automatic conversion
+assert str(split_amount) == "-$12.34"  # Pretty formatting
+```
+
+**Domain Model Filtering:**
+```python
+# Using domain models with standard Python operations
+orders = [AmazonOrderItem.from_dict(d) for d in orders_data]
+filtered = [o for o in orders if o.ship_date == target_date]
+# Result is list[AmazonOrderItem] - fully typed, no conversions needed
+```
+
 
 ### Data Structure Notes
 
@@ -180,7 +335,52 @@ This repository uses a **PR-based workflow** with branch protection rules enforc
 **PR description requirements:**
 - **Summary**: 1-3 bullet points explaining what changed and why.
 - **Test plan**: How the changes were tested (commands run, test coverage, manual verification).
+- **Success criteria**: Include the evergreen success criteria checklist (see below).
 - **Context**: Link to related issues or provide background for the change.
+
+### PR Success Criteria
+
+**Every pull request must include a "Success Criteria" section** in the PR description with the following checklist.
+Copy this template when creating PRs:
+
+#### General Criteria (Required for All PRs)
+
+1. ☐ **dev/todos.md entries marked complete** - Mark relevant TODO items as done with commit references
+2. ☐ **PR description updated** - Include summary, test plan, success criteria, and context
+3. ☐ **No legacy/backward compatibility code** - New code uses current best practices and domain models
+4. ☐ **No stubbed/incomplete code** - All implementations are complete and tested
+5. ☐ **No TODO/FIXME without approval** - All TODOs tracked in GitHub issues with references
+6. ☐ **No needless duplication** - Code reuses existing utilities and follows DRY principles
+7. ☐ **All CI checks pass locally** - Tests pass, mypy succeeds, ruff/black formatting correct
+8. ☐ **Work committed and pushed** - All changes committed with descriptive messages and pushed to remote
+9. ☐ **Code review recommendations addressed** - All Claude Code Review or human review feedback implemented
+
+#### Task-Specific Criteria
+
+Add task-specific criteria based on the work being done.
+Examples:
+
+**For refactoring PRs:**
+- ☐ No functionality changes (existing tests still pass without modification)
+- ☐ Test coverage maintained or improved
+- ☐ Performance benchmarks maintained or improved
+
+**For new feature PRs:**
+- ☐ Feature documentation added to CLAUDE.md or relevant docs
+- ☐ E2E tests added for main user workflows
+- ☐ CLI commands include --help documentation
+
+**For bug fix PRs:**
+- ☐ Test added that reproduces the bug (fails before fix, passes after)
+- ☐ Root cause documented in PR description or commit message
+- ☐ Related bugs checked for similar issues
+
+**For domain model migrations:**
+- ☐ Migration plan marked complete in dev/plans/
+- ☐ DataFrame usage verified (only in acceptable locations)
+- ☐ Dict usage verified (only for JSON serialization boundaries)
+- ☐ All new models have to_dict/from_dict methods
+- ☐ All models use Money and FinancialDate primitives
 
 ### Testing Philosophy and Strategy
 
@@ -503,3 +703,111 @@ Key implementation details:
 - **94.7% accuracy**: Maintained high match rate with simplified, reliable architecture.
 - **Professional CLI**: `finances amazon` commands for batch and single transaction
   processing.
+
+### Domain Model Migration Best Practices
+
+This project follows a bottom-up migration strategy when introducing typed domain models.
+
+**Recommended Approach:**
+1. **Bottom-up approach**: Loaders → Calculators → Matchers → Flow
+2. **Domain model first**: Define typed models before updating consumers
+3. **Test-driven**: Write domain model tests before migration
+4. **Incremental rollout**: One module at a time to minimize risk
+
+**Key Architecture Principles:**
+
+1. **Type Safety Prevents Bugs**
+   - Money/FinancialDate primitives catch unit conversion errors at compile time
+   - mypy strict mode prevents incorrect cents/milliunits usage
+   - Explicit type boundaries eliminate "is this cents or milliunits?" confusion
+
+2. **Domain Models Simplify Code**
+   - List comprehensions with typed models replace complex DataFrame operations
+   - No intermediate conversion overhead (DataFrame → dict → model)
+   - Clearer code: `order.amount` vs `row["amount"]` (fragile string keys)
+
+3. **Typed Models Enable Better Testing**
+   - Can test business logic without mocking DataFrame operations
+   - Test data is self-documenting: `Money.from_cents(1234)` vs `1234` (ambiguous)
+   - Integration tests run faster without DataFrame conversion overhead
+
+4. **Migration Order Matters**
+   - **Bottom-up wins**: Start with loaders, work up to flow nodes
+   - **Top-down fails**: Changing matchers first forces simultaneous changes across layers
+   - **Test each layer**: Don't commit untested migration steps
+
+5. **Avoid Premature Abstraction**
+   - Don't create "universal" DataFrame adapters - commit to domain models
+   - Temporary backward compatibility adds complexity - complete the migration
+   - If you need both dict and domain model signatures, you're not done migrating
+
+**Common Pitfalls:**
+
+❌ **Mixing DataFrames and Domain Models**
+```python
+# BAD: Half-migrated code
+orders_df = load_orders()  # Returns DataFrame
+orders = [AmazonOrderItem.from_dict(row.to_dict()) for _, row in orders_df.iterrows()]
+# Just load domain models directly!
+```
+
+❌ **Lossy Type Conversions**
+```python
+# BAD: Losing type information
+amount_cents = item.amount.to_cents()  # Money → int
+amount_milliunits = cents_to_milliunits(amount_cents)  # int → int
+# GOOD: Direct conversion
+amount_milliunits = item.amount.to_milliunits()  # Money → int (one step)
+```
+
+❌ **Testing Implementation Details**
+```python
+# BAD: Testing dict structure
+assert result["amount"] == 1234
+# GOOD: Testing business behavior
+assert result.amount.to_cents() == 1234
+```
+
+**Success Indicators:**
+
+When a module is fully migrated to domain models, you should see:
+- Zero DataFrame usage outside CSV parsing and analysis layers
+- Zero dict-based function signatures (except JSON serialization)
+- 100% domain model coverage in business logic (matchers, calculators)
+- All tests passing with mypy strict mode showing zero errors
+- Clearer code with type hints throughout
+
+**Migration Checklist:**
+
+Use this checklist when migrating a module from DataFrame/dict-based code to domain models:
+
+1. ☐ **Define Domain Models**
+   - Create typed dataclasses with Money/FinancialDate
+   - Add `from_dict()` and `to_dict()` serialization methods
+   - Write comprehensive unit tests for models
+
+2. ☐ **Update Data Loaders**
+   - Change loaders to return `list[DomainModel]` instead of DataFrame/dicts
+   - Update integration tests to verify domain model output
+   - Remove DataFrame conversion code
+
+3. ☐ **Migrate Business Logic**
+   - Update calculators and matchers to accept domain models
+   - Remove dict access patterns (`obj["field"]` → `obj.field`)
+   - Simplify logic with type-safe operations
+
+4. ☐ **Update Flow Nodes**
+   - Change CLI commands to use domain model signatures
+   - Update E2E tests to verify end-to-end flow
+   - Remove temporary adapters and backward compatibility code
+
+5. ☐ **Verify & Clean Up**
+   - Run full test suite (E2E, integration, unit)
+   - Run mypy in strict mode
+   - Search codebase for DataFrame usage: `rg "pd\.DataFrame|\.to_dict\(\"records\"\)"`
+   - Remove unused imports (pandas, dict converters)
+
+**Resources:**
+- Example planning document: `dev/plans/phase-4.5-domain-model-completion.md`
+- Domain model tests: `tests/unit/test_core/test_models.py`
+- Implementation examples: `src/finances/amazon/matcher.py`, `src/finances/apple/matcher.py`

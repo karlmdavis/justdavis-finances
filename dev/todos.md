@@ -32,19 +32,24 @@
 
 ## Major Items
 
-- [ ] Get more serious about data flow schemas.
-    - [ ] Apple receipt parsing and Amazon order parsing should each produce result objects modeled
+- [X] Get more serious about data flow schemas.
+      Completed in Phase 4.5 (PR #14) - Complete DataFrame elimination and domain model migration.
+    - [X] Apple receipt parsing and Amazon order parsing should each produce result objects modeled
             by a class and JSON schema that most naturally represent the actual data.
-    - [ ] The Apple and Amazon matchers should use those parsed object classes to load parse results.
+            Completed: ParsedReceipt, AmazonOrderItem domain models with from_dict/to_dict methods.
+    - [X] The Apple and Amazon matchers should use those parsed object classes to load parse results.
           They should then apply any transformations needed to each record via a view transform class,
             e.g., AppleReceipt --> AppleReceiptForMatching.
           That view class should be the only format used for that "side" of the data in matching logic.
-    - [ ] The split edit generator input should be modeled by a YnabTransactionExternalDetails class,
+          Completed: MatchedOrderItem provides transformed view of AmazonOrderItem with allocated tax/shipping.
+    - [X] The split edit generator input should be modeled by a YnabTransactionExternalDetails class,
             or something like it, which represents the receipt/order matches that were found,
             associating a YNAB transaction ID with a potential match's line items.
           The Apple and Amazon matchers should produce their output in this exact format/class.
-    - [ ] Every step after receipt/order parsing should use standard primitive types
+          Completed: YnabSplit, TransactionSplitEdit, SplitEditBatch domain models.
+    - [X] Every step after receipt/order parsing should use standard primitive types
             for currency and dates.
+            Completed: Money and FinancialDate primitives used throughout all domain models.
 - [ ] Figure out what version of Python we want to target,
         and remove any unnecessary compatibility comprises.
 - [ ] Make `--nodes-excluded` not transitive, as this breaks its usefulness in a test scenario.

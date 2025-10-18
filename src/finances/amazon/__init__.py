@@ -20,20 +20,22 @@ Current Performance: 94.7% match rate with simplified architecture
 
 from .grouper import (
     GroupingLevel,
-    get_order_candidates,
     group_orders,
 )
 from .loader import (
     find_latest_amazon_export,
     load_orders,
-    orders_to_dataframe,
 )
 from .matcher import (
     SimplifiedMatcher,
 )
 from .models import (
+    AmazonMatch,
+    AmazonMatchResult,
     AmazonOrderItem,
     AmazonOrderSummary,
+    MatchedOrderItem,
+    OrderGroup,
 )
 from .scorer import (
     ConfidenceThresholds,
@@ -45,23 +47,19 @@ from .split_matcher import (
 )
 
 __all__ = [
-    # Domain models
+    "AmazonMatch",
+    "AmazonMatchResult",
     "AmazonOrderItem",
     "AmazonOrderSummary",
-    # Match scoring
     "ConfidenceThresholds",
-    # Order grouping
     "GroupingLevel",
     "MatchScorer",
     "MatchType",
-    # Main matcher
+    "MatchedOrderItem",
+    "OrderGroup",
     "SimplifiedMatcher",
-    # Split payment matching
     "SplitPaymentMatcher",
-    # Data loading
     "find_latest_amazon_export",
-    "get_order_candidates",
     "group_orders",
     "load_orders",
-    "orders_to_dataframe",
 ]

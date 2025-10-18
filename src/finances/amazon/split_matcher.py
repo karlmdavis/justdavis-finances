@@ -10,11 +10,14 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from ..core.json_utils import read_json, write_json_with_defaults
+
+if TYPE_CHECKING:
+    from .models import AmazonMatch
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +191,7 @@ class SplitPaymentMatcher:
 
         return unique_results
 
-    def match_split_payment(self, ynab_tx: dict, order_data: dict, account_name: str) -> dict | None:
+    def match_split_payment(self, ynab_tx: dict, order_data: dict, account_name: str) -> "AmazonMatch | None":
         """
         Attempt to match a YNAB transaction to part of an order.
 
@@ -298,25 +301,58 @@ class SplitPaymentMatcher:
         # Split payment indicator - slightly reduce confidence for splits
         confidence *= 0.95
 
-        match_result = {
-            "account": account_name,
-            "amazon_orders": [
-                {
-                    "order_id": order_id,
-                    "items": matched_items_data,
-                    "total": matched_total,
-                    "ship_dates": order_data.get("ship_dates", []),
-                    "order_date": order_data.get("order_date"),
-                    "is_partial": True,
-                    "matched_item_indices": best_combination,
-                }
-            ],
-            "match_method": "split_payment",
-            "confidence": round(confidence, 2),
-            "unmatched_amount": ynab_amount - matched_total,
-        }
+        from ..core.dates import FinancialDate
+        from ..core.money import Money
+        from .models import AmazonMatch, MatchedOrderItem, OrderGroup
 
-        return match_result
+        # Convert matched items data to MatchedOrderItem domain models
+        matched_items_models = [MatchedOrderItem.from_dict(item) for item in matched_items_data]
+
+        # Parse ship dates to FinancialDate objects
+        ship_dates_parsed = []
+        for ship_date in order_data.get("ship_dates", []):
+            if pd.isna(ship_date):
+                continue
+            if hasattr(ship_date, "date"):
+                ship_dates_parsed.append(FinancialDate(date=ship_date.date()))
+            elif isinstance(ship_date, str):
+                try:
+                    ship_dates_parsed.append(FinancialDate.from_string(ship_date))
+                except (ValueError, TypeError):
+                    continue
+
+        # Parse order_date robustly (might be datetime, pandas Timestamp, or string)
+        order_date_raw = order_data.get("order_date")
+        if hasattr(order_date_raw, "date"):
+            # pandas Timestamp or datetime object
+            order_date_parsed = FinancialDate(date=order_date_raw.date())  # type: ignore[union-attr]
+        elif isinstance(order_date_raw, str):
+            # String - extract just the date part (handle "YYYY-MM-DDTHH:MM:SS" format)
+            date_str = order_date_raw.split("T")[0] if "T" in order_date_raw else order_date_raw
+            order_date_parsed = FinancialDate.from_string(date_str)
+        else:
+            # Fallback to today if order_date is missing or invalid
+            order_date_parsed = FinancialDate.today()
+
+        # Create OrderGroup domain model for split payment match
+        order_group = OrderGroup(
+            order_id=order_id,
+            items=matched_items_models,
+            total=Money.from_cents(matched_total),
+            order_date=order_date_parsed,
+            ship_dates=ship_dates_parsed,
+            grouping_level="order",
+        )
+
+        return AmazonMatch(
+            account=account_name,
+            amazon_orders=[order_group],
+            match_method="split_payment",
+            confidence=round(confidence, 2),
+            total_match_amount=Money.from_cents(matched_total),
+            unmatched_amount=Money.from_cents(ynab_amount - matched_total),
+            matched_item_indices=best_combination,
+        )
 
     def record_match(self, transaction_id: str, order_id: str, item_indices: list[int]) -> None:
         """

@@ -15,6 +15,7 @@ from typing import Any
 import pandas as pd
 
 from ..core.config import get_config
+from .parser import ParsedReceipt
 
 logger = logging.getLogger(__name__)
 
@@ -62,15 +63,18 @@ def find_latest_apple_export(base_path: str | None = None) -> str | None:
     return str(latest_dir)
 
 
-def load_apple_receipts(export_path: str | None = None) -> list[dict[str, Any]]:
+def load_apple_receipts(export_path: str | None = None) -> list[ParsedReceipt]:
     """
-    Load Apple receipts from the latest export.
+    Load Apple receipts from individual JSON files as domain models.
+
+    The Apple receipt parsing flow writes individual JSON files (one per receipt),
+    so this loader reads all *.json files from the export directory.
 
     Args:
         export_path: Optional specific export path, otherwise finds latest
 
     Returns:
-        List of receipt dictionaries
+        List of ParsedReceipt domain models with typed fields (Money, FinancialDate)
     """
     if export_path is None:
         # Find the latest export directory
@@ -79,85 +83,89 @@ def load_apple_receipts(export_path: str | None = None) -> list[dict[str, Any]]:
             raise FileNotFoundError("No Apple receipt exports found")
         export_path = latest_export
 
-    # Load the combined receipts file
-    receipts_file = Path(export_path) / "all_receipts_combined.json"
-    if not receipts_file.exists():
-        raise FileNotFoundError(f"Receipt file not found: {receipts_file}")
+    export_dir = Path(export_path)
 
-    with open(receipts_file) as f:
-        receipts_data: list[dict[str, Any]] = json.load(f)
+    # Load all individual JSON receipt files
+    json_files = list(export_dir.glob("*.json"))
+    if not json_files:
+        raise FileNotFoundError(f"No Apple receipt JSON files found in {export_dir}")
 
-    logger.info("Loaded %d Apple receipts from %s", len(receipts_data), export_path)
-    return receipts_data
+    receipts_data = []
+    for json_file in json_files:
+        with open(json_file) as f:
+            receipt_dict = json.load(f)
+            receipts_data.append(receipt_dict)
+
+    # Convert dicts to domain models
+    receipts = [ParsedReceipt.from_dict(receipt_dict) for receipt_dict in receipts_data]
+
+    logger.info("Loaded %d Apple receipts from %s", len(receipts), export_dir)
+    return receipts
 
 
-def normalize_apple_receipt_data(receipts: list[dict[str, Any]]) -> pd.DataFrame:
+def receipts_to_dataframe(receipts: list[ParsedReceipt]) -> pd.DataFrame:
     """
-    Normalize Apple receipt data into a standardized DataFrame.
+    Convert ParsedReceipt domain models to DataFrame (temporary adapter).
+
+    This is a temporary adapter for code that still uses DataFrames.
+    New code should work directly with ParsedReceipt domain models.
 
     Args:
-        receipts: Raw receipt data from JSON
+        receipts: List of ParsedReceipt domain models
 
     Returns:
-        DataFrame with normalized receipt data
+        DataFrame with receipt data
     """
     normalized_data = []
 
     for receipt in receipts:
-        # Extract core receipt information
+        # Convert domain model to dict format for DataFrame
         try:
-            # Parse receipt date to standard format
-            receipt_date_str = receipt.get("receipt_date", "")
-            receipt_date = parse_apple_date(receipt_date_str)
-
-            # Skip receipts without valid dates
-            if receipt_date is None:
-                logger.warning(
-                    "Skipping receipt %s due to invalid date: '%s'",
-                    receipt.get("order_id", "unknown"),
-                    receipt_date_str,
-                )
-                continue
-
-            # Get total amount in cents (parser now returns integer cents)
-            total = receipt.get("total", 0)
-            if total is None:
-                total = 0
-
-            # Get subtotal and tax in cents (parser returns integer cents)
-            subtotal = receipt.get("subtotal")
-            tax = receipt.get("tax")
+            # Get receipt date as datetime
+            receipt_date = None
+            receipt_date_str = ""
+            if receipt.receipt_date:
+                receipt_date_str = receipt.receipt_date.to_iso_string()
+                receipt_date = parse_apple_date(receipt_date_str)
 
             # Create normalized record
             normalized_record = {
-                "apple_id": receipt.get("apple_id", ""),
+                "apple_id": receipt.apple_id or "",
                 "receipt_date": receipt_date,
                 "receipt_date_str": receipt_date_str,
-                "order_id": receipt.get("order_id", ""),
-                "document_number": receipt.get("document_number", ""),
-                "total": total,  # Amount in integer cents (e.g., 4599 for $45.99)
-                "currency": receipt.get("currency", "USD"),
-                "subtotal": subtotal,  # Amount in cents
-                "tax": tax,  # Amount in cents
-                "items": receipt.get("items", []),
-                "format_detected": receipt.get("format_detected", ""),
-                "base_name": receipt.get("base_name", ""),
-                "item_count": len(receipt.get("items", [])),
+                "order_id": receipt.order_id or "",
+                "document_number": receipt.document_number or "",
+                "total": receipt.total.to_cents() if receipt.total else 0,
+                "currency": receipt.currency,
+                "subtotal": receipt.subtotal.to_cents() if receipt.subtotal else None,
+                "tax": receipt.tax.to_cents() if receipt.tax else None,
+                "items": [
+                    {
+                        "title": item.title,
+                        "cost": item.cost.to_cents(),
+                        "quantity": item.quantity,
+                        "subscription": item.subscription,
+                    }
+                    for item in receipt.items
+                ],
+                "format_detected": receipt.format_detected or "",
+                "base_name": receipt.base_name or "",
+                "item_count": len(receipt.items),
             }
 
             normalized_data.append(normalized_record)
 
-        except (KeyError, ValueError, TypeError) as e:
-            logger.warning("Failed to normalize receipt %s: %s", receipt.get("order_id", "unknown"), e)
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Failed to convert receipt %s: %s", receipt.order_id or "unknown", e)
             continue
 
     df = pd.DataFrame(normalized_data)
 
     # Sort by receipt date for easier processing
-    if not df.empty:
+    if not df.empty and "receipt_date" in df.columns:
         df = df.sort_values("receipt_date")
 
-    logger.info("Normalized %d receipts successfully", len(df))
+    logger.info("Converted %d receipts to DataFrame", len(df))
     return df
 
 

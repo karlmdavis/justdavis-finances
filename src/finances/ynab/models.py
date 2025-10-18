@@ -6,7 +6,7 @@ Type-safe models representing YNAB API data structures.
 These models are true to the YNAB API format and use Money/FinancialDate primitives.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ..core.dates import FinancialDate
@@ -303,3 +303,87 @@ class YnabTransaction:
     def is_transfer(self) -> bool:
         """Check if this is a transfer transaction."""
         return self.transfer_account_id is not None
+
+
+@dataclass
+class YnabSplit:
+    """
+    Individual split (subtransaction) for YNAB transaction edits.
+
+    Represents one line item in a split transaction that will be
+    sent to YNAB for application.
+    """
+
+    amount: Money  # Split amount (negative for expenses)
+    memo: str
+    category_id: str | None = None
+    payee_id: str | None = None
+
+    def to_ynab_dict(self) -> dict[str, Any]:
+        """Convert to YNAB API format (milliunits dict)."""
+        result: dict[str, Any] = {
+            "amount": self.amount.to_milliunits(),
+            "memo": self.memo,
+        }
+        if self.category_id:
+            result["category_id"] = self.category_id
+        if self.payee_id:
+            result["payee_id"] = self.payee_id
+        return result
+
+
+@dataclass
+class TransactionSplitEdit:
+    """
+    Split edit for a single YNAB transaction.
+
+    Contains the transaction ID and list of splits to apply,
+    along with source information for audit trail.
+    """
+
+    transaction_id: str
+    transaction: YnabTransaction  # Full transaction context
+    splits: list[YnabSplit]
+    source: str  # "amazon" or "apple"
+    confidence: float | None = None  # Match confidence
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict."""
+        result: dict[str, Any] = {
+            "transaction_id": self.transaction_id,
+            "splits": [s.to_ynab_dict() for s in self.splits],
+            "source": self.source,
+        }
+        if self.confidence is not None:
+            result["confidence"] = self.confidence
+        if self.metadata:
+            result["metadata"] = self.metadata
+        return result
+
+
+@dataclass
+class SplitEditBatch:
+    """
+    Batch of split edits for writing to file.
+
+    Contains multiple transaction edits along with metadata
+    about the batch generation process.
+    """
+
+    edits: list[TransactionSplitEdit]
+    timestamp: str
+    amazon_count: int = 0
+    apple_count: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict for file output."""
+        return {
+            "metadata": {
+                "timestamp": self.timestamp,
+                "amazon_matches_processed": self.amazon_count,
+                "apple_matches_processed": self.apple_count,
+                "total_edits": len(self.edits),
+            },
+            "edits": [edit.to_dict() for edit in self.edits],
+        }
