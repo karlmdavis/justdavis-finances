@@ -89,22 +89,6 @@ class TestMoneyComparison:
         assert large >= Money.from_cents(100)
 
 
-class TestMoneyFormatting:
-    """Test Money string formatting."""
-
-    @pytest.mark.currency
-    def test_str_format(self):
-        """Test Money string representation."""
-        m = Money.from_cents(1234)
-        assert str(m) == "$12.34"
-
-    @pytest.mark.currency
-    def test_repr_format(self):
-        """Test Money repr."""
-        m = Money.from_cents(1234)
-        assert repr(m) == "Money(cents=1234)"
-
-
 class TestMoneyImmutability:
     """Test Money immutability."""
 

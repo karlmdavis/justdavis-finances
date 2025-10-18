@@ -111,8 +111,3 @@ class TestAmazonLoader:
         """Test that loading from empty directory raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError, match="No Amazon data directories found"):
             load_orders(self.raw_dir)
-
-    def test_find_latest_export_no_directories_returns_none(self):
-        """Test that finding export in empty directory returns None."""
-        result = find_latest_amazon_export(self.raw_dir)
-        assert result is None

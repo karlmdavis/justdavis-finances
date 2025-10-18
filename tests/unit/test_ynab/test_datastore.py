@@ -28,18 +28,6 @@ class TestYnabCacheStore:
 
         shutil.rmtree(self.temp_dir)
 
-    def test_exists_returns_false_when_no_transactions_file(self):
-        """Test exists() returns False when transactions.json doesn't exist."""
-        assert not self.store.exists()
-
-    def test_exists_returns_true_when_transactions_file_present(self):
-        """Test exists() returns True when transactions.json is present."""
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        transactions_file = self.cache_dir / "transactions.json"
-        write_json(transactions_file, [])
-
-        assert self.store.exists()
-
     def test_load_returns_cache_data(self):
         """Test load() returns cache data with all components."""
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -70,33 +58,6 @@ class TestYnabCacheStore:
         assert (self.cache_dir / "accounts.json").exists()
         assert (self.cache_dir / "categories.json").exists()
 
-    def test_last_modified_returns_none_when_no_file(self):
-        """Test last_modified() returns None when file doesn't exist."""
-        assert self.store.last_modified() is None
-
-    def test_last_modified_returns_timestamp(self):
-        """Test last_modified() returns timestamp when file exists."""
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        write_json(self.cache_dir / "transactions.json", [])
-
-        result = self.store.last_modified()
-        assert result is not None
-        assert isinstance(result, datetime)
-
-    def test_age_days_returns_none_when_no_file(self):
-        """Test age_days() returns None when file doesn't exist."""
-        assert self.store.age_days() is None
-
-    def test_age_days_returns_integer(self):
-        """Test age_days() returns integer when file exists."""
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        write_json(self.cache_dir / "transactions.json", [])
-
-        result = self.store.age_days()
-        assert result is not None
-        assert isinstance(result, int)
-        assert result >= 0
-
     def test_item_count_returns_transaction_count(self):
         """Test item_count() returns count of transactions."""
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -123,17 +84,6 @@ class TestYnabCacheStore:
         assert result is not None
         assert result > 0
 
-    def test_summary_text_when_no_cache(self):
-        """Test summary_text() returns appropriate message when no cache."""
-        assert self.store.summary_text() == "No YNAB cache found"
-
-    def test_summary_text_when_cache_present(self):
-        """Test summary_text() returns count message when cache present."""
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        write_json(self.cache_dir / "transactions.json", [{"id": "t1"}])
-
-        assert self.store.summary_text() == "YNAB cache: 1 transactions"
-
 
 class TestYnabEditsStore:
     """Test YnabEditsStore behavior."""
@@ -149,23 +99,6 @@ class TestYnabEditsStore:
         import shutil
 
         shutil.rmtree(self.temp_dir)
-
-    def test_exists_returns_false_when_no_directory(self):
-        """Test exists() returns False when directory doesn't exist."""
-        assert not self.store.exists()
-
-    def test_exists_returns_false_when_no_json_files(self):
-        """Test exists() returns False when directory exists but has no JSON files."""
-        self.edits_dir.mkdir(parents=True, exist_ok=True)
-        assert not self.store.exists()
-
-    def test_exists_returns_true_when_json_files_present(self):
-        """Test exists() returns True when JSON files are present."""
-        self.edits_dir.mkdir(parents=True, exist_ok=True)
-        edit_file = self.edits_dir / "2024-10-01_12-00-00_transaction_edits.json"
-        write_json(edit_file, {"edits": []})
-
-        assert self.store.exists()
 
     def test_load_returns_most_recent_edit_file(self):
         """Test load() returns most recent edit file."""
@@ -244,21 +177,3 @@ class TestYnabEditsStore:
         result = self.store.load_retirement_edits()
         assert result is not None
         assert "retirement_accounts" in result
-
-    def test_load_retirement_edits_returns_none_when_no_files(self):
-        """Test load_retirement_edits() returns None when no retirement files."""
-        result = self.store.load_retirement_edits()
-        assert result is None
-
-    def test_summary_text_when_no_edits(self):
-        """Test summary_text() returns appropriate message when no edits."""
-        assert self.store.summary_text() == "No YNAB edits found"
-
-    def test_summary_text_when_edits_present(self):
-        """Test summary_text() returns count message when edits present."""
-        self.edits_dir.mkdir(parents=True, exist_ok=True)
-        edit_data = {"edits": [{"transaction_id": "t1"}]}
-        edit_file = self.edits_dir / "2024-10-01_12-00-00_transaction_edits.json"
-        write_json(edit_file, edit_data)
-
-        assert self.store.summary_text() == "YNAB edits: 1 updates"

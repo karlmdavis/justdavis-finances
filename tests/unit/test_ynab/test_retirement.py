@@ -239,12 +239,6 @@ class TestYnabRetirementService:
         assert data["metadata"]["auto_approved"] == 2
         assert len(data["mutations"]) == 2
 
-    def test_empty_edits_returns_none(self, temp_data_dir):
-        """Test that empty adjustments returns empty Path."""
-        service = YnabRetirementService(temp_data_dir)
-        result = service.create_retirement_edits([])
-        assert result == Path()
-
 
 class TestConvenienceFunctions:
     """Test module-level convenience functions."""

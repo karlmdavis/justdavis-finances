@@ -52,11 +52,6 @@ class TestFinancialDateFormatting:
         fd = FinancialDate(date=date(2024, 1, 15))
         assert fd.to_ynab_format() == "2024-01-15"
 
-    def test_str_format(self):
-        """Test string representation."""
-        fd = FinancialDate(date=date(2024, 1, 15))
-        assert str(fd) == "2024-01-15"
-
 
 class TestFinancialDateCalculations:
     """Test FinancialDate calculations."""

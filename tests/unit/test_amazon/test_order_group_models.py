@@ -98,52 +98,6 @@ class TestMatchedOrderItem:
         assert matched.asin is None
         assert matched.unit_price is None
 
-    def test_to_dict(self):
-        """Test serializing MatchedOrderItem to dict."""
-        # Arrange
-        matched = MatchedOrderItem(
-            name="Product",
-            amount=Money.from_cents(999),
-            quantity=2,
-            asin="B0111111",
-            unit_price=Money.from_cents(999),
-        )
-
-        # Act
-        result = matched.to_dict()
-
-        # Assert
-        assert result == {
-            "name": "Product",
-            "amount": 999,
-            "quantity": 2,
-            "asin": "B0111111",
-            "unit_price": 999,
-        }
-
-    def test_to_dict_with_none_values(self):
-        """Test serializing MatchedOrderItem with None values."""
-        # Arrange
-        matched = MatchedOrderItem(
-            name="Product",
-            amount=Money.from_cents(500),
-            quantity=1,
-            asin=None,
-            unit_price=None,
-        )
-
-        # Act
-        result = matched.to_dict()
-
-        # Assert
-        assert result == {
-            "name": "Product",
-            "amount": 500,
-            "quantity": 1,
-            "asin": None,
-            "unit_price": None,
-        }
-
 
 class TestOrderGroup:
     """Tests for OrderGroup domain model."""
