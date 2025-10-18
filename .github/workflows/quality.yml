@@ -80,7 +80,28 @@ jobs:
 
       - name: Run tests with coverage
         run: |
+          START_TIME=$(date +%s)
           uv run pytest --cov --cov-report=term-missing --cov-report=xml --cov-fail-under=60
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "Test execution time: ${DURATION} seconds"
+
+          if [ $DURATION -gt 60 ]; then
+            echo "❌ ERROR: Test suite took ${DURATION} seconds, exceeding the 60-second limit"
+            echo ""
+            echo "Current execution time: ${DURATION}s"
+            echo "Maximum allowed time: 60s"
+            echo "Overage: $((DURATION - 60))s"
+            echo ""
+            echo "The test suite should complete in under 60 seconds to maintain fast CI feedback."
+            echo "Please investigate slow tests and optimize performance."
+            echo ""
+            echo "To identify slow tests, run locally:"
+            echo "  uv run pytest --durations=10"
+            exit 1
+          fi
+
+          echo "✅ Test execution time (${DURATION}s) is within the 60-second limit"
         continue-on-error: false
 
       - name: Upload coverage reports
