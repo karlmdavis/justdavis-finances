@@ -4,7 +4,6 @@ Unit tests for Apple DataStore implementations.
 """
 
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import pytest

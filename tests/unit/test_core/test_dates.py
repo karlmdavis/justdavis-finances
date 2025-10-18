@@ -17,7 +17,10 @@ class TestFinancialDateConstruction:
             (lambda: FinancialDate(date=date(2024, 1, 15)), date(2024, 1, 15)),
             (lambda: FinancialDate.from_string("2024-01-15"), date(2024, 1, 15)),
             (lambda: FinancialDate.from_string("01/15/2024", date_format="%m/%d/%Y"), date(2024, 1, 15)),
-            (lambda: FinancialDate.from_timestamp(datetime(2024, 1, 15, 12, 0, 0).timestamp()), date(2024, 1, 15)),
+            (
+                lambda: FinancialDate.from_timestamp(datetime(2024, 1, 15, 12, 0, 0).timestamp()),
+                date(2024, 1, 15),
+            ),
         ],
         ids=["from_date", "from_string", "from_string_custom_format", "from_timestamp"],
     )

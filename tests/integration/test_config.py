@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from finances.core.config import get_config, get_data_dir, is_development, is_test, is_production
+from finances.core.config import get_config, get_data_dir, is_development, is_production, is_test
 
 
 @pytest.mark.integration

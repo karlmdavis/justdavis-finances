@@ -702,8 +702,6 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
         ), f"Expected 2 splits for multi-item transaction, got {len(edit['splits'])}"
 
 
-
-
 @pytest.mark.e2e
 def test_flow_preview_and_cancel(flow_test_env_coordinated):
     """
@@ -763,8 +761,6 @@ def test_flow_help_command(flow_test_env):
     assert "Options:" in result.stdout
 
 
-
-
 @pytest.mark.e2e
 def test_flow_default_command(flow_test_env):
     """
@@ -787,5 +783,3 @@ def test_flow_default_command(flow_test_env):
     assert (
         "Financial Flow System" in result.stdout or "flow" in result.stdout.lower()
     ), "Should show flow command help"
-
-

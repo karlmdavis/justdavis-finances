@@ -4,7 +4,6 @@ Unit tests for YNAB-based retirement account management.
 """
 
 from datetime import date
-from pathlib import Path
 
 import pytest
 

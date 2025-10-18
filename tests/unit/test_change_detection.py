@@ -21,7 +21,6 @@ from finances.core.change_detection import (
     ChangeDetector,
     RetirementUpdateChangeDetector,
     YnabSyncChangeDetector,
-    create_change_detectors,
     get_change_detector_function,
 )
 from finances.core.flow import FlowContext
@@ -120,7 +119,9 @@ class TestYnabSyncChangeDetector:
         if file_to_update == "accounts.json":
             write_json(ynab_cache_dir / file_to_update, {"accounts": [], "server_knowledge": new_knowledge})
         else:
-            write_json(ynab_cache_dir / file_to_update, {"category_groups": [], "server_knowledge": new_knowledge})
+            write_json(
+                ynab_cache_dir / file_to_update, {"category_groups": [], "server_knowledge": new_knowledge}
+            )
 
         has_changes, reasons = detector.check_changes(flow_context)
 

@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from finances.ynab.loader import load_transactions, load_accounts, load_categories
-
+from finances.ynab.loader import load_accounts, load_categories, load_transactions
 
 # Use existing test data fixtures
 TEST_DATA_DIR = Path(__file__).parent.parent / "test_data" / "ynab"

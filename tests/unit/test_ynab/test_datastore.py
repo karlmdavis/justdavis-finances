@@ -4,10 +4,7 @@ Unit tests for YNAB DataStore implementations.
 """
 
 import tempfile
-from datetime import datetime
 from pathlib import Path
-
-import pytest
 
 from finances.core.json_utils import write_json
 from finances.ynab.datastore import YnabCacheStore, YnabEditsStore
