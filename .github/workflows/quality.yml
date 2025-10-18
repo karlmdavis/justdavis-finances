@@ -78,6 +78,16 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      # Test Execution Time Monitoring
+      #
+      # Expected Performance (as of 2025-10-18):
+      # - Local execution: ~16-17 seconds (357 tests)
+      # - CI execution: ~28 seconds (357 tests)
+      # - CI overhead: ~1.7x local time (typical for GitHub Actions)
+      #
+      # The 60-second limit provides comfortable headroom while preventing
+      # regression. If tests approach this limit, investigate with:
+      #   uv run pytest --durations=10
       - name: Run tests with coverage
         run: |
           START_TIME=$(date +%s)
