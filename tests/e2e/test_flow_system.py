@@ -521,44 +521,6 @@ def assert_node_executed(output: str, node_name: str, expected_status: str = "co
 
 
 @pytest.mark.e2e
-def test_flow_help_command(flow_test_env):
-    """
-    Test that help command works correctly.
-
-    Validates that --help provides useful information for flow command.
-    """
-    # Flow help
-    result = run_flow_command(["--help"])
-    assert result.returncode == 0
-    assert "Financial Flow System" in result.stdout or "Execute the Financial Flow System" in result.stdout
-    assert "Options:" in result.stdout
-
-
-@pytest.mark.e2e
-def test_flow_default_command(flow_test_env):
-    """
-    Test that flow is the default command (can call without 'flow').
-
-    Validates that `finances flow` and `finances` are equivalent.
-    """
-    # Call without 'flow' subcommand - should work as default
-    cmd = ["uv", "run", "finances", "--help"]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
-
-    assert result.returncode == 0, f"Default command failed: {result.stderr}"
-
-    # Should show flow-related help information
-    assert (
-        "Financial Flow System" in result.stdout or "flow" in result.stdout.lower()
-    ), "Should show flow command help"
-
-
-@pytest.mark.e2e
 def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     """
     Test complete interactive flow execution with coordinated data.
@@ -740,6 +702,8 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
         ), f"Expected 2 splits for multi-item transaction, got {len(edit['splits'])}"
 
 
+
+
 @pytest.mark.e2e
 def test_flow_preview_and_cancel(flow_test_env_coordinated):
     """
@@ -783,3 +747,45 @@ def test_flow_preview_and_cancel(flow_test_env_coordinated):
         # Clean up process if still running
         if child.isalive():
             child.terminate(force=True)
+
+
+@pytest.mark.e2e
+def test_flow_help_command(flow_test_env):
+    """
+    Test that help command works correctly.
+
+    Validates that --help provides useful information for flow command.
+    """
+    # Flow help
+    result = run_flow_command(["--help"])
+    assert result.returncode == 0
+    assert "Financial Flow System" in result.stdout or "Execute the Financial Flow System" in result.stdout
+    assert "Options:" in result.stdout
+
+
+
+
+@pytest.mark.e2e
+def test_flow_default_command(flow_test_env):
+    """
+    Test that flow is the default command (can call without 'flow').
+
+    Validates that `finances flow` and `finances` are equivalent.
+    """
+    # Call without 'flow' subcommand - should work as default
+    cmd = ["uv", "run", "finances", "--help"]
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+
+    assert result.returncode == 0, f"Default command failed: {result.stderr}"
+
+    # Should show flow-related help information
+    assert (
+        "Financial Flow System" in result.stdout or "flow" in result.stdout.lower()
+    ), "Should show flow command help"
+
+
