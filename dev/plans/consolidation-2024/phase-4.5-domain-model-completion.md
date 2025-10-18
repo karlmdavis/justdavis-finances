@@ -997,7 +997,7 @@ None - all prerequisites met.
 ### Documentation
 
 1. **Updated Plan**
-   - `dev/plans/phase-4.5-domain-model-completion.md` (this document).
+   - `dev/plans/consolidation-2024/phase-4.5-domain-model-completion.md` (this document).
 
 2. **Consolidated Todos**
    - `dev/todos.md` - Merged and marked complete.
