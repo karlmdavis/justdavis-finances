@@ -4,6 +4,10 @@
 **Auditor**: Claude Code (via comprehensive agent analysis)
 **Scope**: All 435 test functions across 36 test files
 
+**Note**: This audit was conducted at a snapshot of 435 test functions.
+Between audit start and Phase 5.3 cleanup execution, 17 additional tests were added during Phases 2-4.5 domain model migrations, bringing the total to 452 tests before cleanup began.
+The cleanup removed 67 tests from this 452-test baseline.
+
 ## Executive Summary
 
 ### Test Distribution

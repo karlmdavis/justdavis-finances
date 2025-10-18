@@ -44,7 +44,7 @@ class TestYnabLoaders:
         assert hasattr(account, "type")
         assert hasattr(account, "balance")
 
-    @pytest.mark.skip(reason="Test data fixture missing category_group_id field")
+    @pytest.mark.skip(reason="Test data fixture missing category_group_id field (see #19)")
     def test_load_categories_from_test_data(self):
         """Test loading categories from test data."""
         categories = load_categories(TEST_DATA_DIR)
