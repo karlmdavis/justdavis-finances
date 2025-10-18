@@ -185,34 +185,33 @@ def allocate_apple_tax(items, subtotal, tax, total_milliunits):
 
 ### Command-Line Interface
 
+The YNAB Transaction Updater is integrated into the Financial Flow System as part of the
+  split generation workflow.
+
 ```bash
-# Phase 1: Generate mutation plan
-python apply_matches.py \
-    --matches-file results/2025-09-01_amazon_matching_results.json \
-    --ynab-cache ynab-data/transactions.json \
-    --confidence-threshold 0.8 \
-    --output mutations.yaml
+# Execute the complete financial flow
+finances flow
 
-# Phase 1 (Alternative): Process only unapproved transactions
-python apply_matches.py \
-    --matches-file results/2025-09-01_amazon_matching_results.json \
-    --ynab-cache ynab-data/transactions.json \
-    --confidence-threshold 0.8 \
-    --unapproved-only \
-    --output unapproved_mutations.yaml
+# The flow system automatically:
+# 1. Syncs YNAB data (YnabDataNode)
+# 2. Matches Amazon transactions (AmazonMatcherNode)
+# 3. Matches Apple transactions (AppleMatcherNode)
+# 4. Generates split edits from matches (embedded in matcher nodes)
+# 5. Runs cash flow analysis (CashFlowNode)
 
-# Phase 2: Review and approve
-python review_mutations.py \
-    --mutations mutations.yaml \
-    --interactive \
-    --output approved_mutations.yaml
-
-# Phase 3: Apply approved changes
-python execute_mutations.py \
-    --mutations approved_mutations.yaml \
-    --delete-log deleted_transactions.ndjson \
-    --dry-run  # Remove for actual execution
+# Split generation happens automatically during matching
+# Output: data/{amazon,apple}/split_edits/YYYY-MM-DD_HH-MM-SS_split_edits.json
 ```
+
+**Note**: The three-phase workflow (generate → review → apply) is currently in planning.
+Current implementation generates split edit files that can be manually reviewed and applied via the
+  YNAB CLI.
+
+**Flow System Integration:**
+- Split calculation embedded in Amazon and Apple matcher nodes.
+- Uses domain models (YnabSplit, TransactionSplitEdit, SplitEditBatch).
+- Outputs JSON files with complete split specifications.
+- Configuration via environment variables or `.env` file.
 
 ### Safety Features
 
@@ -532,96 +531,52 @@ pytest --cov=. --cov-report=html
 ### Typical Monthly Workflow
 
 ```bash
-# 1. Update YNAB cache
-./scripts/update_ynab_cache.sh
+# 1. Execute the financial flow system
+finances flow
 
-# 2. Run matchers for the month
-python analysis/amazon_transaction_matching/match_transactions_batch.py \
-    --start 2025-09-01 --end 2025-09-30
+# The flow prompts for each step:
+# - Update YNAB data? (y/n)
+# - Run Amazon matching? (y/n)
+# - Run Apple matching? (y/n)
+# - Generate cash flow analysis? (y/n)
 
-python analysis/apple_transaction_matching/match_transactions_batch.py \
-    --start 2025-09-01 --end 2025-09-30
+# 2. Review generated split edits
+ls data/amazon/split_edits/
+ls data/apple/split_edits/
 
-# 3. Generate mutations (focus on unapproved transactions)
-python apply_matches.py \
-    --matches-file results/2025-09-30_amazon_matching_results.json \
-    --ynab-cache ynab-data/transactions.json \
-    --unapproved-only \
-    --output september_mutations.yaml
+# Example output:
+# data/amazon/split_edits/2025-09-30_15-30-45_split_edits.json
+# data/apple/split_edits/2025-09-30_15-31-12_split_edits.json
 
-# 4. Review and approve
-python review_mutations.py \
-    --mutations september_mutations.yaml \
-    --interactive \
-    --output september_approved.yaml
+# 3. Review split edit files (JSON format)
+cat data/amazon/split_edits/2025-09-30_15-30-45_split_edits.json | jq '.metadata'
+cat data/amazon/split_edits/2025-09-30_15-30-45_split_edits.json | jq '.edits[] | .transaction_id'
 
-# 5. Dry run first
-python execute_mutations.py \
-    --mutations september_approved.yaml \
-    --delete-log september_deletes.ndjson \
-    --dry-run
-
-# 6. Apply if everything looks good
-python execute_mutations.py \
-    --mutations september_approved.yaml \
-    --delete-log september_deletes.ndjson
+# 4. Apply edits manually via YNAB CLI (three-phase workflow planned for future)
+# Current state: Manual application required
+# Future state: Automated review and application via finances CLI
 ```
 
-### Recovery from Failed Update
+### Current Limitations
 
-```bash
-# 1. Check the delete log
-cat september_deletes.ndjson | jq '.'
+**Three-Phase Workflow Status:**
+The three-phase workflow (generate → review → apply) described in this specification is
+  **planned for future implementation**.
 
-# 2. Identify the failed transaction
-grep "ERROR" execution.log
+**Current Implementation:**
+- Split edit generation: ✅ Implemented (embedded in matcher nodes)
+- Review interface: ❌ Not yet implemented
+- Automated application: ❌ Not yet implemented
 
-# 3. Manually recreate in YNAB web interface using logged data
-# Transaction data is in the delete log
+**Manual Workaround:**
+Users can manually review split edit JSON files and apply changes via the YNAB CLI or web interface.
 
-# 4. Resume with remaining transactions
-python execute_mutations.py \
-    --mutations september_approved.yaml \
-    --delete-log september_deletes.ndjson \
-    --resume-from "transaction-id-after-failure"
-```
-
-### Focused Unapproved Transaction Workflow
-
-```bash
-# 1. Check unapproved transaction counts by source
-jq '[.[] | select(.approved == false and (.payee_name | test("(?i)amazon")))] | length' ynab-data/transactions.json
-jq '[.[] | select(.approved == false and (.payee_name | test("(?i)apple")))] | length' ynab-data/transactions.json
-
-# 2. Generate mutations for unapproved transactions only
-python apply_matches.py \
-    --matches-file results/amazon_matching_results.json \
-    --ynab-cache ynab-data/transactions.json \
-    --unapproved-only \
-    --confidence-threshold 0.8 \
-    --output unapproved_mutations.yaml
-
-# 3. Review focused set of mutations
-python review_mutations.py \
-    --mutations unapproved_mutations.yaml \
-    --auto-approve-confidence 0.95 \
-    --output approved_unapproved.yaml
-
-# 4. Apply changes to unapproved transactions
-python execute_mutations.py \
-    --mutations approved_unapproved.yaml \
-    --delete-log unapproved_deletes.ndjson \
-    --dry-run
-
-# 5. Refresh YNAB cache and repeat as needed
-ynab --output json list transactions > ynab-data/transactions.json
-```
-
-**Benefits of Unapproved-Only Processing:**
-- **Efficiency**: Process 1,715 unapproved vs 5,521 total transactions (~69% reduction)
-- **Safety**: Avoid modifying transactions already manually reviewed and approved
-- **Focus**: Target transactions most likely to need automated splitting
-- **Workflow**: Integrate with natural YNAB approval workflow
+**Future Development:**
+A dedicated `finances splits` command will provide:
+- Interactive review of generated split edits
+- Approval workflow with confidence thresholds
+- Automated application via YNAB CLI
+- Complete audit trail and reversibility
 
 ---
 

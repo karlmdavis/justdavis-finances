@@ -216,27 +216,28 @@ Amazon orders may ship across multiple days, with separate credit card charges f
 
 ### Command-Line Interface
 
+The Amazon transaction matching system is integrated into the Financial Flow System.
+
 ```bash
-# Process single transaction
-python analysis/amazon_transaction_matching/match_single_transaction.py \
-    --transaction-id "abc-123-def" \
-    --verbose
+# Execute the complete financial flow (includes Amazon matching as AmazonMatcherNode)
+finances flow
 
-# Batch process date range
-python analysis/amazon_transaction_matching/match_transactions_batch.py \
-    --start 2024-07-01 --end 2024-07-31 \
-    --verbose
+# The flow system guides you through interactive prompts:
+# 1. YNAB data sync (YnabDataNode)
+# 2. Amazon transaction matching (AmazonMatcherNode)
+# 3. Apple receipt matching (AppleMatcherNode)
+# 4. Cash flow analysis (CashFlowNode)
 
-# Process specific accounts only
-python analysis/amazon_transaction_matching/match_transactions_batch.py \
-    --start 2024-07-01 --end 2024-07-31 \
-    --accounts karl erica
-
-# Disable split payment matching
-python analysis/amazon_transaction_matching/match_transactions_batch.py \
-    --start 2024-07-01 --end 2024-07-31 \
-    --disable-split
+# Each node displays current data summary and prompts for updates
+# Amazon matching happens automatically when processing flow
 ```
+
+**Flow System Integration:**
+- Amazon matching runs as **AmazonMatcherNode** in the dependency graph
+- Depends on YnabDataNode (requires YNAB transactions)
+- Outputs match results to `data/amazon/transaction_matches/`
+- All Amazon accounts automatically discovered and processed
+- Configuration via environment variables or `.env` file
 
 ### Performance Characteristics
 

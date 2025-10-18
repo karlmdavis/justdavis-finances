@@ -134,12 +134,27 @@ This solves the challenge of understanding what Apple purchases comprise each co
 - **Match Quality Reports**: Confidence score analysis and potential issues.
 
 #### Command-Line Interface
-- **Single Transaction**: Process one specific YNAB transaction.
-- **Date Range Processing**: Batch process all Apple transactions in a time period.
-- **Account Filtering**: Process specific Apple IDs only.
-- **Output Control**: JSON files, summary reports, verbose logging.
-- **Item Details**: Include item-level details by default (required for YNAB transaction
-    splitting integration).
+
+The Apple transaction matching system is integrated into the Financial Flow System.
+
+```bash
+# Execute the complete financial flow (includes Apple matching as AppleMatcherNode)
+finances flow
+
+# The flow system guides you through interactive prompts for:
+# 1. YNAB data sync (YnabDataNode)
+# 2. Amazon transaction matching (AmazonMatcherNode)
+# 3. Apple receipt matching (AppleMatcherNode)
+# 4. Cash flow analysis (CashFlowNode)
+```
+
+**Flow System Integration:**
+- Apple matching runs as **AppleMatcherNode** in the dependency graph.
+- Depends on YnabDataNode (requires YNAB transactions).
+- Outputs match results to `data/apple/transaction_matches/`.
+- All Apple IDs automatically discovered and processed.
+- Item details included by default for YNAB transaction splitting integration.
+- Configuration via environment variables or `.env` file.
 
 ## Non-Functional Requirements
 
