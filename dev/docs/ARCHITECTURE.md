@@ -40,6 +40,85 @@ The flow engine executes nodes in topological order based on their dependency gr
 - **FlowResult**: Standardized result structure from node execution
 - **FlowNodeRegistry**: Central registry managing all flow nodes
 
+**System architecture diagram**:
+
+```mermaid
+graph TD
+    subgraph "Data Layer"
+        DS1[YnabCacheStore]
+        DS2[AmazonRawDataStore]
+        DS3[AppleReceiptStore]
+        DS4[YnabSplitEditStore]
+        DS5[CashFlowChartsStore]
+    end
+
+    subgraph "Flow Nodes"
+        N1[ynab_sync]
+        N2[amazon_unzip]
+        N3[amazon_match]
+        N4[apple_parse]
+        N5[apple_match]
+        N6[split_generation]
+        N7[cash_flow_analysis]
+    end
+
+    subgraph "Orchestration"
+        REG[FlowNodeRegistry]
+        CTX[FlowContext]
+        ENG[Flow Engine]
+    end
+
+    DS1 -->|DataStore Protocol| N1
+    DS2 -->|DataStore Protocol| N2
+    DS2 -->|DataStore Protocol| N3
+    DS3 -->|DataStore Protocol| N4
+    DS3 -->|DataStore Protocol| N5
+    DS4 -->|DataStore Protocol| N6
+    DS5 -->|DataStore Protocol| N7
+
+    N1 -->|FlowResult| CTX
+    N2 -->|FlowResult| CTX
+    N3 -->|FlowResult| CTX
+    N4 -->|FlowResult| CTX
+    N5 -->|FlowResult| CTX
+    N6 -->|FlowResult| CTX
+    N7 -->|FlowResult| CTX
+
+    REG -->|Node Registration| ENG
+    ENG -->|Execute in Order| N1
+    ENG -->|Execute in Order| N2
+    ENG -->|Execute in Order| N3
+    ENG -->|Execute in Order| N4
+    ENG -->|Execute in Order| N5
+    ENG -->|Execute in Order| N6
+    ENG -->|Execute in Order| N7
+
+    CTX -->|Change Detection| ENG
+
+    style DS1 fill:#e1f5ff
+    style DS2 fill:#e1f5ff
+    style DS3 fill:#e1f5ff
+    style DS4 fill:#e1f5ff
+    style DS5 fill:#e1f5ff
+    style N1 fill:#fff4e1
+    style N2 fill:#fff4e1
+    style N3 fill:#fff4e1
+    style N4 fill:#fff4e1
+    style N5 fill:#fff4e1
+    style N6 fill:#fff4e1
+    style N7 fill:#fff4e1
+    style REG fill:#f0e1ff
+    style CTX fill:#f0e1ff
+    style ENG fill:#f0e1ff
+```
+
+**Flow execution model**:
+1. **Registration**: Each flow node registers with FlowNodeRegistry, declaring dependencies.
+2. **Change Detection**: DataStores report data age/existence to determine if execution needed.
+3. **Topological Sort**: Flow engine orders nodes based on dependency graph.
+4. **Execution**: Nodes execute in order, loading/saving via DataStore protocol.
+5. **Context Updates**: Each FlowResult updates FlowContext for downstream nodes.
+
 **Example dependency graph**:
 ```
 ynab_sync (no dependencies)
