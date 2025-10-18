@@ -616,27 +616,38 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
 
             # Step 7: split_generation - Generate splits
             wait_for_node_prompt(child, "split_generation")
+            assert_node_executed(output.getvalue(), "apple_matching", "completed")
             send_node_decision(child, execute=True)
 
-            # Handle any remaining node prompts until we hit the execution summary
-            while True:
-                try:
-                    index = child.expect(["\\[NODE_PROMPT: ([a-z_]+)\\]", "EXECUTION SUMMARY"], timeout=30)
+            # Step 8: ynab_sync - Skip (cache already exists, no sync needed)
+            # Note: This node may or may not prompt depending on whether check_changes detects updates needed
+            try:
+                wait_for_node_prompt(child, "ynab_sync", timeout=5)
+                send_node_decision(child, execute=False)
+            except pexpect.TIMEOUT:
+                # ynab_sync didn't prompt - this is expected if cache is fresh
+                pass
 
-                    if index == 0:
-                        # Got an unexpected node prompt - skip it
-                        child.expect("Update this data\\?", timeout=5)
-                        send_node_decision(child, execute=False)
-                    else:
-                        # Hit execution summary - done
-                        break
-                except pexpect.TIMEOUT:
-                    # If we timeout here, it means we're stuck waiting for something
-                    # Check what we've completed so far
-                    completed_output = output.getvalue()
-                    raise AssertionError(
-                        f"Timeout waiting for execution summary. Last output:\n{completed_output[-500:]}"
-                    ) from None
+            # Step 9: apple_email_fetch - Skip (requires IMAP credentials not available in CI)
+            # Note: This node may not prompt if it's not triggered
+            try:
+                wait_for_node_prompt(child, "apple_email_fetch", timeout=5)
+                send_node_decision(child, execute=False)
+            except pexpect.TIMEOUT:
+                # apple_email_fetch didn't prompt - acceptable
+                pass
+
+            # Step 10: ynab_apply - Skip (would modify real YNAB data)
+            # Note: This node prompts for applying edits to YNAB
+            try:
+                wait_for_node_prompt(child, "ynab_apply", timeout=5)
+                send_node_decision(child, execute=False)
+            except pexpect.TIMEOUT:
+                # ynab_apply didn't prompt - acceptable
+                pass
+
+            # Wait for execution summary
+            child.expect("EXECUTION SUMMARY", timeout=30)
 
             # Wait for process to complete
             child.expect(pexpect.EOF, timeout=5)
