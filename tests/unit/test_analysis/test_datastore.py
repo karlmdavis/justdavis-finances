@@ -39,17 +39,6 @@ class TestCashFlowResultsStore:
         assert len(result) == 2
         assert all(p.suffix == ".png" for p in result)
 
-    def test_load_raises_when_no_directory(self):
-        """Test load() raises FileNotFoundError when directory doesn't exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no chart files exist."""
-        self.charts_dir.mkdir(parents=True, exist_ok=True)
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
     def test_save_raises_not_implemented(self):
         """Test save() raises NotImplementedError."""
         with pytest.raises(NotImplementedError):

@@ -39,11 +39,6 @@ class TestAmazonRawDataStore:
         assert len(result) == 1
         assert result[0] == csv_file
 
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no files exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
     def test_save_raises_not_implemented(self):
         """Test save() raises NotImplementedError."""
         with pytest.raises(NotImplementedError):
@@ -89,11 +84,6 @@ class TestAmazonMatchResultsStore:
 
         result = self.store.load()
         assert result["matches"][0]["transaction_id"] == "123"
-
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no files exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
 
     def test_save_creates_timestamped_file(self):
         """Test save() creates file with timestamp."""

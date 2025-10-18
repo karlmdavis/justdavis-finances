@@ -164,8 +164,18 @@ class TestYnabSyncChangeDetector:
         assert has_changes2 is False
         assert "No changes detected" in reasons2[0]
 
-    def test_detects_server_knowledge_change_accounts(self, temp_data_dir, flow_context):
-        """Test detection when accounts server_knowledge changes."""
+    @pytest.mark.parametrize(
+        "change_type,file_to_update,new_knowledge,expected_message",
+        [
+            ("accounts", "accounts.json", 101, "accounts server_knowledge changed"),
+            ("categories", "categories.json", 51, "categories server_knowledge changed"),
+        ],
+        ids=["accounts_change", "categories_change"],
+    )
+    def test_detects_server_knowledge_changes(
+        self, temp_data_dir, flow_context, change_type, file_to_update, new_knowledge, expected_message
+    ):
+        """Test detection when accounts or categories server_knowledge changes."""
         ynab_cache_dir = temp_data_dir / "ynab" / "cache"
         ynab_cache_dir.mkdir(parents=True)
 
@@ -179,36 +189,16 @@ class TestYnabSyncChangeDetector:
         # First check to establish baseline
         detector.check_changes(flow_context)
 
-        # Change accounts server_knowledge
-        write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 101})
+        # Change the specified file
+        if file_to_update == "accounts.json":
+            write_json(ynab_cache_dir / file_to_update, {"accounts": [], "server_knowledge": new_knowledge})
+        else:
+            write_json(ynab_cache_dir / file_to_update, {"category_groups": [], "server_knowledge": new_knowledge})
 
         has_changes, reasons = detector.check_changes(flow_context)
 
         assert has_changes is True
-        assert any("accounts server_knowledge changed" in r for r in reasons)
-
-    def test_detects_server_knowledge_change_categories(self, temp_data_dir, flow_context):
-        """Test detection when categories server_knowledge changes."""
-        ynab_cache_dir = temp_data_dir / "ynab" / "cache"
-        ynab_cache_dir.mkdir(parents=True)
-
-        # Initial state
-        write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 100})
-        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50})
-        write_json(ynab_cache_dir / "transactions.json", [])
-
-        detector = YnabSyncChangeDetector(temp_data_dir)
-
-        # First check to establish baseline
-        detector.check_changes(flow_context)
-
-        # Change categories server_knowledge
-        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 51})
-
-        has_changes, reasons = detector.check_changes(flow_context)
-
-        assert has_changes is True
-        assert any("categories server_knowledge changed" in r for r in reasons)
+        assert any(expected_message in r for r in reasons)
 
     def test_detects_time_based_refresh(self, temp_data_dir, flow_context):
         """Test detection after 24-hour refresh interval."""
@@ -308,6 +298,8 @@ class TestAmazonMatchingChangeDetector:
 
     def test_detects_ynab_transactions_update(self, temp_data_dir, flow_context):
         """Test detection when YNAB transactions file is updated."""
+        import time
+
         ynab_cache_dir = temp_data_dir / "ynab" / "cache"
         ynab_cache_dir.mkdir(parents=True)
 
@@ -320,8 +312,6 @@ class TestAmazonMatchingChangeDetector:
         detector.check_changes(flow_context)
 
         # Update transactions file
-        import time
-
         time.sleep(0.01)  # Ensure different modification time
         write_json(transactions_file, [{"id": "tx1"}, {"id": "tx2"}])
 
@@ -402,6 +392,8 @@ class TestAppleMatchingChangeDetector:
 
     def test_detects_ynab_transactions_update(self, temp_data_dir, flow_context):
         """Test detection when YNAB transactions file is updated."""
+        import time
+
         ynab_cache_dir = temp_data_dir / "ynab" / "cache"
         ynab_cache_dir.mkdir(parents=True)
 
@@ -414,8 +406,6 @@ class TestAppleMatchingChangeDetector:
         detector.check_changes(flow_context)
 
         # Update transactions file
-        import time
-
         time.sleep(0.01)  # Ensure different modification time
         write_json(transactions_file, [{"id": "tx1"}, {"id": "tx2"}])
 

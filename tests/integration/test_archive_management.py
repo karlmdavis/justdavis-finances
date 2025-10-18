@@ -97,57 +97,45 @@ class TestDomainArchiver:
         file_paths = [str(f) for f in files]
         assert not any("archive" in path for path in file_paths)
 
-    def test_get_next_sequence_number_no_existing_archives(self, temp_data_dir):
-        """Test getting next sequence number when no archives exist."""
-        archiver = DomainArchiver("amazon", temp_data_dir)
-
-        seq_num = archiver.get_next_sequence_number("2024-01-01")
-
-        assert seq_num == 1
-
-    def test_get_next_sequence_number_with_existing_archives(self, temp_data_dir):
-        """Test getting next sequence number with existing archives."""
+    @pytest.mark.parametrize(
+        "setup_archives,expected_seq",
+        [
+            ([], 1),  # No existing archives
+            (["001", "002"], 3),  # With existing valid archives
+            (["001", "invalid", "xyz"], 2),  # With malformed names
+        ],
+        ids=["no_archives", "with_existing", "ignores_malformed"],
+    )
+    def test_get_next_sequence_number(self, temp_data_dir, setup_archives, expected_seq):
+        """Test getting next sequence number with various archive states."""
         import tarfile
         from datetime import datetime
 
         archiver = DomainArchiver("amazon", temp_data_dir)
-
-        # Use today's date to match what create_archive will use
         today = datetime.now().strftime("%Y-%m-%d")
 
-        # Create existing archives with today's date (must be valid tar files)
-        for seq in [1, 2]:
-            archive_path = archiver.archive_dir / f"{today}-{seq:03d}.tar.gz"
-            with tarfile.open(archive_path, "w:gz"):
-                pass  # Empty but valid tar.gz file
+        # Create archives based on setup
+        for archive_name in setup_archives:
+            if archive_name in ["001", "002"]:
+                # Valid archive
+                archive_path = archiver.archive_dir / f"{today}-{archive_name}.tar.gz"
+                with tarfile.open(archive_path, "w:gz"):
+                    pass
+            elif archive_name == "invalid":
+                # Invalid name (not matching pattern)
+                (archiver.archive_dir / "invalid-name.tar.gz").write_bytes(b"")
+            elif archive_name == "xyz":
+                # Malformed sequence number
+                (archiver.archive_dir / f"{today}-xyz.tar.gz").write_bytes(b"")
 
-        # Also create one with different date
-        with tarfile.open(archiver.archive_dir / "2024-01-02-001.tar.gz", "w:gz"):
-            pass
+        # Also create archive with different date to verify it's ignored
+        if setup_archives:  # Only for non-empty cases
+            with tarfile.open(archiver.archive_dir / "2024-01-02-001.tar.gz", "w:gz"):
+                pass
 
         seq_num = archiver.get_next_sequence_number(today)
 
-        assert seq_num == 3
-
-    def test_get_next_sequence_number_ignores_malformed_names(self, temp_data_dir):
-        """Test that malformed archive names are ignored in sequence numbering."""
-        import tarfile
-        from datetime import datetime
-
-        archiver = DomainArchiver("amazon", temp_data_dir)
-
-        # Use today's date
-        today = datetime.now().strftime("%Y-%m-%d")
-
-        # Create archives with malformed names
-        with tarfile.open(archiver.archive_dir / f"{today}-001.tar.gz", "w:gz"):
-            pass
-        (archiver.archive_dir / "invalid-name.tar.gz").write_bytes(b"")
-        (archiver.archive_dir / f"{today}-xyz.tar.gz").write_bytes(b"")  # Malformed sequence
-
-        seq_num = archiver.get_next_sequence_number(today)
-
-        assert seq_num == 2
+        assert seq_num == expected_seq
 
     def test_create_archive_no_files(self, temp_data_dir):
         """Test creating archive when domain has no files."""
@@ -433,44 +421,15 @@ class TestArchiveManager:
         assert usage["domains"]["amazon"]["archive_count"] >= 1
         assert usage["domains"]["amazon"]["total_size_bytes"] > 0
 
-    def test_cleanup_old_archives_keeps_recent(self, temp_data_dir):
-        """Test that cleanup keeps the most recent archives."""
+    def test_cleanup_old_archives(self, temp_data_dir):
+        """Test cleanup keeps recent archives and deletes old ones with their manifests."""
+        import os
         import tarfile
         import time
 
         archiver = DomainArchiver("amazon", temp_data_dir)
 
-        # Create 5 archives with different modification times by manually creating them
-        for i in range(5):
-            archive_path = archiver.archive_dir / f"2025-10-{13+i:02d}-001.tar.gz"
-            with tarfile.open(archive_path, "w:gz"):
-                pass
-            # Set different modification times
-            mtime = time.time() - (5 - i) * 60  # Each one minute apart, oldest first
-            archive_path.touch()
-            import os
-
-            os.utime(archive_path, (mtime, mtime))
-
-        manager = ArchiveManager(temp_data_dir)
-
-        # Cleanup, keeping only 3
-        deleted_count = manager.cleanup_old_archives("amazon", keep_count=3)
-
-        assert deleted_count == 2
-
-        # Verify only 3 archives remain
-        remaining_archives = list(archiver.archive_dir.glob("*.tar.gz"))
-        assert len(remaining_archives) == 3
-
-    def test_cleanup_old_archives_deletes_manifests_too(self, temp_data_dir):
-        """Test that cleanup also deletes manifest files."""
-        import tarfile
-        import time
-
-        archiver = DomainArchiver("amazon", temp_data_dir)
-
-        # Create 5 archives with manifest files, each with different modification times
+        # Create 5 archives with manifest files and different modification times
         for i in range(5):
             archive_path = archiver.archive_dir / f"2025-10-{13+i:02d}-001.tar.gz"
             manifest_path = archive_path.with_suffix(".json")
@@ -479,22 +438,25 @@ class TestArchiveManager:
                 pass
             manifest_path.write_text("{}")
 
-            # Set different modification times
+            # Set different modification times (oldest first)
             mtime = time.time() - (5 - i) * 60
-            import os
-
             os.utime(archive_path, (mtime, mtime))
             os.utime(manifest_path, (mtime, mtime))
 
         manager = ArchiveManager(temp_data_dir)
 
-        deleted_count = manager.cleanup_old_archives("amazon", keep_count=2)
+        # Cleanup, keeping only 3 most recent
+        deleted_count = manager.cleanup_old_archives("amazon", keep_count=3)
 
-        assert deleted_count == 3
+        assert deleted_count == 2
 
-        # Verify manifest files were also deleted
+        # Verify only 3 archives remain
+        remaining_archives = list(archiver.archive_dir.glob("*.tar.gz"))
+        assert len(remaining_archives) == 3
+
+        # Verify manifest files were also deleted (only 3 remain)
         remaining_manifests = list(archiver.archive_dir.glob("*.json"))
-        assert len(remaining_manifests) == 2
+        assert len(remaining_manifests) == 3
 
     def test_cleanup_old_archives_unknown_domain(self, temp_data_dir):
         """Test that cleanup raises error for unknown domain."""

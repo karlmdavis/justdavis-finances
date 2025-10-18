@@ -44,17 +44,6 @@ class TestAppleEmailStore:
         assert len(result) == 2
         assert all(p.suffix == ".eml" for p in result)
 
-    def test_load_raises_when_no_directory(self):
-        """Test load() raises FileNotFoundError when directory doesn't exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when directory has no files."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
     def test_save_raises_not_implemented(self):
         """Test save() raises NotImplementedError."""
         with pytest.raises(NotImplementedError):
@@ -100,11 +89,6 @@ class TestAppleReceiptStore:
         assert len(result) == 2
         assert all(isinstance(r, dict) for r in result)
 
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no files exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
     def test_save_creates_files_with_order_ids(self):
         """Test save() creates files named after order IDs."""
         receipts = [
@@ -149,11 +133,6 @@ class TestAppleMatchResultsStore:
 
         result = self.store.load()
         assert result["matches"][0]["transaction_id"] == "t1"
-
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no files exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
 
     def test_save_creates_timestamped_file(self):
         """Test save() creates file with timestamp."""

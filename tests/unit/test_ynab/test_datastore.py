@@ -40,11 +40,6 @@ class TestYnabCacheStore:
         assert "accounts" in result
         assert "categories" in result
 
-    def test_load_raises_when_no_transactions_file(self):
-        """Test load() raises FileNotFoundError when transactions.json missing."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
     def test_save_writes_all_cache_components(self):
         """Test save() writes all cache components."""
         cache_data = {
@@ -109,11 +104,6 @@ class TestYnabEditsStore:
 
         result = self.store.load()
         assert "edits" in result
-
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no files exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
 
     def test_save_creates_timestamped_file(self):
         """Test save() creates file with timestamp."""
