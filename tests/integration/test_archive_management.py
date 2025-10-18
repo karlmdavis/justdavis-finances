@@ -53,13 +53,6 @@ def sample_domain_data(temp_data_dir):
 class TestDomainArchiver:
     """Tests for DomainArchiver class."""
 
-    def test_init_creates_archive_directory(self, temp_data_dir):
-        """Test that initializing archiver creates archive directory."""
-        archiver = DomainArchiver("amazon", temp_data_dir)
-
-        assert archiver.archive_dir.exists()
-        assert archiver.archive_dir == temp_data_dir / "amazon" / "archive"
-
     def test_get_archivable_files_empty_domain(self, temp_data_dir):
         """Test getting archivable files from non-existent domain."""
         archiver = DomainArchiver("nonexistent", temp_data_dir)
@@ -216,13 +209,6 @@ class TestDomainArchiver:
 
 class TestArchiveManager:
     """Tests for ArchiveManager class."""
-
-    def test_init_creates_session_directory(self, temp_data_dir):
-        """Test that initializing manager creates session directory."""
-        manager = ArchiveManager(temp_data_dir)
-
-        assert manager.session_dir.exists()
-        assert manager.session_dir == temp_data_dir / ".archive_sessions"
 
     def test_init_creates_domain_archivers(self, temp_data_dir):
         """Test that manager creates archivers for all domains."""

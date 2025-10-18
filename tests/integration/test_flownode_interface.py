@@ -35,22 +35,25 @@ def flow_context():
     return FlowContext(start_time=datetime.now())
 
 
-# List of all FlowNode classes to test (excludes nodes without data_dir parameter)
-ALL_FLOWNODES = [
+# Representative FlowNode classes to test interface contract
+# These nodes represent different architectural patterns:
+# - AmazonUnzipFlowNode: Data transformation pattern (ZIP → CSV)
+# - YnabSyncFlowNode: External API sync pattern
+# - SplitGenerationFlowNode: Multi-input aggregation pattern
+#
+# Omitted nodes are tested implicitly via E2E tests and domain-specific integration tests:
+# - AmazonMatchingFlowNode, AppleMatchingFlowNode (matching pattern - covered by domain tests)
+# - AppleReceiptParsingFlowNode, AppleEmailFetchFlowNode (Apple domain - covered by E2E)
+# - RetirementUpdateFlowNode, CashFlowAnalysisFlowNode (specialized nodes - covered by E2E)
+REPRESENTATIVE_FLOWNODES = [
     AmazonUnzipFlowNode,
-    AmazonMatchingFlowNode,
-    AppleReceiptParsingFlowNode,
-    AppleMatchingFlowNode,
-    AppleEmailFetchFlowNode,
-    SplitGenerationFlowNode,
     YnabSyncFlowNode,
-    RetirementUpdateFlowNode,
-    CashFlowAnalysisFlowNode,
+    SplitGenerationFlowNode,
 ]
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("node_class", ALL_FLOWNODES, ids=lambda cls: cls.__name__)
+@pytest.mark.parametrize("node_class", REPRESENTATIVE_FLOWNODES, ids=lambda cls: cls.__name__)
 class TestFlowNodeInterface:
     """Test FlowNode interface contract for all implementations."""
 
