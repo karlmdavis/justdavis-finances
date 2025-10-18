@@ -93,10 +93,10 @@ finances ynab generate-splits --input-file data/amazon/transaction_matches/resul
 - **Output**: `data/cash_flow/charts/` - Professional 6-panel dashboards.
 - **Features**: Statistical modeling, trend detection, volatility analysis, export options.
 
-### Domain Model Usage Examples (Phase 4.5 - October 2024)
+### Domain Model Usage Examples
 
-The codebase uses domain models throughout for type safety and eliminating DataFrame dependencies.
-All financial processing now uses pure Python domain models.
+The codebase uses typed domain models throughout for type safety and reliability.
+All financial processing uses pure Python dataclasses with Money and FinancialDate primitives.
 
 #### YNAB Split Generation Models
 
@@ -226,16 +226,12 @@ assert isinstance(receipt.receipt_date, FinancialDate)
 
 #### Working with Domain Models
 
-**Type Safety Benefits:**
+**Type Safety with Money Primitives:**
 ```python
-# OLD (Phase 4.0 - dict-based):
-tx_amount = transaction["amount"]  # int? float? milliunits? cents? Unknown!
-if tx_amount < 0:  # Direct comparison with raw int
-    ...
-
-# NEW (Phase 4.5 - domain models):
-tx_amount = transaction.amount  # Money object - type is clear!
-if tx_amount.to_cents() < 0:  # Explicit unit conversion
+# Using typed domain models
+tx_amount = transaction.amount  # Money object - type is explicit
+if tx_amount.to_cents() < 0:  # Explicit unit conversion required
+    # Handle expense
     ...
 
 # Money enforces integer-only arithmetic
@@ -244,17 +240,12 @@ assert split_amount.to_cents() == -1234  # Automatic conversion
 assert str(split_amount) == "-$12.34"  # Pretty formatting
 ```
 
-**DataFrame Elimination:**
+**Domain Model Filtering:**
 ```python
-# OLD (Phase 4.0 - DataFrame-based):
-orders_df = pd.DataFrame(orders_data)
-filtered = orders_df[orders_df["ship_date"] == target_date]
-result = filtered.to_dict("records")  # Convert back to dicts
-
-# NEW (Phase 4.5 - domain models):
+# Using domain models with standard Python operations
 orders = [AmazonOrderItem.from_dict(d) for d in orders_data]
 filtered = [o for o in orders if o.ship_date == target_date]
-# Result is already list[AmazonOrderItem] - no conversion needed!
+# Result is list[AmazonOrderItem] - fully typed, no conversions needed
 ```
 
 
@@ -668,32 +659,32 @@ Key implementation details:
 - **Professional CLI**: `finances amazon` commands for batch and single transaction
   processing.
 
-### Phase 4.5: DataFrame Elimination & Domain Model Migration (October 2024)
+### Domain Model Migration Best Practices
 
-Complete migration from DataFrame/dict-based code to pure domain models across all modules.
+This project follows a bottom-up migration strategy when introducing typed domain models.
 
-**Migration Strategy:**
+**Recommended Approach:**
 1. **Bottom-up approach**: Loaders → Calculators → Matchers → Flow
 2. **Domain model first**: Define typed models before updating consumers
 3. **Test-driven**: Write domain model tests before migration
 4. **Incremental rollout**: One module at a time to minimize risk
 
-**Key Lessons Learned:**
+**Key Architecture Principles:**
 
-1. **Type Safety Pays Off**
-   - Money/FinancialDate primitives caught 10+ bugs during migration
-   - mypy strict mode prevented incorrect unit conversions
-   - Explicit type boundaries eliminated "is this cents or milliunits?" confusion
+1. **Type Safety Prevents Bugs**
+   - Money/FinancialDate primitives catch unit conversion errors at compile time
+   - mypy strict mode prevents incorrect cents/milliunits usage
+   - Explicit type boundaries eliminate "is this cents or milliunits?" confusion
 
-2. **DataFrames Add Complexity**
-   - Eliminated 500+ lines of DataFrame conversion code
-   - Reduced memory overhead by 40% (no intermediate DataFrames)
-   - Simpler code: list comprehensions replace complex DataFrame operations
+2. **Domain Models Simplify Code**
+   - List comprehensions with typed models replace complex DataFrame operations
+   - No intermediate conversion overhead (DataFrame → dict → model)
+   - Clearer code: `order.amount` vs `row["amount"]` (fragile string keys)
 
-3. **Domain Models Enable Testing**
+3. **Typed Models Enable Better Testing**
    - Can test business logic without mocking DataFrame operations
-   - Test data is clearer: `Money.from_cents(1234)` vs `1234` (ambiguous)
-   - Integration tests run 2x faster without DataFrame overhead
+   - Test data is self-documenting: `Money.from_cents(1234)` vs `1234` (ambiguous)
+   - Integration tests run faster without DataFrame conversion overhead
 
 4. **Migration Order Matters**
    - **Bottom-up wins**: Start with loaders, work up to flow nodes
@@ -702,7 +693,7 @@ Complete migration from DataFrame/dict-based code to pure domain models across a
 
 5. **Avoid Premature Abstraction**
    - Don't create "universal" DataFrame adapters - commit to domain models
-   - Temporary backward compatibility adds complexity - rip the band-aid off
+   - Temporary backward compatibility adds complexity - complete the migration
    - If you need both dict and domain model signatures, you're not done migrating
 
 **Common Pitfalls:**
@@ -732,15 +723,18 @@ assert result["amount"] == 1234
 assert result.amount.to_cents() == 1234
 ```
 
-**Success Metrics (Phase 4.5):**
-- ✅ Zero DataFrame usage outside CSV parsing
-- ✅ Zero dict-based function signatures (except JSON serialization)
-- ✅ 100% domain model coverage in matchers and calculators
-- ✅ 473 tests passing with 73.60% coverage
-- ✅ Zero mypy errors in strict mode
-- ✅ Critical bug fix: Apple split unit conversion (10x error)
+**Success Indicators:**
 
-**Migration Checklist for Future Refactorings:**
+When a module is fully migrated to domain models, you should see:
+- Zero DataFrame usage outside CSV parsing and analysis layers
+- Zero dict-based function signatures (except JSON serialization)
+- 100% domain model coverage in business logic (matchers, calculators)
+- All tests passing with mypy strict mode showing zero errors
+- Clearer code with type hints throughout
+
+**Migration Checklist:**
+
+Use this checklist when migrating a module from DataFrame/dict-based code to domain models:
 
 1. ☐ **Define Domain Models**
    - Create typed dataclasses with Money/FinancialDate
@@ -769,6 +763,6 @@ assert result.amount.to_cents() == 1234
    - Remove unused imports (pandas, dict converters)
 
 **Resources:**
-- See `dev/plans/phase-4.5-domain-model-migration.md` for detailed plan
-- Example PR: Phase 4.5 (#14) - Complete DataFrame elimination
-- Test examples: `tests/unit/test_amazon/test_match_models.py`
+- Example planning document: `dev/plans/phase-4.5-domain-model-completion.md`
+- Domain model tests: `tests/unit/test_core/test_models.py`
+- Implementation examples: `src/finances/amazon/matcher.py`, `src/finances/apple/matcher.py`
