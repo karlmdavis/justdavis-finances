@@ -64,7 +64,7 @@ See [consolidation-2024/](consolidation-2024/) for detailed phase plans and impl
 New implementation plans for features, enhancements, and initiatives will be created at the
   top level of this directory.
 Plans no longer need to follow the "phase" naming convention - use descriptive names that
-  reflect the actual work
+  reflect the actual work.
 
 ---
 
