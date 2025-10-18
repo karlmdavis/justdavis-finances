@@ -232,19 +232,30 @@ pytest tests/unit/
 
 ## Test Statistics
 
-**Total Tests**: ~265 (as of test overhaul)
-- E2E tests: 68
-- Integration tests: ~50
-- Unit tests: ~147
+**Total Tests**: 347 (as of test refactoring 2025-10-18)
+- E2E tests: 68 (comprehensive flow orchestration)
+- Integration tests: ~120 (real file operations, minimal mocking)
+- Unit tests: ~159 (focused business logic)
+
+**Test Refactoring (October 2025)**:
+- Removed 15 low-value tests (trivial assertions, implementation details)
+- Reduced FlowNode parameterization from 9 nodes to 3 representative nodes (-24 test cases)
+- Combined 3 parameterized archive tests into 1 inline scenario test (-2 test cases)
+- Added 5 config integration tests (+5 tests)
+- **Net change**: -36 test cases, improved maintainability and coverage quality
 
 **Execution Time**:
-- All tests: ~60 seconds
+- All tests: ~17 seconds (improved from ~60s)
 - Unit tests only: ~5 seconds
 - E2E tests only: ~40 seconds
+- Integration tests only: ~7 seconds
 
-**Coverage**: ~55-60% (quality-focused)
+**Coverage**: ~73% (quality-focused, exceeds 60% target)
+- config.py: 75% (improved from 48% via new integration tests)
+- change_detection.py: 88% (improved from 93% while removing 10 low-value tests)
+- CLI layer: 0% (intentional - covered by E2E tests)
 
 ---
 
-**Last Updated**: 2025-10-05
+**Last Updated**: 2025-10-18
 **Maintained By**: Project maintainers
