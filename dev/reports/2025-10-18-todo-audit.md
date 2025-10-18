@@ -6,20 +6,23 @@
 
 ## Executive Summary
 
-Comprehensive audit of all TODO/FIXME/XXX/HACK comments and TODO tracking files in the codebase.
+Comprehensive audit of all TODO/FIXME/XXX/HACK comments, TODO tracking files, and existing GitHub
+  issues in the codebase.
 
 **Findings**:
 - **Source code TODOs**: 2 items (both in `src/finances/amazon/grouper.py`)
 - **Test code TODOs**: 0 items (1 false positive - "XXX" in test data string)
 - **Documentation TODOs**: References to TODO tracking system only
 - **TODO tracking files**: 3 files (`dev/todos.md`, `todos.md`, `KNOWN_ISSUES.md`)
+- **Existing GitHub issues**: 5 total (3 open, 2 closed)
 
 **Summary**:
 - Total actionable TODOs: 8 items (2 code + 6 from tracking files)
+- Existing GitHub issues: 3 open (already tracked)
 - Trivial fixes: 0 items
-- Important (need GitHub issues): 6 items
-- Obsolete: 0 items
-- By design: 2 items (in KNOWN_ISSUES.md, already documented)
+- Important (need new GitHub issues): 6 items
+- Obsolete: 1 item
+- By design: 7 items (document in architecture/contributing)
 
 ## Source Code TODOs
 
@@ -34,10 +37,10 @@ Comprehensive audit of all TODO/FIXME/XXX/HACK comments and TODO tracking files 
 ```
 
 **Analysis**:
-- **Category**: Important (already tracked)
-- **Status**: Both TODOs already reference GitHub issue #15
-- **Action**: Verify issue #15 exists and is properly documented
-- **Documentation gap**: None - issue reference is present
+- **Category**: Already tracked in GitHub
+- **GitHub Issue**: #15 (CLOSED) - "Evaluate SHIPMENT and DAILY_SHIPMENT grouping levels - implement or remove?"
+- **Status**: Issue closed - these grouping levels were evaluated and left as future enhancements
+- **Action**: No action needed - TODOs properly reference closed issue
 
 ## Test Code TODOs
 
@@ -57,6 +60,50 @@ All TODO references in documentation are:
 3. No actionable TODOs found
 
 **Action**: No action needed.
+
+## Existing GitHub Issues
+
+**Total Issues**: 5 (3 open, 2 closed)
+
+### Open Issues (3)
+
+**Issue #20**: Add pre-commit hook to prevent low-value test patterns
+- **Status**: OPEN
+- **Category**: Code quality / Testing
+- **Relevance**: Maintenance enhancement
+- **Action**: No action needed - already tracked
+
+**Issue #19**: Fix YNAB category test data fixture missing category_group_id
+- **Status**: OPEN
+- **Category**: Testing / Bug fix
+- **Relevance**: Test infrastructure improvement
+- **Action**: No action needed - already tracked
+
+**Issue #17**: Add validation logic for domain models
+- **Status**: OPEN
+- **Category**: Code quality / Domain models
+- **Relevance**: Future enhancement for data validation
+- **Action**: No action needed - already tracked
+
+### Closed Issues (2)
+
+**Issue #16**: Post-Phase 4.5: Minor code quality improvements
+- **Status**: CLOSED
+- **Category**: Code quality
+- **Relevance**: Completed improvements
+- **Action**: None - completed
+
+**Issue #15**: Evaluate SHIPMENT and DAILY_SHIPMENT grouping levels - implement or remove?
+- **Status**: CLOSED
+- **Category**: Amazon matching architecture
+- **Relevance**: Referenced by TODOs in src/finances/amazon/grouper.py (lines 91, 98)
+- **Action**: None - evaluated and left as future enhancements
+
+### Summary
+
+All existing GitHub issues are properly tracked and categorized.
+No conflicts with TODO tracking files.
+Source code TODOs properly reference issue #15.
 
 ## TODO Tracking Files Analysis
 

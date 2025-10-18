@@ -6,19 +6,22 @@
 
 ## Executive Summary
 
-Comprehensive audit of all specification files, loose documentation, and GitHub infrastructure to identify
-  outdated content and plan migrations.
+Comprehensive audit of all specification files, loose documentation, and GitHub infrastructure.
 
 **Scope**:
 - 9 specification files in `dev/specs/`
 - 2 loose documentation files (YNAB_DATA_WORKFLOW.md, dev/phase-2-type-checking-report.md)
 - GitHub issue template assessment
 
+**Audit Principle**:
+**The current state of the code and current feature set is what we were aiming for.**
+Specs will be updated to match current reality where discrepancies exist.
+
 **Key Findings**:
-- Most specs are accurate and current
-- Minor updates needed for command examples in some specs
+- All specs will be reviewed in Task 6 to ensure they accurately reflect current implementation
+- Any spec content that doesn't match current reality will be updated
 - YNAB_DATA_WORKFLOW.md needs content migration to ARCHITECTURE.md and CONTRIBUTING.md
-- phase-2-type-checking-report.md needs relocation with date stamp
+- phase-2-type-checking-report.md needs relocation with date stamp (2025-10-13)
 - No GitHub issue templates exist (need to create 3 templates)
 
 ## Specification Audits
@@ -327,52 +330,47 @@ Preliminary assessment based on file name and context:
 
 ## Spec Update Plan (Task 6)
 
-Based on audit findings, the following specs need updates in Task 6:
+**Approach**: Review each spec against current implementation and update specs to match reality.
 
-### High Priority (full review needed)
+**Principle**: Specs document what IS, not what was planned.
+Any discrepancies are resolved by updating the spec.
 
-1. **ynab-transaction-updater.md**
-   - Verify domain models documented (YnabSplit, TransactionSplitEdit, SplitEditBatch)
-   - Verify three-phase workflow matches current implementation
-   - Update command examples if needed
-   - Test code examples
+### All Specs - Standard Review Process
 
-2. **amazon-data-workflow.md**
-   - Verify DataStore integration documented
-   - Verify flow system integration documented
-   - Update command examples to show flow integration
-   - Verify domain models documented
+For each specification in Task 6:
 
-3. **ynab-data-workflow.md**
-   - Verify DataStore integration documented
-   - Verify flow system integration documented
-   - Update command examples to show flow integration
-   - Verify YnabTransaction and related models documented
+1. **Read current implementation**
+   - Review actual code in relevant domain modules
+   - Check current CLI command structure
+   - Verify domain models in use
 
-### Medium Priority (targeted updates)
+2. **Compare spec to reality**
+   - Identify any mismatches
+   - Note outdated command examples
+   - Check if domain models are accurate
 
-4. **amazon-transaction-matching.md**
-   - Review command examples (individual vs flow)
-   - Verify MatchedOrderItem and OrderGroup fully documented
-   - Test code examples
+3. **Update spec to match reality**
+   - Update command examples to reflect current CLI
+   - Update domain model descriptions
+   - Update architecture descriptions
+   - Fix any outdated references
 
-5. **apple-transaction-matching.md**
-   - Review command examples (individual vs flow)
-   - Verify ParsedReceipt fully documented
-   - Test code examples
+4. **Verify examples**
+   - Test any code examples
+   - Test any command examples
+   - Ensure imports work
 
-6. **cash-flow-analysis.md**
-   - Verify current implementation matches spec
-   - Review command examples
-   - Test code examples
+### Specs to Review (All 9)
 
-### Low Priority (verification only)
-
-7. **python-package-restructure.md**
-   - Verify import examples work (test in fresh environment)
-
-8. **code-quality.md**
-   - Verify all items marked complete
+1. **financial-flow-system.md** - Verify current, likely no updates
+2. **python-package-restructure.md** - Verify imports, likely minimal updates
+3. **amazon-transaction-matching.md** - Update to match current implementation
+4. **apple-transaction-matching.md** - Update to match current implementation
+5. **ynab-transaction-updater.md** - Update to match current implementation
+6. **amazon-data-workflow.md** - Update to match current implementation
+7. **ynab-data-workflow.md** - Update to match current implementation
+8. **cash-flow-analysis.md** - Update to match current implementation
+9. **code-quality.md** - Verify complete, likely no updates
 
 ---
 
