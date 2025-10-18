@@ -232,28 +232,39 @@ pytest tests/unit/
 
 ## Test Statistics
 
-**Total Tests**: 347 (as of test refactoring 2025-10-18)
+**Total Tests**: 357 (as of test refactoring 2025-10-18)
 - E2E tests: 68 (comprehensive flow orchestration)
-- Integration tests: ~120 (real file operations, minimal mocking)
+- Integration tests: ~130 (real file operations, minimal mocking)
 - Unit tests: ~159 (focused business logic)
 
 **Test Refactoring (October 2025)**:
-- Removed 15 low-value tests (trivial assertions, implementation details)
-- Reduced FlowNode parameterization from 9 nodes to 3 representative nodes (-24 test cases)
-- Combined 3 parameterized archive tests into 1 inline scenario test (-2 test cases)
-- Added 5 config integration tests (+5 tests)
-- **Net change**: -36 test cases, improved maintainability and coverage quality
+- **Phase 1**: Removed 15 low-value tests (trivial assertions, implementation details)
+- **Phase 2**: Reduced FlowNode parameterization from 9 nodes to 3 representative nodes (-24 test cases)
+- **Phase 2**: Combined 3 parameterized archive tests into 1 inline scenario test (-2 test cases)
+- **Phase 3**: Added 15 new integration tests for coverage gaps:
+  - 5 config integration tests
+  - 5 Apple loader integration tests
+  - 5 YNAB loader integration tests
+- **Net change**: -26 test cases, +15 new tests = -11 redundant tests, improved coverage quality
 
 **Execution Time**:
-- All tests: ~17 seconds (improved from ~60s)
+- All tests: ~16.6 seconds (improved from ~60s, 3.6x faster)
 - Unit tests only: ~5 seconds
 - E2E tests only: ~40 seconds
 - Integration tests only: ~7 seconds
 
-**Coverage**: ~73% (quality-focused, exceeds 60% target)
-- config.py: 75% (improved from 48% via new integration tests)
-- change_detection.py: 88% (improved from 93% while removing 10 low-value tests)
+**Coverage**: ~74% (quality-focused, exceeds 60% target)
+- **config.py**: 75% (improved from 48%, +27%)
+- **apple/loader.py**: 57% (improved from 28%, +29%)
+- **ynab/loader.py**: 43% (improved from 30%, +13%)
+- change_detection.py: 88% (maintained while removing 10 low-value tests)
 - CLI layer: 0% (intentional - covered by E2E tests)
+
+**Key Improvements**:
+- Faster feedback loop (3.6x faster execution)
+- Filled critical coverage gaps in config and loader modules
+- Reduced maintenance burden by removing low-value tests
+- Higher average test value and clearer test intent
 
 ---
 
