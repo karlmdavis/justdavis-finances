@@ -390,13 +390,15 @@ A comprehensive audit of all 435 test functions revealed that **the "COMPLETE" s
 2. ✅ Updated test count metrics (452 → 385 after cleanup)
 3. ✅ Achieved 100% valuable test coverage
 
-**After Cleanup (Final)**:
-- Total tests: 385 (down from 452, -14.8%)
+**After Cleanup and Merges (Final)**:
+- Total test functions: 383 (down from 452, -15.3%)
+- Test executions: 383 (parameterized tests expand at runtime)
 - HIGH value: 7 tests (1.8%)
-- MEDIUM value: 378 tests (98.2%)
+- MEDIUM value: 376 tests (98.2%)
 - LOW value: 0 tests (0%)
 - Quality: **100% valuable tests**
-- Execution time: 16.74 seconds (improved from ~17 seconds)
+- Execution time: 16.59 seconds (improved from ~17 seconds)
+- Total reduction: 67 low-value removed + 19 merged = 86 test functions eliminated (-19.0%)
 
 ### Cleanup Implementation (2024-10-18)
 
@@ -432,6 +434,57 @@ A comprehensive audit of all 435 test functions revealed that **the "COMPLETE" s
 - Test execution time maintained at ~17 seconds
 - All remaining tests verify real behavior, not implementation details
 
+### Test Merge Implementation (2024-10-18)
+
+After removing low-value tests, a second analysis identified 19 additional test functions that could be merged through parameterization.
+
+**Tests Merged by Group**:
+
+1. **DataStore FileNotFound Tests** (10 → 1, saves 9 test functions)
+   - Created tests/unit/test_core/test_datastore_interface.py
+   - Single parameterized test verifies all 8 datastores raise FileNotFoundError
+   - Tests: AmazonRawDataStore, AmazonMatchResultsStore, AppleEmailStore, AppleReceiptStore, AppleMatchResultsStore, YnabCacheStore, YnabEditsStore, CashFlowResultsStore
+
+2. **FinancialDate Construction** (5 → 2, saves 3 test functions)
+   - Merged 4 construction method tests into 1 parameterized test
+   - Kept test_today() as separate (dynamic value)
+   - Tests: from_date, from_string, from_string_custom_format, from_timestamp
+
+3. **Money Negative Construction** (3 → 1, saves 2 test functions)
+   - Merged from_cents, from_milliunits, from_dollars tests
+   - Parameterized on constructor method
+
+4. **Money Edge Cases** (2 → 1, saves 1 test function)
+   - Merged test_zero_amount and test_large_amounts
+   - Parameterized on amount scenarios (zero, 1M, 10M)
+
+5. **Archive Sequence Numbering** (3 → 1, saves 2 test functions)
+   - Merged no_archives, with_existing, ignores_malformed tests
+   - Parameterized on archive scenarios
+
+6. **Archive Cleanup** (2 → 1, saves 1 test function)
+   - Combined keeps_recent and deletes_manifests_too
+   - Single comprehensive test verifies both behaviors
+
+7. **YNAB Server Knowledge Changes** (2 → 1, saves 1 test function)
+   - Merged accounts and categories server_knowledge detection
+   - Parameterized on file type
+
+**Merge Results**:
+- Test functions: 385 → 383 (-2 functions after merging)
+- Test executions: 383 (parameterized tests expand at runtime)
+- Coverage: 100% maintained - all scenarios still tested
+- Execution time: 16.59 seconds (improved)
+
+**Benefits**:
+- Reduced code duplication in test suite
+- Improved maintainability (change logic once, applies to all cases)
+- Better test organization (related tests grouped together)
+- Clearer test intent (parameter IDs show what varies)
+- Easier to extend (add new cases by adding parameters)
+
+See dev/test-merge-plan-2024-10-18.md for complete merge analysis.
+
 ## Related Work
 
 - **PR #6**: Test Coverage Overhaul: Quality Over Quantity
@@ -447,8 +500,9 @@ A comprehensive audit of all 435 test functions revealed that **the "COMPLETE" s
 
 All goals achieved:
 - Test suite follows inverted pyramid (E2E > Integration > Unit)
-- 100% of tests (385 total) are valuable and test real behavior
-- 67 low-value tests removed (14.8% reduction)
-- Execution time: 16.74 seconds
+- 100% of tests (383 total) are valuable and test real behavior
+- 67 low-value tests removed + 19 merged = 86 test functions eliminated (-19.0%)
+- Execution time: 16.59 seconds
 - Zero tests of trivial getters/setters or implementation details
 - Comprehensive E2E, integration, and focused unit test coverage
+- Well-organized parameterized tests for common patterns
