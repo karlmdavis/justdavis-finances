@@ -12,7 +12,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from ..core.currency import format_cents
-from ..core.models import MatchResult, Receipt, Transaction
+from ..core.models import MatchResult, Receipt, ReceiptItem, Transaction
 from ..core.money import Money
 from ..ynab.models import YnabTransaction
 
@@ -247,16 +247,18 @@ class AppleMatcher:
         # We know receipt_date and total are not None due to filter in match_single_transaction
         # but for creating Receipt, we need to handle other optional fields properly
 
-        # Convert ParsedItem list to list of dicts for Receipt.items
-        items_dicts = [
-            {
-                "title": item.title,
-                "cost": item.cost.to_cents(),
-                "quantity": item.quantity,
-                "subscription": item.subscription,
-                "item_type": item.item_type,
-                "metadata": item.metadata,
-            }
+        # Convert ParsedItem list to list of ReceiptItem
+        receipt_items = [
+            ReceiptItem(
+                name=item.title,
+                cost=item.cost,
+                quantity=item.quantity,
+                metadata={
+                    "subscription": item.subscription,
+                    "item_type": item.item_type,
+                    **item.metadata,
+                },
+            )
             for item in parsed_receipt.items
         ]
 
@@ -269,7 +271,7 @@ class AppleMatcher:
             tax=parsed_receipt.tax,
             customer_id=parsed_receipt.apple_id or "",
             order_number=parsed_receipt.document_number or "",
-            items=items_dicts,
+            items=receipt_items,
             source="apple_email",
             raw_data=parsed_receipt.to_dict(),
         )

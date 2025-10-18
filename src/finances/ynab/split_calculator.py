@@ -158,7 +158,7 @@ def calculate_generic_splits(
 
     Args:
         transaction: YNAB transaction domain model
-        items: List of items with 'name', 'amount' (Money or int cents)
+        items: List of items with 'name' (str) and 'amount' (Money)
         category_id: Optional category ID for all splits
 
     Returns:
@@ -166,15 +166,20 @@ def calculate_generic_splits(
 
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
+        TypeError: If item['amount'] is not a Money object
     """
     tx_milliunits = transaction.amount.to_milliunits()
     splits: list[YnabSplit] = []
 
     for item in items:
-        # Accept either Money object or int cents
-        item_amount_cents = item["amount"].to_cents() if isinstance(item["amount"], Money) else item["amount"]
+        # Enforce Money type for type safety
+        if not isinstance(item["amount"], Money):
+            raise TypeError(
+                f"Item amount must be Money object, got {type(item['amount']).__name__}. "
+                f"Use Money.from_cents() to construct from int cents."
+            )
 
-        item_amount_milliunits = cents_to_milliunits(item_amount_cents)
+        item_amount_milliunits = item["amount"].to_milliunits()
 
         # YNAB uses negative amounts for expenses
         split_amount = Money.from_milliunits(-item_amount_milliunits)

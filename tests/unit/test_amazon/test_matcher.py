@@ -299,11 +299,13 @@ class TestEdgeCases:
     @pytest.mark.amazon
     def test_malformed_transaction(self, matcher):
         """Test handling of malformed transaction data - SKIP for now."""
+        # TODO(#17): Implement YnabTransaction validation logic
         pytest.skip("Requires YnabTransaction validation logic")
 
     @pytest.mark.amazon
     def test_malformed_order_data(self, matcher):
         """Test handling of malformed order data - SKIP for now."""
+        # TODO(#17): Implement AmazonOrderItem validation logic
         pytest.skip("Requires AmazonOrderItem validation logic")
 
     @pytest.mark.amazon

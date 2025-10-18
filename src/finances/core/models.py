@@ -84,6 +84,55 @@ class Transaction:
 
 
 @dataclass
+class ReceiptItem:
+    """
+    Individual line item from a receipt.
+
+    Provides type-safe representation of purchased items across all vendors.
+    Domain-specific models (ParsedItem, AmazonOrderItem) can extend this structure.
+    """
+
+    name: str
+    cost: Money
+    quantity: int = 1
+
+    # Optional fields
+    category: str | None = None
+    sku: str | None = None
+    unit_price: Money | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "name": self.name,
+            "cost": self.cost.to_cents(),
+            "quantity": self.quantity,
+            "category": self.category,
+            "sku": self.sku,
+            "unit_price": self.unit_price.to_cents() if self.unit_price else None,
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ReceiptItem":
+        """Create ReceiptItem from dictionary."""
+        return cls(
+            name=data["name"],
+            cost=Money.from_cents(data["cost"]) if isinstance(data["cost"], int) else data["cost"],
+            quantity=data.get("quantity", 1),
+            category=data.get("category"),
+            sku=data.get("sku"),
+            unit_price=(
+                Money.from_cents(data["unit_price"])
+                if data.get("unit_price") and isinstance(data["unit_price"], int)
+                else data.get("unit_price")
+            ),
+            metadata=data.get("metadata", {}),
+        )
+
+
+@dataclass
 class Receipt:
     """
     Universal receipt model for purchase records.
@@ -105,8 +154,8 @@ class Receipt:
     customer_id: str | None = None
     order_number: str | None = None
 
-    # Items
-    items: list[dict[str, Any]] = field(default_factory=list)
+    # Items (updated to use ReceiptItem dataclass)
+    items: list[ReceiptItem] = field(default_factory=list)
 
     # Metadata
     source: str = "unknown"

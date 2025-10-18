@@ -251,9 +251,9 @@ class TestGenericSplitCalculation:
         )
 
         items = [
-            {"name": "Groceries", "amount": 2000},  # $20.00 in cents
-            {"name": "Household", "amount": 2000},  # $20.00 in cents
-            {"name": "Personal Care", "amount": 2000},  # $20.00 in cents
+            {"name": "Groceries", "amount": Money.from_cents(2000)},  # $20.00
+            {"name": "Household", "amount": Money.from_cents(2000)},  # $20.00
+            {"name": "Personal Care", "amount": Money.from_cents(2000)},  # $20.00
         ]
 
         splits = calculate_generic_splits(transaction, items)
@@ -283,9 +283,9 @@ class TestGenericSplitCalculation:
         )
 
         items = [
-            {"name": "Groceries", "amount": 6000},  # $60.00 in cents
-            {"name": "Household", "amount": 2500},  # $25.00 in cents
-            {"name": "Personal Care", "amount": 1500},  # $15.00 in cents
+            {"name": "Groceries", "amount": Money.from_cents(6000)},  # $60.00
+            {"name": "Household", "amount": Money.from_cents(2500)},  # $25.00
+            {"name": "Personal Care", "amount": Money.from_cents(1500)},  # $15.00
         ]
 
         splits = calculate_generic_splits(transaction, items)
@@ -301,6 +301,25 @@ class TestGenericSplitCalculation:
 
         total = sum(s.amount.to_milliunits() for s in splits)
         assert total == transaction.amount.to_milliunits()
+
+    @pytest.mark.ynab
+    def test_generic_splits_enforce_money_type(self):
+        """Test that calculate_generic_splits enforces Money type for amounts."""
+        transaction = YnabTransaction.from_dict(
+            {
+                "id": "tx1",
+                "date": "2024-10-15",
+                "amount": -60000,
+            }
+        )
+
+        # Items with raw int instead of Money should raise TypeError
+        items = [
+            {"name": "Test Item", "amount": 2000},  # Raw int - should fail
+        ]
+
+        with pytest.raises(TypeError, match="Item amount must be Money object"):
+            calculate_generic_splits(transaction, items)
 
 
 class TestSplitValidation:
