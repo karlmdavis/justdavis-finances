@@ -10,6 +10,9 @@ from typing import Any
 
 import pytest
 
+# Test data directory paths
+YNAB_TEST_DATA_DIR = Path(__file__).parent / "test_data" / "ynab"
+
 
 @pytest.fixture
 def temp_dir():

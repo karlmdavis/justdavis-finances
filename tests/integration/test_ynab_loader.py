@@ -5,14 +5,10 @@ Integration tests for YNAB data loaders.
 Tests YNAB data loading using existing test data fixtures.
 """
 
-from pathlib import Path
-
 import pytest
 
 from finances.ynab.loader import load_accounts, load_categories, load_transactions
-
-# Use existing test data fixtures
-TEST_DATA_DIR = Path(__file__).parent.parent / "test_data" / "ynab"
+from tests.conftest import YNAB_TEST_DATA_DIR
 
 
 @pytest.mark.integration
@@ -22,7 +18,7 @@ class TestYnabLoaders:
 
     def test_load_transactions_from_test_data(self):
         """Test loading transactions from test data."""
-        transactions = load_transactions(TEST_DATA_DIR)
+        transactions = load_transactions(YNAB_TEST_DATA_DIR)
 
         assert len(transactions) > 0
         # Verify first transaction has expected structure
@@ -34,7 +30,7 @@ class TestYnabLoaders:
 
     def test_load_accounts_from_test_data(self):
         """Test loading accounts from test data."""
-        accounts = load_accounts(TEST_DATA_DIR)
+        accounts = load_accounts(YNAB_TEST_DATA_DIR)
 
         assert len(accounts) > 0
         # Verify first account has expected structure
@@ -44,10 +40,13 @@ class TestYnabLoaders:
         assert hasattr(account, "type")
         assert hasattr(account, "balance")
 
-    @pytest.mark.skip(reason="Test data fixture missing category_group_id field (see #19)")
+    @pytest.mark.skip(
+        reason="Test data fixture missing category_group_id field. "
+        "See https://github.com/karlmdavis/justdavis-finances/issues/19"
+    )
     def test_load_categories_from_test_data(self):
         """Test loading categories from test data."""
-        categories = load_categories(TEST_DATA_DIR)
+        categories = load_categories(YNAB_TEST_DATA_DIR)
 
         assert len(categories) > 0
         # Verify first category has expected structure
@@ -60,7 +59,7 @@ class TestYnabLoaders:
         """Test that transactions have Money types for amounts."""
         from finances.core import Money
 
-        transactions = load_transactions(TEST_DATA_DIR)
+        transactions = load_transactions(YNAB_TEST_DATA_DIR)
 
         assert len(transactions) > 0
         tx = transactions[0]
@@ -70,7 +69,7 @@ class TestYnabLoaders:
         """Test that accounts have Money types for balances."""
         from finances.core import Money
 
-        accounts = load_accounts(TEST_DATA_DIR)
+        accounts = load_accounts(YNAB_TEST_DATA_DIR)
 
         assert len(accounts) > 0
         account = accounts[0]
