@@ -335,7 +335,52 @@ This repository uses a **PR-based workflow** with branch protection rules enforc
 **PR description requirements:**
 - **Summary**: 1-3 bullet points explaining what changed and why.
 - **Test plan**: How the changes were tested (commands run, test coverage, manual verification).
+- **Success criteria**: Include the evergreen success criteria checklist (see below).
 - **Context**: Link to related issues or provide background for the change.
+
+### PR Success Criteria
+
+**Every pull request must include a "Success Criteria" section** in the PR description with the following checklist.
+Copy this template when creating PRs:
+
+#### General Criteria (Required for All PRs)
+
+1. ☐ **dev/todos.md entries marked complete** - Mark relevant TODO items as done with commit references
+2. ☐ **PR description updated** - Include summary, test plan, success criteria, and context
+3. ☐ **No legacy/backward compatibility code** - New code uses current best practices and domain models
+4. ☐ **No stubbed/incomplete code** - All implementations are complete and tested
+5. ☐ **No TODO/FIXME without approval** - All TODOs tracked in GitHub issues with references
+6. ☐ **No needless duplication** - Code reuses existing utilities and follows DRY principles
+7. ☐ **All CI checks pass locally** - Tests pass, mypy succeeds, ruff/black formatting correct
+8. ☐ **Work committed and pushed** - All changes committed with descriptive messages and pushed to remote
+9. ☐ **Code review recommendations addressed** - All Claude Code Review or human review feedback implemented
+
+#### Task-Specific Criteria
+
+Add task-specific criteria based on the work being done.
+Examples:
+
+**For refactoring PRs:**
+- ☐ No functionality changes (existing tests still pass without modification)
+- ☐ Test coverage maintained or improved
+- ☐ Performance benchmarks maintained or improved
+
+**For new feature PRs:**
+- ☐ Feature documentation added to CLAUDE.md or relevant docs
+- ☐ E2E tests added for main user workflows
+- ☐ CLI commands include --help documentation
+
+**For bug fix PRs:**
+- ☐ Test added that reproduces the bug (fails before fix, passes after)
+- ☐ Root cause documented in PR description or commit message
+- ☐ Related bugs checked for similar issues
+
+**For domain model migrations:**
+- ☐ Migration plan marked complete in dev/plans/
+- ☐ DataFrame usage verified (only in acceptable locations)
+- ☐ Dict usage verified (only for JSON serialization boundaries)
+- ☐ All new models have to_dict/from_dict methods
+- ☐ All models use Money and FinancialDate primitives
 
 ### Testing Philosophy and Strategy
 
