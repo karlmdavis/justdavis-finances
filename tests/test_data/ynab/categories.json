@@ -7,6 +7,7 @@
       "categories": [
         {
           "id": "category-001-01",
+          "category_group_id": "group-001",
           "name": "Groceries",
           "hidden": false,
           "budgeted": 480249,
@@ -15,6 +16,7 @@
         },
         {
           "id": "category-001-02",
+          "category_group_id": "group-001",
           "name": "Transportation",
           "hidden": false,
           "budgeted": 259380,
@@ -23,6 +25,7 @@
         },
         {
           "id": "category-001-03",
+          "category_group_id": "group-001",
           "name": "Dining Out",
           "hidden": false,
           "budgeted": 174302,
@@ -31,6 +34,7 @@
         },
         {
           "id": "category-001-04",
+          "category_group_id": "group-001",
           "name": "Healthcare",
           "hidden": false,
           "budgeted": 149850,
@@ -39,6 +43,7 @@
         },
         {
           "id": "category-001-05",
+          "category_group_id": "group-001",
           "name": "Home Improvement",
           "hidden": false,
           "budgeted": 89463,
@@ -47,6 +52,7 @@
         },
         {
           "id": "category-001-06",
+          "category_group_id": "group-001",
           "name": "Shopping",
           "hidden": false,
           "budgeted": 211803,
@@ -55,6 +61,7 @@
         },
         {
           "id": "category-001-07",
+          "category_group_id": "group-001",
           "name": "Entertainment",
           "hidden": false,
           "budgeted": 176905,
@@ -70,6 +77,7 @@
       "categories": [
         {
           "id": "category-002-01",
+          "category_group_id": "group-002",
           "name": "Groceries",
           "hidden": false,
           "budgeted": 395207,
@@ -78,6 +86,7 @@
         },
         {
           "id": "category-002-02",
+          "category_group_id": "group-002",
           "name": "Transportation",
           "hidden": false,
           "budgeted": 477870,
@@ -86,6 +95,7 @@
         },
         {
           "id": "category-002-03",
+          "category_group_id": "group-002",
           "name": "Dining Out",
           "hidden": false,
           "budgeted": 130500,
@@ -94,6 +104,7 @@
         },
         {
           "id": "category-002-04",
+          "category_group_id": "group-002",
           "name": "Healthcare",
           "hidden": false,
           "budgeted": 312278,
@@ -102,6 +113,7 @@
         },
         {
           "id": "category-002-05",
+          "category_group_id": "group-002",
           "name": "Home Improvement",
           "hidden": false,
           "budgeted": 463304,
@@ -110,6 +122,7 @@
         },
         {
           "id": "category-002-06",
+          "category_group_id": "group-002",
           "name": "Shopping",
           "hidden": false,
           "budgeted": 445720,
@@ -118,6 +131,7 @@
         },
         {
           "id": "category-002-07",
+          "category_group_id": "group-002",
           "name": "Entertainment",
           "hidden": false,
           "budgeted": 304840,
