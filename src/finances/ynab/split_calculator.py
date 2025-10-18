@@ -57,8 +57,7 @@ def calculate_amazon_splits(
 
     for item in amazon_items:
         # Use amount from MatchedOrderItem (includes tax/shipping)
-        item_amount_cents = item.amount.to_cents()
-        item_amount_milliunits = cents_to_milliunits(item_amount_cents)
+        item_amount_milliunits = item.amount.to_milliunits()
 
         # YNAB uses negative amounts for expenses
         split_amount = Money.from_milliunits(-item_amount_milliunits)
