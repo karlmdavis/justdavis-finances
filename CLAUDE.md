@@ -808,6 +808,6 @@ Use this checklist when migrating a module from DataFrame/dict-based code to dom
    - Remove unused imports (pandas, dict converters)
 
 **Resources:**
-- Example planning document: `dev/plans/phase-4.5-domain-model-completion.md`
+- Example planning document: `dev/plans/consolidation-2024/phase-4.5-domain-model-completion.md`
 - Domain model tests: `tests/unit/test_core/test_models.py`
 - Implementation examples: `src/finances/amazon/matcher.py`, `src/finances/apple/matcher.py`
