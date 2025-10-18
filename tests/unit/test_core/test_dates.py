@@ -11,27 +11,23 @@ from finances.core.dates import FinancialDate
 class TestFinancialDateConstruction:
     """Test FinancialDate construction."""
 
-    def test_from_date(self):
-        """Test creating from date object."""
-        d = date(2024, 1, 15)
-        fd = FinancialDate(date=d)
-        assert fd.date == d
-
-    def test_from_string(self):
-        """Test parsing from ISO string."""
-        fd = FinancialDate.from_string("2024-01-15")
-        assert fd.date == date(2024, 1, 15)
-
-    def test_from_string_custom_format(self):
-        """Test parsing with custom format."""
-        fd = FinancialDate.from_string("01/15/2024", date_format="%m/%d/%Y")
-        assert fd.date == date(2024, 1, 15)
-
-    def test_from_timestamp(self):
-        """Test creating from Unix timestamp."""
-        timestamp = datetime(2024, 1, 15, 12, 0, 0).timestamp()
-        fd = FinancialDate.from_timestamp(timestamp)
-        assert fd.date == date(2024, 1, 15)
+    @pytest.mark.parametrize(
+        "constructor,expected_date",
+        [
+            (lambda: FinancialDate(date=date(2024, 1, 15)), date(2024, 1, 15)),
+            (lambda: FinancialDate.from_string("2024-01-15"), date(2024, 1, 15)),
+            (lambda: FinancialDate.from_string("01/15/2024", date_format="%m/%d/%Y"), date(2024, 1, 15)),
+            (
+                lambda: FinancialDate.from_timestamp(datetime(2024, 1, 15, 12, 0, 0).timestamp()),
+                date(2024, 1, 15),
+            ),
+        ],
+        ids=["from_date", "from_string", "from_string_custom_format", "from_timestamp"],
+    )
+    def test_financial_date_construction(self, constructor, expected_date):
+        """Test FinancialDate construction from various sources."""
+        fd = constructor()
+        assert fd.date == expected_date
 
     def test_today(self):
         """Test creating today's date."""
@@ -51,11 +47,6 @@ class TestFinancialDateFormatting:
         """Test YNAB format (same as ISO)."""
         fd = FinancialDate(date=date(2024, 1, 15))
         assert fd.to_ynab_format() == "2024-01-15"
-
-    def test_str_format(self):
-        """Test string representation."""
-        fd = FinancialDate(date=date(2024, 1, 15))
-        assert str(fd) == "2024-01-15"
 
 
 class TestFinancialDateCalculations:

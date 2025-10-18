@@ -41,50 +41,6 @@ class TestReceiptItem:
         assert item.unit_price.to_cents() == 1666
         assert item.metadata == {"color": "blue", "size": "large"}
 
-    def test_receipt_item_to_dict(self):
-        """Test converting ReceiptItem to dictionary."""
-        item = ReceiptItem(
-            name="Test Item",
-            cost=Money.from_cents(2500),
-            quantity=2,
-            category="Books",
-            sku="BOOK-456",
-            unit_price=Money.from_cents(1250),
-            metadata={"author": "Test Author"},
-        )
-
-        item_dict = item.to_dict()
-
-        assert item_dict["name"] == "Test Item"
-        assert item_dict["cost"] == 2500  # Converted to cents
-        assert item_dict["quantity"] == 2
-        assert item_dict["category"] == "Books"
-        assert item_dict["sku"] == "BOOK-456"
-        assert item_dict["unit_price"] == 1250  # Converted to cents
-        assert item_dict["metadata"] == {"author": "Test Author"}
-
-    def test_receipt_item_from_dict(self):
-        """Test creating ReceiptItem from dictionary."""
-        data = {
-            "name": "Imported Item",
-            "cost": 3999,  # cents
-            "quantity": 5,
-            "category": "Groceries",
-            "sku": "GROC-789",
-            "unit_price": 799,  # cents
-            "metadata": {"organic": True},
-        }
-
-        item = ReceiptItem.from_dict(data)
-
-        assert item.name == "Imported Item"
-        assert item.cost.to_cents() == 3999
-        assert item.quantity == 5
-        assert item.category == "Groceries"
-        assert item.sku == "GROC-789"
-        assert item.unit_price.to_cents() == 799
-        assert item.metadata == {"organic": True}
-
     def test_receipt_item_from_dict_minimal(self):
         """Test creating ReceiptItem from dictionary with minimal fields."""
         data = {

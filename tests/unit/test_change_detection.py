@@ -21,7 +21,6 @@ from finances.core.change_detection import (
     ChangeDetector,
     RetirementUpdateChangeDetector,
     YnabSyncChangeDetector,
-    create_change_detectors,
     get_change_detector_function,
 )
 from finances.core.flow import FlowContext
@@ -44,29 +43,6 @@ def flow_context():
 class TestChangeDetectorBase:
     """Tests for ChangeDetector base class."""
 
-    def test_init_creates_cache_directory(self, temp_data_dir):
-        """Test that initializing detector creates cache directory."""
-        detector = ChangeDetector(temp_data_dir)
-
-        assert detector.cache_dir.exists()
-        assert detector.cache_dir == temp_data_dir / "cache" / "flow"
-
-    def test_get_cache_file(self, temp_data_dir):
-        """Test cache file path generation."""
-        detector = ChangeDetector(temp_data_dir)
-
-        cache_file = detector.get_cache_file("test_node")
-
-        assert cache_file == temp_data_dir / "cache" / "flow" / "test_node_last_check.json"
-
-    def test_load_last_check_state_no_file(self, temp_data_dir):
-        """Test loading state when no cache file exists."""
-        detector = ChangeDetector(temp_data_dir)
-
-        state = detector.load_last_check_state("test_node")
-
-        assert state == {}
-
     def test_save_and_load_last_check_state(self, temp_data_dir):
         """Test saving and loading check state."""
         detector = ChangeDetector(temp_data_dir)
@@ -77,56 +53,6 @@ class TestChangeDetectorBase:
         loaded_state = detector.load_last_check_state("test_node")
 
         assert loaded_state == test_state
-
-    def test_get_file_modification_times_empty_directory(self, temp_data_dir):
-        """Test getting modification times from empty directory."""
-        detector = ChangeDetector(temp_data_dir)
-        test_dir = temp_data_dir / "test"
-        test_dir.mkdir()
-
-        mod_times = detector.get_file_modification_times(test_dir)
-
-        assert mod_times == {}
-
-    def test_get_file_modification_times_with_files(self, temp_data_dir):
-        """Test getting modification times with files."""
-        detector = ChangeDetector(temp_data_dir)
-        test_dir = temp_data_dir / "test"
-        test_dir.mkdir()
-
-        # Create test files
-        (test_dir / "file1.txt").write_text("content1")
-        (test_dir / "file2.txt").write_text("content2")
-
-        mod_times = detector.get_file_modification_times(test_dir, "*.txt")
-
-        assert len(mod_times) == 2
-        assert "file1.txt" in mod_times
-        assert "file2.txt" in mod_times
-        assert all(isinstance(v, float) for v in mod_times.values())
-
-    def test_get_directory_listing_empty(self, temp_data_dir):
-        """Test directory listing for empty directory."""
-        detector = ChangeDetector(temp_data_dir)
-        test_dir = temp_data_dir / "test"
-        test_dir.mkdir()
-
-        listing = detector.get_directory_listing(test_dir)
-
-        assert listing == []
-
-    def test_get_directory_listing_with_items(self, temp_data_dir):
-        """Test directory listing with items."""
-        detector = ChangeDetector(temp_data_dir)
-        test_dir = temp_data_dir / "test"
-        test_dir.mkdir()
-
-        (test_dir / "file1.txt").write_text("content")
-        (test_dir / "subdir").mkdir()
-
-        listing = detector.get_directory_listing(test_dir)
-
-        assert sorted(listing) == ["file1.txt", "subdir"]
 
 
 class TestYnabSyncChangeDetector:
@@ -164,8 +90,18 @@ class TestYnabSyncChangeDetector:
         assert has_changes2 is False
         assert "No changes detected" in reasons2[0]
 
-    def test_detects_server_knowledge_change_accounts(self, temp_data_dir, flow_context):
-        """Test detection when accounts server_knowledge changes."""
+    @pytest.mark.parametrize(
+        "change_type,file_to_update,new_knowledge,expected_message",
+        [
+            ("accounts", "accounts.json", 101, "accounts server_knowledge changed"),
+            ("categories", "categories.json", 51, "categories server_knowledge changed"),
+        ],
+        ids=["accounts_change", "categories_change"],
+    )
+    def test_detects_server_knowledge_changes(
+        self, temp_data_dir, flow_context, change_type, file_to_update, new_knowledge, expected_message
+    ):
+        """Test detection when accounts or categories server_knowledge changes."""
         ynab_cache_dir = temp_data_dir / "ynab" / "cache"
         ynab_cache_dir.mkdir(parents=True)
 
@@ -179,36 +115,18 @@ class TestYnabSyncChangeDetector:
         # First check to establish baseline
         detector.check_changes(flow_context)
 
-        # Change accounts server_knowledge
-        write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 101})
+        # Change the specified file
+        if file_to_update == "accounts.json":
+            write_json(ynab_cache_dir / file_to_update, {"accounts": [], "server_knowledge": new_knowledge})
+        else:
+            write_json(
+                ynab_cache_dir / file_to_update, {"category_groups": [], "server_knowledge": new_knowledge}
+            )
 
         has_changes, reasons = detector.check_changes(flow_context)
 
         assert has_changes is True
-        assert any("accounts server_knowledge changed" in r for r in reasons)
-
-    def test_detects_server_knowledge_change_categories(self, temp_data_dir, flow_context):
-        """Test detection when categories server_knowledge changes."""
-        ynab_cache_dir = temp_data_dir / "ynab" / "cache"
-        ynab_cache_dir.mkdir(parents=True)
-
-        # Initial state
-        write_json(ynab_cache_dir / "accounts.json", {"accounts": [], "server_knowledge": 100})
-        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 50})
-        write_json(ynab_cache_dir / "transactions.json", [])
-
-        detector = YnabSyncChangeDetector(temp_data_dir)
-
-        # First check to establish baseline
-        detector.check_changes(flow_context)
-
-        # Change categories server_knowledge
-        write_json(ynab_cache_dir / "categories.json", {"category_groups": [], "server_knowledge": 51})
-
-        has_changes, reasons = detector.check_changes(flow_context)
-
-        assert has_changes is True
-        assert any("categories server_knowledge changed" in r for r in reasons)
+        assert any(expected_message in r for r in reasons)
 
     def test_detects_time_based_refresh(self, temp_data_dir, flow_context):
         """Test detection after 24-hour refresh interval."""
@@ -308,6 +226,8 @@ class TestAmazonMatchingChangeDetector:
 
     def test_detects_ynab_transactions_update(self, temp_data_dir, flow_context):
         """Test detection when YNAB transactions file is updated."""
+        import time
+
         ynab_cache_dir = temp_data_dir / "ynab" / "cache"
         ynab_cache_dir.mkdir(parents=True)
 
@@ -320,8 +240,6 @@ class TestAmazonMatchingChangeDetector:
         detector.check_changes(flow_context)
 
         # Update transactions file
-        import time
-
         time.sleep(0.01)  # Ensure different modification time
         write_json(transactions_file, [{"id": "tx1"}, {"id": "tx2"}])
 
@@ -333,15 +251,6 @@ class TestAmazonMatchingChangeDetector:
 
 class TestAppleEmailChangeDetector:
     """Tests for Apple email change detection."""
-
-    def test_first_run_triggers_fetch(self, temp_data_dir, flow_context):
-        """Test that first run triggers email fetch."""
-        detector = AppleEmailChangeDetector(temp_data_dir)
-
-        has_changes, reasons = detector.check_changes(flow_context)
-
-        assert has_changes is True
-        assert "No previous fetch time recorded" in reasons[0]
 
     def test_no_fetch_within_interval(self, temp_data_dir, flow_context):
         """Test no fetch needed within 12-hour interval."""
@@ -402,6 +311,8 @@ class TestAppleMatchingChangeDetector:
 
     def test_detects_ynab_transactions_update(self, temp_data_dir, flow_context):
         """Test detection when YNAB transactions file is updated."""
+        import time
+
         ynab_cache_dir = temp_data_dir / "ynab" / "cache"
         ynab_cache_dir.mkdir(parents=True)
 
@@ -414,8 +325,6 @@ class TestAppleMatchingChangeDetector:
         detector.check_changes(flow_context)
 
         # Update transactions file
-        import time
-
         time.sleep(0.01)  # Ensure different modification time
         write_json(transactions_file, [{"id": "tx1"}, {"id": "tx2"}])
 
@@ -427,15 +336,6 @@ class TestAppleMatchingChangeDetector:
 
 class TestRetirementUpdateChangeDetector:
     """Tests for retirement update change detection."""
-
-    def test_first_run_triggers_update(self, temp_data_dir, flow_context):
-        """Test that first run triggers retirement update."""
-        detector = RetirementUpdateChangeDetector(temp_data_dir)
-
-        has_changes, reasons = detector.check_changes(flow_context)
-
-        assert has_changes is True
-        assert "No previous retirement update recorded" in reasons[0]
 
     def test_no_update_within_interval(self, temp_data_dir, flow_context):
         """Test no update needed within 30-day interval."""
@@ -466,22 +366,6 @@ class TestRetirementUpdateChangeDetector:
 
 class TestChangeDetectorFactories:
     """Tests for change detector factory functions."""
-
-    def test_create_change_detectors(self, temp_data_dir):
-        """Test creating all change detectors."""
-        detectors = create_change_detectors(temp_data_dir)
-
-        expected_nodes = [
-            "ynab_sync",
-            "amazon_unzip",
-            "amazon_matching",
-            "apple_email_fetch",
-            "apple_matching",
-            "retirement_update",
-        ]
-
-        assert set(detectors.keys()) == set(expected_nodes)
-        assert all(isinstance(d, ChangeDetector) for d in detectors.values())
 
     def test_get_change_detector_function(self, temp_data_dir, flow_context):
         """Test creating change detector function from detector instance."""

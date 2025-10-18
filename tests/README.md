@@ -229,22 +229,3 @@ pytest -n auto
 # Run specific subset
 pytest tests/unit/
 ```
-
-## Test Statistics
-
-**Total Tests**: ~265 (as of test overhaul)
-- E2E tests: 68
-- Integration tests: ~50
-- Unit tests: ~147
-
-**Execution Time**:
-- All tests: ~60 seconds
-- Unit tests only: ~5 seconds
-- E2E tests only: ~40 seconds
-
-**Coverage**: ~55-60% (quality-focused)
-
----
-
-**Last Updated**: 2025-10-05
-**Maintained By**: Project maintainers

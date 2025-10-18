@@ -521,44 +521,6 @@ def assert_node_executed(output: str, node_name: str, expected_status: str = "co
 
 
 @pytest.mark.e2e
-def test_flow_help_command(flow_test_env):
-    """
-    Test that help command works correctly.
-
-    Validates that --help provides useful information for flow command.
-    """
-    # Flow help
-    result = run_flow_command(["--help"])
-    assert result.returncode == 0
-    assert "Financial Flow System" in result.stdout or "Execute the Financial Flow System" in result.stdout
-    assert "Options:" in result.stdout
-
-
-@pytest.mark.e2e
-def test_flow_default_command(flow_test_env):
-    """
-    Test that flow is the default command (can call without 'flow').
-
-    Validates that `finances flow` and `finances` are equivalent.
-    """
-    # Call without 'flow' subcommand - should work as default
-    cmd = ["uv", "run", "finances", "--help"]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
-
-    assert result.returncode == 0, f"Default command failed: {result.stderr}"
-
-    # Should show flow-related help information
-    assert (
-        "Financial Flow System" in result.stdout or "flow" in result.stdout.lower()
-    ), "Should show flow command help"
-
-
-@pytest.mark.e2e
 def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     """
     Test complete interactive flow execution with coordinated data.
@@ -654,27 +616,38 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
 
             # Step 7: split_generation - Generate splits
             wait_for_node_prompt(child, "split_generation")
+            assert_node_executed(output.getvalue(), "apple_matching", "completed")
             send_node_decision(child, execute=True)
 
-            # Handle any remaining node prompts until we hit the execution summary
-            while True:
-                try:
-                    index = child.expect(["\\[NODE_PROMPT: ([a-z_]+)\\]", "EXECUTION SUMMARY"], timeout=30)
+            # Step 8: ynab_sync - Skip (cache already exists, no sync needed)
+            # Note: This node may or may not prompt depending on whether check_changes detects updates needed
+            try:
+                wait_for_node_prompt(child, "ynab_sync", timeout=5)
+                send_node_decision(child, execute=False)
+            except pexpect.TIMEOUT:
+                # ynab_sync didn't prompt - this is expected if cache is fresh
+                pass
 
-                    if index == 0:
-                        # Got an unexpected node prompt - skip it
-                        child.expect("Update this data\\?", timeout=5)
-                        send_node_decision(child, execute=False)
-                    else:
-                        # Hit execution summary - done
-                        break
-                except pexpect.TIMEOUT:
-                    # If we timeout here, it means we're stuck waiting for something
-                    # Check what we've completed so far
-                    completed_output = output.getvalue()
-                    raise AssertionError(
-                        f"Timeout waiting for execution summary. Last output:\n{completed_output[-500:]}"
-                    ) from None
+            # Step 9: apple_email_fetch - Skip (requires IMAP credentials not available in CI)
+            # Note: This node may not prompt if it's not triggered
+            try:
+                wait_for_node_prompt(child, "apple_email_fetch", timeout=5)
+                send_node_decision(child, execute=False)
+            except pexpect.TIMEOUT:
+                # apple_email_fetch didn't prompt - acceptable
+                pass
+
+            # Step 10: ynab_apply - Skip (would modify real YNAB data)
+            # Note: This node prompts for applying edits to YNAB
+            try:
+                wait_for_node_prompt(child, "ynab_apply", timeout=5)
+                send_node_decision(child, execute=False)
+            except pexpect.TIMEOUT:
+                # ynab_apply didn't prompt - acceptable
+                pass
+
+            # Wait for execution summary
+            child.expect("EXECUTION SUMMARY", timeout=30)
 
             # Wait for process to complete
             child.expect(pexpect.EOF, timeout=5)
@@ -783,3 +756,41 @@ def test_flow_preview_and_cancel(flow_test_env_coordinated):
         # Clean up process if still running
         if child.isalive():
             child.terminate(force=True)
+
+
+@pytest.mark.e2e
+def test_flow_help_command(flow_test_env):
+    """
+    Test that help command works correctly.
+
+    Validates that --help provides useful information for flow command.
+    """
+    # Flow help
+    result = run_flow_command(["--help"])
+    assert result.returncode == 0
+    assert "Financial Flow System" in result.stdout or "Execute the Financial Flow System" in result.stdout
+    assert "Options:" in result.stdout
+
+
+@pytest.mark.e2e
+def test_flow_default_command(flow_test_env):
+    """
+    Test that flow is the default command (can call without 'flow').
+
+    Validates that `finances flow` and `finances` are equivalent.
+    """
+    # Call without 'flow' subcommand - should work as default
+    cmd = ["uv", "run", "finances", "--help"]
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+
+    assert result.returncode == 0, f"Default command failed: {result.stderr}"
+
+    # Should show flow-related help information
+    assert (
+        "Financial Flow System" in result.stdout or "flow" in result.stdout.lower()
+    ), "Should show flow command help"

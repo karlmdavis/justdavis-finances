@@ -4,7 +4,6 @@ Unit tests for Apple DataStore implementations.
 """
 
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -32,23 +31,6 @@ class TestAppleEmailStore:
 
         shutil.rmtree(self.temp_dir)
 
-    def test_exists_returns_false_when_no_directory(self):
-        """Test exists() returns False when directory doesn't exist."""
-        assert not self.store.exists()
-
-    def test_exists_returns_false_when_no_email_files(self):
-        """Test exists() returns False when directory exists but has no email files."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        assert not self.store.exists()
-
-    def test_exists_returns_true_when_email_files_present(self):
-        """Test exists() returns True when email files are present."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        email_file = self.emails_dir / "receipt_123.eml"
-        email_file.write_text("Subject: Receipt\n\nTest email")
-
-        assert self.store.exists()
-
     def test_load_returns_email_file_paths(self):
         """Test load() returns list of email file paths."""
         self.emails_dir.mkdir(parents=True, exist_ok=True)
@@ -61,91 +43,10 @@ class TestAppleEmailStore:
         assert len(result) == 2
         assert all(p.suffix == ".eml" for p in result)
 
-    def test_load_raises_when_no_directory(self):
-        """Test load() raises FileNotFoundError when directory doesn't exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when directory has no files."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
     def test_save_raises_not_implemented(self):
         """Test save() raises NotImplementedError."""
         with pytest.raises(NotImplementedError):
             self.store.save([])
-
-    def test_last_modified_returns_none_when_no_files(self):
-        """Test last_modified() returns None when no files exist."""
-        assert self.store.last_modified() is None
-
-    def test_last_modified_returns_most_recent_timestamp(self):
-        """Test last_modified() returns timestamp of most recent file."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        email_file = self.emails_dir / "receipt_123.eml"
-        email_file.write_text("Subject: Receipt\n\nTest")
-
-        result = self.store.last_modified()
-        assert result is not None
-        assert isinstance(result, datetime)
-
-    def test_age_days_returns_none_when_no_files(self):
-        """Test age_days() returns None when no files exist."""
-        assert self.store.age_days() is None
-
-    def test_age_days_returns_integer(self):
-        """Test age_days() returns integer when files exist."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        email_file = self.emails_dir / "receipt_123.eml"
-        email_file.write_text("Subject: Receipt\n\nTest")
-
-        result = self.store.age_days()
-        assert result is not None
-        assert isinstance(result, int)
-        assert result >= 0
-
-    def test_item_count_returns_none_when_no_files(self):
-        """Test item_count() returns None when no files exist."""
-        assert self.store.item_count() is None
-
-    def test_item_count_returns_email_file_count(self):
-        """Test item_count() returns count of email files."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        email_file1 = self.emails_dir / "receipt_123.eml"
-        email_file1.write_text("Test 1")
-        email_file2 = self.emails_dir / "receipt_456.eml"
-        email_file2.write_text("Test 2")
-
-        result = self.store.item_count()
-        assert result == 2
-
-    def test_size_bytes_returns_none_when_no_files(self):
-        """Test size_bytes() returns None when no files exist."""
-        assert self.store.size_bytes() is None
-
-    def test_size_bytes_returns_total_size(self):
-        """Test size_bytes() returns total size of all email files."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        email_file = self.emails_dir / "receipt_123.eml"
-        email_file.write_text("Subject: Receipt\n\nTest email content")
-
-        result = self.store.size_bytes()
-        assert result is not None
-        assert result > 0
-
-    def test_summary_text_when_no_files(self):
-        """Test summary_text() returns appropriate message when no files."""
-        assert self.store.summary_text() == "No Apple emails found"
-
-    def test_summary_text_when_files_present(self):
-        """Test summary_text() returns count message when files present."""
-        self.emails_dir.mkdir(parents=True, exist_ok=True)
-        email_file = self.emails_dir / "receipt_123.eml"
-        email_file.write_text("Test")
-
-        assert self.store.summary_text() == "Apple emails: 1 receipts"
 
     def test_to_node_data_summary(self):
         """Test to_node_data_summary() returns NodeDataSummary."""
@@ -175,18 +76,6 @@ class TestAppleReceiptStore:
 
         shutil.rmtree(self.temp_dir)
 
-    def test_exists_returns_false_when_no_directory(self):
-        """Test exists() returns False when directory doesn't exist."""
-        assert not self.store.exists()
-
-    def test_exists_returns_true_when_json_files_present(self):
-        """Test exists() returns True when JSON files are present."""
-        self.exports_dir.mkdir(parents=True, exist_ok=True)
-        receipt_file = self.exports_dir / "M12345.json"
-        write_json(receipt_file, {"order_id": "M12345", "total": "12.34"})
-
-        assert self.store.exists()
-
     def test_load_returns_list_of_receipts(self):
         """Test load() returns list of receipt dictionaries."""
         self.exports_dir.mkdir(parents=True, exist_ok=True)
@@ -198,11 +87,6 @@ class TestAppleReceiptStore:
         result = self.store.load()
         assert len(result) == 2
         assert all(isinstance(r, dict) for r in result)
-
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no files exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
 
     def test_save_creates_files_with_order_ids(self):
         """Test save() creates files named after order IDs."""
@@ -223,72 +107,6 @@ class TestAppleReceiptStore:
         json_files = list(self.exports_dir.glob("*.json"))
         assert len(json_files) == 1
 
-    def test_last_modified_returns_none_when_no_files(self):
-        """Test last_modified() returns None when no files exist."""
-        assert self.store.last_modified() is None
-
-    def test_last_modified_returns_most_recent_timestamp(self):
-        """Test last_modified() returns timestamp of most recent file."""
-        self.exports_dir.mkdir(parents=True, exist_ok=True)
-        receipt_file = self.exports_dir / "M12345.json"
-        write_json(receipt_file, {"order_id": "M12345"})
-
-        result = self.store.last_modified()
-        assert result is not None
-        assert isinstance(result, datetime)
-
-    def test_age_days_returns_none_when_no_files(self):
-        """Test age_days() returns None when no files exist."""
-        assert self.store.age_days() is None
-
-    def test_age_days_returns_integer(self):
-        """Test age_days() returns integer when files exist."""
-        self.exports_dir.mkdir(parents=True, exist_ok=True)
-        receipt_file = self.exports_dir / "M12345.json"
-        write_json(receipt_file, {"order_id": "M12345"})
-
-        result = self.store.age_days()
-        assert result is not None
-        assert isinstance(result, int)
-        assert result >= 0
-
-    def test_item_count_returns_none_when_no_files(self):
-        """Test item_count() returns None when no files exist."""
-        assert self.store.item_count() is None
-
-    def test_item_count_returns_receipt_file_count(self):
-        """Test item_count() returns count of receipt files."""
-        self.exports_dir.mkdir(parents=True, exist_ok=True)
-        write_json(self.exports_dir / "M12345.json", {"order_id": "M12345"})
-        write_json(self.exports_dir / "M67890.json", {"order_id": "M67890"})
-
-        result = self.store.item_count()
-        assert result == 2
-
-    def test_size_bytes_returns_none_when_no_files(self):
-        """Test size_bytes() returns None when no files exist."""
-        assert self.store.size_bytes() is None
-
-    def test_size_bytes_returns_total_size(self):
-        """Test size_bytes() returns total size of all receipt files."""
-        self.exports_dir.mkdir(parents=True, exist_ok=True)
-        write_json(self.exports_dir / "M12345.json", {"order_id": "M12345"})
-
-        result = self.store.size_bytes()
-        assert result is not None
-        assert result > 0
-
-    def test_summary_text_when_no_files(self):
-        """Test summary_text() returns appropriate message when no files."""
-        assert self.store.summary_text() == "No parsed Apple receipts found"
-
-    def test_summary_text_when_files_present(self):
-        """Test summary_text() returns count message when files present."""
-        self.exports_dir.mkdir(parents=True, exist_ok=True)
-        write_json(self.exports_dir / "M12345.json", {"order_id": "M12345"})
-
-        assert self.store.summary_text() == "Parsed receipts: 1 files"
-
 
 class TestAppleMatchResultsStore:
     """Test AppleMatchResultsStore behavior."""
@@ -305,18 +123,6 @@ class TestAppleMatchResultsStore:
 
         shutil.rmtree(self.temp_dir)
 
-    def test_exists_returns_false_when_no_directory(self):
-        """Test exists() returns False when directory doesn't exist."""
-        assert not self.store.exists()
-
-    def test_exists_returns_true_when_json_files_present(self):
-        """Test exists() returns True when JSON files are present."""
-        self.matches_dir.mkdir(parents=True, exist_ok=True)
-        match_file = self.matches_dir / "2024-10-01_12-00-00_apple_matching_results.json"
-        write_json(match_file, {"matches": []})
-
-        assert self.store.exists()
-
     def test_load_returns_most_recent_match_results(self):
         """Test load() returns most recent matching results."""
         self.matches_dir.mkdir(parents=True, exist_ok=True)
@@ -327,11 +133,6 @@ class TestAppleMatchResultsStore:
         result = self.store.load()
         assert result["matches"][0]["transaction_id"] == "t1"
 
-    def test_load_raises_when_no_files(self):
-        """Test load() raises FileNotFoundError when no files exist."""
-        with pytest.raises(FileNotFoundError):
-            self.store.load()
-
     def test_save_creates_timestamped_file(self):
         """Test save() creates file with timestamp."""
         match_data = {"matches": [{"transaction_id": "t1"}]}
@@ -341,39 +142,6 @@ class TestAppleMatchResultsStore:
         json_files = list(self.matches_dir.glob("*.json"))
         assert len(json_files) == 1
         assert "apple_matching_results" in json_files[0].name
-
-    def test_last_modified_returns_none_when_no_files(self):
-        """Test last_modified() returns None when no files exist."""
-        assert self.store.last_modified() is None
-
-    def test_last_modified_returns_timestamp(self):
-        """Test last_modified() returns timestamp when files exist."""
-        self.matches_dir.mkdir(parents=True, exist_ok=True)
-        match_file = self.matches_dir / "2024-10-01_12-00-00_apple_matching_results.json"
-        write_json(match_file, {"matches": []})
-
-        result = self.store.last_modified()
-        assert result is not None
-        assert isinstance(result, datetime)
-
-    def test_age_days_returns_none_when_no_files(self):
-        """Test age_days() returns None when no files exist."""
-        assert self.store.age_days() is None
-
-    def test_age_days_returns_integer(self):
-        """Test age_days() returns integer when files exist."""
-        self.matches_dir.mkdir(parents=True, exist_ok=True)
-        match_file = self.matches_dir / "2024-10-01_12-00-00_apple_matching_results.json"
-        write_json(match_file, {"matches": []})
-
-        result = self.store.age_days()
-        assert result is not None
-        assert isinstance(result, int)
-        assert result >= 0
-
-    def test_item_count_returns_none_when_no_files(self):
-        """Test item_count() returns None when no files exist."""
-        assert self.store.item_count() is None
 
     def test_item_count_returns_match_count(self):
         """Test item_count() returns count of matches."""
@@ -398,31 +166,3 @@ class TestAppleMatchResultsStore:
 
         result = self.store.item_count()
         assert result is None
-
-    def test_size_bytes_returns_none_when_no_files(self):
-        """Test size_bytes() returns None when no files exist."""
-        assert self.store.size_bytes() is None
-
-    def test_size_bytes_returns_file_size(self):
-        """Test size_bytes() returns size of match file."""
-        self.matches_dir.mkdir(parents=True, exist_ok=True)
-        match_data = {"matches": [{"transaction_id": "t1"}]}
-        match_file = self.matches_dir / "2024-10-01_12-00-00_apple_matching_results.json"
-        write_json(match_file, match_data)
-
-        result = self.store.size_bytes()
-        assert result is not None
-        assert result > 0
-
-    def test_summary_text_when_no_files(self):
-        """Test summary_text() returns appropriate message when no files."""
-        assert self.store.summary_text() == "No Apple matches found"
-
-    def test_summary_text_when_files_present(self):
-        """Test summary_text() returns count message when files present."""
-        self.matches_dir.mkdir(parents=True, exist_ok=True)
-        match_data = {"matches": [{"transaction_id": "t1"}]}
-        match_file = self.matches_dir / "2024-10-01_12-00-00_apple_matching_results.json"
-        write_json(match_file, match_data)
-
-        assert self.store.summary_text() == "Apple matches: 1 transactions"

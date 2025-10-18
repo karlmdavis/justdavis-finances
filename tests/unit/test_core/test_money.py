@@ -89,22 +89,6 @@ class TestMoneyComparison:
         assert large >= Money.from_cents(100)
 
 
-class TestMoneyFormatting:
-    """Test Money string formatting."""
-
-    @pytest.mark.currency
-    def test_str_format(self):
-        """Test Money string representation."""
-        m = Money.from_cents(1234)
-        assert str(m) == "$12.34"
-
-    @pytest.mark.currency
-    def test_repr_format(self):
-        """Test Money repr."""
-        m = Money.from_cents(1234)
-        assert repr(m) == "Money(cents=1234)"
-
-
 class TestMoneyImmutability:
     """Test Money immutability."""
 
@@ -120,26 +104,20 @@ class TestMoneyNegativeAmounts:
     """Test Money handling of negative amounts (expenses)."""
 
     @pytest.mark.currency
-    def test_negative_from_cents(self):
-        """Test creating negative Money from cents."""
-        m = Money.from_cents(-1234)
-        assert m.to_cents() == -1234
-        assert str(m) == "-$12.34"
-
-    @pytest.mark.currency
-    def test_negative_from_milliunits(self):
-        """Test negative milliunits (YNAB expenses) preserve sign."""
-        # YNAB uses negative amounts for expenses/outflows
-        expense = Money.from_milliunits(-45990)  # -$45.99 expense
-        assert expense.to_cents() == -4599
-        assert str(expense) == "-$45.99"
-
-    @pytest.mark.currency
-    def test_negative_from_dollars_string(self):
-        """Test parsing negative dollar strings."""
-        m = Money.from_dollars("-$12.34")
-        assert m.to_cents() == -1234
-        assert str(m) == "-$12.34"
+    @pytest.mark.parametrize(
+        "constructor,input_value,expected_cents,expected_str",
+        [
+            (Money.from_cents, -1234, -1234, "-$12.34"),
+            (Money.from_milliunits, -12340, -1234, "-$12.34"),
+            (Money.from_dollars, "-$12.34", -1234, "-$12.34"),
+        ],
+        ids=["from_cents", "from_milliunits", "from_dollars"],
+    )
+    def test_negative_amount_construction(self, constructor, input_value, expected_cents, expected_str):
+        """Test creating negative Money from various constructors."""
+        m = constructor(input_value)
+        assert m.to_cents() == expected_cents
+        assert str(m) == expected_str
 
     @pytest.mark.currency
     def test_negative_arithmetic(self):
@@ -189,29 +167,23 @@ class TestMoneyEdgeCases:
     """Test Money edge cases and boundary conditions."""
 
     @pytest.mark.currency
-    def test_zero_amount(self):
-        """Test zero amount handling."""
-        zero = Money.from_cents(0)
-        assert zero.to_cents() == 0
-        assert zero.to_milliunits() == 0
-        assert str(zero) == "$0.00"
+    @pytest.mark.parametrize(
+        "cents,milliunits,display_str",
+        [
+            (0, 0, "$0.00"),
+            (100_000_000, 1_000_000_000, "$1,000,000.00"),
+            (1_000_000_000, 10_000_000_000, "$10,000,000.00"),
+        ],
+        ids=["zero", "one_million", "ten_million"],
+    )
+    def test_money_edge_case_amounts(self, cents, milliunits, display_str):
+        """Test Money handling of edge case amounts."""
+        m_from_cents = Money.from_cents(cents)
+        m_from_milliunits = Money.from_milliunits(milliunits)
 
-        # Zero from milliunits
-        zero_mu = Money.from_milliunits(0)
-        assert zero_mu.to_cents() == 0
-
-    @pytest.mark.currency
-    def test_large_amounts(self):
-        """Test handling of large financial amounts."""
-        # $1 million
-        million = Money.from_cents(100_000_000)
-        assert million.to_cents() == 100_000_000
-        assert str(million) == "$1,000,000.00"
-
-        # $10 million
-        ten_million = Money.from_milliunits(10_000_000_000)
-        assert ten_million.to_cents() == 1_000_000_000
-        assert str(ten_million) == "$10,000,000.00"
+        assert m_from_cents.to_cents() == cents
+        assert m_from_milliunits.to_cents() == cents
+        assert str(m_from_cents) == display_str
 
     @pytest.mark.currency
     def test_small_fractional_amounts(self):

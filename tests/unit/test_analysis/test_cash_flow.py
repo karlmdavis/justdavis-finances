@@ -353,15 +353,6 @@ class TestCashFlowAnalyzer:
 class TestCashFlowEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_invalid_date_range(self):
-        """Test invalid date range configuration."""
-        config = CashFlowConfig(cash_accounts=["Test Account"], start_date="2025-01-01")  # Future date
-        CashFlowAnalyzer(config)
-
-        # Should not crash, but may have no data
-        # Implementation specific behavior
-        pass
-
     def test_missing_account_data(self, temp_dir):
         """Test handling of missing account data."""
         ynab_cache_dir = temp_dir / "ynab" / "cache"
