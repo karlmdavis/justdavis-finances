@@ -711,6 +711,790 @@ net = income + expense  # Correct addition
 - **Batch operations**: Efficient bulk transaction updates.
 - **Error recovery**: Graceful handling of API failures.
 
+## Extension Guides
+
+### Adding a New Flow Node
+
+Flow nodes are the building blocks of the financial processing system.
+Each node represents a distinct operation (data fetching, matching, analysis) with explicit
+  dependencies on other nodes.
+
+#### Step-by-Step Guide
+
+**1. Create the flow function** in the appropriate domain's `flow.py` module:
+
+```python
+# In src/finances/newdomain/flow.py
+from finances.core.flow import FlowContext, FlowResult
+
+def new_operation_flow(context: FlowContext) -> FlowResult:
+    """
+    Execute new domain operation.
+
+    Args:
+        context: Flow execution context with shared state
+
+    Returns:
+        FlowResult with execution details and outputs
+    """
+    from finances.newdomain.datastore import NewDomainDataStore
+
+    # Initialize datastore
+    datastore = NewDomainDataStore(base_path=Path("data/newdomain"))
+
+    # Load input data
+    input_data = datastore.load()
+
+    # Process data (implement your business logic here)
+    results = process_data(input_data)
+
+    # Save results
+    datastore.save(results)
+
+    # Return structured result
+    return FlowResult(
+        success=True,
+        items_processed=len(results),
+        new_items=len([r for r in results if r.is_new]),
+        outputs=[datastore.output_path],
+        execution_time_seconds=2.5
+    )
+```
+
+**2. Register the node** in `src/finances/cli/flow.py` via `setup_flow_nodes()`:
+
+```python
+# In src/finances/cli/flow.py
+from finances.newdomain.flow import new_operation_flow
+from finances.newdomain.datastore import NewDomainDataStore
+
+def setup_flow_nodes(registry: FlowNodeRegistry) -> None:
+    # ... existing registrations ...
+
+    # Initialize datastore for change detection
+    new_datastore = NewDomainDataStore(base_path=Path("data/newdomain"))
+
+    # Register new flow node
+    registry.register_function_node(
+        name="new_operation",  # Unique node identifier
+        func=new_operation_flow,
+        dependencies=["ynab_sync"],  # Depends on YNAB data
+        change_detector=lambda ctx: check_new_operation_changes(ctx, new_datastore),
+        data_summary_func=lambda ctx: new_datastore.to_node_data_summary()
+    )
+```
+
+**3. Implement change detection logic**:
+
+```python
+# In src/finances/cli/flow.py or domain-specific module
+def check_new_operation_changes(
+    context: FlowContext,
+    datastore: NewDomainDataStore
+) -> tuple[bool, list[str]]:
+    """
+    Determine if new_operation node needs to execute.
+
+    Args:
+        context: Flow execution context
+        datastore: Domain-specific datastore
+
+    Returns:
+        Tuple of (needs_execution, list_of_change_reasons)
+    """
+    reasons = []
+
+    # Check if input data exists
+    if not datastore.exists():
+        reasons.append("No input data found")
+        return True, reasons
+
+    # Check if upstream dependencies have new outputs
+    if "ynab_sync" in context.archive_manifest:
+        ynab_file = context.archive_manifest["ynab_sync"]
+        if datastore.last_modified() < ynab_file.stat().st_mtime:
+            reasons.append("YNAB data updated")
+            return True, reasons
+
+    # No changes detected
+    return False, ["No changes detected"]
+```
+
+**4. Test the flow node**:
+
+```python
+# In tests/integration/test_newdomain_flow.py
+import pytest
+from finances.core.flow import FlowContext
+from finances.newdomain.flow import new_operation_flow
+
+def test_new_operation_flow_success(tmp_path):
+    """Test new operation flow executes successfully."""
+    # Setup test data
+    context = FlowContext(start_time=datetime.now())
+
+    # Execute flow node
+    result = new_operation_flow(context)
+
+    # Verify results
+    assert result.success
+    assert result.items_processed > 0
+    assert len(result.outputs) > 0
+```
+
+**5. Verify in complete flow**:
+
+```bash
+# List all flow nodes to verify registration
+finances flow list-nodes
+
+# Show flow graph with new node
+finances flow show-graph
+
+# Execute complete flow
+finances flow go
+```
+
+#### Best Practices
+
+- **Single responsibility**: Each node should do one thing well.
+- **Idempotent execution**: Running a node multiple times with same inputs produces same outputs.
+- **Change detection**: Only execute when upstream data or dependencies change.
+- **Structured results**: Always return FlowResult with meaningful metadata.
+- **Error handling**: Catch exceptions and return `FlowResult(success=False, error_message=str(e))`.
+
+### Creating a New DataStore
+
+DataStores abstract data persistence from business logic, providing consistent interface for
+  loading, saving, and querying data.
+
+#### Implementation Pattern
+
+```python
+# In src/finances/newdomain/datastore.py
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+from finances.core.datastore import DataStore
+from finances.core.flow import NodeDataSummary
+from finances.newdomain.models import NewDomainData
+
+class NewDomainDataStore:
+    """DataStore for new domain data persistence and metadata queries."""
+
+    def __init__(self, base_path: Path):
+        """
+        Initialize datastore.
+
+        Args:
+            base_path: Root directory for data storage
+        """
+        self.base_path = base_path
+        self.output_path = base_path / "results.json"
+
+    def exists(self) -> bool:
+        """Check if data exists in storage."""
+        return self.output_path.exists()
+
+    def load(self) -> list[NewDomainData]:
+        """
+        Load data from storage.
+
+        Returns:
+            List of NewDomainData domain models
+
+        Raises:
+            FileNotFoundError: If data doesn't exist
+            ValueError: If data is invalid/corrupted
+        """
+        if not self.exists():
+            raise FileNotFoundError(f"Data not found: {self.output_path}")
+
+        # Load JSON and convert to domain models
+        from finances.core.json_utils import read_json
+        data_dicts = read_json(self.output_path)
+        return [NewDomainData.from_dict(d) for d in data_dicts]
+
+    def save(self, data: list[NewDomainData]) -> None:
+        """
+        Save data to storage.
+
+        Args:
+            data: List of NewDomainData to persist
+        """
+        # Create directory if needed
+        self.base_path.mkdir(parents=True, exist_ok=True)
+
+        # Convert domain models to dicts and save
+        from finances.core.json_utils import write_json
+        data_dicts = [d.to_dict() for d in data]
+        write_json(self.output_path, data_dicts)
+
+    def last_modified(self) -> Optional[datetime]:
+        """Get timestamp of most recent data modification."""
+        if not self.exists():
+            return None
+        timestamp = self.output_path.stat().st_mtime
+        return datetime.fromtimestamp(timestamp)
+
+    def age_days(self) -> Optional[int]:
+        """Get age of data in days since last modification."""
+        last_mod = self.last_modified()
+        if not last_mod:
+            return None
+        age = datetime.now() - last_mod
+        return age.days
+
+    def item_count(self) -> Optional[int]:
+        """Get count of items in stored data."""
+        if not self.exists():
+            return None
+        data = self.load()
+        return len(data)
+
+    def size_bytes(self) -> Optional[int]:
+        """Get total storage size in bytes."""
+        if not self.exists():
+            return None
+        return self.output_path.stat().st_size
+
+    def summary_text(self) -> str:
+        """Get human-readable summary of current data state."""
+        if not self.exists():
+            return "No data found"
+
+        count = self.item_count()
+        age = self.age_days()
+
+        if age == 0:
+            age_str = "today"
+        elif age == 1:
+            age_str = "yesterday"
+        else:
+            age_str = f"{age} days ago"
+
+        return f"{count} items (updated {age_str})"
+
+    def to_node_data_summary(self) -> NodeDataSummary:
+        """Convert DataStore state to NodeDataSummary for FlowNode integration."""
+        return NodeDataSummary(
+            exists=self.exists(),
+            last_updated=self.last_modified(),
+            age_days=self.age_days(),
+            item_count=self.item_count(),
+            size_bytes=self.size_bytes(),
+            summary_text=self.summary_text()
+        )
+```
+
+#### DataStore Best Practices
+
+- **Domain models only**: Never return dicts or DataFrames from `load()`.
+- **Graceful errors**: Raise FileNotFoundError if data missing, ValueError if corrupted.
+- **Metadata efficiency**: Cache metadata queries to avoid repeated file I/O.
+- **Directory creation**: Use `mkdir(parents=True, exist_ok=True)` in `save()`.
+- **JSON formatting**: Always use `finances.core.json_utils` for consistent formatting.
+
+### Working with Domain Models
+
+Domain models are typed dataclasses that represent business entities (transactions, orders,
+  receipts).
+They use Money and FinancialDate primitives for type safety.
+
+#### Creating Domain Models
+
+```python
+# In src/finances/newdomain/models.py
+from dataclasses import dataclass
+from typing import Optional
+
+from finances.core import Money, FinancialDate
+
+@dataclass(frozen=True)
+class NewDomainModel:
+    """
+    Domain model for new entity type.
+
+    Attributes:
+        id: Unique identifier
+        amount: Transaction amount (use Money for type safety)
+        transaction_date: Date of transaction (use FinancialDate)
+        description: Human-readable description
+        metadata: Optional additional data
+    """
+    id: str
+    amount: Money
+    transaction_date: FinancialDate
+    description: str
+    metadata: Optional[dict[str, str]] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "NewDomainModel":
+        """
+        Deserialize from dictionary (JSON loading).
+
+        Args:
+            data: Dictionary with model fields
+
+        Returns:
+            NewDomainModel instance
+
+        Raises:
+            KeyError: If required fields missing
+            ValueError: If data invalid
+        """
+        return cls(
+            id=data["id"],
+            amount=Money.from_milliunits(data["amount_milliunits"]),
+            transaction_date=FinancialDate.from_string(data["transaction_date"]),
+            description=data["description"],
+            metadata=data.get("metadata")  # Optional field
+        )
+
+    def to_dict(self) -> dict:
+        """
+        Serialize to dictionary (JSON saving).
+
+        Returns:
+            Dictionary representation for JSON serialization
+        """
+        result = {
+            "id": self.id,
+            "amount_milliunits": self.amount.to_milliunits(),
+            "transaction_date": str(self.transaction_date),
+            "description": self.description
+        }
+
+        # Include optional fields only if present
+        if self.metadata:
+            result["metadata"] = self.metadata
+
+        return result
+```
+
+#### Domain Model Best Practices
+
+- **Frozen dataclasses**: Always use `@dataclass(frozen=True)` for immutability.
+- **Money for currency**: Use Money type for all currency amounts (never int or float).
+- **FinancialDate for dates**: Use FinancialDate for all date fields (never string or datetime).
+- **Required serialization**: Always implement `from_dict()` and `to_dict()` methods.
+- **Type hints**: Use full type annotations on all fields.
+- **Comprehensive tests**: Test construction, conversion, edge cases, validation.
+
+#### Using Domain Models in Business Logic
+
+```python
+from finances.newdomain.models import NewDomainModel
+
+def process_transactions(
+    transactions: list[NewDomainModel]
+) -> list[NewDomainModel]:
+    """
+    Process transactions with domain model operations.
+
+    Args:
+        transactions: List of NewDomainModel instances
+
+    Returns:
+        Filtered and transformed transactions
+    """
+    # Filter using domain model fields (type-safe)
+    filtered = [
+        t for t in transactions
+        if t.amount.to_cents() > 1000  # $10.00 minimum
+        and t.transaction_date.to_date() >= date(2024, 1, 1)
+    ]
+
+    # Transform using domain model operations
+    results = []
+    for transaction in filtered:
+        # Money arithmetic is type-safe
+        adjusted_amount = transaction.amount + Money.from_cents(50)
+
+        # Create new immutable instance with changes
+        results.append(
+            NewDomainModel(
+                id=transaction.id,
+                amount=adjusted_amount,
+                transaction_date=transaction.transaction_date,
+                description=f"Adjusted: {transaction.description}",
+                metadata=transaction.metadata
+            )
+        )
+
+    return results
+```
+
+### Writing Tests
+
+The project follows an inverted test pyramid: E2E → Integration → Unit (priority order).
+
+See `tests/README.md` for complete testing philosophy.
+
+#### E2E Tests (Priority 1)
+
+E2E tests execute complete CLI workflows via subprocess, catching integration bugs that unit tests
+  miss.
+
+```python
+# In tests/e2e/test_newdomain_workflow.py
+import subprocess
+import pytest
+from pathlib import Path
+
+def test_newdomain_complete_workflow(tmp_path):
+    """Test complete new domain workflow from end to end."""
+    # Setup test environment
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+
+    # Create test input data
+    input_file = data_dir / "input.json"
+    input_file.write_text('{"test": "data"}')
+
+    # Execute CLI command via subprocess (real user workflow)
+    result = subprocess.run(
+        ["finances", "newdomain", "process", "--input-file", str(input_file)],
+        capture_output=True,
+        text=True
+    )
+
+    # Verify command succeeded
+    assert result.returncode == 0
+    assert "Processing complete" in result.stdout
+
+    # Verify output files created
+    output_file = data_dir / "newdomain" / "results.json"
+    assert output_file.exists()
+
+    # Verify output data is correct
+    from finances.core.json_utils import read_json
+    results = read_json(output_file)
+    assert len(results) > 0
+```
+
+#### Integration Tests (Priority 2)
+
+Integration tests use CliRunner (faster than subprocess) and test multiple components with real
+  file system operations.
+
+```python
+# In tests/integration/test_newdomain_integration.py
+from click.testing import CliRunner
+from finances.cli.main import cli
+
+def test_newdomain_integration_with_datastore(tmp_path, monkeypatch):
+    """Test new domain with DataStore integration."""
+    # Setup test data directory
+    data_dir = tmp_path / "data"
+    monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
+
+    # Create input data
+    input_path = data_dir / "input.json"
+    from finances.core.json_utils import write_json
+    write_json(input_path, [{"id": "1", "amount_milliunits": 12345}])
+
+    # Execute via CliRunner (faster than subprocess)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["newdomain", "process", "--input-file", str(input_path)])
+
+    # Verify execution
+    assert result.exit_code == 0
+
+    # Verify DataStore saved results
+    from finances.newdomain.datastore import NewDomainDataStore
+    datastore = NewDomainDataStore(base_path=data_dir / "newdomain")
+    assert datastore.exists()
+    results = datastore.load()
+    assert len(results) == 1
+```
+
+#### Unit Tests (Priority 3)
+
+Unit tests isolate complex business logic for focused testing.
+
+```python
+# In tests/unit/test_newdomain/test_processor.py
+import pytest
+from finances.core import Money, FinancialDate
+from finances.newdomain.models import NewDomainModel
+from finances.newdomain.processor import process_transactions
+
+def test_processor_filters_by_amount():
+    """Test processor filters transactions by minimum amount."""
+    # Create test data with domain models
+    transactions = [
+        NewDomainModel(
+            id="1",
+            amount=Money.from_cents(500),  # $5.00 - below minimum
+            transaction_date=FinancialDate.from_string("2024-10-15"),
+            description="Small transaction"
+        ),
+        NewDomainModel(
+            id="2",
+            amount=Money.from_cents(1500),  # $15.00 - above minimum
+            transaction_date=FinancialDate.from_string("2024-10-15"),
+            description="Large transaction"
+        )
+    ]
+
+    # Execute business logic
+    results = process_transactions(transactions)
+
+    # Verify filtering
+    assert len(results) == 1
+    assert results[0].id == "2"
+    assert results[0].amount.to_cents() == 1500
+```
+
+#### Test Data Guidelines
+
+**NEVER use real financial data or PII in tests.**
+
+Use synthetic data generators from `tests/fixtures/synthetic_data.py`:
+
+```python
+from tests.fixtures.synthetic_data import (
+    generate_synthetic_ynab_transactions,
+    generate_synthetic_amazon_orders,
+    generate_synthetic_apple_receipts
+)
+
+def test_with_synthetic_data():
+    """Test with realistic synthetic data."""
+    transactions = generate_synthetic_ynab_transactions(count=10)
+    orders = generate_synthetic_amazon_orders(count=5)
+
+    # Test with realistic but fake data
+    results = match_transactions(transactions, orders)
+    assert len(results) > 0
+```
+
+### Debugging the Flow System
+
+Common issues when working with flow nodes and execution.
+
+#### Issue: Flow Node Not Executing
+
+**Symptoms**: Node skipped in `finances flow go` output.
+
+**Causes**:
+1. Change detection returns `(False, ...)` - no changes detected.
+2. Dependency failed - node blocked by failed upstream dependency.
+3. Node excluded via `--nodes-excluded` flag.
+
+**Debugging**:
+```bash
+# Force execution of all nodes
+finances flow go --force-all
+
+# Show detailed change detection reasoning
+finances flow go --verbose
+
+# List all registered nodes
+finances flow list-nodes
+
+# Show dependency graph
+finances flow show-graph
+```
+
+**Fix change detection**:
+```python
+# Add debug logging to change detector
+def check_changes(context: FlowContext) -> tuple[bool, list[str]]:
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if not datastore.exists():
+        logger.info("No data found - triggering execution")
+        return True, ["No data found"]
+
+    # Add more debug logging for each check
+    logger.info(f"Data age: {datastore.age_days()} days")
+    # ...
+```
+
+#### Issue: Flow Node Fails Silently
+
+**Symptoms**: Node reports success but doesn't produce expected output.
+
+**Causes**:
+1. Exception caught and logged but not propagated to FlowResult.
+2. FlowResult returned with `success=True` despite internal errors.
+3. Output paths not added to FlowResult.
+
+**Debugging**:
+```python
+def problematic_flow(context: FlowContext) -> FlowResult:
+    try:
+        # Process data
+        results = process_data()
+
+        # WRONG: Exception caught but success=True
+        return FlowResult(success=True, items_processed=0)
+
+    except Exception as e:
+        # Log error but return success
+        logger.error(f"Error: {e}")
+        return FlowResult(success=True)  # BUG: Should be success=False
+
+# FIXED VERSION:
+def fixed_flow(context: FlowContext) -> FlowResult:
+    try:
+        results = process_data()
+
+        if not results:
+            return FlowResult(
+                success=False,
+                error_message="No results produced"
+            )
+
+        return FlowResult(
+            success=True,
+            items_processed=len(results),
+            outputs=[output_path]  # Include outputs for downstream change detection
+        )
+
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        return FlowResult(
+            success=False,
+            error_message=str(e)
+        )
+```
+
+#### Issue: Change Detection Too Aggressive
+
+**Symptoms**: Nodes re-execute even when no changes occurred.
+
+**Causes**:
+1. Change detector always returns `True`.
+2. Timestamp comparison includes seconds (files touched by unrelated operations).
+3. Upstream dependency always produces new outputs (timestamp changes on every run).
+
+**Debugging**:
+```python
+# Add detailed logging to change detector
+def check_changes(context: FlowContext) -> tuple[bool, list[str]]:
+    reasons = []
+
+    output_time = datastore.last_modified()
+    input_time = input_datastore.last_modified()
+
+    logger.info(f"Output time: {output_time}")
+    logger.info(f"Input time: {input_time}")
+
+    if output_time < input_time:
+        reasons.append(f"Input newer ({input_time}) than output ({output_time})")
+        return True, reasons
+
+    return False, ["No changes detected"]
+```
+
+**Fix timestamp precision issues**:
+```python
+from datetime import timedelta
+
+# Use minute-level precision instead of seconds
+if output_time < input_time - timedelta(seconds=30):
+    # Allow 30-second window for file system delays
+    reasons.append("Input significantly newer than output")
+    return True, reasons
+```
+
+### YNAB Development Workflow
+
+Specific guidelines for working with YNAB integration.
+
+#### Local Development Setup
+
+**1. Get YNAB Personal Access Token**:
+- Go to https://app.ynab.com/settings/developer
+- Generate new Personal Access Token
+- Copy token to `.env` file:
+  ```bash
+  YNAB_API_TOKEN=your_token_here
+  ```
+
+**2. Verify authentication**:
+```bash
+# Test YNAB API connection
+finances ynab sync-cache
+
+# Verify cache files created
+ls -la data/ynab/cache/
+# Should see: accounts.json, categories.json, transactions.json
+```
+
+#### Testing YNAB Integration
+
+**Use test mode to avoid affecting real budget**:
+
+```python
+# In tests/integration/test_ynab_integration.py
+import pytest
+from unittest.mock import Mock, patch
+
+@pytest.fixture
+def mock_ynab_client():
+    """Mock YNAB API client for testing."""
+    with patch("finances.ynab.ynab_client.YNABClient") as mock:
+        # Setup mock responses
+        mock.return_value.get_accounts.return_value = [
+            {"id": "account_1", "name": "Checking", "balance": 100000}
+        ]
+        yield mock
+
+def test_ynab_sync_with_mock(mock_ynab_client, tmp_path, monkeypatch):
+    """Test YNAB sync without real API calls."""
+    monkeypatch.setenv("FINANCES_DATA_DIR", str(tmp_path))
+
+    # Execute sync
+    from finances.ynab.flow import ynab_sync_flow
+    result = ynab_sync_flow(FlowContext(start_time=datetime.now()))
+
+    # Verify mock called
+    mock_ynab_client.return_value.get_accounts.assert_called_once()
+
+    # Verify cache created
+    assert result.success
+```
+
+#### Debugging YNAB Sync Issues
+
+**Check API rate limits**:
+```python
+# YNAB API allows 200 requests per hour
+# Check rate limit status in response headers
+import requests
+
+response = requests.get(
+    "https://api.ynab.com/v1/budgets",
+    headers={"Authorization": f"Bearer {api_token}"}
+)
+
+print(f"Rate limit: {response.headers.get('X-Rate-Limit')}")
+print(f"Remaining: {response.headers.get('X-Rate-Limit-Remaining')}")
+```
+
+**Verify cache structure**:
+```bash
+# Check JSON structure
+jq '.accounts | length' data/ynab/cache/accounts.json
+jq '.category_groups | length' data/ynab/cache/categories.json
+jq 'length' data/ynab/cache/transactions.json
+
+# Validate JSON format
+jq empty data/ynab/cache/*.json && echo "All valid JSON"
+```
+
+**Test with small date range**:
+```bash
+# Fetch only recent transactions for faster testing
+finances ynab sync-cache --since-date 2024-10-01
+```
+
 ## Security Considerations
 
 ### Data Protection

@@ -181,7 +181,36 @@ ynab-data/
 
 ## Technical Architecture
 
-### Refresh Workflow Design
+### Current Implementation (Flow System + DataStore)
+
+**Modern Implementation:**
+The YNAB data workflow is now integrated into the Financial Flow System using the DataStore pattern.
+
+```bash
+# Execute YNAB data sync via flow system
+finances flow
+
+# The flow system:
+# - Prompts for YNAB data update
+# - Uses YnabDataNode with YnabDataStore
+# - Automatically manages caching and change detection
+# - Archives previous data versions
+# - Validates data integrity
+```
+
+**DataStore Pattern:**
+- **YnabDataStore**: Manages cached YNAB data with change detection
+- **Location**: `data/ynab/cache/` directory
+- **Files**: `accounts.json`, `categories.json`, `transactions.json`
+- **Archiving**: Previous versions saved to `data/ynab/archive/` on changes
+- **Integration**: Seamless integration with all flow nodes
+
+**Legacy Scripts:**
+The bash refresh scripts described below are **still valid** for manual YNAB data refresh operations
+  outside the flow system.
+They provide a fallback mechanism and can be used for scheduled cron jobs or ad-hoc refreshes.
+
+### Refresh Workflow Design (Legacy Scripts)
 
 #### Full Data Refresh Script
 ```bash

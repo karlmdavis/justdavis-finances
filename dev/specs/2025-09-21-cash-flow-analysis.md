@@ -146,6 +146,35 @@ It transforms raw YNAB transaction data into visual insights including moving
 
 ## Technical Architecture
 
+### Current Implementation (Flow System Integration)
+
+**Modern Implementation:**
+The Cash Flow Analysis System is integrated into the Financial Flow System as **CashFlowNode**.
+
+```bash
+# Execute cash flow analysis via flow system
+finances flow
+
+# The flow system:
+# - Prompts for cash flow analysis update
+# - Depends on YnabDataNode (requires YNAB data)
+# - Uses CashFlowAnalyzer with CashFlowDataStore
+# - Generates 6-panel dashboard automatically
+# - Outputs to data/cash_flow/charts/
+```
+
+**DataStore Pattern:**
+- **CashFlowDataStore**: Manages cash flow analysis results and dashboards
+- **Location**: `data/cash_flow/` directory
+- **Charts**: Timestamped PNG files with 6-panel dashboards
+- **Archiving**: Previous dashboards maintained for trend comparison
+- **Configuration**: Account selection and date ranges via environment variables
+
+**Code Organization:**
+The Python analysis code described below is implemented in `src/finances/analysis/cash_flow.py`
+  and integrated into the flow system.
+The architectural patterns and statistical methods remain as specified.
+
 ### Data Pipeline Design
 
 #### Phase 1: Data Loading and Validation

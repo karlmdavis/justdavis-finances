@@ -150,13 +150,16 @@ Payment Method, Shipping Address, [additional fields...]
    # Returns: ["karl", "erica", ...] based on directory names
    ```
 
-2. **Account-Specific Processing**
+2. **Automatic Processing via Flow System**
    ```bash
-   # Process specific accounts only
-   python match_transactions.py --accounts karl erica
+   # All discovered accounts processed automatically
+   finances flow
 
-   # Process all discovered accounts (default)
-   python match_transactions.py
+   # The flow system:
+   # - Discovers all Amazon accounts via directory pattern matching
+   # - Loads data from most recent export per account
+   # - Processes all accounts in Amazon matching node
+   # - No manual account specification required
    ```
 
 3. **Cross-Account Search**
