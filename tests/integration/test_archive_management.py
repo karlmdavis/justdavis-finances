@@ -90,45 +90,32 @@ class TestDomainArchiver:
         file_paths = [str(f) for f in files]
         assert not any("archive" in path for path in file_paths)
 
-    @pytest.mark.parametrize(
-        "setup_archives,expected_seq",
-        [
-            ([], 1),  # No existing archives
-            (["001", "002"], 3),  # With existing valid archives
-            (["001", "invalid", "xyz"], 2),  # With malformed names
-        ],
-        ids=["no_archives", "with_existing", "ignores_malformed"],
-    )
-    def test_get_next_sequence_number(self, temp_data_dir, setup_archives, expected_seq):
-        """Test getting next sequence number with various archive states."""
-        import tarfile
+    def test_sequence_numbering_handles_all_scenarios(self, temp_data_dir):
+        """Test sequence numbering with no archives, existing valid, and malformed names."""
         from datetime import datetime
 
         archiver = DomainArchiver("amazon", temp_data_dir)
         today = datetime.now().strftime("%Y-%m-%d")
 
-        # Create archives based on setup
-        for archive_name in setup_archives:
-            if archive_name in ["001", "002"]:
-                # Valid archive
-                archive_path = archiver.archive_dir / f"{today}-{archive_name}.tar.gz"
-                with tarfile.open(archive_path, "w:gz"):
-                    pass
-            elif archive_name == "invalid":
-                # Invalid name (not matching pattern)
-                (archiver.archive_dir / "invalid-name.tar.gz").write_bytes(b"")
-            elif archive_name == "xyz":
-                # Malformed sequence number
-                (archiver.archive_dir / f"{today}-xyz.tar.gz").write_bytes(b"")
+        # Scenario 1: No existing archives
+        assert archiver.get_next_sequence_number(today) == 1
 
-        # Also create archive with different date to verify it's ignored
-        if setup_archives:  # Only for non-empty cases
-            with tarfile.open(archiver.archive_dir / "2024-01-02-001.tar.gz", "w:gz"):
-                pass
+        # Scenario 2: With existing valid archives
+        with tarfile.open(archiver.archive_dir / f"{today}-001.tar.gz", "w:gz"):
+            pass
+        with tarfile.open(archiver.archive_dir / f"{today}-002.tar.gz", "w:gz"):
+            pass
+        assert archiver.get_next_sequence_number(today) == 3
 
-        seq_num = archiver.get_next_sequence_number(today)
+        # Scenario 3: Ignores malformed names
+        (archiver.archive_dir / "invalid-name.tar.gz").write_bytes(b"")
+        (archiver.archive_dir / f"{today}-xyz.tar.gz").write_bytes(b"")
+        assert archiver.get_next_sequence_number(today) == 3  # Still 3, malformed ignored
 
-        assert seq_num == expected_seq
+        # Scenario 4: Ignores different dates
+        with tarfile.open(archiver.archive_dir / "2024-01-02-001.tar.gz", "w:gz"):
+            pass
+        assert archiver.get_next_sequence_number(today) == 3  # Still 3, different date ignored
 
     def test_create_archive_no_files(self, temp_data_dir):
         """Test creating archive when domain has no files."""
