@@ -398,7 +398,7 @@ For each specification in Task 6:
 
 3. **Task 5**: TODO Cleanup and GitHub Infrastructure
    - Create 3 GitHub issue templates
-   - Create 6 GitHub issues from TODO audit
+   - ✅ Create 6 GitHub issues from TODO audit (#21-#26)
    - Relocate phase-2-type-checking-report.md
    - Delete 4 files (dev/todos.md, todos.md, KNOWN_ISSUES.md, YNAB_DATA_WORKFLOW.md)
 

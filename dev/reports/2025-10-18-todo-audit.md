@@ -291,12 +291,12 @@ Based on TODO audit, the following gaps exist in documentation:
 ### Phase 3, Task 5 Actions (TODO Cleanup and GitHub Infrastructure)
 
 **Create GitHub issues for** (6 issues):
-1. Retirement CLI: Fix potential data loss risk in non-interactive mode
-2. Cash flow: Make analysis more lenient for test environments
-3. Testing: Improve flow_test_env synthetic test data coordination
-4. Flow system: Make --nodes-excluded not transitive
-5. YNAB: Split Generation Flow domain model migration
-6. Flow system: Verify/resolve flow graph JSON serialization extraction
+1. ✅ Retirement CLI: Fix potential data loss risk in non-interactive mode (#21)
+2. ✅ Cash flow: Make analysis more lenient for test environments (#22)
+3. ✅ Testing: Improve flow_test_env synthetic test data coordination (#23)
+4. ✅ Flow system: Make --nodes-excluded not transitive (#24)
+5. ✅ YNAB: Split Generation Flow domain model migration (#25)
+6. ✅ Flow system: Verify/resolve flow graph JSON serialization extraction (#26)
 
 **Delete TODOs** (1 item):
 1. Python version targeting (resolved)
