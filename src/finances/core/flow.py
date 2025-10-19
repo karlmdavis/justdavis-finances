@@ -120,6 +120,18 @@ class OutputInfo(ABC):
         pass
 
 
+class NoOutputInfo(OutputInfo):
+    """Output info for nodes with no persistent output (manual steps)."""
+
+    def is_data_ready(self) -> bool:
+        """Manual nodes are always ready (no data required)."""
+        return True
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Manual nodes have no output files."""
+        return []
+
+
 class FlowNode(ABC):
     """
     Abstract base class for flow nodes.
@@ -343,10 +355,8 @@ class FunctionFlowNode(FlowNode):
             return FlowResult(success=False, error_message=str(e))
 
     def get_output_info(self) -> OutputInfo:
-        """Get output info - stub implementation (will be replaced in Task 8)."""
-        raise NotImplementedError(
-            f"get_output_info not yet implemented for {self.__class__.__name__}"
-        )
+        """Get output info - defaults to NoOutputInfo for function nodes."""
+        return NoOutputInfo()
 
 
 class CLIAdapterNode(FlowNode):
@@ -416,10 +426,8 @@ class CLIAdapterNode(FlowNode):
             return FlowResult(success=False, error_message=str(e))
 
     def get_output_info(self) -> OutputInfo:
-        """Get output info - stub implementation (will be replaced in Task 8)."""
-        raise NotImplementedError(
-            f"get_output_info not yet implemented for {self.__class__.__name__}"
-        )
+        """Get output info - defaults to NoOutputInfo for CLI nodes."""
+        return NoOutputInfo()
 
 
 class FlowNodeRegistry:
