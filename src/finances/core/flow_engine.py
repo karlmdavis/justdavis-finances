@@ -104,19 +104,25 @@ class DependencyGraph:
                     graph[dep_name].add(node_name)
                     in_degree[node_name] += 1
 
-        # Initialize queue with nodes that have no dependencies
-        queue = deque([node for node in nodes_to_execute if in_degree[node] == 0])
+        # Initialize queue with nodes that have no dependencies (sorted alphabetically)
+        initial_nodes = sorted([node for node in nodes_to_execute if in_degree[node] == 0])
+        queue = deque(initial_nodes)
         result = []
 
         while queue:
             current = queue.popleft()
             result.append(current)
 
-            # Process dependents
+            # Process dependents and collect newly ready nodes
+            next_batch = []
             for dependent in graph[current]:
                 in_degree[dependent] -= 1
                 if in_degree[dependent] == 0:
-                    queue.append(dependent)
+                    next_batch.append(dependent)
+
+            # Sort newly ready nodes alphabetically before adding to queue
+            next_batch.sort()
+            queue.extend(next_batch)
 
         # Check if all nodes were processed (no cycles)
         if len(result) != len(nodes_to_execute):
