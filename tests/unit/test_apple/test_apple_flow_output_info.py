@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from finances.apple.flow import AppleEmailFetchFlowNode, AppleReceiptParsingFlowNode
+from finances.apple.flow import AppleEmailFetchFlowNode, AppleReceiptParsingFlowNode, AppleMatchingFlowNode
 
 
 def test_apple_email_output_info_is_data_ready_returns_false_when_no_files():
@@ -119,3 +119,40 @@ def test_apple_receipt_output_info_get_output_files_returns_all_types():
         assert len(files) == 3
         suffixes = {f.path.suffix for f in files}
         assert suffixes == {".html", ".eml", ".txt"}
+
+
+def test_apple_matching_output_info_is_data_ready_returns_true_with_json_files():
+    """Verify is_data_ready returns True when .json match files exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        data_dir = Path(tmpdir)
+        matches_dir = data_dir / "apple" / "transaction_matches"
+        matches_dir.mkdir(parents=True)
+
+        # Create match result JSON
+        (matches_dir / "2024-10-19_results.json").write_text('{"matches": []}')
+
+        node = AppleMatchingFlowNode(data_dir)
+        info = node.get_output_info()
+
+        assert info.is_data_ready() is True
+
+
+def test_apple_matching_output_info_get_output_files_returns_json_with_match_counts():
+    """Verify get_output_files returns .json files with match counts from file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        data_dir = Path(tmpdir)
+        matches_dir = data_dir / "apple" / "transaction_matches"
+        matches_dir.mkdir(parents=True)
+
+        # Create match result JSON with matches
+        import json
+        match_data = {"matches": [{"tx_id": "1"}, {"tx_id": "2"}, {"tx_id": "3"}]}
+        (matches_dir / "2024-10-19_results.json").write_text(json.dumps(match_data))
+
+        node = AppleMatchingFlowNode(data_dir)
+        info = node.get_output_info()
+        files = info.get_output_files()
+
+        assert len(files) == 1
+        assert files[0].path.suffix == ".json"
+        assert files[0].record_count == 3  # 3 matches
