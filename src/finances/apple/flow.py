@@ -252,6 +252,38 @@ class AppleReceiptParsingFlowNode(FlowNode):
             )
 
 
+class AppleMatchingOutputInfo(OutputInfo):
+    """Output information for Apple matching node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .json match result file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.json"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return .json match result files with match counts."""
+        if not self.output_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+        for json_file in self.output_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                match_count = len(data.get("matches", []))
+                files.append(OutputFile(path=json_file, record_count=match_count))
+            except Exception:
+                # If JSON is malformed, count as 0 records
+                files.append(OutputFile(path=json_file, record_count=0))
+
+        return files
+
+
 class AppleMatchingFlowNode(FlowNode):
     """Match YNAB transactions to Apple receipts."""
 
@@ -265,6 +297,10 @@ class AppleMatchingFlowNode(FlowNode):
 
         self.receipt_store = AppleReceiptStore(data_dir / "apple" / "exports")
         self.match_store = AppleMatchResultsStore(data_dir / "apple" / "transaction_matches")
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for matching node."""
+        return AppleMatchingOutputInfo(self.data_dir / "apple" / "transaction_matches")
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new Apple receipts or YNAB data requires matching."""
