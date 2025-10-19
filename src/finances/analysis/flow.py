@@ -7,7 +7,34 @@ Flow node implementation for cash flow analysis and dashboard generation.
 
 from pathlib import Path
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+
+class CashFlowAnalysisOutputInfo(OutputInfo):
+    """Output information for cash flow analysis node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 chart file exists."""
+        if not self.output_dir.exists():
+            return False
+
+        # Check for chart files (.png)
+        return len(list(self.output_dir.glob("*.png"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return chart PNG files."""
+        if not self.output_dir.exists():
+            return []
+
+        files = []
+        for png_file in self.output_dir.glob("*.png"):
+            # Each chart is 1 record
+            files.append(OutputFile(path=png_file, record_count=1))
+
+        return files
 
 
 class CashFlowAnalysisFlowNode(FlowNode):
@@ -22,6 +49,10 @@ class CashFlowAnalysisFlowNode(FlowNode):
         from .datastore import CashFlowResultsStore
 
         self.store = CashFlowResultsStore(data_dir / "cash_flow" / "charts")
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for cash flow analysis node."""
+        return CashFlowAnalysisOutputInfo(self.data_dir / "cash_flow" / "charts")
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if cash flow analysis needs updating."""

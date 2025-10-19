@@ -10,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, NoOutputInfo, OutputFile, OutputInfo
 from . import SimplifiedMatcher, load_orders
 from .unzipper import extract_amazon_zip_files
 
@@ -20,6 +20,10 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
 
     def __init__(self) -> None:
         super().__init__("amazon_order_history_request")
+
+    def get_output_info(self) -> OutputInfo:
+        """Manual step - no persistent output."""
+        return NoOutputInfo()
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Manual step - always returns False (user initiates)."""
