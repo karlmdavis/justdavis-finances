@@ -10,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
 from . import SimplifiedMatcher, load_orders
 from .unzipper import extract_amazon_zip_files
 
@@ -43,6 +43,36 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
         )
 
 
+class AmazonUnzipOutputInfo(OutputInfo):
+    """Output information for Amazon unzip node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .csv file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("**/*.csv"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return CSV files with row counts."""
+        if not self.output_dir.exists():
+            return []
+
+        files = []
+        for csv_file in self.output_dir.rglob("*.csv"):
+            try:
+                lines = csv_file.read_text().strip().split("\n")
+                # Count data rows (exclude header)
+                row_count = max(0, len(lines) - 1)
+                files.append(OutputFile(path=csv_file, record_count=row_count))
+            except Exception:
+                files.append(OutputFile(path=csv_file, record_count=0))
+
+        return files
+
+
 class AmazonUnzipFlowNode(FlowNode):
     """Extract Amazon order history ZIP files."""
 
@@ -55,6 +85,10 @@ class AmazonUnzipFlowNode(FlowNode):
         from .datastore import AmazonRawDataStore
 
         self.store = AmazonRawDataStore(data_dir / "amazon" / "raw")
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for unzip node."""
+        return AmazonUnzipOutputInfo(self.data_dir / "amazon" / "raw")
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new ZIP files are available in amazon/raw."""
@@ -113,6 +147,37 @@ class AmazonUnzipFlowNode(FlowNode):
             return FlowResult(success=False, error_message=f"Unzip failed: {e}")
 
 
+class AmazonMatchingOutputInfo(OutputInfo):
+    """Output information for Amazon matching node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .json match result file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.json"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return .json match result files with match counts."""
+        if not self.output_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+        for json_file in self.output_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                match_count = len(data.get("matches", []))
+                files.append(OutputFile(path=json_file, record_count=match_count))
+            except Exception:
+                files.append(OutputFile(path=json_file, record_count=0))
+
+        return files
+
+
 class AmazonMatchingFlowNode(FlowNode):
     """Match YNAB transactions to Amazon orders."""
 
@@ -126,6 +191,10 @@ class AmazonMatchingFlowNode(FlowNode):
 
         self.raw_store = AmazonRawDataStore(data_dir / "amazon" / "raw")
         self.match_store = AmazonMatchResultsStore(data_dir / "amazon" / "transaction_matches")
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for matching node."""
+        return AmazonMatchingOutputInfo(self.data_dir / "amazon" / "transaction_matches")
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new Amazon data or YNAB data requires matching."""
