@@ -11,6 +11,7 @@ import os
 import sys
 from collections import defaultdict, deque
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from .flow import (
@@ -251,6 +252,42 @@ class FlowExecutionEngine:
             List of validation error messages
         """
         return self.dependency_graph.validate()
+
+    def compute_directory_hash(self, directory: Path) -> str:
+        """
+        Compute SHA-256 hash of all files in directory.
+
+        Ignores 'archive/' subdirectory to avoid recursion.
+
+        Args:
+            directory: Path to directory to hash
+
+        Returns:
+            SHA-256 hex digest string, or empty string if directory doesn't exist
+        """
+        import hashlib
+
+        if not directory.exists():
+            return ""
+
+        hash_obj = hashlib.sha256()
+
+        # Get all files recursively and sort for deterministic ordering
+        for file_path in sorted(directory.rglob("*")):
+            # Skip directories and archive subdirectory
+            if not file_path.is_file():
+                continue
+            if "archive" in file_path.parts:
+                continue
+
+            # Hash file path (relative to base directory)
+            relative_path = file_path.relative_to(directory)
+            hash_obj.update(str(relative_path).encode())
+
+            # Hash file contents
+            hash_obj.update(file_path.read_bytes())
+
+        return hash_obj.hexdigest()
 
     def detect_changes(
         self, context: FlowContext, nodes_to_check: set[str] | None = None
