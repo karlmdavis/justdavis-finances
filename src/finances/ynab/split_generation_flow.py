@@ -8,7 +8,52 @@ Flow node for generating YNAB splits from Amazon and Apple transaction matches.
 from datetime import datetime
 from pathlib import Path
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+
+class SplitGenerationOutputInfo(OutputInfo):
+    """Output information for split generation node."""
+
+    def __init__(self, edits_dir: Path):
+        self.edits_dir = edits_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 file with 'edits' key exists."""
+        if not self.edits_dir.exists():
+            return False
+
+        from ..core.json_utils import read_json
+
+        # Check all JSON files for "edits" key
+        for json_file in self.edits_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                if isinstance(data, dict) and "edits" in data:
+                    return True
+            except Exception:
+                continue
+
+        return False
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return only files with 'edits' key and their counts."""
+        if not self.edits_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+        for json_file in self.edits_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                # Only include files with "edits" key
+                if isinstance(data, dict) and "edits" in data:
+                    count = len(data["edits"])
+                    files.append(OutputFile(path=json_file, record_count=count))
+            except Exception:
+                continue
+
+        return files
 
 
 class SplitGenerationFlowNode(FlowNode):
@@ -18,6 +63,10 @@ class SplitGenerationFlowNode(FlowNode):
         super().__init__("split_generation")
         self.data_dir = data_dir
         self._dependencies = {"amazon_matching", "apple_matching"}
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for split generation node."""
+        return SplitGenerationOutputInfo(self.data_dir / "ynab" / "edits")
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new matches require split generation."""
