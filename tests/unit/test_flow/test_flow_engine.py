@@ -8,7 +8,7 @@ Tests dependency resolution, execution orchestration, and change detection integ
 from datetime import datetime
 from unittest.mock import patch
 
-from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NodeExecution, NodeStatus
+from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NodeExecution, NodeStatus, NoOutputInfo, OutputInfo
 from finances.core.flow_engine import DependencyGraph, FlowExecutionEngine
 
 
@@ -39,6 +39,9 @@ class MockFlowNode(FlowNode):
         if self.execution_callback:
             self.execution_callback(self, context)
         return self.execute_result
+
+    def get_output_info(self) -> OutputInfo:
+        return NoOutputInfo()
 
 
 class TestDependencyGraph:
