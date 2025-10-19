@@ -111,6 +111,40 @@ class AppleEmailFetchFlowNode(FlowNode):
             )
 
 
+class AppleReceiptOutputInfo(OutputInfo):
+    """Output information for Apple receipt parsing node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .html file exists (what dependencies consume)."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.html"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return all output files (.eml, .html, .txt) with counts."""
+        if not self.output_dir.exists():
+            return []
+
+        files = []
+
+        # Add .html files (what dependencies use)
+        for html_file in self.output_dir.glob("*.html"):
+            files.append(OutputFile(path=html_file, record_count=1))
+
+        # Add .eml files
+        for eml_file in self.output_dir.glob("*.eml"):
+            files.append(OutputFile(path=eml_file, record_count=1))
+
+        # Add text files
+        for txt_file in self.output_dir.glob("*.txt"):
+            files.append(OutputFile(path=txt_file, record_count=1))
+
+        return files
+
+
 class AppleReceiptParsingFlowNode(FlowNode):
     """Parse Apple receipt emails to extract transaction data."""
 
@@ -124,6 +158,10 @@ class AppleReceiptParsingFlowNode(FlowNode):
 
         self.email_store = AppleEmailStore(data_dir / "apple" / "emails")
         self.receipt_store = AppleReceiptStore(data_dir / "apple" / "exports")
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for receipt parsing node."""
+        return AppleReceiptOutputInfo(self.data_dir / "apple" / "exports")
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new emails need parsing."""
