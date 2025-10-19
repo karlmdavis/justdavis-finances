@@ -8,7 +8,30 @@ Flow node implementations for Apple receipt processing and transaction matching.
 from datetime import datetime
 from pathlib import Path
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+
+class AppleEmailOutputInfo(OutputInfo):
+    """Output information for Apple email fetch node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .eml file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.eml"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return list of .eml files (1 record per file)."""
+        if not self.output_dir.exists():
+            return []
+
+        files = []
+        for eml_file in self.output_dir.glob("*.eml"):
+            files.append(OutputFile(path=eml_file, record_count=1))
+        return files
 
 
 class AppleEmailFetchFlowNode(FlowNode):
@@ -22,6 +45,10 @@ class AppleEmailFetchFlowNode(FlowNode):
         from .datastore import AppleEmailStore
 
         self.store = AppleEmailStore(data_dir / "apple" / "emails")
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for email fetch node."""
+        return AppleEmailOutputInfo(self.data_dir / "apple" / "emails")
 
     def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
         """Check if new Apple receipt emails should be fetched."""
