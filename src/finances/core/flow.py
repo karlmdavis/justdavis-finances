@@ -170,6 +170,19 @@ class FlowNode(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_output_info(self) -> OutputInfo:
+        """
+        Get information about this node's output data.
+
+        Returns OutputInfo with methods to check data readiness and list output files.
+        Used by flow engine for dependency validation and status display.
+
+        Returns:
+            OutputInfo instance with node's current output state
+        """
+        pass
+
     def get_display_name(self) -> str:
         """Get human-readable display name for this node."""
         return self.name.replace("_", " ").title()
@@ -329,6 +342,12 @@ class FunctionFlowNode(FlowNode):
             logger.error(f"Error executing {self.name}: {e}")
             return FlowResult(success=False, error_message=str(e))
 
+    def get_output_info(self) -> OutputInfo:
+        """Get output info - stub implementation (will be replaced in Task 8)."""
+        raise NotImplementedError(
+            f"get_output_info not yet implemented for {self.__class__.__name__}"
+        )
+
 
 class CLIAdapterNode(FlowNode):
     """
@@ -395,6 +414,12 @@ class CLIAdapterNode(FlowNode):
         except Exception as e:
             logger.error(f"Error executing CLI command {self.name}: {e}")
             return FlowResult(success=False, error_message=str(e))
+
+    def get_output_info(self) -> OutputInfo:
+        """Get output info - stub implementation (will be replaced in Task 8)."""
+        raise NotImplementedError(
+            f"get_output_info not yet implemented for {self.__class__.__name__}"
+        )
 
 
 class FlowNodeRegistry:
