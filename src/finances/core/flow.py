@@ -99,6 +99,27 @@ class NodeDataSummary:
     summary_text: str
 
 
+@dataclass(frozen=True)
+class OutputFile:
+    """Information about a single output file from a flow node."""
+    path: Path
+    record_count: int
+
+
+class OutputInfo(ABC):
+    """Information about a flow node's output data."""
+
+    @abstractmethod
+    def is_data_ready(self) -> bool:
+        """Returns True if output data is complete enough for dependencies to use."""
+        pass
+
+    @abstractmethod
+    def get_output_files(self) -> list[OutputFile]:
+        """Returns list of output files with their record counts."""
+        pass
+
+
 class FlowNode(ABC):
     """
     Abstract base class for flow nodes.
