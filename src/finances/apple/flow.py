@@ -118,29 +118,21 @@ class AppleReceiptOutputInfo(OutputInfo):
         self.output_dir = output_dir
 
     def is_data_ready(self) -> bool:
-        """Ready if at least 1 .html file exists (what dependencies consume)."""
+        """Ready if at least 1 .json file exists (what dependencies consume)."""
         if not self.output_dir.exists():
             return False
-        return len(list(self.output_dir.glob("*.html"))) >= 1
+        return len(list(self.output_dir.glob("*.json"))) >= 1
 
     def get_output_files(self) -> list[OutputFile]:
-        """Return all output files (.eml, .html, .txt) with counts."""
+        """Return all output files (.json parsed receipts) with counts."""
         if not self.output_dir.exists():
             return []
 
         files = []
 
-        # Add .html files (what dependencies use)
-        for html_file in self.output_dir.glob("*.html"):
-            files.append(OutputFile(path=html_file, record_count=1))
-
-        # Add .eml files
-        for eml_file in self.output_dir.glob("*.eml"):
-            files.append(OutputFile(path=eml_file, record_count=1))
-
-        # Add text files
-        for txt_file in self.output_dir.glob("*.txt"):
-            files.append(OutputFile(path=txt_file, record_count=1))
+        # Add .json files (parsed receipts - what dependencies use)
+        for json_file in self.output_dir.glob("*.json"):
+            files.append(OutputFile(path=json_file, record_count=1))
 
         return files
 
