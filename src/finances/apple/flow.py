@@ -47,6 +47,10 @@ class AppleEmailFetchFlowNode(FlowNode):
         """Get output information for email fetch node."""
         return AppleEmailOutputInfo(self.data_dir / "apple" / "emails")
 
+    def get_output_dir(self) -> Path | None:
+        """Return Apple emails output directory."""
+        return self.data_dir / "apple" / "emails"
+
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple emails summary."""
         return self.store.to_node_data_summary()
@@ -134,6 +138,10 @@ class AppleReceiptParsingFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for receipt parsing node."""
         return AppleReceiptOutputInfo(self.data_dir / "apple" / "exports")
+
+    def get_output_dir(self) -> Path | None:
+        """Return Apple parsed receipts output directory."""
+        return self.data_dir / "apple" / "exports"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get parsed Apple receipts summary."""
@@ -256,6 +264,10 @@ class AppleMatchingFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for matching node."""
         return AppleMatchingOutputInfo(self.data_dir / "apple" / "transaction_matches")
+
+    def get_output_dir(self) -> Path | None:
+        """Return Apple matching results output directory."""
+        return self.data_dir / "apple" / "transaction_matches"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple matching results summary."""

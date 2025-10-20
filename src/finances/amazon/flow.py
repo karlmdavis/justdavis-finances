@@ -33,6 +33,10 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
         """Manual step - no persistent output."""
         return NoOutputInfo()
 
+    def get_output_dir(self) -> Path | None:
+        """Manual step has no output directory."""
+        return None
+
     def execute(self, context: FlowContext) -> FlowResult:
         """Prompt user to download Amazon order history."""
         click.echo("\n📋 Manual Step Required:")
@@ -97,6 +101,10 @@ class AmazonUnzipFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for unzip node."""
         return AmazonUnzipOutputInfo(self.data_dir / "amazon" / "raw")
+
+    def get_output_dir(self) -> Path | None:
+        """Return Amazon raw data output directory."""
+        return self.data_dir / "amazon" / "raw"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon raw data summary."""
@@ -178,6 +186,10 @@ class AmazonMatchingFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for matching node."""
         return AmazonMatchingOutputInfo(self.data_dir / "amazon" / "transaction_matches")
+
+    def get_output_dir(self) -> Path | None:
+        """Return Amazon matching results output directory."""
+        return self.data_dir / "amazon" / "transaction_matches"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon matching results summary."""

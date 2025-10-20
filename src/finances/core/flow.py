@@ -183,6 +183,16 @@ class FlowNode(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_output_dir(self) -> Path | None:
+        """
+        Get the output directory for this node.
+
+        Returns:
+            Path to output directory, or None if node has no persistent output
+        """
+        pass
+
     def get_display_name(self) -> str:
         """Get human-readable display name for this node."""
         return self.name.replace("_", " ").title()
@@ -333,6 +343,10 @@ class FunctionFlowNode(FlowNode):
         """Get output info - defaults to NoOutputInfo for function nodes."""
         return NoOutputInfo()
 
+    def get_output_dir(self) -> Path | None:
+        """Function nodes have no output directory by default."""
+        return None
+
 
 class CLIAdapterNode(FlowNode):
     """
@@ -392,6 +406,10 @@ class CLIAdapterNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output info - defaults to NoOutputInfo for CLI nodes."""
         return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        """CLI adapter nodes have no output directory by default."""
+        return None
 
 
 class FlowNodeRegistry:

@@ -50,6 +50,10 @@ class CashFlowAnalysisFlowNode(FlowNode):
         """Get output information for cash flow analysis node."""
         return CashFlowAnalysisOutputInfo(self.data_dir / "cash_flow" / "charts")
 
+    def get_output_dir(self) -> Path | None:
+        """Return cash flow analysis output directory."""
+        return self.data_dir / "cash_flow" / "charts"
+
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get cash flow analysis summary."""
         return self.store.to_node_data_summary()

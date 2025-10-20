@@ -84,6 +84,10 @@ class YnabSyncFlowNode(FlowNode):
         """Get output information for YNAB sync node."""
         return YnabSyncOutputInfo(self.data_dir / "ynab" / "cache")
 
+    def get_output_dir(self) -> Path | None:
+        """Return YNAB cache output directory."""
+        return self.data_dir / "ynab" / "cache"
+
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get YNAB cache data summary."""
         return self.store.to_node_data_summary()
@@ -162,6 +166,10 @@ class RetirementUpdateFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for retirement update node."""
         return RetirementUpdateOutputInfo(self.data_dir / "ynab" / "edits")
+
+    def get_output_dir(self) -> Path | None:
+        """Return YNAB edits output directory."""
+        return self.data_dir / "ynab" / "edits"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get retirement accounts summary."""

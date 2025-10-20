@@ -8,6 +8,8 @@ Tests the DependencyGraph.topological_sort method to ensure it:
 3. Handles diamond dependencies correctly
 """
 
+from pathlib import Path
+
 from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NoOutputInfo, OutputInfo
 from finances.core.flow_engine import DependencyGraph
 
@@ -25,6 +27,9 @@ class MockNode(FlowNode):
 
     def get_output_info(self) -> OutputInfo:
         return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        return None
 
 
 class TestTopologicalSortAlphabetical:

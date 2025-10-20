@@ -256,8 +256,9 @@ class FlowExecutionEngine:
 
     def compute_directory_hash(self, directory: Path) -> str:
         """
-        Compute SHA-256 hash of all files in directory.
+        Compute SHA-256 hash of all files in directory using CLI tool.
 
+        Uses sha256sum (Linux) or shasum (macOS) for performance.
         Ignores 'archive/' subdirectory to avoid recursion.
 
         Args:
@@ -267,28 +268,67 @@ class FlowExecutionEngine:
             SHA-256 hex digest string, or empty string if directory doesn't exist
         """
         import hashlib
+        import platform
+        import subprocess
 
         if not directory.exists():
             return ""
 
-        hash_obj = hashlib.sha256()
-
         # Get all files recursively and sort for deterministic ordering
+        files_to_hash = []
         for file_path in sorted(directory.rglob("*")):
             # Skip directories and archive subdirectory
             if not file_path.is_file():
                 continue
             if "archive" in file_path.parts:
                 continue
+            files_to_hash.append(file_path)
 
-            # Hash file path (relative to base directory)
-            relative_path = file_path.relative_to(directory)
-            hash_obj.update(str(relative_path).encode())
+        if not files_to_hash:
+            return hashlib.sha256().hexdigest()
 
-            # Hash file contents
-            hash_obj.update(file_path.read_bytes())
+        # Determine which CLI tool to use based on platform
+        system = platform.system()
+        hash_cmd = ["shasum", "-a", "256"] if system == "Darwin" else ["sha256sum"]
 
-        return hash_obj.hexdigest()
+        try:
+            # Run hash command on all files (file paths are from trusted directory walk)
+            result = subprocess.run(  # noqa: S603
+                hash_cmd + [str(f) for f in files_to_hash],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=directory,
+            )
+
+            # Combine all hashes into a single hash
+            combined_hash = hashlib.sha256()
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    # Extract hash (first field) and filename
+                    parts = line.split(maxsplit=1)
+                    if len(parts) == 2:
+                        file_hash, filename = parts
+                        # Hash both filename and file hash for complete coverage
+                        combined_hash.update(filename.encode())
+                        combined_hash.update(file_hash.encode())
+
+            return combined_hash.hexdigest()
+
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # Fallback to Python implementation if CLI tool not available
+            logger.warning(f"CLI hashing tool not available, using Python fallback for {directory}")
+            hash_obj = hashlib.sha256()
+
+            for file_path in files_to_hash:
+                # Hash file path (relative to base directory)
+                relative_path = file_path.relative_to(directory)
+                hash_obj.update(str(relative_path).encode())
+
+                # Hash file contents
+                hash_obj.update(file_path.read_bytes())
+
+            return hash_obj.hexdigest()
 
     def archive_existing_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
         """
@@ -409,35 +449,6 @@ class FlowExecutionEngine:
 
         return execution
 
-    def find_ready_nodes(self, remaining_nodes: set[str], completed_nodes: set[str]) -> set[str]:
-        """
-        Find nodes that are ready to execute (all dependencies satisfied).
-
-        Args:
-            remaining_nodes: Set of nodes that haven't been executed yet
-            completed_nodes: Set of nodes that have been successfully completed
-
-        Returns:
-            Set of nodes that are ready to execute
-        """
-        ready_nodes = set()
-
-        for node_name in remaining_nodes:
-            node = self.registry.get_node(node_name)
-            if not node:
-                continue
-
-            # Check if all dependencies are satisfied
-            dependencies_satisfied = all(
-                dep_name in completed_nodes or dep_name not in remaining_nodes
-                for dep_name in node.dependencies
-            )
-
-            if dependencies_satisfied:
-                ready_nodes.add(node_name)
-
-        return ready_nodes
-
     def topological_sort_nodes(self) -> list[str]:
         """
         Sort all nodes by dependencies with alphabetical tie-breaking.
@@ -529,10 +540,8 @@ class FlowExecutionEngine:
                     print(f"  Run the flow again and say 'yes' to '{dep_name}'")
                     sys.exit(1)
 
-            # Get output directory (if node has one)
-            output_dir = None
-            if hasattr(node, "get_output_dir"):
-                output_dir = node.get_output_dir()
+            # Get output directory (returns None if node has no persistent output)
+            output_dir = node.get_output_dir()
 
             # Archive existing data (if exists)
             pre_hash = None

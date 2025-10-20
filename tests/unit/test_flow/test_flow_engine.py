@@ -6,6 +6,7 @@ Tests dependency resolution, execution orchestration, and change detection integ
 """
 
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import patch
 
 from finances.core.flow import (
@@ -51,6 +52,9 @@ class MockFlowNode(FlowNode):
 
     def get_output_info(self) -> OutputInfo:
         return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        return None
 
 
 class TestDependencyGraph:

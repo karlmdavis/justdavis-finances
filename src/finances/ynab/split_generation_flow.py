@@ -73,6 +73,10 @@ class SplitGenerationFlowNode(FlowNode):
         """Get output information for split generation node."""
         return SplitGenerationOutputInfo(self.data_dir / "ynab" / "edits")
 
+    def get_output_dir(self) -> Path | None:
+        """Return YNAB edits output directory."""
+        return self.data_dir / "ynab" / "edits"
+
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get split generation summary."""
         # Count available match files

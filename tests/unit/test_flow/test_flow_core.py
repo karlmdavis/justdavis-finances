@@ -6,6 +6,7 @@ Tests the fundamental flow infrastructure including nodes, contexts, and registr
 """
 
 from datetime import datetime
+from pathlib import Path
 
 from finances.core.flow import (
     FlowContext,
@@ -44,6 +45,9 @@ class MockFlowNode(FlowNode):
         from finances.core.flow import NoOutputInfo
 
         return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        return None
 
 
 class TestFlowNode:
