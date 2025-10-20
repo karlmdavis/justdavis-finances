@@ -65,7 +65,7 @@ def test_apple_email_output_info_get_output_files_returns_eml_files():
         assert all(f.record_count == 1 for f in files)
 
 
-def test_apple_receipt_output_info_is_data_ready_returns_true_with_html_files():
+def test_apple_receipt_output_info_is_data_ready_returns_true_with_json_files():
     """Verify is_data_ready returns True when .json files exist."""
     with tempfile.TemporaryDirectory() as tmpdir:
         data_dir = Path(tmpdir)
