@@ -35,10 +35,10 @@ class AmazonOrderHistoryOutputInfo(OutputInfo):
         return len(list(self.raw_dir.glob("*.zip"))) >= 1
 
     def get_output_files(self) -> list[OutputFile]:
-        """Return .zip files with zero record count (not yet extracted)."""
+        """Return .zip files (1 record per ZIP file to process)."""
         if not self.raw_dir.exists():
             return []
-        return [OutputFile(path=zip_file, record_count=0) for zip_file in self.raw_dir.glob("*.zip")]
+        return [OutputFile(path=zip_file, record_count=1) for zip_file in self.raw_dir.glob("*.zip")]
 
 
 class AmazonOrderHistoryRequestFlowNode(FlowNode):
@@ -82,18 +82,18 @@ class AmazonUnzipOutputInfo(OutputInfo):
         self.output_dir = output_dir
 
     def is_data_ready(self) -> bool:
-        """Ready if at least 1 .csv file exists."""
+        """Ready if at least 1 order history CSV exists."""
         if not self.output_dir.exists():
             return False
-        return len(list(self.output_dir.glob("**/*.csv"))) >= 1
+        return len(list(self.output_dir.glob("**/Retail.OrderHistory.*.csv"))) >= 1
 
     def get_output_files(self) -> list[OutputFile]:
-        """Return CSV files with row counts."""
+        """Return order history CSV files with row counts."""
         if not self.output_dir.exists():
             return []
 
         files = []
-        for csv_file in self.output_dir.rglob("*.csv"):
+        for csv_file in self.output_dir.glob("**/Retail.OrderHistory.*.csv"):
             try:
                 lines = csv_file.read_text().strip().split("\n")
                 # Count data rows (exclude header)

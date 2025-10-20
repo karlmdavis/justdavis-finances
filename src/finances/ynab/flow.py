@@ -110,9 +110,9 @@ class YnabSyncFlowNode(FlowNode):
                 text=True,
                 check=True,
             )
-            accounts_data = {"accounts": json.loads(result.stdout)}
+            accounts_data = json.loads(result.stdout)
             write_json(cache_dir / "accounts.json", accounts_data)
-            items_synced += len(accounts_data["accounts"])
+            items_synced += len(accounts_data.get("accounts", []))
 
             # Sync categories
             result = subprocess.run(
