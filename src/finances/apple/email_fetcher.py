@@ -417,7 +417,7 @@ class AppleEmailFetcher:
             "@apple.com",
             "@itunes.com",
             "@icloud.com",
-            "noreply@email.apple.com",
+            "no_reply@email.apple.com",  # Fixed: Apple uses underscore format
             "do_not_reply@itunes.com",
         ]
 
