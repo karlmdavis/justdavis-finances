@@ -485,9 +485,13 @@ class AppleEmailFetcher:
             "terms of service",
         ]
 
-        exclusion_check = any(term in content_lower for term in exclusion_terms)
-        if exclusion_check:
-            logger.warning(f"❌ Exclusion check triggered - Subject: '{email_obj.subject}'")
+        # Find which exclusion terms matched (for debugging)
+        matched_terms = [term for term in exclusion_terms if term in content_lower]
+        if matched_terms:
+            logger.warning(
+                f"❌ Exclusion check triggered - Subject: '{email_obj.subject}' | "
+                f"Matched terms: {matched_terms}"
+            )
             return False
 
         logger.info(f"✅ Email passed all checks: '{email_obj.subject}'")
