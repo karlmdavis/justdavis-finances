@@ -20,9 +20,6 @@ class MockNode(FlowNode):
         if dependencies:
             self._dependencies = set(dependencies)
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        return (False, [])
-
     def execute(self, context: FlowContext) -> FlowResult:
         return FlowResult(success=True)
 
