@@ -309,7 +309,14 @@ class FlowExecutionEngine:
             archive_dir.mkdir(parents=True, exist_ok=True)
 
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            archive_path = archive_dir / f"{timestamp}_pre"
+
+            # Add count suffix to avoid collisions if multiple archives in same second
+            base_name = f"{timestamp}_pre"
+            archive_path = archive_dir / base_name
+            count = 1
+            while archive_path.exists():
+                archive_path = archive_dir / f"{base_name}_{count}"
+                count += 1
 
             # Copy entire output directory, excluding archive subdirectory
             shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns("archive"))
@@ -340,7 +347,14 @@ class FlowExecutionEngine:
         try:
             archive_dir = output_dir / "archive"
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            archive_path = archive_dir / f"{timestamp}_post"
+
+            # Add count suffix to avoid collisions if multiple archives in same second
+            base_name = f"{timestamp}_post"
+            archive_path = archive_dir / base_name
+            count = 1
+            while archive_path.exists():
+                archive_path = archive_dir / f"{base_name}_{count}"
+                count += 1
 
             # Copy entire output directory, excluding archive subdirectory
             shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns("archive"))
@@ -481,9 +495,13 @@ class FlowExecutionEngine:
                 status = "No data"
             else:
                 total_records = sum(f.record_count for f in files)
-                latest_file = max(files, key=lambda f: f.path.stat().st_mtime)
-                age_days = (datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)).days
-                status = f"{total_records} records, {age_days} days old"
+                try:
+                    latest_file = max(files, key=lambda f: f.path.stat().st_mtime)
+                    age_days = (datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)).days
+                    status = f"{total_records} records, {age_days} days old"
+                except (FileNotFoundError, OSError):
+                    # File deleted between get_output_files() and stat() call
+                    status = f"{total_records} records (age unknown)"
 
             # Display and prompt
             print(f"\n[{node_name}]")
