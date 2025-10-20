@@ -423,7 +423,9 @@ class AppleEmailFetcher:
 
         sender_check = any(domain in email_obj.sender.lower() for domain in apple_senders)
         if not sender_check:
-            logger.debug(f"Sender check failed for: {email_obj.sender}")
+            logger.warning(
+                f"❌ Sender check failed - Sender: '{email_obj.sender}' | Subject: '{email_obj.subject}'"
+            )
             return False
 
         # Check subject for receipt indicators
@@ -439,12 +441,16 @@ class AppleEmailFetcher:
 
         subject_check = any(indicator in subject_lower for indicator in receipt_indicators)
         if not subject_check:
-            logger.debug(f"Subject check failed for: {email_obj.subject}")
+            logger.warning(f"❌ Subject check failed - Subject: '{email_obj.subject}'")
             return False
 
         # Check content for purchase indicators
         content_to_check = (email_obj.html_content or "") + (email_obj.text_content or "")
         content_lower = content_to_check.lower()
+
+        # Log content length for debugging
+        html_len = len(email_obj.html_content) if email_obj.html_content else 0
+        text_len = len(email_obj.text_content) if email_obj.text_content else 0
 
         content_indicators = [
             "total",
@@ -461,7 +467,10 @@ class AppleEmailFetcher:
 
         content_check = any(indicator in content_lower for indicator in content_indicators)
         if not content_check:
-            logger.debug(f"Content check failed for: {email_obj.message_id}")
+            logger.warning(
+                f"❌ Content check failed - No purchase indicators found | "
+                f"Subject: '{email_obj.subject}' | HTML: {html_len} chars | Text: {text_len} chars"
+            )
             return False
 
         # Exclude promotional/non-receipt emails
@@ -478,10 +487,10 @@ class AppleEmailFetcher:
 
         exclusion_check = any(term in content_lower for term in exclusion_terms)
         if exclusion_check:
-            logger.debug(f"Exclusion check triggered for: {email_obj.subject}")
+            logger.warning(f"❌ Exclusion check triggered - Subject: '{email_obj.subject}'")
             return False
 
-        logger.debug(f"Email passed all checks: {email_obj.subject}")
+        logger.info(f"✅ Email passed all checks: '{email_obj.subject}'")
         return True
 
     def save_emails_to_disk(self, emails: list[AppleReceiptEmail], output_dir: Path) -> dict[str, Any]:
