@@ -202,12 +202,11 @@ class AppleReceiptParsingFlowNode(FlowNode):
                     # Parse using receipt_id from filename
                     receipt_id = html_file.stem
                     parsed_receipt = parser.parse_html_content(html_content, receipt_id)
-
-                    # Use order_id as filename if available, otherwise use email filename
                     receipt_dict = parsed_receipt.to_dict()
-                    output_filename = receipt_dict.get("order_id") or receipt_id
-                    if not output_filename:
-                        output_filename = receipt_id
+
+                    # Always use unique receipt_id (email hash) as filename to prevent collisions
+                    # order_id is stored inside the JSON and may not be unique
+                    output_filename = receipt_id
 
                     # Skip receipts that have no useful data (no order_id, date, or total)
                     if (
