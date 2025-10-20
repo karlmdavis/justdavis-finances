@@ -15,7 +15,6 @@ from ..core.flow import (
     FlowNode,
     FlowResult,
     NodeDataSummary,
-    NoOutputInfo,
     OutputFile,
     OutputInfo,
 )
@@ -23,27 +22,48 @@ from . import SimplifiedMatcher, load_orders
 from .unzipper import extract_amazon_zip_files
 
 
+class AmazonOrderHistoryOutputInfo(OutputInfo):
+    """Output information for Amazon order history request (manual step)."""
+
+    def __init__(self, raw_dir: Path):
+        self.raw_dir = raw_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .zip file exists."""
+        if not self.raw_dir.exists():
+            return False
+        return len(list(self.raw_dir.glob("*.zip"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return .zip files with zero record count (not yet extracted)."""
+        if not self.raw_dir.exists():
+            return []
+        return [OutputFile(path=zip_file, record_count=0) for zip_file in self.raw_dir.glob("*.zip")]
+
+
 class AmazonOrderHistoryRequestFlowNode(FlowNode):
     """Manual step prompting user to download Amazon order history."""
 
-    def __init__(self) -> None:
+    def __init__(self, data_dir: Path) -> None:
         super().__init__("amazon_order_history_request")
+        self.data_dir = data_dir
 
     def get_output_info(self) -> OutputInfo:
-        """Manual step - no persistent output."""
-        return NoOutputInfo()
+        """Get output information for manual step - checks for ZIP files."""
+        return AmazonOrderHistoryOutputInfo(self.data_dir / "amazon" / "raw")
 
     def get_output_dir(self) -> Path | None:
-        """Manual step has no output directory."""
-        return None
+        """Return Amazon raw directory where ZIPs should be placed."""
+        return self.data_dir / "amazon" / "raw"
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Prompt user to download Amazon order history."""
+        raw_dir = self.data_dir / "amazon" / "raw"
         click.echo("\n📋 Manual Step Required:")
         click.echo("1. Visit https://www.amazon.com/gp/privacycentral/dsar/preview.html")
         click.echo("2. Request 'Order Reports' for the desired date range")
         click.echo("3. Download the ZIP files when ready")
-        click.echo("4. Place them in your download directory")
+        click.echo(f"4. Place them in {raw_dir}")
 
         if not click.confirm("Have you completed this step?"):
             return FlowResult(success=False, error_message="User cancelled manual step")
@@ -116,16 +136,6 @@ class AmazonUnzipFlowNode(FlowNode):
 
         if not raw_dir.exists():
             return FlowResult(success=False, error_message="Amazon raw directory not found")
-
-        # Check if there are any ZIP files to process
-        zip_files = list(raw_dir.glob("*.zip"))
-        if not zip_files:
-            # No ZIPs to process - skip gracefully
-            return FlowResult(
-                success=True,
-                items_processed=0,
-                metadata={"message": "No ZIP files found to extract", "skipped": True},
-            )
 
         try:
             # Extract ZIP files in place (source and destination are the same)

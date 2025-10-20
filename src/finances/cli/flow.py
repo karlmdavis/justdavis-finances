@@ -49,7 +49,7 @@ def setup_flow_nodes() -> None:
 
     # Register nodes from domain modules
     flow_registry.register_node(YnabSyncFlowNode(config.data_dir))
-    flow_registry.register_node(AmazonOrderHistoryRequestFlowNode())
+    flow_registry.register_node(AmazonOrderHistoryRequestFlowNode(config.data_dir))
     flow_registry.register_node(AmazonUnzipFlowNode(config.data_dir))
     flow_registry.register_node(AmazonMatchingFlowNode(config.data_dir))
     flow_registry.register_node(AppleEmailFetchFlowNode(config.data_dir))
