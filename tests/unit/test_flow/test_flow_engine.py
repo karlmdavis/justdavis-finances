@@ -6,9 +6,19 @@ Tests dependency resolution, execution orchestration, and change detection integ
 """
 
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import patch
 
-from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NodeExecution, NodeStatus
+from finances.core.flow import (
+    FlowContext,
+    FlowNode,
+    FlowNodeRegistry,
+    FlowResult,
+    NodeExecution,
+    NodeStatus,
+    NoOutputInfo,
+    OutputInfo,
+)
 from finances.core.flow_engine import DependencyGraph, FlowExecutionEngine
 
 
@@ -39,6 +49,12 @@ class MockFlowNode(FlowNode):
         if self.execution_callback:
             self.execution_callback(self, context)
         return self.execute_result
+
+    def get_output_info(self) -> OutputInfo:
+        return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        return None
 
 
 class TestDependencyGraph:
@@ -186,44 +202,6 @@ class TestFlowExecutionEngine:
 
         assert len(errors) > 0
 
-    def test_plan_execution_no_changes(self):
-        """Test execution planning when no changes detected."""
-        registry = FlowNodeRegistry()
-
-        node1 = MockFlowNode("node1", check_changes_result=(False, ["No changes"]))
-        node2 = MockFlowNode("node2", dependencies=["node1"], check_changes_result=(False, ["No changes"]))
-
-        registry.register_node(node1)
-        registry.register_node(node2)
-
-        engine = FlowExecutionEngine(registry)
-        context = FlowContext(start_time=datetime.now())
-
-        execution_order, change_summary = engine.plan_execution(context)
-
-        assert execution_order == []
-        assert change_summary == {}
-
-    def test_plan_execution_with_changes(self):
-        """Test execution planning with changes detected."""
-        registry = FlowNodeRegistry()
-
-        node1 = MockFlowNode("node1", check_changes_result=(True, ["Data changed"]))
-        node2 = MockFlowNode("node2", dependencies=["node1"], check_changes_result=(False, ["No changes"]))
-
-        registry.register_node(node1)
-        registry.register_node(node2)
-
-        engine = FlowExecutionEngine(registry)
-        context = FlowContext(start_time=datetime.now())
-
-        execution_order, change_summary = engine.plan_execution(context)
-
-        # Both nodes should execute (node2 because node1 changed)
-        assert len(execution_order) == 2
-        assert execution_order.index("node1") < execution_order.index("node2")
-        assert "node1" in change_summary
-
     def test_execute_node_success(self):
         """Test successful node execution."""
         registry = FlowNodeRegistry()
@@ -281,8 +259,8 @@ class TestFlowExecutionEngine:
         assert execution.result.success is False
         assert "Execution failed" in execution.result.error_message
 
-    @patch("click.confirm", return_value=True)
-    def test_execute_flow_simple(self, mock_confirm):
+    @patch("builtins.input", return_value="y")
+    def test_execute_flow_simple(self, mock_input):
         """Test executing a simple flow."""
         registry = FlowNodeRegistry()
 
@@ -293,19 +271,23 @@ class TestFlowExecutionEngine:
         registry.register_node(node2)
 
         engine = FlowExecutionEngine(registry)
-        context = FlowContext(start_time=datetime.now())
 
-        executions = engine.execute_flow(context)
+        result = engine.execute_flow()
 
-        assert len(executions) == 2
-        assert executions["node1"].status == NodeStatus.COMPLETED
-        assert executions["node2"].status == NodeStatus.COMPLETED
+        # Verify return format (executed_nodes, skipped_nodes, total_nodes)
+        assert "executed_nodes" in result
+        assert "skipped_nodes" in result
+        assert "total_nodes" in result
+        assert len(result["executed_nodes"]) == 2
+        assert result["total_nodes"] == 2
         assert node1.execution_count == 1
         assert node2.execution_count == 1
 
-    @patch("click.confirm", return_value=True)
-    def test_execute_flow_stop_on_failure(self, mock_confirm):
-        """Test flow execution stops on failure."""
+    @patch("builtins.input", return_value="y")
+    def test_execute_flow_stop_on_failure(self, mock_input):
+        """Test flow execution stops on failure with sys.exit."""
+        import pytest
+
         registry = FlowNodeRegistry()
 
         node1 = MockFlowNode(
@@ -319,15 +301,14 @@ class TestFlowExecutionEngine:
         registry.register_node(node2)
 
         engine = FlowExecutionEngine(registry)
-        context = FlowContext(start_time=datetime.now())
 
-        executions = engine.execute_flow(context)
+        # Node failure causes sys.exit(1)
+        with pytest.raises(SystemExit) as exc_info:
+            engine.execute_flow()
 
-        assert len(executions) == 2  # node1 failed, node2 skipped due to failure
-        assert executions["node1"].status == NodeStatus.FAILED
-        assert executions["node2"].status == NodeStatus.SKIPPED
+        assert exc_info.value.code == 1
         assert node1.execution_count == 1
-        assert node2.execution_count == 0  # Should not execute due to dependency failure
+        assert node2.execution_count == 0  # Should not execute due to node1 failure
 
     def test_get_execution_summary(self):
         """Test generation of execution summary."""

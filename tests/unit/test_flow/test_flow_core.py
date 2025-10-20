@@ -6,6 +6,7 @@ Tests the fundamental flow infrastructure including nodes, contexts, and registr
 """
 
 from datetime import datetime
+from pathlib import Path
 
 from finances.core.flow import (
     FlowContext,
@@ -13,6 +14,7 @@ from finances.core.flow import (
     FlowNodeRegistry,
     FlowResult,
     FunctionFlowNode,
+    OutputInfo,
     flow_node,
 )
 
@@ -39,25 +41,17 @@ class MockFlowNode(FlowNode):
     def execute(self, context: FlowContext) -> FlowResult:
         return self.execute_result
 
+    def get_output_info(self) -> OutputInfo:
+        from finances.core.flow import NoOutputInfo
+
+        return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        return None
+
 
 class TestFlowNode:
     """Test FlowNode base class functionality."""
-
-    def test_change_detection(self):
-        """Test change detection interface."""
-        context = FlowContext(start_time=datetime.now())
-
-        # Test no changes
-        node1 = MockFlowNode("node1", check_changes_result=(False, ["No changes"]))
-        has_changes, reasons = node1.check_changes(context)
-        assert has_changes is False
-        assert reasons == ["No changes"]
-
-        # Test has changes
-        node2 = MockFlowNode("node2", check_changes_result=(True, ["Data updated", "New files"]))
-        has_changes, reasons = node2.check_changes(context)
-        assert has_changes is True
-        assert reasons == ["Data updated", "New files"]
 
     def test_execution(self):
         """Test node execution."""
@@ -118,46 +112,9 @@ class TestFunctionFlowNode:
         assert result.success is False
         assert "must return FlowResult" in result.error_message
 
-    def test_custom_change_detector(self):
-        """Test function node with custom change detector."""
-
-        def test_func(context: FlowContext) -> FlowResult:
-            return FlowResult(success=True)
-
-        def change_detector(context: FlowContext) -> tuple[bool, list[str]]:
-            return True, ["Custom change detected"]
-
-        node = FunctionFlowNode("test_func", test_func, [])
-        node.set_change_detector(change_detector)
-
-        context = FlowContext(start_time=datetime.now())
-        has_changes, reasons = node.check_changes(context)
-
-        assert has_changes is True
-        assert reasons == ["Custom change detected"]
-
 
 class TestFlowNodeRegistry:
     """Test FlowNodeRegistry functionality."""
-
-    def test_register_function_node_with_change_detector(self):
-        """Test registering a function node with change detector."""
-        registry = FlowNodeRegistry()
-
-        def test_func(context: FlowContext) -> FlowResult:
-            return FlowResult(success=True)
-
-        def change_detector(context: FlowContext) -> tuple[bool, list[str]]:
-            return True, ["Test change"]
-
-        registry.register_function_node("test_func", test_func, change_detector=change_detector)
-
-        node = registry.get_node("test_func")
-        context = FlowContext(start_time=datetime.now())
-        has_changes, reasons = node.check_changes(context)
-
-        assert has_changes is True
-        assert reasons == ["Test change"]
 
     def test_validate_dependencies_success(self):
         """Test dependency validation with valid dependencies."""

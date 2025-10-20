@@ -7,7 +7,30 @@ Flow node implementation for cash flow analysis and dashboard generation.
 
 from pathlib import Path
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+
+class CashFlowAnalysisOutputInfo(OutputInfo):
+    """Output information for cash flow analysis node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 chart file exists."""
+        if not self.output_dir.exists():
+            return False
+
+        # Check for chart files (.png)
+        return len(list(self.output_dir.glob("*.png"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return chart PNG files."""
+        if not self.output_dir.exists():
+            return []
+
+        # Each chart is 1 record
+        return [OutputFile(path=png_file, record_count=1) for png_file in self.output_dir.glob("*.png")]
 
 
 class CashFlowAnalysisFlowNode(FlowNode):
@@ -23,29 +46,13 @@ class CashFlowAnalysisFlowNode(FlowNode):
 
         self.store = CashFlowResultsStore(data_dir / "cash_flow" / "charts")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if cash flow analysis needs updating."""
-        ynab_cache = self.data_dir / "ynab" / "cache" / "transactions.json"
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for cash flow analysis node."""
+        return CashFlowAnalysisOutputInfo(self.data_dir / "cash_flow" / "charts")
 
-        if not ynab_cache.exists():
-            return False, ["No YNAB cache available"]
-
-        if not self.store.exists():
-            return True, ["No cash flow charts found"]
-
-        # Check if YNAB data is newer than charts
-        latest_chart_time = self.store.last_modified()
-        ynab_mtime = ynab_cache.stat().st_mtime
-
-        if latest_chart_time and ynab_mtime > latest_chart_time.timestamp():
-            return True, ["YNAB data updated since last analysis"]
-
-        # Check if charts are more than 7 days old
-        age_days = self.store.age_days()
-        if age_days and age_days > 7:
-            return True, [f"Charts are {age_days} days old"]
-
-        return False, ["Cash flow analysis is up to date"]
+    def get_output_dir(self) -> Path | None:
+        """Return cash flow analysis output directory."""
+        return self.data_dir / "cash_flow" / "charts"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get cash flow analysis summary."""

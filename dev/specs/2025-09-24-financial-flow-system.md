@@ -91,19 +91,20 @@ Nodes and Edges:
 ### Processing Requirements
 
 #### Dependency Resolution
-- **Graph Traversal**: Breadth-first approach to minimize redundant executions
-- **Change Propagation**: Mark all downstream nodes as requiring execution when upstream changes
-  detected
-- **Idempotency**: Nodes only execute if they have changes or upstream dependencies changed
-- **Synchronous Execution**: Execute nodes synchronously, without concurrency.
-  Breadth-first traversal of the graph.
+- **Topological Sort**: Kahn's algorithm with alphabetical tie-breaking for deterministic ordering
+- **Sequential Execution**: Prompt-validate-execute loop per node in dependency order
+- **User-Driven Execution**: User decides whether to run each node via interactive prompts
+- **Dependency Validation**: Check all dependencies via `is_data_ready()` before allowing execution
+- **Synchronous Execution**: Execute nodes synchronously, without concurrency
 
 #### Archive Management
-- **Transactional Archiving**: Archive all current outputs before any processing begins
-- **Archive Structure**: `data/{domain}/archive/YYYY-MM-DD-NNN.tar.gz` with zero-padded sequence numbers
-- **Compression**: All archives compressed as `.tar.gz` files
+- **SHA-256 Change Detection**: Hash directory contents before and after execution
+- **Pre-Execution Backup**: Archive existing data before node execution (if data exists)
+- **Post-Execution Audit**: Archive new data after execution (if changed)
+- **Archive Structure**: `data/{domain}/{node}/archive/YYYY-MM-DD_HH-MM-SS_{pre|post}/`
+- **Archive Exclusion**: Archive subdirectory excluded from hashing to prevent recursion
 - **Retention Policy**: Keep all archives indefinitely
-- **Archive Manifest**: Include metadata about what triggered the archive
+- **Archive Manifest**: Track pre/post archive paths in FlowContext
 
 #### Command Standardization
 - **Unified Parameters**: Harmonized option names across all commands
@@ -261,9 +262,9 @@ class AmazonMatchCommand(FlowNode):
     def get_dependencies(self):
         return ["ynab_sync", "amazon_unzip"]
 
-    def check_changes(self):
-        # Return True if execution needed
-        pass
+    def get_output_info(self) -> OutputInfo:
+        """Return output information for status display and validation."""
+        return AmazonMatchingOutputInfo(self.data_dir / "amazon" / "transaction_matches")
 
     def execute(self, ctx, **kwargs):
         # Command implementation
@@ -276,28 +277,58 @@ class AmazonMatchCommand(FlowNode):
 - **Dynamic Discovery**: Scan all registered commands for dependency declarations
 - **Validation**: Ensure graph is acyclic and all dependencies exist
 
-#### Change Detection Pipeline
-1. **Root Nodes**: Check all nodes without dependencies for changes
-2. **Propagation**: Mark downstream nodes of any changed root nodes
-3. **Breadth-First Execution**: Process nodes level by level
-4. **Result Aggregation**: Collect results from all executed nodes
+#### Sequential Execution Model
+1. **Topological Sort**: Sort nodes with alphabetical tie-breaking for deterministic ordering
+2. **Per-Node Prompt**: Display status from `get_output_info()` and ask "Run this node? [y/N]"
+3. **Dependency Validation**: Check all dependencies via `is_data_ready()` before execution
+4. **Archive-Execute-Archive**: Pre-archive (if exists) → Execute → Post-archive (if changed)
+5. **Result Aggregation**: Collect results from all executed nodes
 
 #### Archive Transaction
 ```python
-def begin_flow_transaction():
-    archive_timestamp = datetime.now()
-    archive_manifest = {}
+def execute_node_with_archiving(node, output_dir, context):
+    """Execute node with pre/post archiving based on hash change detection."""
+    # Compute hash of existing data
+    pre_hash = compute_directory_hash(output_dir)
 
-    for domain in ["amazon", "apple", "ynab", "cash_flow"]:
-        current_files = list_current_outputs(domain)
-        if current_files:
-            archive_path = create_archive(domain, archive_timestamp, current_files)
-            archive_manifest[domain] = archive_path
+    # Archive existing data (if exists)
+    if output_dir.exists() and any(output_dir.iterdir()):
+        archive_existing_data(node, output_dir, context)
 
-    return archive_manifest
+    # Execute node
+    result = node.execute(context)
+
+    # Archive new data if changed
+    post_hash = compute_directory_hash(output_dir)
+    if post_hash != pre_hash:
+        archive_new_data(node, output_dir, context)
+
+    return result
 ```
 
 ### Integration Points
+
+#### OutputInfo Abstraction
+```python
+@dataclass(frozen=True)
+class OutputFile:
+    """Information about a single output file from a flow node."""
+    path: Path
+    record_count: int
+
+class OutputInfo(ABC):
+    """Information about a flow node's output data."""
+
+    @abstractmethod
+    def is_data_ready(self) -> bool:
+        """Returns True if output data is complete enough for dependencies to use."""
+        pass
+
+    @abstractmethod
+    def get_output_files(self) -> list[OutputFile]:
+        """Returns list of output files with their record counts."""
+        pass
+```
 
 #### Command Return Structure
 ```python
@@ -381,7 +412,12 @@ We prefer decimal or fixed-point for all math.
 ## Document History
 
 - **2025-09-24**: Initial specification created
-- **Version**: 1.0
+- **2025-10-20**: Updated execution model to reflect sequential prompt-validate-execute implementation
+  - Added topological sort with alphabetical tie-breaking
+  - Added OutputInfo abstraction for type-safe output inspection
+  - Updated archiving to hash-based change detection with pre/post snapshots
+  - Removed check_changes() in favor of user-driven execution
+- **Version**: 1.1
 - **Status**: Complete System Specification
 - **Owner**: Karl Davis
 

@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
 
-from ..core.archive import create_flow_archive
 from ..core.config import get_config
 from ..core.flow import FlowContext, FlowResult, flow_registry
 from ..core.flow_engine import FlowExecutionEngine
@@ -99,13 +97,8 @@ def flow() -> None:
 
       finances flow    # Execute the flow with interactive prompts
     """
-    config = get_config()
-
     # Setup flow nodes
     setup_flow_nodes()
-
-    # Create flow context
-    flow_context = FlowContext(start_time=datetime.now())
 
     try:
         # Initialize execution engine
@@ -119,75 +112,12 @@ def flow() -> None:
                 click.echo(f"  • {error}")
             raise click.ClickException("Cannot execute invalid flow")
 
-        # Detect initial changes for preview
-        all_nodes = set(flow_registry.get_all_nodes().keys())
-
-        changes = engine.detect_changes(flow_context, all_nodes)
-        initially_changed = set()
-        change_summary = {}
-
-        for node_name, (has_changes, reasons) in changes.items():
-            if has_changes:
-                initially_changed.add(node_name)
-                change_summary[node_name] = reasons
-
-        potential_nodes = engine.dependency_graph.find_changed_subgraph(initially_changed)
-
-        if not potential_nodes:
-            click.echo("✅ No nodes need execution (no changes detected)")
-            return
-
-        click.echo(
-            f"Dynamic execution will process up to {len(potential_nodes)} nodes as dependencies allow:"
-        )
-
-        # Show initially changed nodes
-        if initially_changed:
-            click.echo("\nInitially triggered nodes:")
-            for node_name in sorted(initially_changed):
-                node = flow_registry.get_node(node_name)
-                display_name = node.get_display_name() if node is not None else node_name
-                click.echo(f"  • {display_name}")
-                if node_name in change_summary:
-                    for reason in change_summary[node_name]:
-                        click.echo(f"    - {reason}")
-
-        # Show potentially affected nodes
-        downstream_nodes = potential_nodes - initially_changed
-        if downstream_nodes:
-            click.echo(f"\nPotentially affected downstream nodes: {len(downstream_nodes)}")
-
-        # Confirm execution
-        if not click.confirm("\nProceed with dynamic execution?"):
-            click.echo("Execution cancelled.")
-            return
-
-        # Create transaction archive
-        click.echo("\n📦 Creating transaction archive...")
-        try:
-            archive_session = create_flow_archive(
-                config.data_dir,
-                "flow_execution",
-                flow_context={
-                    "execution_order": list(potential_nodes),
-                    "change_summary": change_summary,
-                },
-            )
-            flow_context.archive_manifest = {
-                domain: Path(manifest.archive_path) for domain, manifest in archive_session.archives.items()
-            }
-            click.echo(
-                f"✅ Archive created: {archive_session.total_files} files, {archive_session.total_size_bytes:,} bytes"
-            )
-        except Exception as e:
-            if not click.confirm(f"Archive creation failed: {e}\nContinue without archive?"):
-                raise click.ClickException("Execution aborted due to archive failure") from e
-
-        # Execute flow
-        click.echo("\n🚀 Executing flow...")
+        # Execute flow with interactive prompts
+        click.echo("\n🚀 Starting flow execution...")
+        click.echo("You will be prompted for each step.\n")
         start_time = datetime.now()
 
-        executions = engine.execute_flow(flow_context)
+        executions = engine.execute_flow()
 
         end_time = datetime.now()
         total_time = (end_time - start_time).total_seconds()
@@ -205,15 +135,6 @@ def flow() -> None:
         click.echo(f"Skipped: {summary['skipped']}")
         click.echo(f"Success rate: {summary['success_rate']:.1%}")
         click.echo(f"Total execution time: {total_time:.1f} seconds")
-
-        # Show archive information
-        if archive_session:
-            click.echo(f"\n📦 Archive batch: {archive_session.session_id}")
-            click.echo(f"Separate archives created for {len(archive_session.archives)} domains:")
-            for domain, manifest in archive_session.archives.items():
-                click.echo(
-                    f"  • {domain}: {manifest.files_archived} files ({manifest.archive_size_bytes:,} bytes)"
-                )
 
         # Show review items
         review_items = [

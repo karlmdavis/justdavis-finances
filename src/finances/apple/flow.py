@@ -8,7 +8,27 @@ Flow node implementations for Apple receipt processing and transaction matching.
 from datetime import datetime
 from pathlib import Path
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+
+class AppleEmailOutputInfo(OutputInfo):
+    """Output information for Apple email fetch node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .eml file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.eml"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return list of .eml files (1 record per file)."""
+        if not self.output_dir.exists():
+            return []
+
+        return [OutputFile(path=eml_file, record_count=1) for eml_file in self.output_dir.glob("*.eml")]
 
 
 class AppleEmailFetchFlowNode(FlowNode):
@@ -23,17 +43,13 @@ class AppleEmailFetchFlowNode(FlowNode):
 
         self.store = AppleEmailStore(data_dir / "apple" / "emails")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new Apple receipt emails should be fetched."""
-        if not self.store.exists():
-            return True, ["No Apple emails found"]
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for email fetch node."""
+        return AppleEmailOutputInfo(self.data_dir / "apple" / "emails")
 
-        # Check age of most recent email
-        age_days = self.store.age_days()
-        if age_days and age_days > 7:
-            return True, [f"Latest email is {age_days} days old"]
-
-        return False, ["Apple emails are recent"]
+    def get_output_dir(self) -> Path | None:
+        """Return Apple emails output directory."""
+        return self.data_dir / "apple" / "emails"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple emails summary."""
@@ -84,6 +100,27 @@ class AppleEmailFetchFlowNode(FlowNode):
             )
 
 
+class AppleReceiptOutputInfo(OutputInfo):
+    """Output information for Apple receipt parsing node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .json file exists (what dependencies consume)."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.json"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return all output files (.json parsed receipts) with counts."""
+        if not self.output_dir.exists():
+            return []
+
+        # Return .json files (parsed receipts - what dependencies use)
+        return [OutputFile(path=json_file, record_count=1) for json_file in self.output_dir.glob("*.json")]
+
+
 class AppleReceiptParsingFlowNode(FlowNode):
     """Parse Apple receipt emails to extract transaction data."""
 
@@ -98,22 +135,13 @@ class AppleReceiptParsingFlowNode(FlowNode):
         self.email_store = AppleEmailStore(data_dir / "apple" / "emails")
         self.receipt_store = AppleReceiptStore(data_dir / "apple" / "exports")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new emails need parsing."""
-        if not self.email_store.exists():
-            return False, ["No Apple emails to parse"]
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for receipt parsing node."""
+        return AppleReceiptOutputInfo(self.data_dir / "apple" / "exports")
 
-        if not self.receipt_store.exists():
-            return True, ["No parsed receipts found"]
-
-        # Check timestamps
-        email_time = self.email_store.last_modified()
-        receipt_time = self.receipt_store.last_modified()
-
-        if email_time and receipt_time and email_time > receipt_time:
-            return True, ["New emails detected"]
-
-        return False, ["Parsed receipts are up to date"]
+    def get_output_dir(self) -> Path | None:
+        """Return Apple parsed receipts output directory."""
+        return self.data_dir / "apple" / "exports"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get parsed Apple receipts summary."""
@@ -187,6 +215,38 @@ class AppleReceiptParsingFlowNode(FlowNode):
             )
 
 
+class AppleMatchingOutputInfo(OutputInfo):
+    """Output information for Apple matching node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .json match result file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.json"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return .json match result files with match counts."""
+        if not self.output_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+        for json_file in self.output_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                match_count = len(data.get("matches", []))
+                files.append(OutputFile(path=json_file, record_count=match_count))
+            except Exception:
+                # If JSON is malformed, count as 0 records
+                files.append(OutputFile(path=json_file, record_count=0))
+
+        return files
+
+
 class AppleMatchingFlowNode(FlowNode):
     """Match YNAB transactions to Apple receipts."""
 
@@ -201,29 +261,13 @@ class AppleMatchingFlowNode(FlowNode):
         self.receipt_store = AppleReceiptStore(data_dir / "apple" / "exports")
         self.match_store = AppleMatchResultsStore(data_dir / "apple" / "transaction_matches")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new Apple receipts or YNAB data requires matching."""
-        # Check if parsed receipts exist
-        if not self.receipt_store.exists():
-            return False, ["No parsed Apple receipts available"]
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for matching node."""
+        return AppleMatchingOutputInfo(self.data_dir / "apple" / "transaction_matches")
 
-        # Check if YNAB cache exists
-        ynab_cache = self.data_dir / "ynab" / "cache" / "transactions.json"
-        if not ynab_cache.exists():
-            return False, ["No YNAB cache available"]
-
-        # Check if matching results exist
-        if not self.match_store.exists():
-            return True, ["No previous matching results"]
-
-        # Compare timestamps
-        latest_match_time = self.match_store.last_modified()
-        ynab_mtime = ynab_cache.stat().st_mtime
-
-        if latest_match_time and ynab_mtime > latest_match_time.timestamp():
-            return True, ["YNAB data updated since last match"]
-
-        return False, ["Matching results are up to date"]
+    def get_output_dir(self) -> Path | None:
+        """Return Apple matching results output directory."""
+        return self.data_dir / "apple" / "transaction_matches"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple matching results summary."""

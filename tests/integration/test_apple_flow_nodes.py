@@ -9,9 +9,8 @@ from datetime import datetime
 
 import pytest
 
-from finances.apple.flow import AppleMatchingFlowNode, AppleReceiptParsingFlowNode
+from finances.apple.flow import AppleReceiptParsingFlowNode
 from finances.core.flow import FlowContext
-from finances.core.json_utils import write_json
 
 
 @pytest.fixture
@@ -57,20 +56,6 @@ class TestAppleReceiptParsingFlowNode:
 
     # test_execute_no_html_files removed - covered by parameterized test_flownode_interface.py
 
-    def test_check_changes_no_exports(self, temp_dir, flow_context):
-        """Test check_changes() with emails but no exports."""
-        node = AppleReceiptParsingFlowNode(temp_dir)
-
-        # Create email file
-        emails_dir = temp_dir / "apple" / "emails"
-        emails_dir.mkdir(parents=True)
-        (emails_dir / "test.eml").write_text("Test email")
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is True
-        assert any("No parsed receipts" in r for r in reasons)
-
 
 @pytest.mark.integration
 @pytest.mark.apple
@@ -81,23 +66,3 @@ class TestAppleMatchingFlowNode:
     # - test_execute_no_receipts (missing input data handling)
     # - test_execute_no_apple_transactions (no matching transactions scenario)
     # - test_check_changes_no_ynab_cache (missing dependency handling)
-    # Kept node-specific tests below that validate business logic
-
-    def test_check_changes_no_previous_matches(self, temp_dir, flow_context):
-        """Test check_changes() with no previous matches."""
-        node = AppleMatchingFlowNode(temp_dir)
-
-        # Create receipts
-        exports_dir = temp_dir / "apple" / "exports"
-        exports_dir.mkdir(parents=True)
-        write_json(exports_dir / "receipt1.json", {})
-
-        # Create YNAB cache
-        ynab_cache_dir = temp_dir / "ynab" / "cache"
-        ynab_cache_dir.mkdir(parents=True)
-        write_json(ynab_cache_dir / "transactions.json", [])
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is True
-        assert any("No previous matching" in r for r in reasons)

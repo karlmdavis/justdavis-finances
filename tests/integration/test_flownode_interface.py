@@ -90,41 +90,6 @@ class TestFlowNodeInterface:
         # Summary text should be non-empty
         assert len(summary.summary_text) > 0
 
-    def test_check_changes_returns_correct_structure(self, node_class, temp_dir, flow_context):
-        """Test that check_changes() returns tuple of (bool, list[str])."""
-        node = node_class(temp_dir)
-        result = node.check_changes(flow_context)
-
-        # Verify return type
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-
-        has_changes, reasons = result
-
-        # Verify types
-        assert isinstance(has_changes, bool)
-        assert isinstance(reasons, list)
-
-        # Reasons should contain strings
-        for reason in reasons:
-            assert isinstance(reason, str)
-
-        # Should have at least one reason
-        assert len(reasons) > 0
-
-    def test_check_changes_when_no_data(self, node_class, temp_dir, flow_context):
-        """Test check_changes() when preconditions not met returns False with reasons."""
-        node = node_class(temp_dir)
-        has_changes, reasons = node.check_changes(flow_context)
-
-        # When no data/preconditions, should return False or True with reasons
-        assert isinstance(has_changes, bool)
-        assert len(reasons) > 0
-
-        # Reasons should be descriptive
-        for reason in reasons:
-            assert len(reason) > 5  # Not just empty or single word
-
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -211,16 +176,3 @@ class TestFlowNodeWithData:
 
         # Should have meaningful item_count or last_updated
         assert summary.item_count is not None or summary.last_updated is not None
-
-    def test_check_changes_when_data_exists(self, node_class, setup_func, temp_dir, flow_context):
-        """Test check_changes() when data exists returns True for new data."""
-        # Setup data for this node
-        setup_func(temp_dir)
-
-        node = node_class(temp_dir)
-        has_changes, reasons = node.check_changes(flow_context)
-
-        # Should detect changes when input data exists but no previous output
-        # (unless node has special logic like YnabSyncFlowNode)
-        assert isinstance(has_changes, bool)
-        assert len(reasons) > 0

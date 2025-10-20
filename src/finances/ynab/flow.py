@@ -9,7 +9,63 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+
+class YnabSyncOutputInfo(OutputInfo):
+    """Output information for YNAB sync node."""
+
+    def __init__(self, cache_dir: Path):
+        self.cache_dir = cache_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if all three cache files exist (transactions, accounts, categories)."""
+        if not self.cache_dir.exists():
+            return False
+
+        transactions_file = self.cache_dir / "transactions.json"
+        accounts_file = self.cache_dir / "accounts.json"
+        categories_file = self.cache_dir / "categories.json"
+
+        return all(
+            [
+                transactions_file.exists(),
+                accounts_file.exists(),
+                categories_file.exists(),
+            ]
+        )
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return all cache files with record counts."""
+        if not self.cache_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+
+        # transactions.json - direct array
+        transactions_file = self.cache_dir / "transactions.json"
+        if transactions_file.exists():
+            data = read_json(transactions_file)
+            count = len(data) if isinstance(data, list) else 0
+            files.append(OutputFile(path=transactions_file, record_count=count))
+
+        # accounts.json - nested in "accounts" key
+        accounts_file = self.cache_dir / "accounts.json"
+        if accounts_file.exists():
+            data = read_json(accounts_file)
+            count = len(data.get("accounts", [])) if isinstance(data, dict) else 0
+            files.append(OutputFile(path=accounts_file, record_count=count))
+
+        # categories.json - nested in "category_groups" key
+        categories_file = self.cache_dir / "categories.json"
+        if categories_file.exists():
+            data = read_json(categories_file)
+            count = len(data.get("category_groups", [])) if isinstance(data, dict) else 0
+            files.append(OutputFile(path=categories_file, record_count=count))
+
+        return files
 
 
 class YnabSyncFlowNode(FlowNode):
@@ -24,20 +80,13 @@ class YnabSyncFlowNode(FlowNode):
 
         self.store = YnabCacheStore(data_dir / "ynab" / "cache")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if YNAB cache needs updating."""
-        if not self.store.exists():
-            return True, ["YNAB cache does not exist"]
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for YNAB sync node."""
+        return YnabSyncOutputInfo(self.data_dir / "ynab" / "cache")
 
-        # Check age of cache
-        last_mod = self.store.last_modified()
-        if last_mod:
-            age_hours = (datetime.now() - last_mod).total_seconds() / 3600
-
-            if age_hours > 24:
-                return True, [f"YNAB cache is {age_hours:.1f} hours old"]
-
-        return False, ["YNAB cache is up to date"]
+    def get_output_dir(self) -> Path | None:
+        """Return YNAB cache output directory."""
+        return self.data_dir / "ynab" / "cache"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get YNAB cache data summary."""
@@ -67,6 +116,40 @@ class YnabSyncFlowNode(FlowNode):
             )
 
 
+class RetirementUpdateOutputInfo(OutputInfo):
+    """Output information for retirement update node."""
+
+    def __init__(self, edits_dir: Path):
+        self.edits_dir = edits_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 retirement edit file exists."""
+        if not self.edits_dir.exists():
+            return False
+        return len(list(self.edits_dir.glob("*retirement*.json"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return all retirement edit files with counts."""
+        if not self.edits_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+        for edit_file in self.edits_dir.glob("*retirement*.json"):
+            data = read_json(edit_file)
+            # Handle both array and dict with "edits" key
+            if isinstance(data, list):
+                count = len(data)
+            elif isinstance(data, dict) and "edits" in data:
+                count = len(data["edits"])
+            else:
+                count = 0
+            files.append(OutputFile(path=edit_file, record_count=count))
+
+        return files
+
+
 class RetirementUpdateFlowNode(FlowNode):
     """Update retirement account balances (manual step)."""
 
@@ -80,21 +163,13 @@ class RetirementUpdateFlowNode(FlowNode):
 
         self.store = YnabEditsStore(data_dir / "ynab" / "edits")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if retirement accounts need updating."""
-        # Check for retirement edit files specifically
-        retirement_edits = self.store.get_retirement_edits()
-        if not retirement_edits:
-            return True, ["No retirement edits found"]
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for retirement update node."""
+        return RetirementUpdateOutputInfo(self.data_dir / "ynab" / "edits")
 
-        # Check age of most recent retirement edit
-        latest = max(retirement_edits, key=lambda p: p.stat().st_mtime)
-        age_days = (datetime.now().timestamp() - latest.stat().st_mtime) / 86400
-
-        if age_days > 30:
-            return True, [f"Latest retirement update is {age_days:.0f} days old"]
-
-        return False, ["Retirement accounts recently updated"]
+    def get_output_dir(self) -> Path | None:
+        """Return YNAB edits output directory."""
+        return self.data_dir / "ynab" / "edits"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get retirement accounts summary."""

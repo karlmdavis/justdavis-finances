@@ -70,23 +70,6 @@ class TestAmazonUnzipFlowNode:
 
     # test_execute_no_zip_files removed - covered by parameterized test_flownode_interface.py
 
-    def test_check_changes_with_new_zips(self, temp_dir, karl_zip, flow_context):
-        """Test check_changes() when new ZIPs are available."""
-        node = AmazonUnzipFlowNode(temp_dir)
-
-        # Copy ZIP to amazon/raw
-        raw_dir = temp_dir / "amazon" / "raw"
-        raw_dir.mkdir(parents=True, exist_ok=True)
-        zip_copy = raw_dir / "amazon_orders_karl_test.zip"
-        shutil.copy(karl_zip, zip_copy)
-
-        # Check changes
-        has_changes, reasons = node.check_changes(flow_context)
-
-        # Should detect new ZIP
-        assert has_changes is True
-        assert any("ZIP file" in r for r in reasons)
-
 
 @pytest.mark.integration
 @pytest.mark.amazon
@@ -150,23 +133,3 @@ class TestAmazonMatchingFlowNode:
     # Removed tests that are covered by parameterized test_flownode_interface.py:
     # - test_execute_no_amazon_data (missing input data handling)
     # - test_execute_no_ynab_cache (missing dependency handling)
-    # Kept node-specific tests below that validate business logic
-
-    def test_check_changes_no_previous_matches(self, temp_dir, flow_context):
-        """Test check_changes() when no previous matches exist."""
-        node = AmazonMatchingFlowNode(temp_dir)
-
-        # Create Amazon data (node looks for Retail.OrderHistory.*.csv)
-        raw_dir = temp_dir / "amazon" / "raw" / "2025-01-01_karl_amazon_data"
-        raw_dir.mkdir(parents=True)
-        (raw_dir / "Retail.OrderHistory.1.csv").write_text("Order ID\n111\n")
-
-        # Create YNAB cache
-        ynab_cache_dir = temp_dir / "ynab" / "cache"
-        ynab_cache_dir.mkdir(parents=True)
-        (ynab_cache_dir / "transactions.json").write_text("[]")
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is True
-        assert any("No previous matching" in r for r in reasons)

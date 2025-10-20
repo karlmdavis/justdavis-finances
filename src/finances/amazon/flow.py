@@ -10,7 +10,15 @@ from pathlib import Path
 
 import click
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import (
+    FlowContext,
+    FlowNode,
+    FlowResult,
+    NodeDataSummary,
+    NoOutputInfo,
+    OutputFile,
+    OutputInfo,
+)
 from . import SimplifiedMatcher, load_orders
 from .unzipper import extract_amazon_zip_files
 
@@ -21,9 +29,13 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
     def __init__(self) -> None:
         super().__init__("amazon_order_history_request")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Manual step - always returns False (user initiates)."""
-        return False, ["Manual step - user prompt required"]
+    def get_output_info(self) -> OutputInfo:
+        """Manual step - no persistent output."""
+        return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        """Manual step has no output directory."""
+        return None
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Prompt user to download Amazon order history."""
@@ -43,6 +55,36 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
         )
 
 
+class AmazonUnzipOutputInfo(OutputInfo):
+    """Output information for Amazon unzip node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .csv file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("**/*.csv"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return CSV files with row counts."""
+        if not self.output_dir.exists():
+            return []
+
+        files = []
+        for csv_file in self.output_dir.rglob("*.csv"):
+            try:
+                lines = csv_file.read_text().strip().split("\n")
+                # Count data rows (exclude header)
+                row_count = max(0, len(lines) - 1)
+                files.append(OutputFile(path=csv_file, record_count=row_count))
+            except Exception:
+                files.append(OutputFile(path=csv_file, record_count=0))
+
+        return files
+
+
 class AmazonUnzipFlowNode(FlowNode):
     """Extract Amazon order history ZIP files."""
 
@@ -56,30 +98,13 @@ class AmazonUnzipFlowNode(FlowNode):
 
         self.store = AmazonRawDataStore(data_dir / "amazon" / "raw")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new ZIP files are available in amazon/raw."""
-        raw_dir = self.data_dir / "amazon" / "raw"
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for unzip node."""
+        return AmazonUnzipOutputInfo(self.data_dir / "amazon" / "raw")
 
-        if not raw_dir.exists():
-            return False, ["Amazon raw directory not found"]
-
-        # Look for Amazon ZIP files in raw directory
-        zip_files = list(raw_dir.glob("*.zip"))
-        if not zip_files:
-            return False, ["No Amazon ZIP files to extract"]
-
-        # Check if we have any extracted data
-        if not self.store.exists():
-            return True, [f"Found {len(zip_files)} ZIP file(s) to extract"]
-
-        # Check if ZIPs are newer than extracted data
-        latest_zip = max(zip_files, key=lambda p: p.stat().st_mtime)
-        latest_csv_mtime = self.store.last_modified()
-
-        if latest_csv_mtime and latest_zip.stat().st_mtime > latest_csv_mtime.timestamp():
-            return True, ["New ZIP files detected"]
-
-        return False, ["No new Amazon data to extract"]
+    def get_output_dir(self) -> Path | None:
+        """Return Amazon raw data output directory."""
+        return self.data_dir / "amazon" / "raw"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon raw data summary."""
@@ -113,6 +138,37 @@ class AmazonUnzipFlowNode(FlowNode):
             return FlowResult(success=False, error_message=f"Unzip failed: {e}")
 
 
+class AmazonMatchingOutputInfo(OutputInfo):
+    """Output information for Amazon matching node."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 .json match result file exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*.json"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return .json match result files with match counts."""
+        if not self.output_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+        for json_file in self.output_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                match_count = len(data.get("matches", []))
+                files.append(OutputFile(path=json_file, record_count=match_count))
+            except Exception:
+                files.append(OutputFile(path=json_file, record_count=0))
+
+        return files
+
+
 class AmazonMatchingFlowNode(FlowNode):
     """Match YNAB transactions to Amazon orders."""
 
@@ -127,33 +183,13 @@ class AmazonMatchingFlowNode(FlowNode):
         self.raw_store = AmazonRawDataStore(data_dir / "amazon" / "raw")
         self.match_store = AmazonMatchResultsStore(data_dir / "amazon" / "transaction_matches")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new Amazon data or YNAB data requires matching."""
-        reasons = []
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for matching node."""
+        return AmazonMatchingOutputInfo(self.data_dir / "amazon" / "transaction_matches")
 
-        # Check if Amazon raw data exists
-        if not self.raw_store.exists():
-            return False, ["No Amazon raw data available"]
-
-        # Check if YNAB cache exists
-        ynab_cache = self.data_dir / "ynab" / "cache" / "transactions.json"
-        if not ynab_cache.exists():
-            return False, ["No YNAB cache available"]
-
-        # Check if matching results exist
-        if not self.match_store.exists():
-            reasons.append("No previous matching results")
-            return True, reasons
-
-        # Compare timestamps
-        latest_match_time = self.match_store.last_modified()
-        ynab_mtime = ynab_cache.stat().st_mtime
-
-        if latest_match_time and ynab_mtime > latest_match_time.timestamp():
-            reasons.append("YNAB data updated since last match")
-            return True, reasons
-
-        return False, ["Matching results are up to date"]
+    def get_output_dir(self) -> Path | None:
+        """Return Amazon matching results output directory."""
+        return self.data_dir / "amazon" / "transaction_matches"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon matching results summary."""

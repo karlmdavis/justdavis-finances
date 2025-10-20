@@ -99,6 +99,40 @@ class NodeDataSummary:
     summary_text: str
 
 
+@dataclass(frozen=True)
+class OutputFile:
+    """Information about a single output file from a flow node."""
+
+    path: Path
+    record_count: int
+
+
+class OutputInfo(ABC):
+    """Information about a flow node's output data."""
+
+    @abstractmethod
+    def is_data_ready(self) -> bool:
+        """Returns True if output data is complete enough for dependencies to use."""
+        pass
+
+    @abstractmethod
+    def get_output_files(self) -> list[OutputFile]:
+        """Returns list of output files with their record counts."""
+        pass
+
+
+class NoOutputInfo(OutputInfo):
+    """Output info for nodes with no persistent output (manual steps)."""
+
+    def is_data_ready(self) -> bool:
+        """Manual nodes are always ready (no data required)."""
+        return True
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Manual nodes have no output files."""
+        return []
+
+
 class FlowNode(ABC):
     """
     Abstract base class for flow nodes.
@@ -124,19 +158,6 @@ class FlowNode(ABC):
         return self._dependencies.copy()
 
     @abstractmethod
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """
-        Check if this node needs to execute based on upstream changes.
-
-        Args:
-            context: Flow execution context
-
-        Returns:
-            Tuple of (needs_execution, list_of_change_reasons)
-        """
-        pass
-
-    @abstractmethod
     def execute(self, context: FlowContext) -> FlowResult:
         """
         Execute this node's operation.
@@ -146,6 +167,29 @@ class FlowNode(ABC):
 
         Returns:
             FlowResult with execution details and outputs
+        """
+        pass
+
+    @abstractmethod
+    def get_output_info(self) -> OutputInfo:
+        """
+        Get information about this node's output data.
+
+        Returns OutputInfo with methods to check data readiness and list output files.
+        Used by flow engine for dependency validation and status display.
+
+        Returns:
+            OutputInfo instance with node's current output state
+        """
+        pass
+
+    @abstractmethod
+    def get_output_dir(self) -> Path | None:
+        """
+        Get the output directory for this node.
+
+        Returns:
+            Path to output directory, or None if node has no persistent output
         """
         pass
 
@@ -259,12 +303,7 @@ class FunctionFlowNode(FlowNode):
         super().__init__(name)
         self._dependencies = set(dependencies)
         self.func = func
-        self._change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None
         self._data_summary_func: Callable[[FlowContext], NodeDataSummary] | None = None
-
-    def set_change_detector(self, detector: Callable[[FlowContext], tuple[bool, list[str]]]) -> None:
-        """Set custom change detection function."""
-        self._change_detector = detector
 
     def set_data_summary_func(self, func: Callable[[FlowContext], NodeDataSummary]) -> None:
         """Set custom data summary function."""
@@ -277,14 +316,6 @@ class FunctionFlowNode(FlowNode):
 
         # Use default implementation from base class
         return super().get_data_summary(context)
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check for changes using registered detector or default logic."""
-        if self._change_detector:
-            return self._change_detector(context)
-
-        # Default: always execute if no custom detector
-        return True, ["No change detector configured"]
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute the wrapped function."""
@@ -308,6 +339,14 @@ class FunctionFlowNode(FlowNode):
             logger.error(f"Error executing {self.name}: {e}")
             return FlowResult(success=False, error_message=str(e))
 
+    def get_output_info(self) -> OutputInfo:
+        """Get output info - defaults to NoOutputInfo for function nodes."""
+        return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        """Function nodes have no output directory by default."""
+        return None
+
 
 class CLIAdapterNode(FlowNode):
     """
@@ -322,7 +361,6 @@ class CLIAdapterNode(FlowNode):
         name: str,
         cli_command: Callable,
         dependencies: list[str] | None = None,
-        change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None,
     ):
         """
         Initialize CLI adapter node.
@@ -331,22 +369,12 @@ class CLIAdapterNode(FlowNode):
             name: Node identifier
             cli_command: CLI command function to wrap
             dependencies: List of dependency node names
-            change_detector: Function to detect if execution is needed
         """
         super().__init__(name)
         if dependencies:
             self._dependencies = set(dependencies)
 
         self.cli_command = cli_command
-        self._change_detector = change_detector
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check for changes using provided detector or default."""
-        if self._change_detector:
-            return self._change_detector(context)
-
-        # Default: assume changes if no detector provided
-        return True, ["No change detector available"]
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute the CLI command with flow context adaptation."""
@@ -375,6 +403,14 @@ class CLIAdapterNode(FlowNode):
             logger.error(f"Error executing CLI command {self.name}: {e}")
             return FlowResult(success=False, error_message=str(e))
 
+    def get_output_info(self) -> OutputInfo:
+        """Get output info - defaults to NoOutputInfo for CLI nodes."""
+        return NoOutputInfo()
+
+    def get_output_dir(self) -> Path | None:
+        """CLI adapter nodes have no output directory by default."""
+        return None
+
 
 class FlowNodeRegistry:
     """
@@ -387,7 +423,6 @@ class FlowNodeRegistry:
     def __init__(self) -> None:
         """Initialize empty node registry."""
         self._nodes: dict[str, FlowNode] = {}
-        self._change_detectors: dict[str, Callable[[FlowContext], tuple[bool, list[str]]]] = {}
 
     def register_node(self, node: FlowNode) -> None:
         """
@@ -407,7 +442,6 @@ class FlowNodeRegistry:
         name: str,
         func: Callable[[FlowContext], FlowResult],
         dependencies: list[str] | None = None,
-        change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None,
         data_summary_func: Callable[[FlowContext], NodeDataSummary] | None = None,
     ) -> None:
         """
@@ -417,12 +451,9 @@ class FlowNodeRegistry:
             name: Node identifier
             func: Function to execute
             dependencies: List of dependency node names
-            change_detector: Optional change detection function
             data_summary_func: Optional data summary function for interactive prompts
         """
         node = FunctionFlowNode(name, func, dependencies or [])
-        if change_detector:
-            node.set_change_detector(change_detector)
         if data_summary_func:
             node.set_data_summary_func(data_summary_func)
 

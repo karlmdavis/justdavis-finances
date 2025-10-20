@@ -81,20 +81,6 @@ class TestSplitGenerationFlowNode:
 
     # test_execute_no_matches removed - covered by parameterized test_flownode_interface.py
 
-    def test_check_changes_no_edits(self, temp_dir, flow_context):
-        """Test check_changes() with matches but no edits."""
-        node = SplitGenerationFlowNode(temp_dir)
-
-        # Create match files
-        amazon_dir = temp_dir / "amazon" / "transaction_matches"
-        amazon_dir.mkdir(parents=True)
-        write_json(amazon_dir / "results.json", {"matches": []})
-
-        has_changes, reasons = node.check_changes(flow_context)
-
-        assert has_changes is True
-        assert any("No split edits" in r for r in reasons)
-
 
 @pytest.mark.integration
 @pytest.mark.ynab

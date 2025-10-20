@@ -5,10 +5,60 @@ Split Generation Flow Node
 Flow node for generating YNAB splits from Amazon and Apple transaction matches.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary
+from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+logger = logging.getLogger(__name__)
+
+
+class SplitGenerationOutputInfo(OutputInfo):
+    """Output information for split generation node."""
+
+    def __init__(self, edits_dir: Path):
+        self.edits_dir = edits_dir
+
+    def is_data_ready(self) -> bool:
+        """Ready if at least 1 file with 'edits' key exists."""
+        if not self.edits_dir.exists():
+            return False
+
+        from ..core.json_utils import read_json
+
+        # Check all JSON files for "edits" key
+        for json_file in self.edits_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                if isinstance(data, dict) and "edits" in data:
+                    return True
+            except Exception as e:
+                logger.debug(f"Skipping malformed JSON file {json_file.name}: {e}")
+                continue
+
+        return False
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return only files with 'edits' key and their counts."""
+        if not self.edits_dir.exists():
+            return []
+
+        from ..core.json_utils import read_json
+
+        files = []
+        for json_file in self.edits_dir.glob("*.json"):
+            try:
+                data = read_json(json_file)
+                # Only include files with "edits" key
+                if isinstance(data, dict) and "edits" in data:
+                    count = len(data["edits"])
+                    files.append(OutputFile(path=json_file, record_count=count))
+            except Exception as e:
+                logger.debug(f"Skipping malformed JSON file {json_file.name}: {e}")
+                continue
+
+        return files
 
 
 class SplitGenerationFlowNode(FlowNode):
@@ -19,46 +69,13 @@ class SplitGenerationFlowNode(FlowNode):
         self.data_dir = data_dir
         self._dependencies = {"amazon_matching", "apple_matching"}
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new matches require split generation."""
-        reasons = []
+    def get_output_info(self) -> OutputInfo:
+        """Get output information for split generation node."""
+        return SplitGenerationOutputInfo(self.data_dir / "ynab" / "edits")
 
-        # Check for Amazon matches
-        amazon_matches_dir = self.data_dir / "amazon" / "transaction_matches"
-        amazon_matches = []
-        if amazon_matches_dir.exists():
-            amazon_matches = list(amazon_matches_dir.glob("*.json"))
-
-        # Check for Apple matches
-        apple_matches_dir = self.data_dir / "apple" / "transaction_matches"
-        apple_matches = []
-        if apple_matches_dir.exists():
-            apple_matches = list(apple_matches_dir.glob("*.json"))
-
-        if not amazon_matches and not apple_matches:
-            return False, ["No match results available"]
-
-        # Check for existing split edits
-        edits_dir = self.data_dir / "ynab" / "edits"
-        split_edits = []
-        if edits_dir.exists():
-            split_edits = list(edits_dir.glob("*split*.json"))
-
-        if not split_edits:
-            reasons.append("No split edits found")
-            return True, reasons
-
-        # Check if match files are newer than edits
-        all_matches = amazon_matches + apple_matches
-        if all_matches:
-            latest_match = max(all_matches, key=lambda p: p.stat().st_mtime)
-            latest_edit = max(split_edits, key=lambda p: p.stat().st_mtime)
-
-            if latest_match.stat().st_mtime > latest_edit.stat().st_mtime:
-                reasons.append("New matches since last split generation")
-                return True, reasons
-
-        return False, ["Split edits are up to date"]
+    def get_output_dir(self) -> Path | None:
+        """Return YNAB edits output directory."""
+        return self.data_dir / "ynab" / "edits"
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get split generation summary."""

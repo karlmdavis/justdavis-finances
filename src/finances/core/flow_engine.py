@@ -7,14 +7,16 @@ of the Financial Flow System.
 """
 
 import logging
-import os
+import shutil
 import sys
 from collections import defaultdict, deque
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from .flow import (
     FlowContext,
+    FlowNode,
     FlowNodeRegistry,
     FlowResult,
     NodeExecution,
@@ -104,19 +106,25 @@ class DependencyGraph:
                     graph[dep_name].add(node_name)
                     in_degree[node_name] += 1
 
-        # Initialize queue with nodes that have no dependencies
-        queue = deque([node for node in nodes_to_execute if in_degree[node] == 0])
+        # Initialize queue with nodes that have no dependencies (sorted alphabetically)
+        initial_nodes = sorted([node for node in nodes_to_execute if in_degree[node] == 0])
+        queue = deque(initial_nodes)
         result = []
 
         while queue:
             current = queue.popleft()
             result.append(current)
 
-            # Process dependents
+            # Process dependents and collect newly ready nodes
+            next_batch = []
             for dependent in graph[current]:
                 in_degree[dependent] -= 1
                 if in_degree[dependent] == 0:
-                    queue.append(dependent)
+                    next_batch.append(dependent)
+
+            # Sort newly ready nodes alphabetically before adding to queue
+            next_batch.sort()
+            queue.extend(next_batch)
 
         # Check if all nodes were processed (no cycles)
         if len(result) != len(nodes_to_execute):
@@ -246,72 +254,159 @@ class FlowExecutionEngine:
         """
         return self.dependency_graph.validate()
 
-    def detect_changes(
-        self, context: FlowContext, nodes_to_check: set[str] | None = None
-    ) -> dict[str, tuple[bool, list[str]]]:
+    def compute_directory_hash(self, directory: Path) -> str:
         """
-        Detect changes across all specified nodes.
+        Compute SHA-256 hash of all files in directory using CLI tool.
+
+        Uses sha256sum (Linux) or shasum (macOS) for performance.
+        Ignores 'archive/' subdirectory to avoid recursion.
 
         Args:
-            context: Flow execution context
-            nodes_to_check: Optional set of nodes to check (defaults to all)
+            directory: Path to directory to hash
 
         Returns:
-            Dictionary mapping node names to (has_changes, change_reasons)
+            SHA-256 hex digest string, or empty string if directory doesn't exist
         """
-        if nodes_to_check is None:
-            nodes_to_check = set(self.registry.get_all_nodes().keys())
+        import hashlib
+        import platform
+        import subprocess
 
-        changes = {}
+        if not directory.exists():
+            return ""
 
-        for node_name in nodes_to_check:
-            node = self.registry.get_node(node_name)
-            if node:
-                try:
-                    has_changes, reasons = node.check_changes(context)
-                    changes[node_name] = (has_changes, reasons)
-                    logger.debug(f"Change detection for {node_name}: {has_changes}, reasons: {reasons}")
-                except Exception as e:
-                    logger.error(f"Error detecting changes for {node_name}: {e}")
-                    changes[node_name] = (True, [f"Error in change detection: {e}"])
+        # Get all files recursively and sort for deterministic ordering
+        files_to_hash = []
+        for file_path in sorted(directory.rglob("*")):
+            # Skip directories and archive subdirectory
+            if not file_path.is_file():
+                continue
+            if "archive" in file_path.parts:
+                continue
+            files_to_hash.append(file_path)
 
-        return changes
+        if not files_to_hash:
+            return hashlib.sha256().hexdigest()
 
-    def plan_execution(
-        self, context: FlowContext, target_nodes: set[str] | None = None
-    ) -> tuple[list[str], dict[str, list[str]]]:
+        # Determine which CLI tool to use based on platform
+        system = platform.system()
+        hash_cmd = ["shasum", "-a", "256"] if system == "Darwin" else ["sha256sum"]
+
+        try:
+            # Run hash command on all files (file paths are from trusted directory walk)
+            result = subprocess.run(  # noqa: S603
+                hash_cmd + [str(f) for f in files_to_hash],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=directory,
+            )
+
+            # Combine all hashes into a single hash
+            combined_hash = hashlib.sha256()
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    # Extract hash (first field) and filename
+                    parts = line.split(maxsplit=1)
+                    if len(parts) == 2:
+                        file_hash, filename = parts
+                        # Hash both filename and file hash for complete coverage
+                        combined_hash.update(filename.encode())
+                        combined_hash.update(file_hash.encode())
+
+            return combined_hash.hexdigest()
+
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # Fallback to Python implementation if CLI tool not available
+            logger.warning(f"CLI hashing tool not available, using Python fallback for {directory}")
+            hash_obj = hashlib.sha256()
+
+            for file_path in files_to_hash:
+                # Hash file path (relative to base directory)
+                relative_path = file_path.relative_to(directory)
+                hash_obj.update(str(relative_path).encode())
+
+                # Hash file contents
+                hash_obj.update(file_path.read_bytes())
+
+            return hash_obj.hexdigest()
+
+    def archive_existing_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
         """
-        Plan the execution order and determine which nodes need to run.
+        Archive existing data before execution.
+
+        Creates timestamped _pre archive in output_dir/archive/ subdirectory.
 
         Args:
+            node: Flow node being executed
+            output_dir: Path to node's output directory
             context: Flow execution context
-            target_nodes: Optional set of target nodes to execute
 
-        Returns:
-            Tuple of (execution_order, change_summary)
+        Raises:
+            SystemExit: If archive operation fails (critical for financial data)
         """
-        # Determine nodes to consider
-        all_nodes = set(self.registry.get_all_nodes().keys()) if target_nodes is None else target_nodes
+        try:
+            archive_dir = output_dir / "archive"
+            archive_dir.mkdir(parents=True, exist_ok=True)
 
-        # Detect changes
-        changes = self.detect_changes(context, all_nodes)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        # Find nodes that have changes
-        changed_nodes = set()
-        change_summary = {}
+            # Add count suffix to avoid collisions if multiple archives in same second
+            base_name = f"{timestamp}_pre"
+            archive_path = archive_dir / base_name
+            count = 1
+            while archive_path.exists():
+                archive_path = archive_dir / f"{base_name}_{count}"
+                count += 1
 
-        for node_name, (has_changes, reasons) in changes.items():
-            if has_changes:
-                changed_nodes.add(node_name)
-                change_summary[node_name] = reasons
+            # Copy entire output directory, excluding archive subdirectory
+            shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns("archive"))
 
-        # Find all nodes that need execution (including downstream)
-        execution_nodes = self.dependency_graph.find_changed_subgraph(changed_nodes)
+            # Store archive path in context for audit trail
+            context.archive_manifest[f"{node.name}_pre"] = archive_path
 
-        # Get execution order
-        execution_order = self.dependency_graph.topological_sort(execution_nodes) if execution_nodes else []
+        except Exception as e:
+            print(f"\nERROR: Failed to archive existing data for '{node.name}'")
+            print(f"  Reason: {e}")
+            print("  Cannot proceed without backup - flow stopped")
+            sys.exit(1)
 
-        return execution_order, change_summary
+    def archive_new_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
+        """
+        Archive new data after execution if changed.
+
+        Creates timestamped _post archive in output_dir/archive/ subdirectory.
+
+        Args:
+            node: Flow node that was executed
+            output_dir: Path to node's output directory
+            context: Flow execution context
+
+        Raises:
+            SystemExit: If archive operation fails (critical for financial data)
+        """
+        try:
+            archive_dir = output_dir / "archive"
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+            # Add count suffix to avoid collisions if multiple archives in same second
+            base_name = f"{timestamp}_post"
+            archive_path = archive_dir / base_name
+            count = 1
+            while archive_path.exists():
+                archive_path = archive_dir / f"{base_name}_{count}"
+                count += 1
+
+            # Copy entire output directory, excluding archive subdirectory
+            shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns("archive"))
+
+            # Store archive path in context for audit trail
+            context.archive_manifest[f"{node.name}_post"] = archive_path
+
+        except Exception as e:
+            print(f"\nERROR: Failed to archive new data for '{node.name}'")
+            print(f"  Reason: {e}")
+            print("  Data was produced but not archived - flow stopped")
+            sys.exit(1)
 
     def execute_node(self, node_name: str, context: FlowContext) -> NodeExecution:
         """
@@ -354,173 +449,143 @@ class FlowExecutionEngine:
 
         return execution
 
-    def find_ready_nodes(self, remaining_nodes: set[str], completed_nodes: set[str]) -> set[str]:
+    def topological_sort_nodes(self) -> list[str]:
         """
-        Find nodes that are ready to execute (all dependencies satisfied).
-
-        Args:
-            remaining_nodes: Set of nodes that haven't been executed yet
-            completed_nodes: Set of nodes that have been successfully completed
+        Sort all nodes by dependencies with alphabetical tie-breaking.
 
         Returns:
-            Set of nodes that are ready to execute
+            Ordered list of node names (dependencies first, alphabetically within levels)
         """
-        ready_nodes = set()
+        all_nodes = set(self.registry.get_all_nodes().keys())
+        return self.dependency_graph.topological_sort(all_nodes)
 
-        for node_name in remaining_nodes:
-            node = self.registry.get_node(node_name)
-            if not node:
-                continue
-
-            # Check if all dependencies are satisfied
-            dependencies_satisfied = all(
-                dep_name in completed_nodes or dep_name not in remaining_nodes
-                for dep_name in node.dependencies
-            )
-
-            if dependencies_satisfied:
-                ready_nodes.add(node_name)
-
-        return ready_nodes
-
-    def execute_flow(
-        self, context: FlowContext, target_nodes: set[str] | None = None
-    ) -> dict[str, NodeExecution]:
+    def execute_flow(self) -> dict[str, Any]:
         """
-        Execute the complete flow with dynamic dependency resolution.
+        Execute the complete flow with sequential prompt-validate-execute pattern.
 
-        Uses dynamic execution planning where nodes are executed as their
-        dependencies become satisfied, allowing for adaptive workflow execution.
-
-        Args:
-            context: Flow execution context
-            target_nodes: Optional set of target nodes to execute
+        For each node in topological order:
+        1. Display status and prompt user
+        2. Validate dependencies have usable data
+        3. Archive existing data (if any)
+        4. Execute node
+        5. Archive new data if changed
 
         Returns:
-            Dictionary mapping node names to their execution records
+            Dictionary with execution summary and results
         """
         # Validate flow before execution
         validation_errors = self.validate_flow()
         if validation_errors:
-            raise ValueError(f"Flow validation failed: {validation_errors}")
+            print("\nERROR: Flow validation failed")
+            for error in validation_errors:
+                print(f"  - {error}")
+            sys.exit(1)
 
-        # Determine initial nodes to consider
-        all_nodes = set(self.registry.get_all_nodes().keys()) if target_nodes is None else target_nodes
+        # Create flow context
+        context = FlowContext(start_time=datetime.now())
 
-        # Initial change detection to find starting nodes
-        changes = self.detect_changes(context, all_nodes)
-        initially_changed = set()
+        # Get nodes in topological order with alphabetical tie-breaking
+        sorted_nodes = self.topological_sort_nodes()
 
-        for node_name, (has_changes, _reasons) in changes.items():
-            if has_changes:
-                initially_changed.add(node_name)
+        executed_nodes = []
+        skipped_nodes = []
 
-        # Find all nodes that need execution due to changes (including downstream)
-        nodes_needing_execution = self.dependency_graph.find_changed_subgraph(initially_changed)
+        # Sequential execution loop
+        for node_name in sorted_nodes:
+            node = self.registry.get_node(node_name)
+            if not node:
+                print(f"\nERROR: Node '{node_name}' not found in registry")
+                sys.exit(1)
 
-        # Filter nodes_needing_execution by target_nodes (respects exclusions)
-        nodes_needing_execution = nodes_needing_execution & all_nodes
+            # Get output info for status display
+            output_info = node.get_output_info()
+            files = output_info.get_output_files()
 
-        logger.info(f"Dynamic execution starting with {len(nodes_needing_execution)} potential nodes")
+            # Format status display
+            if not files:
+                status = "No data"
+            else:
+                total_records = sum(f.record_count for f in files)
+                try:
+                    latest_file = max(files, key=lambda f: f.path.stat().st_mtime)
+                    age_days = (
+                        datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
+                    ).days
+                    status = f"{total_records} records, {age_days} days old"
+                except (FileNotFoundError, OSError):
+                    # File deleted between get_output_files() and stat() call
+                    status = f"{total_records} records (age unknown)"
 
-        # Dynamic execution state
-        executions = {}
-        completed_nodes: set[str] = set()
-        failed_nodes: set[str] = set()
-        remaining_nodes = nodes_needing_execution.copy()
-        execution_count = 0
+            # Display and prompt
+            print(f"\n[{node_name}]")
+            print(f"  Status: {status}")
+            response = input("  Run this node? [y/N] ")
 
-        # Dynamic execution loop
-        while remaining_nodes:
-            # Find nodes that are ready to execute
-            ready_nodes = self.find_ready_nodes(remaining_nodes, completed_nodes)
+            if response.lower() != "y":
+                skipped_nodes.append(node_name)
+                continue
 
-            if not ready_nodes:
-                # No nodes are ready - either dependency cycle or all remaining nodes failed
-                logger.error(f"No ready nodes found with {len(remaining_nodes)} remaining")
-                logger.error(f"Remaining nodes: {remaining_nodes}")
-                logger.error(f"Failed nodes: {failed_nodes}")
-                break
+            # Validate dependencies have usable data
+            for dep_name in node.dependencies:
+                dep_node = self.registry.get_node(dep_name)
+                if not dep_node:
+                    print(f"\nERROR: Cannot run '{node_name}'")
+                    print(f"  Dependency '{dep_name}' not found in registry")
+                    sys.exit(1)
 
-            # Execute ready nodes (in deterministic order for consistency)
-            for node_name in sorted(ready_nodes):
-                execution_count += 1
-                logger.info(f"[{execution_count}] Executing: {node_name}")
+                dep_info = dep_node.get_output_info()
+                if not dep_info.is_data_ready():
+                    print(f"\nERROR: Cannot run '{node_name}'")
+                    print(f"  Dependency '{dep_name}' has no usable data")
+                    print(f"  Run the flow again and say 'yes' to '{dep_name}'")
+                    sys.exit(1)
 
-                # Get the node for prompting
-                node = self.registry.get_node(node_name)
-                if not node:
-                    logger.error(f"Node {node_name} not found in registry")
-                    remaining_nodes.discard(node_name)
-                    continue
+            # Get output directory (returns None if node has no persistent output)
+            output_dir = node.get_output_dir()
 
-                # Test-mode marker: Node prompt
-                if os.environ.get("FINANCES_ENV") == "test":
-                    print(f"\n[NODE_PROMPT: {node_name}]", file=sys.stderr, flush=True)
+            # Archive existing data (if exists)
+            pre_hash = None
+            if output_dir and output_dir.exists() and any(output_dir.iterdir()):
+                pre_hash = self.compute_directory_hash(output_dir)
+                self.archive_existing_data(node, output_dir, context)
 
-                # Prompt user for each node
-                should_execute = node.prompt_user(context)
+            # Execute node
+            result = node.execute(context)
 
-                if not should_execute:
-                    # User chose to skip - mark as skipped and don't add to completed_nodes
-                    execution = NodeExecution(
-                        node_name=node_name,
-                        status=NodeStatus.SKIPPED,
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
-                        result=FlowResult(success=True, metadata={"user_skipped": True}),
-                    )
-                    logger.info(f"User skipped {node_name}")
-                    executions[node_name] = execution
-                    context.execution_history.append(execution)
-                    remaining_nodes.discard(node_name)
-                    # Note: Don't add to completed_nodes - this prevents downstream execution
-                    continue
+            if not result.success:
+                print("\nERROR: Node execution failed")
+                print(f"  Node: {node_name}")
+                print(f"  Error: {result.error_message}")
+                sys.exit(1)
 
-                # Test-mode marker: Node execution start
-                if os.environ.get("FINANCES_ENV") == "test":
-                    print(f"[NODE_EXEC_START: {node_name}]", file=sys.stderr, flush=True)
+            executed_nodes.append(node_name)
 
-                # Execute the node
-                execution = self.execute_node(node_name, context)
+            # Archive new data if changed
+            if output_dir and output_dir.exists():
+                post_hash = self.compute_directory_hash(output_dir)
+                if post_hash != pre_hash:
+                    self.archive_new_data(node, output_dir, context)
 
-                if execution.status == NodeStatus.COMPLETED:
-                    completed_nodes.add(node_name)
-                    logger.info(f"Node {node_name} completed successfully")
-                elif execution.status == NodeStatus.FAILED:
-                    failed_nodes.add(node_name)
-                    logger.error(f"Node {node_name} failed")
+        # Print execution summary
+        print("\n" + "=" * 60)
+        print("EXECUTION SUMMARY")
+        print("=" * 60)
+        print(f"Executed: {len(executed_nodes)} nodes")
+        print(f"Skipped:  {len(skipped_nodes)} nodes")
+        if executed_nodes:
+            print("\nExecuted nodes:")
+            for node_name in executed_nodes:
+                print(f"  - {node_name}")
+        if skipped_nodes:
+            print("\nSkipped nodes:")
+            for node_name in skipped_nodes:
+                print(f"  - {node_name}")
 
-                # Test-mode marker: Node execution end
-                if os.environ.get("FINANCES_ENV") == "test":
-                    status = execution.status.value
-                    print(f"[NODE_EXEC_END: {node_name}: {status}]", file=sys.stderr, flush=True)
-
-                executions[node_name] = execution
-                context.execution_history.append(execution)
-                remaining_nodes.discard(node_name)
-
-                # Stop on failure
-                if execution.status == NodeStatus.FAILED:
-                    logger.error(f"Flow execution stopped due to failure in {node_name}")
-                    # Mark remaining dependent nodes as skipped
-                    for remaining_node in remaining_nodes:
-                        skip_execution = NodeExecution(
-                            node_name=remaining_node,
-                            status=NodeStatus.SKIPPED,
-                            start_time=datetime.now(),
-                            end_time=datetime.now(),
-                            result=FlowResult(success=True, metadata={"skipped_due_to_failure": node_name}),
-                        )
-                        executions[remaining_node] = skip_execution
-                        context.execution_history.append(skip_execution)
-                    remaining_nodes.clear()
-                    break
-
-        logger.info(
-            f"Dynamic execution completed: {len(completed_nodes)} completed, {len(failed_nodes)} failed"
-        )
-        return executions
+        return {
+            "executed_nodes": executed_nodes,
+            "skipped_nodes": skipped_nodes,
+            "total_nodes": len(sorted_nodes),
+        }
 
     def get_execution_summary(self, executions: dict[str, NodeExecution]) -> dict[str, Any]:
         """
