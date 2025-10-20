@@ -25,10 +25,6 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
         """Manual step - no persistent output."""
         return NoOutputInfo()
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Manual step - always returns False (user initiates)."""
-        return False, ["Manual step - user prompt required"]
-
     def execute(self, context: FlowContext) -> FlowResult:
         """Prompt user to download Amazon order history."""
         click.echo("\n📋 Manual Step Required:")
@@ -93,31 +89,6 @@ class AmazonUnzipFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for unzip node."""
         return AmazonUnzipOutputInfo(self.data_dir / "amazon" / "raw")
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new ZIP files are available in amazon/raw."""
-        raw_dir = self.data_dir / "amazon" / "raw"
-
-        if not raw_dir.exists():
-            return False, ["Amazon raw directory not found"]
-
-        # Look for Amazon ZIP files in raw directory
-        zip_files = list(raw_dir.glob("*.zip"))
-        if not zip_files:
-            return False, ["No Amazon ZIP files to extract"]
-
-        # Check if we have any extracted data
-        if not self.store.exists():
-            return True, [f"Found {len(zip_files)} ZIP file(s) to extract"]
-
-        # Check if ZIPs are newer than extracted data
-        latest_zip = max(zip_files, key=lambda p: p.stat().st_mtime)
-        latest_csv_mtime = self.store.last_modified()
-
-        if latest_csv_mtime and latest_zip.stat().st_mtime > latest_csv_mtime.timestamp():
-            return True, ["New ZIP files detected"]
-
-        return False, ["No new Amazon data to extract"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon raw data summary."""
@@ -199,34 +170,6 @@ class AmazonMatchingFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for matching node."""
         return AmazonMatchingOutputInfo(self.data_dir / "amazon" / "transaction_matches")
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new Amazon data or YNAB data requires matching."""
-        reasons = []
-
-        # Check if Amazon raw data exists
-        if not self.raw_store.exists():
-            return False, ["No Amazon raw data available"]
-
-        # Check if YNAB cache exists
-        ynab_cache = self.data_dir / "ynab" / "cache" / "transactions.json"
-        if not ynab_cache.exists():
-            return False, ["No YNAB cache available"]
-
-        # Check if matching results exist
-        if not self.match_store.exists():
-            reasons.append("No previous matching results")
-            return True, reasons
-
-        # Compare timestamps
-        latest_match_time = self.match_store.last_modified()
-        ynab_mtime = ynab_cache.stat().st_mtime
-
-        if latest_match_time and ynab_mtime > latest_match_time.timestamp():
-            reasons.append("YNAB data updated since last match")
-            return True, reasons
-
-        return False, ["Matching results are up to date"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Amazon matching results summary."""

@@ -54,30 +54,6 @@ class CashFlowAnalysisFlowNode(FlowNode):
         """Get output information for cash flow analysis node."""
         return CashFlowAnalysisOutputInfo(self.data_dir / "cash_flow" / "charts")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if cash flow analysis needs updating."""
-        ynab_cache = self.data_dir / "ynab" / "cache" / "transactions.json"
-
-        if not ynab_cache.exists():
-            return False, ["No YNAB cache available"]
-
-        if not self.store.exists():
-            return True, ["No cash flow charts found"]
-
-        # Check if YNAB data is newer than charts
-        latest_chart_time = self.store.last_modified()
-        ynab_mtime = ynab_cache.stat().st_mtime
-
-        if latest_chart_time and ynab_mtime > latest_chart_time.timestamp():
-            return True, ["YNAB data updated since last analysis"]
-
-        # Check if charts are more than 7 days old
-        age_days = self.store.age_days()
-        if age_days and age_days > 7:
-            return True, [f"Charts are {age_days} days old"]
-
-        return False, ["Cash flow analysis is up to date"]
-
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get cash flow analysis summary."""
         return self.store.to_node_data_summary()

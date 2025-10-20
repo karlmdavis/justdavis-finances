@@ -50,18 +50,6 @@ class AppleEmailFetchFlowNode(FlowNode):
         """Get output information for email fetch node."""
         return AppleEmailOutputInfo(self.data_dir / "apple" / "emails")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new Apple receipt emails should be fetched."""
-        if not self.store.exists():
-            return True, ["No Apple emails found"]
-
-        # Check age of most recent email
-        age_days = self.store.age_days()
-        if age_days and age_days > 7:
-            return True, [f"Latest email is {age_days} days old"]
-
-        return False, ["Apple emails are recent"]
-
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple emails summary."""
         return self.store.to_node_data_summary()
@@ -154,23 +142,6 @@ class AppleReceiptParsingFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for receipt parsing node."""
         return AppleReceiptOutputInfo(self.data_dir / "apple" / "exports")
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new emails need parsing."""
-        if not self.email_store.exists():
-            return False, ["No Apple emails to parse"]
-
-        if not self.receipt_store.exists():
-            return True, ["No parsed receipts found"]
-
-        # Check timestamps
-        email_time = self.email_store.last_modified()
-        receipt_time = self.receipt_store.last_modified()
-
-        if email_time and receipt_time and email_time > receipt_time:
-            return True, ["New emails detected"]
-
-        return False, ["Parsed receipts are up to date"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get parsed Apple receipts summary."""
@@ -293,30 +264,6 @@ class AppleMatchingFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for matching node."""
         return AppleMatchingOutputInfo(self.data_dir / "apple" / "transaction_matches")
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new Apple receipts or YNAB data requires matching."""
-        # Check if parsed receipts exist
-        if not self.receipt_store.exists():
-            return False, ["No parsed Apple receipts available"]
-
-        # Check if YNAB cache exists
-        ynab_cache = self.data_dir / "ynab" / "cache" / "transactions.json"
-        if not ynab_cache.exists():
-            return False, ["No YNAB cache available"]
-
-        # Check if matching results exist
-        if not self.match_store.exists():
-            return True, ["No previous matching results"]
-
-        # Compare timestamps
-        latest_match_time = self.match_store.last_modified()
-        ynab_mtime = ynab_cache.stat().st_mtime
-
-        if latest_match_time and ynab_mtime > latest_match_time.timestamp():
-            return True, ["YNAB data updated since last match"]
-
-        return False, ["Matching results are up to date"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get Apple matching results summary."""

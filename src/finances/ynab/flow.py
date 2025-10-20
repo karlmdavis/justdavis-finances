@@ -82,21 +82,6 @@ class YnabSyncFlowNode(FlowNode):
         """Get output information for YNAB sync node."""
         return YnabSyncOutputInfo(self.data_dir / "ynab" / "cache")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if YNAB cache needs updating."""
-        if not self.store.exists():
-            return True, ["YNAB cache does not exist"]
-
-        # Check age of cache
-        last_mod = self.store.last_modified()
-        if last_mod:
-            age_hours = (datetime.now() - last_mod).total_seconds() / 3600
-
-            if age_hours > 24:
-                return True, [f"YNAB cache is {age_hours:.1f} hours old"]
-
-        return False, ["YNAB cache is up to date"]
-
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get YNAB cache data summary."""
         return self.store.to_node_data_summary()
@@ -175,22 +160,6 @@ class RetirementUpdateFlowNode(FlowNode):
     def get_output_info(self) -> OutputInfo:
         """Get output information for retirement update node."""
         return RetirementUpdateOutputInfo(self.data_dir / "ynab" / "edits")
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if retirement accounts need updating."""
-        # Check for retirement edit files specifically
-        retirement_edits = self.store.get_retirement_edits()
-        if not retirement_edits:
-            return True, ["No retirement edits found"]
-
-        # Check age of most recent retirement edit
-        latest = max(retirement_edits, key=lambda p: p.stat().st_mtime)
-        age_days = (datetime.now().timestamp() - latest.stat().st_mtime) / 86400
-
-        if age_days > 30:
-            return True, [f"Latest retirement update is {age_days:.0f} days old"]
-
-        return False, ["Retirement accounts recently updated"]
 
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get retirement accounts summary."""

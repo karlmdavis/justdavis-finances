@@ -68,47 +68,6 @@ class SplitGenerationFlowNode(FlowNode):
         """Get output information for split generation node."""
         return SplitGenerationOutputInfo(self.data_dir / "ynab" / "edits")
 
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check if new matches require split generation."""
-        reasons = []
-
-        # Check for Amazon matches
-        amazon_matches_dir = self.data_dir / "amazon" / "transaction_matches"
-        amazon_matches = []
-        if amazon_matches_dir.exists():
-            amazon_matches = list(amazon_matches_dir.glob("*.json"))
-
-        # Check for Apple matches
-        apple_matches_dir = self.data_dir / "apple" / "transaction_matches"
-        apple_matches = []
-        if apple_matches_dir.exists():
-            apple_matches = list(apple_matches_dir.glob("*.json"))
-
-        if not amazon_matches and not apple_matches:
-            return False, ["No match results available"]
-
-        # Check for existing split edits
-        edits_dir = self.data_dir / "ynab" / "edits"
-        split_edits = []
-        if edits_dir.exists():
-            split_edits = list(edits_dir.glob("*split*.json"))
-
-        if not split_edits:
-            reasons.append("No split edits found")
-            return True, reasons
-
-        # Check if match files are newer than edits
-        all_matches = amazon_matches + apple_matches
-        if all_matches:
-            latest_match = max(all_matches, key=lambda p: p.stat().st_mtime)
-            latest_edit = max(split_edits, key=lambda p: p.stat().st_mtime)
-
-            if latest_match.stat().st_mtime > latest_edit.stat().st_mtime:
-                reasons.append("New matches since last split generation")
-                return True, reasons
-
-        return False, ["Split edits are up to date"]
-
     def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
         """Get split generation summary."""
         # Count available match files

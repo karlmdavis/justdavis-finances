@@ -157,19 +157,6 @@ class FlowNode(ABC):
         return self._dependencies.copy()
 
     @abstractmethod
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """
-        Check if this node needs to execute based on upstream changes.
-
-        Args:
-            context: Flow execution context
-
-        Returns:
-            Tuple of (needs_execution, list_of_change_reasons)
-        """
-        pass
-
-    @abstractmethod
     def execute(self, context: FlowContext) -> FlowResult:
         """
         Execute this node's operation.
@@ -305,12 +292,7 @@ class FunctionFlowNode(FlowNode):
         super().__init__(name)
         self._dependencies = set(dependencies)
         self.func = func
-        self._change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None
         self._data_summary_func: Callable[[FlowContext], NodeDataSummary] | None = None
-
-    def set_change_detector(self, detector: Callable[[FlowContext], tuple[bool, list[str]]]) -> None:
-        """Set custom change detection function."""
-        self._change_detector = detector
 
     def set_data_summary_func(self, func: Callable[[FlowContext], NodeDataSummary]) -> None:
         """Set custom data summary function."""
@@ -323,14 +305,6 @@ class FunctionFlowNode(FlowNode):
 
         # Use default implementation from base class
         return super().get_data_summary(context)
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check for changes using registered detector or default logic."""
-        if self._change_detector:
-            return self._change_detector(context)
-
-        # Default: always execute if no custom detector
-        return True, ["No change detector configured"]
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute the wrapped function."""
@@ -372,7 +346,6 @@ class CLIAdapterNode(FlowNode):
         name: str,
         cli_command: Callable,
         dependencies: list[str] | None = None,
-        change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None,
     ):
         """
         Initialize CLI adapter node.
@@ -381,22 +354,12 @@ class CLIAdapterNode(FlowNode):
             name: Node identifier
             cli_command: CLI command function to wrap
             dependencies: List of dependency node names
-            change_detector: Function to detect if execution is needed
         """
         super().__init__(name)
         if dependencies:
             self._dependencies = set(dependencies)
 
         self.cli_command = cli_command
-        self._change_detector = change_detector
-
-    def check_changes(self, context: FlowContext) -> tuple[bool, list[str]]:
-        """Check for changes using provided detector or default."""
-        if self._change_detector:
-            return self._change_detector(context)
-
-        # Default: assume changes if no detector provided
-        return True, ["No change detector available"]
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute the CLI command with flow context adaptation."""
@@ -441,7 +404,6 @@ class FlowNodeRegistry:
     def __init__(self) -> None:
         """Initialize empty node registry."""
         self._nodes: dict[str, FlowNode] = {}
-        self._change_detectors: dict[str, Callable[[FlowContext], tuple[bool, list[str]]]] = {}
 
     def register_node(self, node: FlowNode) -> None:
         """
@@ -461,7 +423,6 @@ class FlowNodeRegistry:
         name: str,
         func: Callable[[FlowContext], FlowResult],
         dependencies: list[str] | None = None,
-        change_detector: Callable[[FlowContext], tuple[bool, list[str]]] | None = None,
         data_summary_func: Callable[[FlowContext], NodeDataSummary] | None = None,
     ) -> None:
         """
@@ -471,12 +432,9 @@ class FlowNodeRegistry:
             name: Node identifier
             func: Function to execute
             dependencies: List of dependency node names
-            change_detector: Optional change detection function
             data_summary_func: Optional data summary function for interactive prompts
         """
         node = FunctionFlowNode(name, func, dependencies or [])
-        if change_detector:
-            node.set_change_detector(change_detector)
         if data_summary_func:
             node.set_data_summary_func(data_summary_func)
 
