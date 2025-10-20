@@ -497,7 +497,9 @@ class FlowExecutionEngine:
                 total_records = sum(f.record_count for f in files)
                 try:
                     latest_file = max(files, key=lambda f: f.path.stat().st_mtime)
-                    age_days = (datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)).days
+                    age_days = (
+                        datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
+                    ).days
                     status = f"{total_records} records, {age_days} days old"
                 except (FileNotFoundError, OSError):
                     # File deleted between get_output_files() and stat() call
