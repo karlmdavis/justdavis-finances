@@ -292,30 +292,38 @@ class FlowExecutionEngine:
         hash_cmd = ["shasum", "-a", "256"] if system == "Darwin" else ["sha256sum"]
 
         try:
-            # Run hash command on all files (file paths are from trusted directory walk)
-            result = subprocess.run(  # noqa: S603
-                hash_cmd + [str(f) for f in files_to_hash],
-                capture_output=True,
-                text=True,
-                check=True,
-                cwd=directory,
-            )
-
-            # Combine all hashes into a single hash
+            # Process files in batches to avoid "Argument list too long" error
+            # System limit is typically ~256KB for command line arguments
+            # Use batch size of 100 files to stay well under limit
+            batch_size = 100
             combined_hash = hashlib.sha256()
-            for line in result.stdout.strip().split("\n"):
-                if line:
-                    # Extract hash (first field) and filename
-                    parts = line.split(maxsplit=1)
-                    if len(parts) == 2:
-                        file_hash, filename = parts
-                        # Hash both filename and file hash for complete coverage
-                        combined_hash.update(filename.encode())
-                        combined_hash.update(file_hash.encode())
+
+            for i in range(0, len(files_to_hash), batch_size):
+                batch = files_to_hash[i : i + batch_size]
+
+                # Run hash command on batch (file paths are from trusted directory walk)
+                result = subprocess.run(  # noqa: S603
+                    hash_cmd + [str(f) for f in batch],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    cwd=directory,
+                )
+
+                # Process batch results
+                for line in result.stdout.strip().split("\n"):
+                    if line:
+                        # Extract hash (first field) and filename
+                        parts = line.split(maxsplit=1)
+                        if len(parts) == 2:
+                            file_hash, filename = parts
+                            # Hash both filename and file hash for complete coverage
+                            combined_hash.update(filename.encode())
+                            combined_hash.update(file_hash.encode())
 
             return combined_hash.hexdigest()
 
-        except (subprocess.CalledProcessError, FileNotFoundError):
+        except (subprocess.CalledProcessError, FileNotFoundError, OSError):
             # Fallback to Python implementation if CLI tool not available
             logger.warning(f"CLI hashing tool not available, using Python fallback for {directory}")
             hash_obj = hashlib.sha256()
