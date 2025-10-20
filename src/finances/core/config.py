@@ -15,6 +15,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 class Environment(Enum):
     """Application environment types."""
@@ -54,7 +59,6 @@ class EmailConfig:
     username: str | None = None
     password: str | None = None
     use_oauth: bool = False
-    search_folders: list[str] = field(default_factory=lambda: ["INBOX", "[Gmail]/All Mail"])
 
 
 @dataclass
@@ -71,7 +75,6 @@ class AppleConfig:
     """Apple data processing configuration."""
 
     data_dir: Path
-    email_search_folders: list = field(default_factory=lambda: ["INBOX", "[Gmail]/All Mail"])
     receipt_cache_days: int = 90
 
 
@@ -160,7 +163,6 @@ class Config:
 
         apple = AppleConfig(
             data_dir=data_dir / "apple",
-            email_search_folders=_parse_list(os.getenv("APPLE_EMAIL_FOLDERS", "INBOX,[Gmail]/All Mail")),
             receipt_cache_days=int(os.getenv("APPLE_CACHE_DAYS", "90")),
         )
 
