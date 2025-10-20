@@ -21,13 +21,19 @@ class FinancialDate:
         """
         Parse from string in specified format.
 
+        Automatically handles ISO8601 timestamps by extracting date portion.
+
         Args:
-            date_str: Date string to parse
+            date_str: Date string to parse (e.g., "2024-10-20" or "2024-10-20T03:27:55Z")
             date_format: Date format (default: ISO format "%Y-%m-%d")
 
         Returns:
             FinancialDate object
         """
+        # Handle ISO8601 timestamps (extract date portion before 'T')
+        if "T" in date_str and date_format == "%Y-%m-%d":
+            date_str = date_str.split("T")[0]
+
         return cls(date=datetime.strptime(date_str, date_format).date())
 
     @classmethod

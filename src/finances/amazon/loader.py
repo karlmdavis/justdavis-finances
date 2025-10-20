@@ -136,8 +136,8 @@ def load_orders(
         # Load the retail CSV file (take first if multiple)
         retail_csv = retail_csv_files[0]
         try:
-            # Load CSV with pandas to get parsed dates
-            retail_df = pd.read_csv(retail_csv, parse_dates=["Order Date", "Ship Date"])
+            # Load CSV (let domain model handle date parsing to support multiple formats)
+            retail_df = pd.read_csv(retail_csv)
 
             # Convert each row to AmazonOrderItem
             order_items: list[AmazonOrderItem] = []

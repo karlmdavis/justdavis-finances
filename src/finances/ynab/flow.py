@@ -149,19 +149,25 @@ class YnabSyncFlowNode(FlowNode):
             # Account balances
             accounts_list = accounts_data.get("accounts", [])
             click.echo(f"\n💰 Account Balances ({len(accounts_list)} accounts):")
+
+            # Calculate max account name length for proper alignment
+            max_name_len = max(len(acc["name"]) for acc in accounts_list) if accounts_list else 40
+
             for account in accounts_list:
                 balance_formatted = format_cents(account["balance"] // 10)  # milliunits → cents
                 status = "closed" if account.get("closed") else "active"
-                click.echo(f"  {account['name']:40} {balance_formatted:>15}  [{status}]")
+                click.echo(f"  {account['name']:<{max_name_len}} {balance_formatted:>15}  [{status}]")
 
-            # Transaction counts by status
+            # Transaction counts by approval status
             click.echo(f"\n📝 Transactions ({len(transactions_data)} total):")
             if isinstance(transactions_data, list):
-                # Count by status
+                # Count by approval status
                 from collections import Counter
 
-                status_counts = Counter(tx.get("cleared", "unknown") for tx in transactions_data)
-                for status, count in sorted(status_counts.items()):
+                approval_counts = Counter(
+                    "approved" if tx.get("approved") else "unapproved" for tx in transactions_data
+                )
+                for status, count in sorted(approval_counts.items()):
                     click.echo(f"  {status:15} {count:>6} transactions")
 
             click.echo("=" * 60)
