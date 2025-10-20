@@ -187,7 +187,7 @@ def flow() -> None:
         click.echo("\n🚀 Executing flow...")
         start_time = datetime.now()
 
-        executions = engine.execute_flow(flow_context)
+        executions = engine.execute_flow()
 
         end_time = datetime.now()
         total_time = (end_time - start_time).total_seconds()
