@@ -5,6 +5,7 @@ YNAB Flow Nodes
 Flow node implementations for YNAB integration.
 """
 
+import json
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -94,15 +95,53 @@ class YnabSyncFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute YNAB sync using external ynab CLI tool."""
+        from ..core.json_utils import write_json
+
         try:
-            # Call the external ynab CLI tool
-            cmd = ["ynab", "sync", "--days", "30"]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)  # noqa: S603
+            cache_dir = self.data_dir / "ynab" / "cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+
+            items_synced = 0
+
+            # Sync accounts
+            result = subprocess.run(
+                ["ynab", "list", "accounts", "-o", "json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            accounts_data = {"accounts": json.loads(result.stdout)}
+            write_json(cache_dir / "accounts.json", accounts_data)
+            items_synced += len(accounts_data["accounts"])
+
+            # Sync categories
+            result = subprocess.run(
+                ["ynab", "list", "categories", "-o", "json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            categories_data = json.loads(result.stdout)
+            write_json(cache_dir / "categories.json", categories_data)
+            if isinstance(categories_data, dict):
+                items_synced += len(categories_data.get("category_groups", []))
+
+            # Sync transactions
+            result = subprocess.run(
+                ["ynab", "list", "transactions", "-o", "json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            transactions_data = json.loads(result.stdout)
+            write_json(cache_dir / "transactions.json", transactions_data)
+            if isinstance(transactions_data, list):
+                items_synced += len(transactions_data)
 
             return FlowResult(
                 success=True,
-                items_processed=1,
-                metadata={"ynab_sync": "completed", "output": result.stdout},
+                items_processed=items_synced,
+                metadata={"ynab_sync": "completed", "cache_dir": str(cache_dir)},
             )
         except subprocess.CalledProcessError as e:
             return FlowResult(
@@ -113,6 +152,11 @@ class YnabSyncFlowNode(FlowNode):
             return FlowResult(
                 success=False,
                 error_message="ynab CLI tool not found. Please install it first.",
+            )
+        except json.JSONDecodeError as e:
+            return FlowResult(
+                success=False,
+                error_message=f"YNAB sync failed: Invalid JSON response from ynab CLI: {e}",
             )
 
 
