@@ -581,10 +581,6 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     try:
         # Use context manager to capture all output and log on failure
         with capture_and_log_on_failure(child) as output:
-            # Wait for initial execution confirmation prompt
-            child.expect("Proceed with dynamic execution.*", timeout=30)
-            child.sendline("y")
-
             # Sequential prompting in topological order (11 nodes)
             # Level 0: amazon_order_history_request, apple_email_fetch, ynab_sync
             # Level 1: amazon_unzip, apple_receipt_parsing, cash_flow_analysis, retirement_update
@@ -730,22 +726,25 @@ def test_flow_preview_and_cancel(flow_test_env_coordinated):
 
     try:
         with capture_and_log_on_failure(child) as output:
-            # Wait for initial execution confirmation prompt
-            child.expect("Proceed with dynamic execution.*", timeout=30)
+            # Skip all nodes (preview without execution)
+            # In the new model, users preview each node and can skip all of them
+            for i in range(11):  # 11 nodes in the flow
+                child.sendline("n")
 
-            # Cancel execution (test preview functionality)
-            child.sendline("n")
-
-            # Should show cancellation message
-            child.expect("cancelled", timeout=5)
+            # Wait for execution summary showing all skipped
+            child.expect("EXECUTION SUMMARY", timeout=10)
+            child.expect("Executed: 0 nodes", timeout=5)
+            child.expect("Skipped:  11 nodes", timeout=5)
 
             # Wait for process to complete
             child.expect(pexpect.EOF, timeout=5)
             child.close()
 
-            # Verify preview showed useful information
+            # Verify preview showed useful information about each node
             full_output = output.getvalue()
-            assert "nodes" in full_output.lower() or "triggered" in full_output.lower()
+            assert "amazon_order_history_request" in full_output
+            assert "apple_email_fetch" in full_output
+            assert "Status:" in full_output  # Should show status for each node
 
     finally:
         # Clean up process if still running
