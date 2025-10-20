@@ -126,8 +126,8 @@ def load_orders(
         if accounts_filter and account_name not in accounts_filter:
             continue
 
-        # Load retail order CSV
-        retail_csv_pattern = "Retail.OrderHistory.*.csv"
+        # Load retail order CSV (may be nested in subdirectory)
+        retail_csv_pattern = "**/Retail.OrderHistory.*.csv"
         retail_csv_files = list(account_dir.glob(retail_csv_pattern))
 
         if not retail_csv_files:
