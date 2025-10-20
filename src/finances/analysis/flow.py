@@ -30,10 +30,7 @@ class CashFlowAnalysisOutputInfo(OutputInfo):
             return []
 
         # Each chart is 1 record
-        return [
-            OutputFile(path=png_file, record_count=1)
-            for png_file in self.output_dir.glob("*.png")
-        ]
+        return [OutputFile(path=png_file, record_count=1) for png_file in self.output_dir.glob("*.png")]
 
 
 class CashFlowAnalysisFlowNode(FlowNode):

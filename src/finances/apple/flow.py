@@ -28,10 +28,7 @@ class AppleEmailOutputInfo(OutputInfo):
         if not self.output_dir.exists():
             return []
 
-        return [
-            OutputFile(path=eml_file, record_count=1)
-            for eml_file in self.output_dir.glob("*.eml")
-        ]
+        return [OutputFile(path=eml_file, record_count=1) for eml_file in self.output_dir.glob("*.eml")]
 
 
 class AppleEmailFetchFlowNode(FlowNode):
@@ -117,10 +114,7 @@ class AppleReceiptOutputInfo(OutputInfo):
             return []
 
         # Return .json files (parsed receipts - what dependencies use)
-        return [
-            OutputFile(path=json_file, record_count=1)
-            for json_file in self.output_dir.glob("*.json")
-        ]
+        return [OutputFile(path=json_file, record_count=1) for json_file in self.output_dir.glob("*.json")]
 
 
 class AppleReceiptParsingFlowNode(FlowNode):
