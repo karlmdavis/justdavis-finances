@@ -343,7 +343,13 @@ class AppleReceiptParser:
                 try:
                     return FinancialDate.from_string(normalized_date)
                 except (ValueError, TypeError):
-                    logger.warning(f"Failed to parse date: {normalized_date}")
+                    # Log which selector succeeded to debug why we got bad data
+                    successful_selector = (
+                        self.selectors_successful[-1] if self.selectors_successful else "unknown"
+                    )
+                    logger.debug(
+                        f"Selector '{successful_selector}' returned text that couldn't be parsed as date: {normalized_date}"
+                    )
                     return None
         return None
 
@@ -798,7 +804,7 @@ class AppleReceiptParser:
 
         return None
 
-    def _normalize_date(self, date_text: str) -> str | None:
+    def _normalize_date(self, date_text: str) -> str:
         """Normalize date string to standard format."""
         if not date_text:
             return date_text
@@ -820,5 +826,6 @@ class AppleReceiptParser:
                 except ValueError:
                     continue
 
-        # Return None if we can't parse it (let caller try other selectors)
-        return None
+        # Return original text if we can't parse it
+        # This allows caller to log what was actually extracted for debugging
+        return date_text
