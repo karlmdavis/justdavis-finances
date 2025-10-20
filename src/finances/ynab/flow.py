@@ -138,10 +138,45 @@ class YnabSyncFlowNode(FlowNode):
             if isinstance(transactions_data, list):
                 items_synced += len(transactions_data)
 
+            # Generate detailed sync report
+            import click
+
+            from ..core.currency import format_cents
+
+            click.echo("\n📊 YNAB Sync Report")
+            click.echo("=" * 60)
+
+            # Account balances
+            accounts_list = accounts_data.get("accounts", [])
+            click.echo(f"\n💰 Account Balances ({len(accounts_list)} accounts):")
+            for account in accounts_list:
+                balance_formatted = format_cents(account["balance"] // 10)  # milliunits → cents
+                status = "closed" if account.get("closed") else "active"
+                click.echo(f"  {account['name']:40} {balance_formatted:>15}  [{status}]")
+
+            # Transaction counts by status
+            click.echo(f"\n📝 Transactions ({len(transactions_data)} total):")
+            if isinstance(transactions_data, list):
+                # Count by status
+                from collections import Counter
+
+                status_counts = Counter(tx.get("cleared", "unknown") for tx in transactions_data)
+                for status, count in sorted(status_counts.items()):
+                    click.echo(f"  {status:15} {count:>6} transactions")
+
+            click.echo("=" * 60)
+
             return FlowResult(
                 success=True,
                 items_processed=items_synced,
-                metadata={"ynab_sync": "completed", "cache_dir": str(cache_dir)},
+                metadata={
+                    "ynab_sync": "completed",
+                    "cache_dir": str(cache_dir),
+                    "accounts_count": len(accounts_list),
+                    "transactions_count": (
+                        len(transactions_data) if isinstance(transactions_data, list) else 0
+                    ),
+                },
             )
         except subprocess.CalledProcessError as e:
             return FlowResult(
