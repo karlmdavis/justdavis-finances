@@ -491,7 +491,7 @@ class FlowExecutionEngine:
             print(f"  Status: {status}")
             response = input("  Run this node? [y/N] ")
 
-            if response.lower() != 'y':
+            if response.lower() != "y":
                 skipped_nodes.append(node_name)
                 continue
 
@@ -512,7 +512,7 @@ class FlowExecutionEngine:
 
             # Get output directory (if node has one)
             output_dir = None
-            if hasattr(node, 'get_output_dir'):
+            if hasattr(node, "get_output_dir"):
                 output_dir = node.get_output_dir()
 
             # Archive existing data (if exists)

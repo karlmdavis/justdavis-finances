@@ -10,7 +10,15 @@ from pathlib import Path
 
 import click
 
-from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, NoOutputInfo, OutputFile, OutputInfo
+from ..core.flow import (
+    FlowContext,
+    FlowNode,
+    FlowResult,
+    NodeDataSummary,
+    NoOutputInfo,
+    OutputFile,
+    OutputInfo,
+)
 from . import SimplifiedMatcher, load_orders
 from .unzipper import extract_amazon_zip_files
 

@@ -91,7 +91,6 @@ class TestFlowNodeInterface:
         assert len(summary.summary_text) > 0
 
 
-
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "node_class,setup_func",

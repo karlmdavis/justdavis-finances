@@ -147,6 +147,7 @@ def test_apple_matching_output_info_get_output_files_returns_json_with_match_cou
 
         # Create match result JSON with matches
         import json
+
         match_data = {"matches": [{"tx_id": "1"}, {"tx_id": "2"}, {"tx_id": "3"}]}
         (matches_dir / "2024-10-19_results.json").write_text(json.dumps(match_data))
 

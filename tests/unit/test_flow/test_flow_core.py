@@ -42,6 +42,7 @@ class MockFlowNode(FlowNode):
 
     def get_output_info(self) -> OutputInfo:
         from finances.core.flow import NoOutputInfo
+
         return NoOutputInfo()
 
 

@@ -17,7 +17,7 @@ def test_ynab_sync_output_info_is_data_ready_returns_true_with_json_cache():
         cache_dir.mkdir(parents=True)
 
         # Create all three required cache files
-        (cache_dir / "transactions.json").write_text('[]')
+        (cache_dir / "transactions.json").write_text("[]")
         (cache_dir / "accounts.json").write_text('{"accounts": []}')
         (cache_dir / "categories.json").write_text('{"category_groups": []}')
 
@@ -70,7 +70,7 @@ def test_retirement_update_output_info_is_data_ready_returns_true_with_edits():
         edits_dir.mkdir(parents=True)
 
         # Create retirement edit file (glob pattern: *retirement*.json)
-        (edits_dir / "2024-10-19_retirement_updates.json").write_text('[]')
+        (edits_dir / "2024-10-19_retirement_updates.json").write_text("[]")
 
         node = RetirementUpdateFlowNode(data_dir)
         info = node.get_output_info()

@@ -102,6 +102,7 @@ class NodeDataSummary:
 @dataclass(frozen=True)
 class OutputFile:
     """Information about a single output file from a flow node."""
+
     path: Path
     record_count: int
 

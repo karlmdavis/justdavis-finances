@@ -8,7 +8,16 @@ Tests dependency resolution, execution orchestration, and change detection integ
 from datetime import datetime
 from unittest.mock import patch
 
-from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NodeExecution, NodeStatus, NoOutputInfo, OutputInfo
+from finances.core.flow import (
+    FlowContext,
+    FlowNode,
+    FlowNodeRegistry,
+    FlowResult,
+    NodeExecution,
+    NodeStatus,
+    NoOutputInfo,
+    OutputInfo,
+)
 from finances.core.flow_engine import DependencyGraph, FlowExecutionEngine
 
 

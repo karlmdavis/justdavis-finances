@@ -27,11 +27,13 @@ class YnabSyncOutputInfo(OutputInfo):
         accounts_file = self.cache_dir / "accounts.json"
         categories_file = self.cache_dir / "categories.json"
 
-        return all([
-            transactions_file.exists(),
-            accounts_file.exists(),
-            categories_file.exists(),
-        ])
+        return all(
+            [
+                transactions_file.exists(),
+                accounts_file.exists(),
+                categories_file.exists(),
+            ]
+        )
 
     def get_output_files(self) -> list[OutputFile]:
         """Return all cache files with record counts."""

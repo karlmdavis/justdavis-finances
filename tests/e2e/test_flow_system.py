@@ -517,19 +517,13 @@ def assert_node_executed(output: str, node_name: str, expected_status: str = "co
     # The new execution model shows node status after execution
     if expected_status == "completed":
         # Look for success indicator (✅ or similar)
-        assert (
-            node_name in output
-        ), f"Expected node {node_name} to appear in output, but not found"
+        assert node_name in output, f"Expected node {node_name} to appear in output, but not found"
     elif expected_status == "failed":
         # Look for failure indicator (❌ or similar)
-        assert (
-            node_name in output
-        ), f"Expected node {node_name} to appear in output, but not found"
+        assert node_name in output, f"Expected node {node_name} to appear in output, but not found"
     else:
         # For skipped status, just verify node was mentioned
-        assert (
-            node_name in output
-        ), f"Expected node {node_name} to appear in output, but not found"
+        assert node_name in output, f"Expected node {node_name} to appear in output, but not found"
 
 
 @pytest.mark.e2e
