@@ -68,14 +68,14 @@ def test_apple_email_output_info_get_output_files_returns_eml_files():
 
 
 def test_apple_receipt_output_info_is_data_ready_returns_true_with_html_files():
-    """Verify is_data_ready returns True when .html files exist."""
+    """Verify is_data_ready returns True when .json files exist."""
     with tempfile.TemporaryDirectory() as tmpdir:
         data_dir = Path(tmpdir)
         exports_dir = data_dir / "apple" / "exports"
         exports_dir.mkdir(parents=True)
 
-        # Create .html file (what dependencies consume)
-        (exports_dir / "receipt.html").write_text("<html>Receipt</html>")
+        # Create .json file (what dependencies consume)
+        (exports_dir / "receipt.json").write_text('{"receipts": []}')
 
         node = AppleReceiptParsingFlowNode(data_dir)
         info = node.get_output_info()
@@ -101,14 +101,15 @@ def test_apple_receipt_output_info_is_data_ready_returns_false_without_html():
 
 
 def test_apple_receipt_output_info_get_output_files_returns_all_types():
-    """Verify get_output_files returns all file types (.html, .eml, .txt)."""
+    """Verify get_output_files returns .json files (what dependencies consume)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         data_dir = Path(tmpdir)
         exports_dir = data_dir / "apple" / "exports"
         exports_dir.mkdir(parents=True)
 
-        # Create all file types
-        (exports_dir / "receipt.html").write_text("<html>Receipt</html>")
+        # Create .json file (what dependencies consume)
+        (exports_dir / "receipt.json").write_text('{"receipts": []}')
+        # Also create other file types that should be ignored
         (exports_dir / "receipt.eml").write_text("Email content")
         (exports_dir / "receipt.txt").write_text("Text content")
 
@@ -116,9 +117,9 @@ def test_apple_receipt_output_info_get_output_files_returns_all_types():
         info = node.get_output_info()
         files = info.get_output_files()
 
-        assert len(files) == 3
-        suffixes = {f.path.suffix for f in files}
-        assert suffixes == {".html", ".eml", ".txt"}
+        # Only .json files should be returned
+        assert len(files) == 1
+        assert files[0].path.suffix == ".json"
 
 
 def test_apple_matching_output_info_is_data_ready_returns_true_with_json_files():
