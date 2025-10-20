@@ -105,7 +105,7 @@ class YnabSyncFlowNode(FlowNode):
 
             # Sync accounts
             result = subprocess.run(
-                ["ynab", "list", "accounts", "-o", "json"],
+                ["ynab", "--output", "json", "list", "accounts"],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -116,7 +116,7 @@ class YnabSyncFlowNode(FlowNode):
 
             # Sync categories
             result = subprocess.run(
-                ["ynab", "list", "categories", "-o", "json"],
+                ["ynab", "--output", "json", "list", "categories"],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -128,7 +128,7 @@ class YnabSyncFlowNode(FlowNode):
 
             # Sync transactions
             result = subprocess.run(
-                ["ynab", "list", "transactions", "-o", "json"],
+                ["ynab", "--output", "json", "list", "transactions"],
                 capture_output=True,
                 text=True,
                 check=True,
