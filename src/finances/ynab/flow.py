@@ -264,8 +264,11 @@ class RetirementUpdateFlowNode(FlowNode):
             )
 
     def execute(self, context: FlowContext) -> FlowResult:
-        """Execute retirement account update (manual step with account discovery)."""
-        from . import discover_retirement_accounts
+        """Execute retirement account update (interactive balance prompting)."""
+        import click
+
+        from ..core.currency import format_cents
+        from . import discover_retirement_accounts, generate_retirement_edits
 
         try:
             accounts = discover_retirement_accounts(self.data_dir)
@@ -276,17 +279,62 @@ class RetirementUpdateFlowNode(FlowNode):
                     error_message="No retirement accounts found in YNAB cache",
                 )
 
-            # Format account info for review instructions
-            account_list = "\n".join(f"  - {acc.name}: {acc.balance_cents} cents" for acc in accounts)
+            click.echo("\n💰 Retirement Account Balance Updates")
+            click.echo(f"Found {len(accounts)} retirement accounts.\n")
 
-            return FlowResult(
-                success=True,
-                items_processed=len(accounts),
-                requires_review=True,
-                review_instructions=f"Manually update retirement account balances:\n\n"
-                f"Discovered accounts:\n{account_list}\n\n"
-                f"Run `finances flow` to generate balance adjustments through the retirement update node",
-            )
+            # Prompt for each account's current balance
+            balance_updates: dict[str, int] = {}
+            for account in accounts:
+                current_balance_str = format_cents(account.balance_cents)
+                click.echo(f"Account: {account.name}")
+                click.echo(f"  Current YNAB balance: {current_balance_str}")
+
+                # Prompt for new balance
+                new_balance_input = click.prompt(
+                    "  Enter new balance (or press Enter to skip)", default="", show_default=False
+                )
+
+                if new_balance_input.strip():
+                    try:
+                        # Parse dollar amount and convert to cents
+                        new_balance_dollars = float(
+                            new_balance_input.strip().replace("$", "").replace(",", "")
+                        )
+                        new_balance_cents = int(new_balance_dollars * 100)
+                        balance_updates[account.id] = new_balance_cents
+                        click.echo(f"  ✓ Will update to {format_cents(new_balance_cents)}\n")
+                    except ValueError:
+                        click.echo("  ✗ Invalid amount, skipping this account\n")
+                else:
+                    click.echo("  Skipped\n")
+
+            if not balance_updates:
+                return FlowResult(
+                    success=True,
+                    items_processed=0,
+                    metadata={"message": "No balance updates provided"},
+                )
+
+            # Generate edits file
+            edits_file = generate_retirement_edits(self.data_dir, balance_updates)
+
+            if edits_file:
+                return FlowResult(
+                    success=True,
+                    items_processed=len(balance_updates),
+                    outputs=[edits_file],
+                    metadata={
+                        "accounts_updated": len(balance_updates),
+                        "edits_file": str(edits_file),
+                    },
+                )
+            else:
+                return FlowResult(
+                    success=True,
+                    items_processed=0,
+                    metadata={"message": "No adjustments needed (balances already match)"},
+                )
+
         except Exception as e:
             return FlowResult(
                 success=False,
