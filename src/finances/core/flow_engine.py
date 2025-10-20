@@ -8,6 +8,7 @@ of the Financial Flow System.
 
 import logging
 import os
+import shutil
 import sys
 from collections import defaultdict, deque
 from datetime import datetime
@@ -16,6 +17,7 @@ from typing import Any
 
 from .flow import (
     FlowContext,
+    FlowNode,
     FlowNodeRegistry,
     FlowResult,
     NodeExecution,
@@ -288,6 +290,70 @@ class FlowExecutionEngine:
             hash_obj.update(file_path.read_bytes())
 
         return hash_obj.hexdigest()
+
+    def archive_existing_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
+        """
+        Archive existing data before execution.
+
+        Creates timestamped _pre archive in output_dir/archive/ subdirectory.
+
+        Args:
+            node: Flow node being executed
+            output_dir: Path to node's output directory
+            context: Flow execution context
+
+        Raises:
+            SystemExit: If archive operation fails (critical for financial data)
+        """
+        try:
+            archive_dir = output_dir / "archive"
+            archive_dir.mkdir(parents=True, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            archive_path = archive_dir / f"{timestamp}_pre"
+
+            # Copy entire output directory, excluding archive subdirectory
+            shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns("archive"))
+
+            # Store archive path in context for audit trail
+            context.archive_manifest[f"{node.name}_pre"] = archive_path
+
+        except Exception as e:
+            print(f"\nERROR: Failed to archive existing data for '{node.name}'")
+            print(f"  Reason: {e}")
+            print(f"  Cannot proceed without backup - flow stopped")
+            sys.exit(1)
+
+    def archive_new_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
+        """
+        Archive new data after execution if changed.
+
+        Creates timestamped _post archive in output_dir/archive/ subdirectory.
+
+        Args:
+            node: Flow node that was executed
+            output_dir: Path to node's output directory
+            context: Flow execution context
+
+        Raises:
+            SystemExit: If archive operation fails (critical for financial data)
+        """
+        try:
+            archive_dir = output_dir / "archive"
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            archive_path = archive_dir / f"{timestamp}_post"
+
+            # Copy entire output directory, excluding archive subdirectory
+            shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns("archive"))
+
+            # Store archive path in context for audit trail
+            context.archive_manifest[f"{node.name}_post"] = archive_path
+
+        except Exception as e:
+            print(f"\nERROR: Failed to archive new data for '{node.name}'")
+            print(f"  Reason: {e}")
+            print(f"  Data was produced but not archived - flow stopped")
+            sys.exit(1)
 
     def detect_changes(
         self, context: FlowContext, nodes_to_check: set[str] | None = None
