@@ -10,6 +10,7 @@ import email
 import email.header
 import email.message
 import email.utils
+import hashlib
 import imaplib
 import logging
 import re
@@ -515,8 +516,10 @@ class AppleEmailFetcher:
         for i, email_obj in enumerate(emails):
             try:
                 # Create base filename from email metadata
+                # Use hash of message_id for stable filenames (prevents duplicates on re-fetch)
+                message_hash = hashlib.sha256(email_obj.message_id.encode()).hexdigest()[:8]
                 safe_subject = re.sub(r"[^\w\-_\.]", "_", email_obj.subject)[:50]
-                base_name = f"{email_obj.date.strftime('%Y%m%d_%H%M%S')}_{safe_subject}_{i:03d}"
+                base_name = f"{email_obj.date.strftime('%Y%m%d_%H%M%S')}_{safe_subject}_{message_hash}"
 
                 # Save HTML content if available
                 if email_obj.html_content:
