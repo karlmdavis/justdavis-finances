@@ -8,7 +8,7 @@ Tests the DependencyGraph.topological_sort method to ensure it:
 3. Handles diamond dependencies correctly
 """
 
-from finances.core.flow import FlowNode, FlowNodeRegistry, FlowContext, FlowResult, NoOutputInfo, OutputInfo
+from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NoOutputInfo, OutputInfo
 from finances.core.flow_engine import DependencyGraph
 
 

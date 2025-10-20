@@ -722,7 +722,7 @@ def test_flow_preview_and_cancel(flow_test_env_coordinated):
         with capture_and_log_on_failure(child) as output:
             # Skip all nodes (preview without execution)
             # In the new model, users preview each node and can skip all of them
-            for i in range(11):  # 11 nodes in the flow
+            for _ in range(11):  # 11 nodes in the flow
                 child.sendline("n")
 
             # Wait for execution summary showing all skipped

@@ -7,7 +7,6 @@ of the Financial Flow System.
 """
 
 import logging
-import os
 import shutil
 import sys
 from collections import defaultdict, deque
@@ -321,7 +320,7 @@ class FlowExecutionEngine:
         except Exception as e:
             print(f"\nERROR: Failed to archive existing data for '{node.name}'")
             print(f"  Reason: {e}")
-            print(f"  Cannot proceed without backup - flow stopped")
+            print("  Cannot proceed without backup - flow stopped")
             sys.exit(1)
 
     def archive_new_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
@@ -352,7 +351,7 @@ class FlowExecutionEngine:
         except Exception as e:
             print(f"\nERROR: Failed to archive new data for '{node.name}'")
             print(f"  Reason: {e}")
-            print(f"  Data was produced but not archived - flow stopped")
+            print("  Data was produced but not archived - flow stopped")
             sys.exit(1)
 
     def execute_node(self, node_name: str, context: FlowContext) -> NodeExecution:
@@ -525,7 +524,7 @@ class FlowExecutionEngine:
             result = node.execute(context)
 
             if not result.success:
-                print(f"\nERROR: Node execution failed")
+                print("\nERROR: Node execution failed")
                 print(f"  Node: {node_name}")
                 print(f"  Error: {result.error_message}")
                 sys.exit(1)

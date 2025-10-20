@@ -9,9 +9,8 @@ from datetime import datetime
 
 import pytest
 
-from finances.apple.flow import AppleMatchingFlowNode, AppleReceiptParsingFlowNode
+from finances.apple.flow import AppleReceiptParsingFlowNode
 from finances.core.flow import FlowContext
-from finances.core.json_utils import write_json
 
 
 @pytest.fixture

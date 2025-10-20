@@ -29,12 +29,11 @@ class CashFlowAnalysisOutputInfo(OutputInfo):
         if not self.output_dir.exists():
             return []
 
-        files = []
-        for png_file in self.output_dir.glob("*.png"):
-            # Each chart is 1 record
-            files.append(OutputFile(path=png_file, record_count=1))
-
-        return files
+        # Each chart is 1 record
+        return [
+            OutputFile(path=png_file, record_count=1)
+            for png_file in self.output_dir.glob("*.png")
+        ]
 
 
 class CashFlowAnalysisFlowNode(FlowNode):

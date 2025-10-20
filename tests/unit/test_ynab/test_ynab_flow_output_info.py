@@ -3,9 +3,7 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from finances.ynab.flow import YnabSyncFlowNode, RetirementUpdateFlowNode
+from finances.ynab.flow import RetirementUpdateFlowNode, YnabSyncFlowNode
 from finances.ynab.split_generation_flow import SplitGenerationFlowNode
 
 

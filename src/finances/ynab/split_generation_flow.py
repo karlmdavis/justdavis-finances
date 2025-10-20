@@ -5,10 +5,13 @@ Split Generation Flow Node
 Flow node for generating YNAB splits from Amazon and Apple transaction matches.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+logger = logging.getLogger(__name__)
 
 
 class SplitGenerationOutputInfo(OutputInfo):
@@ -30,7 +33,8 @@ class SplitGenerationOutputInfo(OutputInfo):
                 data = read_json(json_file)
                 if isinstance(data, dict) and "edits" in data:
                     return True
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Skipping malformed JSON file {json_file.name}: {e}")
                 continue
 
         return False
@@ -50,7 +54,8 @@ class SplitGenerationOutputInfo(OutputInfo):
                 if isinstance(data, dict) and "edits" in data:
                     count = len(data["edits"])
                     files.append(OutputFile(path=json_file, record_count=count))
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Skipping malformed JSON file {json_file.name}: {e}")
                 continue
 
         return files

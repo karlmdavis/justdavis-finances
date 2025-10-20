@@ -3,8 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from finances.analysis.flow import CashFlowAnalysisFlowNode
 
 

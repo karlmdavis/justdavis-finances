@@ -3,9 +3,7 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from finances.apple.flow import AppleEmailFetchFlowNode, AppleReceiptParsingFlowNode, AppleMatchingFlowNode
+from finances.apple.flow import AppleEmailFetchFlowNode, AppleMatchingFlowNode, AppleReceiptParsingFlowNode
 
 
 def test_apple_email_output_info_is_data_ready_returns_false_when_no_files():

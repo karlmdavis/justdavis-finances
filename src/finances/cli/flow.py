@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
 
-from ..core.archive import create_flow_archive
 from ..core.config import get_config
 from ..core.flow import FlowContext, FlowResult, flow_registry
 from ..core.flow_engine import FlowExecutionEngine
@@ -99,13 +97,8 @@ def flow() -> None:
 
       finances flow    # Execute the flow with interactive prompts
     """
-    config = get_config()
-
     # Setup flow nodes
     setup_flow_nodes()
-
-    # Create flow context
-    flow_context = FlowContext(start_time=datetime.now())
 
     try:
         # Initialize execution engine

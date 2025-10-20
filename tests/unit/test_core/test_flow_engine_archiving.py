@@ -255,7 +255,6 @@ class TestArchiveCreation:
         engine = FlowExecutionEngine()
 
         # Make output_dir unwritable (simulate permission error)
-        import os
 
         output_dir.chmod(0o444)
 
