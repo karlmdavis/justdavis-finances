@@ -191,6 +191,7 @@ class AppleReceiptParsingFlowNode(FlowNode):
             parser = AppleReceiptParser()
             parsed_count = 0
             failed_count = 0
+            skipped_count = 0
             output_files = []
 
             for html_file in new_html_files:
@@ -208,6 +209,16 @@ class AppleReceiptParsingFlowNode(FlowNode):
                     if not output_filename:
                         output_filename = receipt_id
 
+                    # Skip receipts that have no useful data (no order_id, date, or total)
+                    if (
+                        not receipt_dict.get("order_id")
+                        and not receipt_dict.get("receipt_date")
+                        and not receipt_dict.get("total")
+                    ):
+                        logger.debug(f"Skipping {html_file.name}: no order_id, date, or total found")
+                        skipped_count += 1
+                        continue
+
                     # Write parsed receipt as JSON
                     output_file = exports_dir / f"{output_filename}.json"
                     write_json(output_file, receipt_dict)
@@ -218,6 +229,10 @@ class AppleReceiptParsingFlowNode(FlowNode):
                     failed_count += 1
                     logger.warning(f"Failed to parse {html_file.name}: {e}")
 
+            logger.info(
+                f"Parsing complete: {parsed_count} written, {skipped_count} skipped (no data), {failed_count} failed"
+            )
+
             return FlowResult(
                 success=True,
                 items_processed=len(html_files),
@@ -225,6 +240,7 @@ class AppleReceiptParsingFlowNode(FlowNode):
                 outputs=output_files,
                 metadata={
                     "parsed_count": parsed_count,
+                    "skipped_count": skipped_count,
                     "failed_count": failed_count,
                     "output_dir": str(exports_dir),
                 },
