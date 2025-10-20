@@ -513,16 +513,17 @@ class FlowExecutionEngine:
             if not files:
                 status = "No data"
             else:
+                file_count = len(files)
                 total_records = sum(f.record_count for f in files)
                 try:
                     latest_file = max(files, key=lambda f: f.path.stat().st_mtime)
                     age_days = (
                         datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
                     ).days
-                    status = f"{total_records} records, {age_days} days old"
+                    status = f"{file_count} files with {total_records} total records, {age_days} days old"
                 except (FileNotFoundError, OSError):
                     # File deleted between get_output_files() and stat() call
-                    status = f"{total_records} records (age unknown)"
+                    status = f"{file_count} files with {total_records} total records (age unknown)"
 
             # Display and prompt
             print(f"\n[{node_name}]")
@@ -567,6 +568,24 @@ class FlowExecutionEngine:
                 sys.exit(1)
 
             executed_nodes.append(node_name)
+
+            # Display updated status after successful execution
+            updated_output_info = node.get_output_info()
+            updated_files = updated_output_info.get_output_files()
+            if updated_files:
+                file_count = len(updated_files)
+                total_records = sum(f.record_count for f in updated_files)
+                try:
+                    latest_file = max(updated_files, key=lambda f: f.path.stat().st_mtime)
+                    age_days = (
+                        datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
+                    ).days
+                    updated_status = (
+                        f"{file_count} files with {total_records} total records, {age_days} days old"
+                    )
+                except (FileNotFoundError, OSError):
+                    updated_status = f"{file_count} files with {total_records} total records (age unknown)"
+                print(f"\n✓ Updated status: {updated_status}")
 
             # Archive new data if changed
             if output_dir and output_dir.exists():
