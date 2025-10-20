@@ -10,6 +10,8 @@ Tests the DependencyGraph.topological_sort method to ensure it:
 
 from pathlib import Path
 
+import pytest
+
 from finances.core.flow import FlowContext, FlowNode, FlowNodeRegistry, FlowResult, NoOutputInfo, OutputInfo
 from finances.core.flow_engine import DependencyGraph
 
@@ -32,108 +34,84 @@ class MockNode(FlowNode):
         return None
 
 
+@pytest.fixture
+def registry():
+    """Provide a fresh FlowNodeRegistry for each test."""
+    return FlowNodeRegistry()
+
+
 class TestTopologicalSortAlphabetical:
     """Test topological sort with alphabetical tie-breaking."""
 
-    def test_topological_sort_returns_nodes_in_dependency_order(self):
+    def test_topological_sort_returns_nodes_in_dependency_order(self, registry):
         """Test that nodes are sorted in dependency order (dependencies first)."""
         # Create registry with chain: A -> B -> C
-        registry = FlowNodeRegistry()
+        # Register nodes in reverse alphabetical order to test sorting
+        node_c = MockNode("C", dependencies=["B"])
+        node_b = MockNode("B", dependencies=["A"])
+        node_a = MockNode("A", dependencies=[])
 
-        # Store original registry state
-        original_nodes = registry.get_all_nodes().copy()
+        registry.register_node(node_c)
+        registry.register_node(node_b)
+        registry.register_node(node_a)
 
-        try:
-            # Register nodes in reverse alphabetical order to test sorting
-            node_c = MockNode("C", dependencies=["B"])
-            node_b = MockNode("B", dependencies=["A"])
-            node_a = MockNode("A", dependencies=[])
+        # Create dependency graph and sort
+        graph = DependencyGraph(registry)
+        sorted_nodes = graph.topological_sort()
 
-            registry.register_node(node_c)
-            registry.register_node(node_b)
-            registry.register_node(node_a)
+        # Verify dependency order: A must come before B, B must come before C
+        assert sorted_nodes.index("A") < sorted_nodes.index("B")
+        assert sorted_nodes.index("B") < sorted_nodes.index("C")
+        assert sorted_nodes == ["A", "B", "C"]
 
-            # Create dependency graph and sort
-            graph = DependencyGraph(registry)
-            sorted_nodes = graph.topological_sort()
-
-            # Verify dependency order: A must come before B, B must come before C
-            assert sorted_nodes.index("A") < sorted_nodes.index("B")
-            assert sorted_nodes.index("B") < sorted_nodes.index("C")
-            assert sorted_nodes == ["A", "B", "C"]
-
-        finally:
-            # Restore original registry state
-            registry._nodes = original_nodes
-
-    def test_topological_sort_alphabetical_tie_breaking(self):
+    def test_topological_sort_alphabetical_tie_breaking(self, registry):
         """Test that nodes at same dependency level are sorted alphabetically."""
         # Create registry with 3 independent nodes (same level)
-        registry = FlowNodeRegistry()
+        # Register nodes in random order to test alphabetical sorting
+        node_zebra = MockNode("zebra", dependencies=[])
+        node_apple = MockNode("apple", dependencies=[])
+        node_banana = MockNode("banana", dependencies=[])
 
-        # Store original registry state
-        original_nodes = registry.get_all_nodes().copy()
+        registry.register_node(node_zebra)
+        registry.register_node(node_apple)
+        registry.register_node(node_banana)
 
-        try:
-            # Register nodes in random order to test alphabetical sorting
-            node_zebra = MockNode("zebra", dependencies=[])
-            node_apple = MockNode("apple", dependencies=[])
-            node_banana = MockNode("banana", dependencies=[])
+        # Create dependency graph and sort
+        graph = DependencyGraph(registry)
+        sorted_nodes = graph.topological_sort()
 
-            registry.register_node(node_zebra)
-            registry.register_node(node_apple)
-            registry.register_node(node_banana)
+        # Verify alphabetical order for nodes at same level
+        assert sorted_nodes == ["apple", "banana", "zebra"]
 
-            # Create dependency graph and sort
-            graph = DependencyGraph(registry)
-            sorted_nodes = graph.topological_sort()
-
-            # Verify alphabetical order for nodes at same level
-            assert sorted_nodes == ["apple", "banana", "zebra"]
-
-        finally:
-            # Restore original registry state
-            registry._nodes = original_nodes
-
-    def test_topological_sort_diamond_dependency(self):
+    def test_topological_sort_diamond_dependency(self, registry):
         """Test alphabetical tie-breaking with diamond dependency pattern."""
         # Diamond pattern: A -> B, A -> C, B -> D, C -> D
         # Level 0: A
         # Level 1: B, C (alphabetical: B, C)
         # Level 2: D
-        registry = FlowNodeRegistry()
+        # Register nodes in random order
+        node_d = MockNode("D", dependencies=["B", "C"])
+        node_a = MockNode("A", dependencies=[])
+        node_c = MockNode("C", dependencies=["A"])
+        node_b = MockNode("B", dependencies=["A"])
 
-        # Store original registry state
-        original_nodes = registry.get_all_nodes().copy()
+        registry.register_node(node_d)
+        registry.register_node(node_a)
+        registry.register_node(node_c)
+        registry.register_node(node_b)
 
-        try:
-            # Register nodes in random order
-            node_d = MockNode("D", dependencies=["B", "C"])
-            node_a = MockNode("A", dependencies=[])
-            node_c = MockNode("C", dependencies=["A"])
-            node_b = MockNode("B", dependencies=["A"])
+        # Create dependency graph and sort
+        graph = DependencyGraph(registry)
+        sorted_nodes = graph.topological_sort()
 
-            registry.register_node(node_d)
-            registry.register_node(node_a)
-            registry.register_node(node_c)
-            registry.register_node(node_b)
+        # Verify dependency constraints
+        assert sorted_nodes.index("A") < sorted_nodes.index("B")
+        assert sorted_nodes.index("A") < sorted_nodes.index("C")
+        assert sorted_nodes.index("B") < sorted_nodes.index("D")
+        assert sorted_nodes.index("C") < sorted_nodes.index("D")
 
-            # Create dependency graph and sort
-            graph = DependencyGraph(registry)
-            sorted_nodes = graph.topological_sort()
+        # Verify alphabetical tie-breaking at level 1 (B before C)
+        assert sorted_nodes.index("B") < sorted_nodes.index("C")
 
-            # Verify dependency constraints
-            assert sorted_nodes.index("A") < sorted_nodes.index("B")
-            assert sorted_nodes.index("A") < sorted_nodes.index("C")
-            assert sorted_nodes.index("B") < sorted_nodes.index("D")
-            assert sorted_nodes.index("C") < sorted_nodes.index("D")
-
-            # Verify alphabetical tie-breaking at level 1 (B before C)
-            assert sorted_nodes.index("B") < sorted_nodes.index("C")
-
-            # Verify exact order
-            assert sorted_nodes == ["A", "B", "C", "D"]
-
-        finally:
-            # Restore original registry state
-            registry._nodes = original_nodes
+        # Verify exact order
+        assert sorted_nodes == ["A", "B", "C", "D"]
