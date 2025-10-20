@@ -46,21 +46,21 @@ class YnabSyncOutputInfo(OutputInfo):
 
         # transactions.json - direct array
         transactions_file = self.cache_dir / "transactions.json"
-        if transactions_file.exists():
+        if transactions_file.exists() and transactions_file.stat().st_size > 0:
             data = read_json(transactions_file)
             count = len(data) if isinstance(data, list) else 0
             files.append(OutputFile(path=transactions_file, record_count=count))
 
         # accounts.json - nested in "accounts" key
         accounts_file = self.cache_dir / "accounts.json"
-        if accounts_file.exists():
+        if accounts_file.exists() and accounts_file.stat().st_size > 0:
             data = read_json(accounts_file)
             count = len(data.get("accounts", [])) if isinstance(data, dict) else 0
             files.append(OutputFile(path=accounts_file, record_count=count))
 
         # categories.json - nested in "category_groups" key
         categories_file = self.cache_dir / "categories.json"
-        if categories_file.exists():
+        if categories_file.exists() and categories_file.stat().st_size > 0:
             data = read_json(categories_file)
             count = len(data.get("category_groups", [])) if isinstance(data, dict) else 0
             files.append(OutputFile(path=categories_file, record_count=count))
