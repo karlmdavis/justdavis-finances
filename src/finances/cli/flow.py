@@ -161,7 +161,11 @@ def flow() -> None:
         exit(exit_code)
 
     except Exception as e:
+        import traceback
+
         click.echo(f"\n❌ Flow execution failed: {e}", err=True)
+        click.echo("\nFull traceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
         raise click.ClickException(str(e)) from e
 
 
