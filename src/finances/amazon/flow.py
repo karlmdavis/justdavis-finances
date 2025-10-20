@@ -117,6 +117,16 @@ class AmazonUnzipFlowNode(FlowNode):
         if not raw_dir.exists():
             return FlowResult(success=False, error_message="Amazon raw directory not found")
 
+        # Check if there are any ZIP files to process
+        zip_files = list(raw_dir.glob("*.zip"))
+        if not zip_files:
+            # No ZIPs to process - skip gracefully
+            return FlowResult(
+                success=True,
+                items_processed=0,
+                metadata={"message": "No ZIP files found to extract", "skipped": True},
+            )
+
         try:
             # Extract ZIP files in place (source and destination are the same)
             result = extract_amazon_zip_files(raw_dir, raw_dir)

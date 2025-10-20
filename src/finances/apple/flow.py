@@ -5,10 +5,13 @@ Apple Flow Nodes
 Flow node implementations for Apple receipt processing and transaction matching.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+logger = logging.getLogger(__name__)
 
 
 class AppleEmailOutputInfo(OutputInfo):
@@ -166,12 +169,31 @@ class AppleReceiptParsingFlowNode(FlowNode):
                     metadata={"message": "No HTML files to parse"},
                 )
 
+            # Filter to only NEW HTML files (not yet parsed)
+            # Check for existing JSON files based on HTML stem
+            existing_jsons = {json_file.stem for json_file in exports_dir.glob("*.json")}
+            new_html_files = [html_file for html_file in html_files if html_file.stem not in existing_jsons]
+
+            if not new_html_files:
+                return FlowResult(
+                    success=True,
+                    items_processed=0,
+                    metadata={
+                        "message": f"No new HTML files to parse ({len(html_files)} already processed)",
+                        "skipped": True,
+                    },
+                )
+
+            logger.info(
+                f"Parsing {len(new_html_files)} new receipts (skipping {len(html_files) - len(new_html_files)} already processed)"
+            )
+
             parser = AppleReceiptParser()
             parsed_count = 0
             failed_count = 0
             output_files = []
 
-            for html_file in html_files:
+            for html_file in new_html_files:
                 try:
                     # Read HTML content
                     html_content = html_file.read_text(encoding="utf-8")
@@ -194,7 +216,7 @@ class AppleReceiptParsingFlowNode(FlowNode):
 
                 except Exception as e:
                     failed_count += 1
-                    print(f"Failed to parse {html_file.name}: {e}")
+                    logger.warning(f"Failed to parse {html_file.name}: {e}")
 
             return FlowResult(
                 success=True,

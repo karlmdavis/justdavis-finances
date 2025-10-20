@@ -445,7 +445,7 @@ class AppleReceiptParser:
                 if items:
                     receipt.items.extend(items)
                     items_found = True
-                    logger.info(f"Found {len(items)} items using {strategy.__name__}")
+                    logger.debug(f"Found {len(items)} items using {strategy.__name__}")
                     break
             except Exception as e:
                 logger.warning(f"Strategy {strategy.__name__} failed: {e}")
