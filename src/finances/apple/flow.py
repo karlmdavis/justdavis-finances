@@ -358,6 +358,39 @@ class AppleMatchingFlowNode(FlowNode):
             total_confidence = sum(result.confidence for result in match_results if result.receipts)
             avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
 
+            # Calculate receipt statistics (how many unique receipts were matched)
+            matched_receipt_ids: set[str] = set()
+            for result in match_results:
+                if result.receipts:
+                    # Extract receipt IDs from Receipt objects
+                    matched_receipt_ids.update(r.id for r in result.receipts)
+
+            total_receipts = len(receipt_models)
+            matched_receipts_count = len(matched_receipt_ids)
+            unmatched_receipts_count = total_receipts - matched_receipts_count
+
+            # Print statistics report
+            import click
+
+            click.echo("\n🍎 Apple Matching Statistics")
+            click.echo("=" * 60)
+            click.echo("\nYNAB Transactions (payee: Apple):")
+            click.echo(f"  Matched:     {matched_count:4} transactions")
+            click.echo(f"  Unmatched:   {len(apple_transactions) - matched_count:4} transactions")
+            click.echo(f"  Total:       {len(apple_transactions):4} transactions")
+            click.echo(f"  Match rate:  {match_rate:5.1%}")
+            if matched_count > 0:
+                click.echo(f"  Avg confidence: {avg_confidence:.2f}")
+
+            click.echo("\nApple Receipts:")
+            click.echo(f"  Matched:     {matched_receipts_count:4} receipts")
+            click.echo(f"  Unmatched:   {unmatched_receipts_count:4} receipts")
+            click.echo(f"  Total:       {total_receipts:4} receipts")
+            if total_receipts > 0:
+                receipt_match_rate = matched_receipts_count / total_receipts
+                click.echo(f"  Match rate:  {receipt_match_rate:5.1%}")
+            click.echo("=" * 60)
+
             # Write results using DataStore
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 

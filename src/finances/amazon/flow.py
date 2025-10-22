@@ -7,6 +7,7 @@ Flow node implementations for Amazon transaction matching.
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -273,6 +274,45 @@ class AmazonMatchingFlowNode(FlowNode):
             # Calculate statistics
             match_rate = matched_count / len(amazon_transactions) if amazon_transactions else 0.0
             avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
+
+            # Calculate order statistics (how many unique orders were matched)
+            matched_order_ids: set[str] = set()
+            for match_dict in matches:
+                best_match = match_dict.get("best_match")
+                if best_match and isinstance(best_match, dict):
+                    amazon_orders: Any = best_match.get("amazon_orders", [])
+                    if isinstance(amazon_orders, list):
+                        for order in amazon_orders:
+                            if isinstance(order, dict):
+                                order_id = order.get("order_id")
+                                if order_id:
+                                    matched_order_ids.add(order_id)
+
+            total_orders = sum(len(orders) for orders in orders_by_account.values())
+            matched_orders_count = len(matched_order_ids)
+            unmatched_orders_count = total_orders - matched_orders_count
+
+            # Print statistics report
+            import click
+
+            click.echo("\n📦 Amazon Matching Statistics")
+            click.echo("=" * 60)
+            click.echo("\nYNAB Transactions (payee: Amazon):")
+            click.echo(f"  Matched:     {matched_count:4} transactions")
+            click.echo(f"  Unmatched:   {len(amazon_transactions) - matched_count:4} transactions")
+            click.echo(f"  Total:       {len(amazon_transactions):4} transactions")
+            click.echo(f"  Match rate:  {match_rate:5.1%}")
+            if matched_count > 0:
+                click.echo(f"  Avg confidence: {avg_confidence:.2f}")
+
+            click.echo("\nAmazon Orders:")
+            click.echo(f"  Matched:     {matched_orders_count:4} orders")
+            click.echo(f"  Unmatched:   {unmatched_orders_count:4} orders")
+            click.echo(f"  Total:       {total_orders:4} orders")
+            if total_orders > 0:
+                order_match_rate = matched_orders_count / total_orders
+                click.echo(f"  Match rate:  {order_match_rate:5.1%}")
+            click.echo("=" * 60)
 
             # Write results using DataStore
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
