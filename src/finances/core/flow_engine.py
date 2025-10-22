@@ -378,7 +378,7 @@ class FlowExecutionEngine:
             print("  Cannot proceed without backup - flow stopped")
             sys.exit(1)
 
-    def archive_new_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
+    def archive_new_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> list[Path]:
         """
         Archive new data after execution if changed.
 
@@ -389,10 +389,20 @@ class FlowExecutionEngine:
             output_dir: Path to node's output directory
             context: Flow execution context
 
+        Returns:
+            List of file paths that were archived
+
         Raises:
             SystemExit: If archive operation fails (critical for financial data)
         """
         try:
+            # Collect files to archive BEFORE copying
+            archived_files = [
+                file_path
+                for file_path in output_dir.rglob("*")
+                if file_path.is_file() and "archive" not in file_path.parts
+            ]
+
             archive_dir = output_dir / "archive"
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -409,6 +419,8 @@ class FlowExecutionEngine:
 
             # Store archive path in context for audit trail
             context.archive_manifest[f"{node.name}_post"] = archive_path
+
+            return archived_files
 
         except Exception as e:
             print(f"\nERROR: Failed to archive new data for '{node.name}'")
@@ -587,11 +599,27 @@ class FlowExecutionEngine:
                     updated_status = f"{file_count} files with {total_records} total records (age unknown)"
                 print(f"\n✓ Updated status: {updated_status}")
 
-            # Archive new data if changed
+            # Archive new data if changed and cleanup old files
             if output_dir and output_dir.exists():
                 post_hash = self.compute_directory_hash(output_dir)
                 if post_hash != pre_hash:
-                    self.archive_new_data(node, output_dir, context)
+                    archived_files = self.archive_new_data(node, output_dir, context)
+
+                    # Delete archived files except newly created ones
+                    new_files = {f.resolve() for f in (result.outputs or [])}
+                    deleted_count = 0
+                    for file_path in archived_files:
+                        if file_path.resolve() not in new_files:
+                            try:
+                                file_path.unlink()
+                                deleted_count += 1
+                            except Exception as e:
+                                print(f"\nWARNING: Failed to delete old file {file_path.name}: {e}")
+
+                    if deleted_count > 0:
+                        print(
+                            f"  Cleaned up {deleted_count} old file(s) (archived in {output_dir.name}/archive/)"
+                        )
 
         # Print execution summary
         print("\n" + "=" * 60)
