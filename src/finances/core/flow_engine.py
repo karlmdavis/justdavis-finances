@@ -610,18 +610,41 @@ class FlowExecutionEngine:
                     # Delete archived files except newly created ones
                     new_files = {f.resolve() for f in (result.outputs or [])}
                     deleted_count = 0
+                    deleted_dirs = set()
                     for file_path in archived_files:
                         if file_path.resolve() not in new_files:
                             try:
+                                parent_dir = file_path.parent
                                 file_path.unlink()
                                 deleted_count += 1
+                                # Track parent directory for empty directory cleanup
+                                if parent_dir != output_dir:
+                                    deleted_dirs.add(parent_dir)
                             except Exception as e:
                                 print(f"\nWARNING: Failed to delete old file {file_path.name}: {e}")
 
+                    # Clean up empty directories (prevent accumulation of directory shells)
+                    empty_dirs_deleted = 0
+                    for dir_path in sorted(deleted_dirs, reverse=True):  # Delete deepest first
+                        try:
+                            # Only delete if completely empty and not archive
+                            if (
+                                dir_path.exists()
+                                and not any(dir_path.iterdir())
+                                and "archive" not in dir_path.parts
+                            ):
+                                dir_path.rmdir()
+                                empty_dirs_deleted += 1
+                        except Exception:  # noqa: S110
+                            # Silently skip if we can't delete (not critical)
+                            pass
+
                     if deleted_count > 0:
-                        print(
-                            f"  Cleaned up {deleted_count} old file(s) (archived in {output_dir.name}/archive/)"
-                        )
+                        cleanup_msg = f"  Cleaned up {deleted_count} old file(s)"
+                        if empty_dirs_deleted > 0:
+                            cleanup_msg += f" and {empty_dirs_deleted} empty dir(s)"
+                        cleanup_msg += f" (archived in {output_dir.name}/archive/)"
+                        print(cleanup_msg)
 
         # Print execution summary
         print("\n" + "=" * 60)
