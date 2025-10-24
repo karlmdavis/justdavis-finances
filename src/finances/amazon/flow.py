@@ -74,11 +74,22 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
         output_files = output_info.get_output_files()
         zip_files = [f.path for f in output_files]
 
+        # Fail if no ZIP files found (nothing to process)
+        if not zip_files:
+            return FlowResult(
+                success=False,
+                error_message=f"No ZIP files found in {raw_dir}. Please download Amazon order history first.",
+            )
+
         return FlowResult(
             success=True,
             items_processed=0,
             outputs=zip_files,
-            metadata={"manual_step": True, "description": "Amazon order history request"},
+            metadata={
+                "manual_step": True,
+                "description": "Amazon order history request",
+                "zip_files_found": len(zip_files),
+            },
         )
 
 

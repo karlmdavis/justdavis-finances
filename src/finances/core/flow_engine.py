@@ -581,7 +581,7 @@ class FlowExecutionEngine:
 
             executed_nodes.append(node_name)
 
-            # Display updated status after successful execution
+            # Display updated status after successful execution (ALWAYS, even if no data)
             updated_output_info = node.get_output_info()
             updated_files = updated_output_info.get_output_files()
             if updated_files:
@@ -597,7 +597,9 @@ class FlowExecutionEngine:
                     )
                 except (FileNotFoundError, OSError):
                     updated_status = f"{file_count} files with {total_records} total records (age unknown)"
-                print(f"\n✓ Updated status: {updated_status}")
+            else:
+                updated_status = "No data"
+            print(f"\n✓ Updated status: {updated_status}")
 
             # Archive new data if changed and cleanup old files
             if output_dir and output_dir.exists():
