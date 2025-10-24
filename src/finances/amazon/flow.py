@@ -149,10 +149,20 @@ class AmazonUnzipFlowNode(FlowNode):
             result = extract_amazon_zip_files(raw_dir, raw_dir)
 
             if result["success"]:
+                # Find extracted CSV files to preserve during cleanup
+                output_info = self.get_output_info()
+                output_files = output_info.get_output_files()
+                csv_files = [f.path for f in output_files]
+
+                # Also preserve source ZIP files (shared directory with amazon_order_history_request)
+                zip_files = list(raw_dir.glob("*.zip"))
+                all_outputs = csv_files + zip_files
+
                 return FlowResult(
                     success=True,
                     items_processed=result["files_processed"],
                     new_items=result["files_processed"],
+                    outputs=all_outputs,
                     metadata=result,
                 )
             else:
