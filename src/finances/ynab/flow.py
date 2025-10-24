@@ -172,9 +172,17 @@ class YnabSyncFlowNode(FlowNode):
 
             click.echo("=" * 60)
 
+            # Declare all cache files as outputs so cleanup preserves them
+            output_files = [
+                cache_dir / "accounts.json",
+                cache_dir / "categories.json",
+                cache_dir / "transactions.json",
+            ]
+
             return FlowResult(
                 success=True,
                 items_processed=items_synced,
+                outputs=output_files,
                 metadata={
                     "ynab_sync": "completed",
                     "cache_dir": str(cache_dir),
