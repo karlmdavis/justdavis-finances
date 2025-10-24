@@ -69,9 +69,15 @@ class AmazonOrderHistoryRequestFlowNode(FlowNode):
         if not click.confirm("Have you completed this step?"):
             return FlowResult(success=False, error_message="User cancelled manual step")
 
+        # Find existing ZIP files to preserve during cleanup
+        output_info = self.get_output_info()
+        output_files = output_info.get_output_files()
+        zip_files = [f.path for f in output_files]
+
         return FlowResult(
             success=True,
             items_processed=0,
+            outputs=zip_files,
             metadata={"manual_step": True, "description": "Amazon order history request"},
         )
 
