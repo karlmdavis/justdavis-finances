@@ -542,7 +542,7 @@ class FlowExecutionEngine:
             print(f"  Status: {status}")
             response = input("  Run this node? [y/N] ")
 
-            if response.strip().lower() != "y":
+            if response.lower() != "y":
                 skipped_nodes.append(node_name)
                 continue
 
