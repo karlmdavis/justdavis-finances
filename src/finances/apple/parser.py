@@ -316,7 +316,7 @@ class AppleReceiptParser:
             {"selector": "[data-apple-id]", "method": "attr", "attr": "data-apple-id"},
             # Modern formats
             {"selector": ".custom-apple-id, .apple-id", "method": "text"},
-            {"selector": 'td:contains("Apple ID"), th:contains("Apple ID")', "method": "sibling"},
+            {"selector": 'td:-soup-contains("Apple ID"), th:-soup-contains("Apple ID")', "method": "sibling"},
             # Generic patterns
             {"selector": "span, div, td", "method": "email_pattern"},
         ]
@@ -331,7 +331,7 @@ class AppleReceiptParser:
             {"selector": ".aapl-receipt-date, .aapl-date", "method": "text"},
             # Modern formats
             {"selector": ".custom-date, .receipt-date", "method": "text"},
-            {"selector": 'td:contains("Date"), th:contains("Date")', "method": "sibling"},
+            {"selector": 'td:-soup-contains("Date"), th:-soup-contains("Date")', "method": "sibling"},
             # Generic patterns
             {"selector": "span, div, td", "method": "date_pattern"},
         ]
@@ -343,7 +343,13 @@ class AppleReceiptParser:
                 try:
                     return FinancialDate.from_string(normalized_date)
                 except (ValueError, TypeError):
-                    logger.warning(f"Failed to parse date: {normalized_date}")
+                    # Log which selector succeeded to debug why we got bad data
+                    successful_selector = (
+                        self.selectors_successful[-1] if self.selectors_successful else "unknown"
+                    )
+                    logger.debug(
+                        f"Selector '{successful_selector}' returned text that couldn't be parsed as date: {normalized_date}"
+                    )
                     return None
         return None
 
@@ -354,7 +360,7 @@ class AppleReceiptParser:
             {"selector": ".aapl-order-id, .aapl-order", "method": "text"},
             # Modern formats
             {"selector": ".custom-order-id, .order-id", "method": "text"},
-            {"selector": 'td:contains("Order ID"), th:contains("Order ID")', "method": "sibling"},
+            {"selector": 'td:-soup-contains("Order ID"), th:-soup-contains("Order ID")', "method": "sibling"},
             # Generic patterns
             {"selector": "span, div, td", "method": "order_pattern"},
         ]
@@ -365,7 +371,10 @@ class AppleReceiptParser:
     def _extract_document_number(self, soup: BeautifulSoup) -> str | None:
         """Extract document number."""
         selectors = [
-            {"selector": 'td:contains("Document No"), th:contains("Document No")', "method": "sibling"},
+            {
+                "selector": 'td:-soup-contains("Document No"), th:-soup-contains("Document No")',
+                "method": "sibling",
+            },
             {"selector": ".document-number, .doc-number", "method": "text"},
             {"selector": "span, div, td", "method": "document_pattern"},
         ]
@@ -377,7 +386,10 @@ class AppleReceiptParser:
         """Extract subtotal amount as Money."""
         selectors = [
             {"selector": ".aapl-subtotal, .subtotal", "method": "currency"},
-            {"selector": 'td:contains("Subtotal"), th:contains("Subtotal")', "method": "sibling_currency"},
+            {
+                "selector": 'td:-soup-contains("Subtotal"), th:-soup-contains("Subtotal")',
+                "method": "sibling_currency",
+            },
             {"selector": "span, div, td", "method": "subtotal_pattern"},
         ]
 
@@ -390,7 +402,7 @@ class AppleReceiptParser:
         """Extract tax amount as Money."""
         selectors = [
             {"selector": ".aapl-tax, .tax", "method": "currency"},
-            {"selector": 'td:contains("Tax"), th:contains("Tax")', "method": "sibling_currency"},
+            {"selector": 'td:-soup-contains("Tax"), th:-soup-contains("Tax")', "method": "sibling_currency"},
             {"selector": "span, div, td", "method": "tax_pattern"},
         ]
 
@@ -403,9 +415,12 @@ class AppleReceiptParser:
         """Extract total amount as Money."""
         selectors = [
             {"selector": ".aapl-total, .total, .grand-total", "method": "currency"},
-            {"selector": 'td:contains("Total"), th:contains("Total")', "method": "sibling_currency"},
             {
-                "selector": 'td:contains("Grand Total"), th:contains("Grand Total")',
+                "selector": 'td:-soup-contains("Total"), th:-soup-contains("Total")',
+                "method": "sibling_currency",
+            },
+            {
+                "selector": 'td:-soup-contains("Grand Total"), th:-soup-contains("Grand Total")',
                 "method": "sibling_currency",
             },
             {"selector": "span, div, td", "method": "total_pattern"},
@@ -420,7 +435,10 @@ class AppleReceiptParser:
         """Extract payment method."""
         selectors = [
             {"selector": ".aapl-payment, .payment-method", "method": "text"},
-            {"selector": 'td:contains("Payment Method"), th:contains("Payment Method")', "method": "sibling"},
+            {
+                "selector": 'td:-soup-contains("Payment Method"), th:-soup-contains("Payment Method")',
+                "method": "sibling",
+            },
             {"selector": "span, div, td", "method": "payment_pattern"},
         ]
 
@@ -445,7 +463,7 @@ class AppleReceiptParser:
                 if items:
                     receipt.items.extend(items)
                     items_found = True
-                    logger.info(f"Found {len(items)} items using {strategy.__name__}")
+                    logger.debug(f"Found {len(items)} items using {strategy.__name__}")
                     break
             except Exception as e:
                 logger.warning(f"Strategy {strategy.__name__} failed: {e}")
@@ -588,12 +606,12 @@ class AppleReceiptParser:
         address_selectors = [
             ".aapl-billing-address, .billing-address",
             ".aapl-billed-to, .billed-to",
-            'td:contains("Billed to"), th:contains("Billed to")',
+            'td:-soup-contains("Billed to"), th:-soup-contains("Billed to")',
         ]
 
         for selector in address_selectors:
             try:
-                if ":contains(" in selector:
+                if ":-soup-contains(" in selector:
                     elem = soup.select_one(selector)
                     if elem:
                         # Get next sibling or cell
@@ -808,5 +826,6 @@ class AppleReceiptParser:
                 except ValueError:
                     continue
 
-        # Return original if we can't parse it
+        # Return original text if we can't parse it
+        # This allows caller to log what was actually extracted for debugging
         return date_text

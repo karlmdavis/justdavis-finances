@@ -10,6 +10,7 @@ import email
 import email.header
 import email.message
 import email.utils
+import hashlib
 import imaplib
 import logging
 import re
@@ -33,7 +34,6 @@ class EmailConfig:
     username: str
     password: str
     use_oauth: bool = False
-    search_folders: list[str] = field(default_factory=lambda: ["INBOX", "[Gmail]/All Mail"])
 
 
 @dataclass
@@ -70,7 +70,6 @@ class AppleEmailFetcher:
                 username=app_config.email.username or "",
                 password=app_config.email.password or "",
                 use_oauth=app_config.email.use_oauth,
-                search_folders=app_config.email.search_folders,
             )
         else:
             self.config = config
@@ -116,9 +115,57 @@ class AppleEmailFetcher:
             finally:
                 self.connection = None
 
+    def _list_all_folders(self) -> list[str]:
+        """
+        List all IMAP folders recursively.
+
+        Returns:
+            List of folder names that can be searched
+        """
+        if not self.connection:
+            logger.warning("Cannot list folders without connection")
+            return []
+
+        try:
+            result, folders = self.connection.list()
+            if result != "OK":
+                logger.warning("Failed to list IMAP folders")
+                return []
+
+            folder_names = []
+            for folder in folders:
+                try:
+                    # IMAP folder response format: b'(\\HasNoChildren) "/" "INBOX"'
+                    # or: b'(\\HasNoChildren \\UnMarked) "." "Follow Up"'
+                    if not isinstance(folder, bytes):
+                        continue
+                    folder_str = folder.decode()
+
+                    # Use regex to extract folder name - everything after the delimiter
+                    match = re.search(r'\([^)]+\)\s+"[^"]*"\s+(.+)', folder_str)
+                    if match:
+                        folder_name = match.group(1).strip()
+                        # Remove quotes if present
+                        if folder_name.startswith('"') and folder_name.endswith('"'):
+                            folder_name = folder_name[1:-1]
+
+                        # Skip malformed or system folders
+                        if folder_name and folder_name not in ["."]:
+                            folder_names.append(folder_name)
+                except Exception as e:
+                    logger.debug(f"Error parsing folder: {e}")
+                    continue
+
+            logger.info(f"Discovered {len(folder_names)} IMAP folders")
+            return folder_names
+
+        except Exception as e:
+            logger.error(f"Error listing folders: {e}")
+            return []
+
     def fetch_apple_receipts(self) -> list[AppleReceiptEmail]:
         """
-        Fetch all Apple receipt emails from configured folders.
+        Fetch all Apple receipt emails from all IMAP folders (recursive search).
 
         Returns:
             List of AppleReceiptEmail objects
@@ -128,33 +175,62 @@ class AppleEmailFetcher:
             return []
 
         all_receipts = []
+        folder_results: dict[str, int] = {}
 
         try:
-            for folder in self.config.search_folders:
-                logger.info(f"Searching folder: {folder}")
+            # Discover all folders recursively
+            all_folders = self._list_all_folders()
+            logger.info(f"Searching {len(all_folders)} folders for Apple receipts")
+
+            for folder in all_folders:
+                logger.debug(f"Searching folder: {folder}")
 
                 try:
                     # Select folder - check connection exists
                     if not self.connection:
                         logger.warning("Connection lost")
                         break
-                    result, _ = self.connection.select(folder, readonly=True)
-                    if result != "OK":
-                        logger.warning(f"Cannot select folder {folder}")
+
+                    # Try different folder name formats for compatibility
+                    folder_attempts = [folder]
+                    if " " in folder or "." in folder:
+                        folder_attempts.append(f'"{folder}"')
+
+                    selected = False
+                    for attempt_name in folder_attempts:
+                        try:
+                            result, _ = self.connection.select(attempt_name, readonly=True)
+                            if result == "OK":
+                                selected = True
+                                break
+                        except Exception as e:
+                            logger.debug(f"Cannot select folder '{attempt_name}': {e}")
+                            continue
+
+                    if not selected:
+                        logger.debug(f"Cannot select folder '{folder}', skipping")
                         continue
 
                     # Search for Apple receipt emails
                     receipts = self._search_apple_receipts_in_folder(folder)
 
-                    all_receipts.extend(receipts)
-                    logger.info(f"Found {len(receipts)} receipts in {folder}")
+                    if receipts:
+                        all_receipts.extend(receipts)
+                        folder_results[folder] = len(receipts)
+                        logger.info(f"Found {len(receipts)} receipts in '{folder}'")
 
                 except Exception as e:
-                    logger.error(f"Error searching folder {folder}: {e}")
+                    logger.debug(f"Error searching folder {folder}: {e}")
                     continue
 
         except Exception as e:
             logger.error(f"Error during email fetching: {e}")
+
+        # Log summary by folder
+        if folder_results:
+            logger.info("Apple receipts found by folder:")
+            for folder, count in sorted(folder_results.items(), key=lambda x: x[1], reverse=True):
+                logger.info(f"  {folder}: {count} emails")
 
         logger.info(f"Total Apple receipts found: {len(all_receipts)}")
         return all_receipts
@@ -164,60 +240,50 @@ class AppleEmailFetcher:
         receipts: list[AppleReceiptEmail] = []
 
         try:
-            # Build search criteria for Apple receipts
-            search_criteria = self._build_apple_search_criteria()
+            # Use simple search patterns that work with all IMAP servers
+            # Run multiple searches and combine unique results
+            search_patterns = [
+                'SUBJECT "Your receipt from Apple"',
+                'SUBJECT "Receipt from Apple"',
+                'FROM "no_reply@email.apple.com"',
+            ]
 
-            logger.debug(f"Search criteria: {search_criteria}")
+            all_msg_ids: set[bytes] = set()
 
-            # Search for emails - check connection exists
+            # Check connection exists
             if not self.connection:
                 logger.warning("Connection lost")
                 return receipts
-            result, message_numbers = self.connection.search(None, *search_criteria)
 
-            if result != "OK":
-                logger.warning(f"Search failed in folder {folder}")
+            # Execute each search pattern and collect unique message IDs
+            for pattern in search_patterns:
+                try:
+                    result, message_numbers = self.connection.search(None, pattern)
+                    if result == "OK" and message_numbers and message_numbers[0]:
+                        msg_ids = message_numbers[0].split()
+                        all_msg_ids.update(msg_ids)
+                except Exception as e:
+                    logger.debug(f"Search error for '{pattern}': {e}")
+                    continue
+
+            if not all_msg_ids:
                 return receipts
 
-            # Process found emails
-            if message_numbers and message_numbers[0]:
-                msg_nums = message_numbers[0].split()
-                logger.info(f"Found {len(msg_nums)} potential Apple emails in {folder}")
+            logger.info(f"Found {len(all_msg_ids)} potential Apple emails in {folder}")
 
-                for msg_num in msg_nums:
-                    try:
-                        receipt = self._fetch_and_parse_email(msg_num.decode(), folder)
-                        if receipt and self._is_apple_receipt(receipt):
-                            receipts.append(receipt)
-                    except Exception as e:
-                        logger.warning(f"Error processing email {msg_num}: {e}")
+            # Process found emails
+            for msg_num in all_msg_ids:
+                try:
+                    receipt = self._fetch_and_parse_email(msg_num.decode(), folder)
+                    if receipt and self._is_apple_receipt(receipt):
+                        receipts.append(receipt)
+                except Exception as e:
+                    logger.warning(f"Error processing email {msg_num.decode()}: {e}")
 
         except Exception as e:
             logger.error(f"Error searching folder {folder}: {e}")
 
         return receipts
-
-    def _build_apple_search_criteria(self) -> list[str]:
-        """Build IMAP search criteria for all Apple receipts."""
-        apple_domains = ["apple.com", "itunes.com", "icloud.com", "me.com", "mac.com"]
-
-        criteria = []
-
-        # Add sender criteria for Apple domains
-        from_criteria = [f"(FROM {domain})" for domain in apple_domains]
-
-        if from_criteria:
-            criteria.append(f'(OR {" ".join(from_criteria)})')
-
-        # Add subject criteria for receipt-related terms
-        receipt_terms = ["receipt", "Your receipt from Apple", "iTunes Store", "App Store", "Apple Store"]
-
-        subject_criteria = [f'(SUBJECT "{term}")' for term in receipt_terms]
-
-        if subject_criteria:
-            criteria.append(f'(OR {" ".join(subject_criteria)})')
-
-        return criteria
 
     def _fetch_and_parse_email(self, msg_num: str, folder: str) -> AppleReceiptEmail | None:
         """Fetch and parse a single email."""
@@ -352,13 +418,15 @@ class AppleEmailFetcher:
             "@apple.com",
             "@itunes.com",
             "@icloud.com",
-            "noreply@email.apple.com",
+            "no_reply@email.apple.com",  # Fixed: Apple uses underscore format
             "do_not_reply@itunes.com",
         ]
 
         sender_check = any(domain in email_obj.sender.lower() for domain in apple_senders)
         if not sender_check:
-            logger.debug(f"Sender check failed for: {email_obj.sender}")
+            logger.debug(
+                f"Sender check failed - Sender: '{email_obj.sender}' | Subject: '{email_obj.subject}'"
+            )
             return False
 
         # Check subject for receipt indicators
@@ -374,12 +442,16 @@ class AppleEmailFetcher:
 
         subject_check = any(indicator in subject_lower for indicator in receipt_indicators)
         if not subject_check:
-            logger.debug(f"Subject check failed for: {email_obj.subject}")
+            logger.debug(f"Subject check failed - Subject: '{email_obj.subject}'")
             return False
 
         # Check content for purchase indicators
         content_to_check = (email_obj.html_content or "") + (email_obj.text_content or "")
         content_lower = content_to_check.lower()
+
+        # Log content length for debugging
+        html_len = len(email_obj.html_content) if email_obj.html_content else 0
+        text_len = len(email_obj.text_content) if email_obj.text_content else 0
 
         content_indicators = [
             "total",
@@ -396,27 +468,29 @@ class AppleEmailFetcher:
 
         content_check = any(indicator in content_lower for indicator in content_indicators)
         if not content_check:
-            logger.debug(f"Content check failed for: {email_obj.message_id}")
+            logger.debug(
+                f"Content check failed - No purchase indicators found | "
+                f"Subject: '{email_obj.subject}' | HTML: {html_len} chars | Text: {text_len} chars"
+            )
             return False
 
         # Exclude promotional/non-receipt emails
         exclusion_terms = [
             "promotional",
-            "marketing",
             "newsletter",
             "survey",
-            "feedback",
-            "update your",
-            "privacy policy",
-            "terms of service",
         ]
 
-        exclusion_check = any(term in content_lower for term in exclusion_terms)
-        if exclusion_check:
-            logger.debug(f"Exclusion check triggered for: {email_obj.subject}")
+        # Find which exclusion terms matched (for debugging)
+        matched_terms = [term for term in exclusion_terms if term in content_lower]
+        if matched_terms:
+            logger.debug(
+                f"Exclusion check triggered - Subject: '{email_obj.subject}' | "
+                f"Matched terms: {matched_terms}"
+            )
             return False
 
-        logger.debug(f"Email passed all checks: {email_obj.subject}")
+        logger.debug(f"Email passed all checks: '{email_obj.subject}'")
         return True
 
     def save_emails_to_disk(self, emails: list[AppleReceiptEmail], output_dir: Path) -> dict[str, Any]:
@@ -442,8 +516,10 @@ class AppleEmailFetcher:
         for i, email_obj in enumerate(emails):
             try:
                 # Create base filename from email metadata
+                # Use hash of message_id for stable filenames (prevents duplicates on re-fetch)
+                message_hash = hashlib.sha256(email_obj.message_id.encode()).hexdigest()[:8]
                 safe_subject = re.sub(r"[^\w\-_\.]", "_", email_obj.subject)[:50]
-                base_name = f"{email_obj.date.strftime('%Y%m%d_%H%M%S')}_{safe_subject}_{i:03d}"
+                base_name = f"{email_obj.date.strftime('%Y%m%d_%H%M%S')}_{safe_subject}_{message_hash}"
 
                 # Save HTML content if available
                 if email_obj.html_content:

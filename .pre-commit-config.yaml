@@ -61,6 +61,7 @@ repos:
           - numpy
           - matplotlib
           - pandas
+          - python-dotenv
 
 # Configuration notes:
 # - pytest is excluded as it's too slow for pre-commit hooks

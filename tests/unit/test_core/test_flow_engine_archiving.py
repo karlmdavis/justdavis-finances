@@ -266,3 +266,191 @@ class TestArchiveCreation:
         finally:
             # Restore permissions for cleanup
             output_dir.chmod(0o755)
+
+    def test_archive_new_data_returns_archived_file_list(self):
+        """Archive new data should return list of files that were archived."""
+        # Create output directory with files
+        output_dir = self.temp_dir / "output"
+        output_dir.mkdir()
+        file1 = output_dir / "file1.txt"
+        file2 = output_dir / "file2.txt"
+        file1.write_text("content1")
+        file2.write_text("content2")
+
+        # Create subdirectory with file
+        subdir = output_dir / "subdir"
+        subdir.mkdir()
+        file3 = subdir / "file3.txt"
+        file3.write_text("content3")
+
+        # Create mock node and context
+        node = MockNodeWithOutput("test_node", output_dir)
+        context = FlowContext(start_time=datetime.now())
+
+        # Create archive directory
+        archive_dir = output_dir / "archive"
+        archive_dir.mkdir()
+
+        # Create engine and archive new data
+        engine = FlowExecutionEngine()
+        archived_files = engine.archive_new_data(node, output_dir, context)
+
+        # Verify returned list contains all files (excluding archive)
+        assert len(archived_files) == 3
+        assert file1 in archived_files
+        assert file2 in archived_files
+        assert file3 in archived_files
+
+    def test_archive_new_data_excludes_archive_directory_from_returned_list(self):
+        """Archived file list should not include files from archive/ subdirectory."""
+        # Create output directory with files
+        output_dir = self.temp_dir / "output"
+        output_dir.mkdir()
+        file1 = output_dir / "file1.txt"
+        file1.write_text("content1")
+
+        # Create archive directory with old archive
+        archive_dir = output_dir / "archive"
+        archive_dir.mkdir()
+        old_archive = archive_dir / "2024-10-20_10-00-00_post"
+        old_archive.mkdir()
+        old_file = old_archive / "old_file.txt"
+        old_file.write_text("old content")
+
+        # Create mock node and context
+        node = MockNodeWithOutput("test_node", output_dir)
+        context = FlowContext(start_time=datetime.now())
+
+        # Create engine and archive new data
+        engine = FlowExecutionEngine()
+        archived_files = engine.archive_new_data(node, output_dir, context)
+
+        # Verify returned list only contains file1, not archive contents
+        assert len(archived_files) == 1
+        assert file1 in archived_files
+        assert old_file not in archived_files
+
+
+class TestArchiveCleanup:
+    """Test archive cleanup functionality."""
+
+    def setup_method(self):
+        """Create temporary directory for tests."""
+        self.temp_dir = Path(tempfile.mkdtemp())
+
+    def teardown_method(self):
+        """Clean up temporary directory."""
+        import shutil
+
+        if self.temp_dir.exists():
+            shutil.rmtree(self.temp_dir)
+
+    def test_old_files_deleted_after_archiving(self):
+        """Old files should be deleted after being archived."""
+        # Create output directory with old files
+        output_dir = self.temp_dir / "output"
+        output_dir.mkdir()
+        old_file1 = output_dir / "old_file1.txt"
+        old_file2 = output_dir / "old_file2.txt"
+        old_file1.write_text("old content 1")
+        old_file2.write_text("old content 2")
+
+        # Create archive directory
+        archive_dir = output_dir / "archive"
+        archive_dir.mkdir()
+
+        # Simulate archiving and cleanup
+        node = MockNodeWithOutput("test_node", output_dir)
+        context = FlowContext(start_time=datetime.now())
+        engine = FlowExecutionEngine()
+
+        # Archive files (returns list of archived files)
+        archived_files = engine.archive_new_data(node, output_dir, context)
+
+        # Verify old files exist before cleanup
+        assert old_file1.exists()
+        assert old_file2.exists()
+
+        # Simulate cleanup (no new files to keep)
+        new_files = set()  # Empty - no newly created files
+        for file_path in archived_files:
+            if file_path.resolve() not in new_files:
+                file_path.unlink()
+
+        # Verify old files were deleted
+        assert not old_file1.exists()
+        assert not old_file2.exists()
+
+    def test_newly_created_files_not_deleted(self):
+        """Newly created files from result.outputs should not be deleted."""
+        # Create output directory with old file and new file
+        output_dir = self.temp_dir / "output"
+        output_dir.mkdir()
+        old_file = output_dir / "old_file.txt"
+        new_file = output_dir / "new_file.txt"
+        old_file.write_text("old content")
+        new_file.write_text("new content")
+
+        # Create archive directory
+        archive_dir = output_dir / "archive"
+        archive_dir.mkdir()
+
+        # Simulate archiving
+        node = MockNodeWithOutput("test_node", output_dir)
+        context = FlowContext(start_time=datetime.now())
+        engine = FlowExecutionEngine()
+        archived_files = engine.archive_new_data(node, output_dir, context)
+
+        # Verify both files were archived
+        assert len(archived_files) == 2
+
+        # Simulate cleanup (new_file is newly created and should be kept)
+        new_files = {new_file.resolve()}
+        for file_path in archived_files:
+            if file_path.resolve() not in new_files:
+                file_path.unlink()
+
+        # Verify old file deleted but new file preserved
+        assert not old_file.exists()
+        assert new_file.exists()
+
+    def test_archive_directory_not_affected_by_cleanup(self):
+        """Archive directory should not be affected by cleanup."""
+        # Create output directory
+        output_dir = self.temp_dir / "output"
+        output_dir.mkdir()
+        old_file = output_dir / "old_file.txt"
+        old_file.write_text("old content")
+
+        # Create archive directory with existing archives
+        archive_dir = output_dir / "archive"
+        archive_dir.mkdir()
+        existing_archive = archive_dir / "2024-10-20_10-00-00_pre"
+        existing_archive.mkdir()
+        existing_file = existing_archive / "existing.txt"
+        existing_file.write_text("existing archived content")
+
+        # Simulate archiving
+        node = MockNodeWithOutput("test_node", output_dir)
+        context = FlowContext(start_time=datetime.now())
+        engine = FlowExecutionEngine()
+        archived_files = engine.archive_new_data(node, output_dir, context)
+
+        # Verify archived_files doesn't include archive directory contents
+        assert existing_file not in archived_files
+
+        # Simulate cleanup
+        new_files = set()
+        for file_path in archived_files:
+            if file_path.resolve() not in new_files:
+                file_path.unlink()
+
+        # Verify archive directory and its contents still exist
+        assert archive_dir.exists()
+        assert existing_archive.exists()
+        assert existing_file.exists()
+        assert existing_file.read_text() == "existing archived content"
+
+        # Verify new post archive was created
+        post_archives = list(archive_dir.glob("*_post"))
+        assert len(post_archives) == 1

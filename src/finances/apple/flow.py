@@ -5,10 +5,13 @@ Apple Flow Nodes
 Flow node implementations for Apple receipt processing and transaction matching.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from ..core.flow import FlowContext, FlowNode, FlowResult, NodeDataSummary, OutputFile, OutputInfo
+
+logger = logging.getLogger(__name__)
 
 
 class AppleEmailOutputInfo(OutputInfo):
@@ -166,12 +169,32 @@ class AppleReceiptParsingFlowNode(FlowNode):
                     metadata={"message": "No HTML files to parse"},
                 )
 
+            # Filter to only NEW HTML files (not yet parsed)
+            # Check for existing JSON files based on HTML stem
+            existing_jsons = {json_file.stem for json_file in exports_dir.glob("*.json")}
+            new_html_files = [html_file for html_file in html_files if html_file.stem not in existing_jsons]
+
+            if not new_html_files:
+                return FlowResult(
+                    success=True,
+                    items_processed=0,
+                    metadata={
+                        "message": f"No new HTML files to parse ({len(html_files)} already processed)",
+                        "skipped": True,
+                    },
+                )
+
+            logger.info(
+                f"Parsing {len(new_html_files)} new receipts (skipping {len(html_files) - len(new_html_files)} already processed)"
+            )
+
             parser = AppleReceiptParser()
             parsed_count = 0
             failed_count = 0
+            skipped_count = 0
             output_files = []
 
-            for html_file in html_files:
+            for html_file in new_html_files:
                 try:
                     # Read HTML content
                     html_content = html_file.read_text(encoding="utf-8")
@@ -179,12 +202,21 @@ class AppleReceiptParsingFlowNode(FlowNode):
                     # Parse using receipt_id from filename
                     receipt_id = html_file.stem
                     parsed_receipt = parser.parse_html_content(html_content, receipt_id)
-
-                    # Use order_id as filename if available, otherwise use email filename
                     receipt_dict = parsed_receipt.to_dict()
-                    output_filename = receipt_dict.get("order_id") or receipt_id
-                    if not output_filename:
-                        output_filename = receipt_id
+
+                    # Always use unique receipt_id (email hash) as filename to prevent collisions
+                    # order_id is stored inside the JSON and may not be unique
+                    output_filename = receipt_id
+
+                    # Skip receipts that have no useful data (no order_id, date, or total)
+                    if (
+                        not receipt_dict.get("order_id")
+                        and not receipt_dict.get("receipt_date")
+                        and not receipt_dict.get("total")
+                    ):
+                        logger.debug(f"Skipping {html_file.name}: no order_id, date, or total found")
+                        skipped_count += 1
+                        continue
 
                     # Write parsed receipt as JSON
                     output_file = exports_dir / f"{output_filename}.json"
@@ -194,7 +226,11 @@ class AppleReceiptParsingFlowNode(FlowNode):
 
                 except Exception as e:
                     failed_count += 1
-                    print(f"Failed to parse {html_file.name}: {e}")
+                    logger.warning(f"Failed to parse {html_file.name}: {e}")
+
+            logger.info(
+                f"Parsing complete: {parsed_count} written, {skipped_count} skipped (no data), {failed_count} failed"
+            )
 
             return FlowResult(
                 success=True,
@@ -203,6 +239,7 @@ class AppleReceiptParsingFlowNode(FlowNode):
                 outputs=output_files,
                 metadata={
                     "parsed_count": parsed_count,
+                    "skipped_count": skipped_count,
                     "failed_count": failed_count,
                     "output_dir": str(exports_dir),
                 },
@@ -320,6 +357,39 @@ class AppleMatchingFlowNode(FlowNode):
             match_rate = matched_count / len(apple_transactions) if apple_transactions else 0.0
             total_confidence = sum(result.confidence for result in match_results if result.receipts)
             avg_confidence = total_confidence / matched_count if matched_count > 0 else 0.0
+
+            # Calculate receipt statistics (how many unique receipts were matched)
+            matched_receipt_ids: set[str] = set()
+            for result in match_results:
+                if result.receipts:
+                    # Extract receipt IDs from Receipt objects
+                    matched_receipt_ids.update(r.id for r in result.receipts)
+
+            total_receipts = len(receipt_models)
+            matched_receipts_count = len(matched_receipt_ids)
+            unmatched_receipts_count = total_receipts - matched_receipts_count
+
+            # Print statistics report
+            import click
+
+            click.echo("\n🍎 Apple Matching Statistics")
+            click.echo("=" * 60)
+            click.echo("\nYNAB Transactions (payee: Apple):")
+            click.echo(f"  Matched:     {matched_count:4} transactions")
+            click.echo(f"  Unmatched:   {len(apple_transactions) - matched_count:4} transactions")
+            click.echo(f"  Total:       {len(apple_transactions):4} transactions")
+            click.echo(f"  Match rate:  {match_rate:5.1%}")
+            if matched_count > 0:
+                click.echo(f"  Avg confidence: {avg_confidence:.2f}")
+
+            click.echo("\nApple Receipts:")
+            click.echo(f"  Matched:     {matched_receipts_count:4} receipts")
+            click.echo(f"  Unmatched:   {unmatched_receipts_count:4} receipts")
+            click.echo(f"  Total:       {total_receipts:4} receipts")
+            if total_receipts > 0:
+                receipt_match_rate = matched_receipts_count / total_receipts
+                click.echo(f"  Match rate:  {receipt_match_rate:5.1%}")
+            click.echo("=" * 60)
 
             # Write results using DataStore
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

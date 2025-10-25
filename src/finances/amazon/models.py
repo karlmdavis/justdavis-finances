@@ -76,7 +76,9 @@ class AmazonOrderItem:
 
         # Parse ship date (optional)
         ship_date_val = row.get("Ship Date")
-        if ship_date_val is None or (isinstance(ship_date_val, str) and not ship_date_val):
+        if ship_date_val is None or (
+            isinstance(ship_date_val, str) and (not ship_date_val or ship_date_val == "Not Available")
+        ):
             ship_date = None
         elif isinstance(ship_date_val, str):
             ship_date = FinancialDate.from_string(ship_date_val)
