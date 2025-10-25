@@ -233,27 +233,21 @@ class AppleReceiptParser:
         try:
             soup = BeautifulSoup(html_content, "lxml")
 
-            # Reset tracking
-            self.selectors_tried = []
-            self.selectors_successful = []
-
-            # Detect format and extract data
+            # Detect format
             receipt.format_detected = self._detect_format(soup)
-            self._extract_metadata(receipt, soup)
-            self._extract_items(receipt, soup)
-            self._extract_billing_info(receipt, soup)
 
-            # Store parsing metadata
-            receipt.parsing_metadata = {
-                "selectors_successful": self.selectors_successful.copy(),
-                "selectors_failed": [s for s in self.selectors_tried if s not in self.selectors_successful],
-                "extraction_method": "html_content_parser",
-                "total_selectors_tried": len(self.selectors_tried),
-                "success_rate": len(self.selectors_successful) / max(len(self.selectors_tried), 1),
-            }
+            # Dispatch to format-specific parser
+            if receipt.format_detected == "table_format":
+                self._parse_table_format(receipt, soup)
+            elif receipt.format_detected == "modern_format":
+                self._parse_modern_format(receipt, soup)
+            else:
+                logger.warning(f"Unknown format detected: {receipt.format_detected}")
 
         except Exception as e:
             logger.error(f"Error parsing HTML content for {receipt_id}: {e}")
+            if "parsing_metadata" not in receipt.__dict__:
+                receipt.parsing_metadata = {}
             receipt.parsing_metadata["errors"] = [str(e)]
 
         return receipt
@@ -298,6 +292,172 @@ class AppleReceiptParser:
         except Exception as e:
             logger.warning(f"Error detecting format: {e}")
             return "detection_failed"
+
+    def _parse_table_format(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
+        """
+        Parse table_format (2020-2023 era) receipts with .aapl-* classes.
+
+        Uses targeted selectors to extract all receipt fields.
+        """
+        # Extract Apple ID / Apple Account
+        # Try multiple strategies
+        # Strategy 1: Find label span and get sibling text
+        for label in ["APPLE ID", "APPLE ACCOUNT"]:
+            label_span = soup.find("span", string=lambda text, lbl=label: text and lbl in text.strip())
+            if label_span and label_span.parent:
+                # Get the parent td and extract all text (with spaces as separators)
+                td_text = label_span.parent.get_text(separator=" ", strip=True)
+                # Use regex to extract just the email address (with word boundaries)
+                email_pattern = r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b"
+                match = re.search(email_pattern, td_text)
+                if match:
+                    receipt.apple_id = match.group()
+                    break
+
+        # Strategy 2: If not found, search for any text containing an email address near apple account labels
+        if not receipt.apple_id:
+            # Find all spans/divs and look for email addresses
+            for elem in soup.find_all(["span", "td"]):
+                text = elem.get_text(separator=" ", strip=True)
+                # Check if this element contains an email address
+                if "@" in text and "." in text:
+                    # Check if "APPLE" label is nearby (in parent or siblings)
+                    parent_text = elem.parent.get_text(separator=" ").upper() if elem.parent else ""
+                    if "APPLE" in parent_text and ("ID" in parent_text or "ACCOUNT" in parent_text):
+                        # Extract just the email part using regex (with word boundaries)
+                        email_pattern = r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b"
+                        match = re.search(email_pattern, text)
+                        if match:
+                            receipt.apple_id = match.group()
+                            break
+
+        # Extract receipt date
+        date_span = soup.find("span", string=re.compile(r"\s*DATE\s*"))
+        if date_span and date_span.parent:
+            # Get next sibling or text after <br>
+            td = date_span.parent
+            # Get all text and remove "DATE" label
+            date_text = td.get_text(strip=True).replace("DATE", "").strip()
+            if date_text:
+                normalized_date = self._normalize_date(date_text)
+                if normalized_date:
+                    try:
+                        receipt.receipt_date = FinancialDate.from_string(normalized_date)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Could not parse date: {date_text}")
+
+        # Extract order ID
+        order_span = soup.find("span", string=re.compile(r"\s*ORDER ID\s*"))
+        if order_span and order_span.parent:
+            # Order ID is often in a link or span after the label
+            td = order_span.parent
+            # Try to find link with order ID
+            link = td.find("a")
+            if link:
+                receipt.order_id = link.get_text(strip=True)
+            else:
+                # Extract from text
+                order_text = td.get_text(strip=True).replace("ORDER ID", "").strip()
+                if order_text:
+                    receipt.order_id = order_text
+
+        # Extract document number
+        doc_span = soup.find("span", string=re.compile(r"\s*DOCUMENT NO\.\s*"))
+        if doc_span and doc_span.parent:
+            td = doc_span.parent
+            doc_text = td.get_text(strip=True).replace("DOCUMENT NO.", "").strip()
+            if doc_text:
+                receipt.document_number = doc_text
+
+        # Extract items (look for elements with class="title")
+        title_elements = soup.find_all("span", class_="title")
+        items = []
+
+        for title_elem in title_elements:
+            # Get the title text
+            title = title_elem.get_text(strip=True)
+
+            # Find the parent row (tr) to get the price
+            tr = title_elem.find_parent("tr")
+            if not tr:
+                continue
+
+            # Find price in the same row
+            price_td = tr.find("td", class_="price-cell")
+            if price_td:
+                price_text = price_td.get_text(strip=True)
+                price_text = price_text.replace("$", "").replace(",", "").strip()
+                try:
+                    cost_cents = int(float(price_text) * 100)
+                    cost = Money.from_cents(cost_cents)
+                except (ValueError, AttributeError):
+                    logger.warning(f"Could not parse price: {price_text}")
+                    continue
+
+                # Check if it's a subscription (look for "Renews" text in the row)
+                row_text = tr.get_text()
+                is_subscription = "Renews" in row_text or "renews" in row_text
+
+                item = ParsedItem(title=title, cost=cost, quantity=1, subscription=is_subscription)
+                items.append(item)
+
+        receipt.items = items
+
+        # Extract subtotal, tax, total
+        # Find "Subtotal" text
+        subtotal_elem = soup.find(string=re.compile(r"Subtotal"))
+        if subtotal_elem:
+            # Navigate to parent structure and find the amount
+            parent = subtotal_elem.find_parent("tr")
+            if parent:
+                # Find the td with the amount (usually last td in the row)
+                amount_td = parent.find_all("td")[-1]
+                if amount_td:
+                    amount_text = amount_td.get_text(strip=True).replace("$", "").replace(",", "").strip()
+                    try:  # noqa: SIM105
+                        receipt.subtotal = Money.from_cents(int(float(amount_text) * 100))
+                    except (ValueError, AttributeError):
+                        pass
+
+        # Find "Tax" text
+        tax_elem = soup.find(string=re.compile(r"^Tax$"))
+        if tax_elem:
+            parent = tax_elem.find_parent("tr")
+            if parent:
+                amount_td = parent.find_all("td")[-1]
+                if amount_td:
+                    amount_text = amount_td.get_text(strip=True).replace("$", "").replace(",", "").strip()
+                    try:  # noqa: SIM105
+                        receipt.tax = Money.from_cents(int(float(amount_text) * 100))
+                    except (ValueError, AttributeError):
+                        pass
+
+        # Find "TOTAL" text
+        total_elem = soup.find(string=re.compile(r"TOTAL"))
+        if total_elem:
+            # Navigate to find the total amount
+            parent_tr = total_elem.find_parent("tr")
+            if parent_tr:
+                # Find td with the total amount
+                amount_tds = parent_tr.find_all("td")
+                for td in reversed(amount_tds):  # Check from end
+                    text = td.get_text(strip=True)
+                    if "$" in text:
+                        amount_text = text.replace("$", "").replace(",", "").strip()
+                        try:
+                            receipt.total = Money.from_cents(int(float(amount_text) * 100))
+                            break
+                        except (ValueError, AttributeError):
+                            pass
+
+    def _parse_modern_format(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
+        """
+        Parse modern_format (2025+) receipts with .custom-* classes.
+
+        Placeholder - to be implemented.
+        """
+        logger.warning("modern_format parser not yet implemented")
+        pass
 
     def _extract_metadata(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """Extract core metadata from the receipt."""
