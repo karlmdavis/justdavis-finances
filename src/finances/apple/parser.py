@@ -221,6 +221,8 @@ class AppleReceiptParser:
         """
         Parse HTML content directly without file system access.
 
+        Routes to format-specific parser based on HTML structure.
+
         Args:
             html_content: Raw HTML content to parse
             receipt_id: Identifier for the receipt
@@ -228,35 +230,45 @@ class AppleReceiptParser:
         Returns:
             ParsedReceipt object with extracted data
         """
-        receipt = ParsedReceipt(base_name=receipt_id)
-
         try:
             soup = BeautifulSoup(html_content, "lxml")
+            format_detected = self._detect_format(soup)
 
-            # Reset tracking
-            self.selectors_tried = []
-            self.selectors_successful = []
+            if format_detected == "table_format":
+                receipt = self._parse_table_format(soup)
+                receipt.base_name = receipt_id
+                return receipt
+            elif format_detected == "modern_format":
+                # Modern format parser not yet implemented, fall back to old parser
+                receipt = ParsedReceipt(base_name=receipt_id)
+                # Reset tracking
+                self.selectors_tried = []
+                self.selectors_successful = []
 
-            # Detect format and extract data
-            receipt.format_detected = self._detect_format(soup)
-            self._extract_metadata(receipt, soup)
-            self._extract_items(receipt, soup)
-            self._extract_billing_info(receipt, soup)
+                receipt.format_detected = format_detected
+                self._extract_metadata(receipt, soup)
+                self._extract_items(receipt, soup)
+                self._extract_billing_info(receipt, soup)
 
-            # Store parsing metadata
-            receipt.parsing_metadata = {
-                "selectors_successful": self.selectors_successful.copy(),
-                "selectors_failed": [s for s in self.selectors_tried if s not in self.selectors_successful],
-                "extraction_method": "html_content_parser",
-                "total_selectors_tried": len(self.selectors_tried),
-                "success_rate": len(self.selectors_successful) / max(len(self.selectors_tried), 1),
-            }
+                # Store parsing metadata
+                receipt.parsing_metadata = {
+                    "selectors_successful": self.selectors_successful.copy(),
+                    "selectors_failed": [
+                        s for s in self.selectors_tried if s not in self.selectors_successful
+                    ],
+                    "extraction_method": "html_content_parser",
+                    "total_selectors_tried": len(self.selectors_tried),
+                    "success_rate": len(self.selectors_successful) / max(len(self.selectors_tried), 1),
+                }
+                return receipt
+            else:
+                raise ValueError(f"Unknown format: {format_detected}")
 
         except Exception as e:
             logger.error(f"Error parsing HTML content for {receipt_id}: {e}")
-            receipt.parsing_metadata["errors"] = [str(e)]
-
-        return receipt
+            receipt = ParsedReceipt(base_name=receipt_id)
+            receipt.parsing_metadata = {"errors": [str(e)]}
+            return receipt
 
     def _detect_format(self, soup: BeautifulSoup) -> str:
         """
@@ -1062,3 +1074,198 @@ class AppleReceiptParser:
             )
 
         return text
+
+    def _extract_table_format_date(self, soup: BeautifulSoup) -> FinancialDate | None:
+        """
+        Extract receipt date from table format HTML.
+
+        Table format has: <span>DATE</span><br>Oct 23, 2020
+        """
+        # Find td containing "DATE" label
+        date_cells = soup.find_all("td")
+        month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+        for cell in date_cells:
+            text = cell.get_text()
+            if "DATE" in text:
+                # Check if any month name is present
+                has_month = any(month in text for month in month_names)
+                if not has_month:
+                    continue
+
+                # Extract date portion after "DATE" keyword
+                # Text looks like: "DATEOct 23, 2020" (no newline from <br>)
+                date_part = text.replace("DATE", "").strip()
+
+                # Try to parse date like "Oct 23, 2020"
+                try:
+                    # Convert "Oct 23, 2020" to "2020-10-23"
+                    date_obj = datetime.strptime(date_part, "%b %d, %Y")
+                    return FinancialDate(date=date_obj.date())
+                except ValueError:
+                    continue
+
+        return None
+
+    def _extract_table_format_apple_id(self, soup: BeautifulSoup) -> str | None:
+        """
+        Extract Apple ID from table format HTML.
+
+        Table format has: <span>APPLE ID</span><br>email@example.com
+        """
+        # Find td containing "APPLE ID" label
+        id_cells = soup.find_all("td")
+        for cell in id_cells:
+            text: str = cell.get_text()
+            if "APPLE ID" in text and "@" in text:
+                # Extract email portion after "APPLE ID" keyword
+                email_part = text.replace("APPLE ID", "").strip()
+                if "@" in email_part:
+                    return email_part
+
+        return None
+
+    def _extract_table_format_order_id(self, soup: BeautifulSoup) -> str | None:
+        """
+        Extract order ID from table format HTML.
+
+        Table format has: <span>ORDER ID</span><br><a>ORDER123</a>
+        """
+        # Find td containing "ORDER ID" label
+        id_cells = soup.find_all("td")
+        for cell in id_cells:
+            cell_text: str = cell.get_text()
+            if "ORDER ID" in cell_text:
+                # Look for link or text after label
+                link = cell.find("a")
+                if link:
+                    link_text: str = link.get_text().strip()
+                    order_id: str = link_text
+                    if order_id and len(order_id) >= 8:
+                        return order_id
+
+        return None
+
+    def _extract_table_format_items(self, soup: BeautifulSoup) -> list:
+        """
+        Extract items from table format HTML.
+
+        Table format has item rows with:
+        - td.artwork-cell: product image
+        - td.item-cell: title, artist, type, device
+        - td.price-cell: price in nested table
+        """
+        items = []
+
+        # Find all item rows (have artwork-cell, item-cell, price-cell)
+        item_rows = soup.find_all("tr", {"style": lambda x: x and "max-height" in x})
+
+        for row in item_rows:
+            # Extract title
+            title_span = row.select_one("span.title")
+            if not title_span:
+                continue
+
+            title = title_span.get_text().strip()
+
+            # Extract price from nested table
+            price_cell = row.select_one("td.price-cell")
+            if not price_cell:
+                continue
+
+            price_text = None
+            price_spans = price_cell.find_all(
+                "span", {"style": lambda x: x and "font-weight:600" in x and "white-space:nowrap" in x}
+            )
+            if price_spans:
+                price_text = price_spans[0].get_text().strip()
+
+            if not price_text:
+                continue
+
+            # Parse price to Money
+            cost_cents = self._parse_currency(price_text)
+            if cost_cents is None:
+                continue
+
+            cost = Money.from_cents(cost_cents)
+
+            # Determine if subscription (not available in table format)
+            subscription = False
+
+            items.append(
+                ParsedItem(
+                    title=title,
+                    cost=cost,
+                    quantity=1,
+                    subscription=subscription,
+                    item_type=None,
+                    metadata={"extraction_method": "table_format_targeted"},
+                )
+            )
+
+        return items
+
+    def _parse_table_format(self, soup: BeautifulSoup) -> ParsedReceipt:
+        """
+        Parse table format (2020-2023) Apple receipt.
+
+        Uses targeted selectors for table-based HTML structure.
+        """
+        apple_id = self._extract_table_format_apple_id(soup)
+        receipt_date = self._extract_table_format_date(soup)
+        order_id = self._extract_table_format_order_id(soup)
+
+        # Document number (similar pattern to order ID)
+        document_number = None
+        doc_cells = soup.find_all("td")
+        for cell in doc_cells:
+            cell_text = cell.get_text()
+            if "DOCUMENT NO." in cell_text:
+                text_lines = [line.strip() for line in cell_text.split("\n") if line.strip()]
+                for line in text_lines:
+                    if line.isdigit() and len(line) >= 10:
+                        document_number = line
+                        break
+
+        # Extract total (TOTAL label, next td sibling)
+        total = None
+        total_cells = soup.find_all("td", string=lambda s: s and "TOTAL" in s.upper())
+        for cell in total_cells:
+            if cell.get_text().strip() == "TOTAL":
+                # Get next non-empty sibling
+                sibling = cell.find_next_sibling("td")
+                while sibling and not sibling.get_text().strip():
+                    sibling = sibling.find_next_sibling("td")
+
+                if sibling:
+                    price_text = sibling.get_text().strip()
+                    total_cents = self._parse_currency(price_text)
+                    if total_cents is not None:
+                        total = Money.from_cents(total_cents)
+                        break
+
+        # Extract items
+        items = self._extract_table_format_items(soup)
+
+        # Subtotal and tax not shown separately in table format single-item receipts
+        subtotal = None
+        tax = None
+
+        return ParsedReceipt(
+            format_detected="table_format",
+            apple_id=apple_id,
+            receipt_date=receipt_date,
+            order_id=order_id,
+            document_number=document_number,
+            subtotal=subtotal,
+            tax=tax,
+            total=total,
+            currency="USD",
+            payment_method=None,
+            billed_to=None,
+            items=items,
+            parsing_metadata={
+                "extraction_method": "table_format_parser",
+            },
+        )
