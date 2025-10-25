@@ -74,3 +74,27 @@ class TestSelectorUtilities:
 
         result = parser._select_value(soup, "span.missing")
         assert result is None
+
+
+def test_format_detection_uses_new_names():
+    """Format detection returns 'table_format' and 'modern_format', not legacy names."""
+    # Table format (2020-era)
+    table_html = """
+    <table class="aapl-desktop-tbl">
+      <tr><td>APPLE ID</td><td>test@example.com</td></tr>
+    </table>
+    """
+    soup = BeautifulSoup(table_html, "html.parser")
+    parser = AppleReceiptParser()
+    format_name = parser._detect_format(soup)
+    assert format_name == "table_format"
+
+    # Modern format (2025+)
+    modern_html = """
+    <div class="custom-hzv07h">
+      <p>Apple Account: test@example.com</p>
+    </div>
+    """
+    soup = BeautifulSoup(modern_html, "html.parser")
+    format_name = parser._detect_format(soup)
+    assert format_name == "modern_format"

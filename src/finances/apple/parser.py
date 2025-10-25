@@ -259,19 +259,25 @@ class AppleReceiptParser:
         return receipt
 
     def _detect_format(self, soup: BeautifulSoup) -> str:
-        """Detect the HTML format type of the receipt."""
+        """
+        Detect which Apple receipt format this HTML uses.
+
+        Returns:
+            "table_format": 2020-2023 era table-based receipts with .aapl-* classes
+            "modern_format": 2025+ CSS-in-JS receipts with .custom-* classes
+        """
         try:
-            # Check for legacy format indicators
-            if soup.find(class_=re.compile(r"^aapl-")):
-                return "legacy_aapl"
-
-            # Check for modern custom format
+            # Check for modern format (CSS-in-JS with .custom-* classes)
             if soup.find(class_=re.compile(r"^custom-")):
-                return "modern_custom"
+                return "modern_format"
 
-            # Check for table-based format
+            # Check for table format (.aapl-* classes, table structure)
+            if soup.find(class_=re.compile(r"^aapl-")):
+                return "table_format"
+
+            # Check for table-based format (fallback)
             if soup.find("table"):
-                return "table_based"
+                return "table_format"
 
             # Check for specific Apple receipt indicators
             apple_indicators = [
@@ -285,7 +291,7 @@ class AppleReceiptParser:
             text_content = soup.get_text().lower()
             for indicator in apple_indicators:
                 if indicator.lower() in text_content:
-                    return "apple_generic"
+                    return "table_format"  # Default to table format for unrecognized Apple receipts
 
             return "unknown"
 
