@@ -27,7 +27,14 @@ def fixtures_dir():
 @pytest.mark.integration
 @pytest.mark.apple
 def test_parse_legacy_aapl_format_complete(parser, fixtures_dir):
-    """Test end-to-end parsing of legacy aapl-* format receipt."""
+    """Test end-to-end parsing of legacy aapl-* format receipt.
+
+    Expected values from fixture:
+    - Subtotal: $29.99
+    - Tax: $2.98
+    - Total: $32.97
+    - Item: Procreate - $29.99
+    """
     html_path = fixtures_dir / "legacy_aapl_receipt.html"
 
     with open(html_path, encoding="utf-8") as f:
@@ -41,24 +48,38 @@ def test_parse_legacy_aapl_format_complete(parser, fixtures_dir):
     # Verify metadata extraction - Apple ID should be found
     assert receipt.apple_id == "test@example.com"
 
-    # Order ID extraction may vary based on HTML structure - just verify something was found
-    assert receipt.order_id is not None
+    # Order ID should be exactly as in fixture
+    assert receipt.order_id == "ML7PQ2XYZ", f"Expected order_id 'ML7PQ2XYZ', got '{receipt.order_id}'"
 
     # Receipt date should be parsed as FinancialDate
     assert receipt.receipt_date is not None
-    assert "2024" in receipt.receipt_date.to_iso_string()
+    assert (
+        receipt.receipt_date.to_iso_string() == "2024-08-15"
+    ), f"Expected date '2024-08-15', got '{receipt.receipt_date.to_iso_string()}'"
 
-    # Financial data - verify currency values were extracted (parser may extract multiple)
-    # Parser now returns Money objects
-    assert receipt.total is not None
+    # Financial data - EXACT values from fixture (not just > 100!)
     from finances.core.money import Money
 
+    assert receipt.subtotal is not None
+    assert isinstance(receipt.subtotal, Money)
+    assert receipt.subtotal.to_cents() == 2999, f"Expected subtotal $29.99, got {receipt.subtotal}"
+
+    assert receipt.tax is not None
+    assert isinstance(receipt.tax, Money)
+    assert receipt.tax.to_cents() == 298, f"Expected tax $2.98, got {receipt.tax}"
+
+    assert receipt.total is not None
     assert isinstance(receipt.total, Money)
+    assert receipt.total.to_cents() == 3297, f"Expected total $32.97, got {receipt.total}"
 
     # Verify items extraction - should find at least one item with "Procreate"
     assert len(receipt.items) > 0
     procreate_items = [item for item in receipt.items if "Procreate" in item.title]
     assert len(procreate_items) > 0
+    # Verify Procreate item has correct price
+    assert (
+        procreate_items[0].cost.to_cents() == 2999
+    ), f"Expected Procreate $29.99, got {procreate_items[0].cost}"
 
     # Verify billing information extraction attempted
     assert receipt.billed_to is not None or receipt.payment_method is not None
