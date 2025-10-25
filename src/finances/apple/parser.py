@@ -468,47 +468,47 @@ class AppleReceiptParser:
 
         billing_section = soup.find("div", class_=lambda c: c and "payment-information" in c)
         if billing_section and isinstance(billing_section, Tag):
-            # Find all p tags with amounts
-            amount_rows = billing_section.find_all("p", class_=lambda c: c and "4tra68" in c)
+            # Find subtotal/tax in subtotal-group div (more structural approach)
+            subtotal_group = billing_section.find("div", class_=lambda c: c and "subtotal-group" in c)
+            if subtotal_group and isinstance(subtotal_group, Tag):
+                # Find all p tags within the group
+                all_p_tags = subtotal_group.find_all("p")
+                for p_tag in all_p_tags:
+                    label = p_tag.get_text().strip()
+                    # Get sibling div with amount
+                    sibling = p_tag.find_next_sibling("div")
+                    if not sibling:
+                        continue
 
-            for row in amount_rows:
-                label = row.get_text().strip()
-                # Get sibling div with amount
-                sibling = row.find_next_sibling("div")
-                if not sibling:
-                    continue
+                    amount_tag = sibling.find("p")
+                    if not amount_tag:
+                        continue
 
-                amount_tag = sibling.find("p")
-                if not amount_tag:
-                    continue
+                    amount_text = amount_tag.get_text().strip()
+                    amount_cents = self._parse_currency(amount_text)
+                    if amount_cents is None:
+                        continue
 
-                amount_text = amount_tag.get_text().strip()
-                amount_cents = self._parse_currency(amount_text)
-                if amount_cents is None:
-                    continue
+                    if "Subtotal" in label:
+                        subtotal = Money.from_cents(amount_cents)
+                    elif "Tax" in label:
+                        tax = Money.from_cents(amount_cents)
 
-                if "Subtotal" in label:
-                    subtotal = Money.from_cents(amount_cents)
-                elif "Tax" in label:
-                    tax = Money.from_cents(amount_cents)
-
-            # Total is in p with class containing "15zbox7" (payment method row)
-            total_rows = billing_section.find_all("p", class_=lambda c: c and "15zbox7" in c)
-            for row in total_rows:
-                # Get sibling div with total amount
-                sibling = row.find_next_sibling("div")
-                if not sibling:
-                    continue
-
-                amount_tag = sibling.find("p")
-                if not amount_tag:
-                    continue
-
-                amount_text = amount_tag.get_text().strip()
-                amount_cents = self._parse_currency(amount_text)
-                if amount_cents is not None:
-                    total = Money.from_cents(amount_cents)
-                    break
+            # Total is after the <hr> separator - find hr then next p+div pair
+            hr_tag = billing_section.find("hr")
+            if hr_tag:
+                # Find next p tag after the hr (payment method)
+                payment_method_tag = hr_tag.find_next_sibling("p")
+                if payment_method_tag:
+                    # Get the next div sibling (contains total amount)
+                    total_div = payment_method_tag.find_next_sibling("div")
+                    if total_div:
+                        amount_tag = total_div.find("p")
+                        if amount_tag:
+                            amount_text = amount_tag.get_text().strip()
+                            amount_cents = self._parse_currency(amount_text)
+                            if amount_cents is not None:
+                                total = Money.from_cents(amount_cents)
 
         receipt.subtotal = subtotal
         receipt.tax = tax
@@ -1332,9 +1332,9 @@ class AppleReceiptParser:
         Extract items from modern format HTML.
 
         Modern format has subscription lockup rows with:
-        - p.custom-gzadzy: title
-        - p.custom-wogfc8 with "Renews": subscription details
-        - p.custom-137u684: price
+        - First p tag in content td: title
+        - Any p tag with "Renews" text: subscription indicator
+        - Last td with p tag: price
         """
         items = []
 
@@ -1342,23 +1342,30 @@ class AppleReceiptParser:
         item_rows = soup.find_all("tr", class_="subscription-lockup")
 
         for row in item_rows:
-            # Extract title
+            # Extract title - look for p tag with "gzadzy" in class (appears consistent)
             title_tag = row.find("p", class_=lambda c: c and "gzadzy" in c)
             if not title_tag:
                 continue
 
             title = title_tag.get_text().strip()
 
-            # Check if subscription (has "Renews" text)
+            # Check if subscription - look for any p tag containing "Renews" (robust approach)
             subscription = False
-            subscription_tags = row.find_all("p", class_=lambda c: c and "wogfc8" in c)
-            for tag in subscription_tags:
+            all_p_tags = row.find_all("p")
+            for tag in all_p_tags:
                 if "Renews" in tag.get_text():
                     subscription = True
                     break
 
-            # Extract price
-            price_tag = row.find("p", class_=lambda c: c and "137u684" in c)
+            # Extract price - find last td (price column) and get p tag (structural approach)
+            all_tds = row.find_all("td")
+            price_tag = None
+            if all_tds:
+                # Price is in the last td
+                last_td = all_tds[-1]
+                if isinstance(last_td, Tag):
+                    price_tag = last_td.find("p")
+
             if not price_tag:
                 continue
 
