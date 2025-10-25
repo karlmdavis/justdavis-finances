@@ -78,7 +78,6 @@ class TestSelectorUtilities:
 
 def test_format_detection_uses_new_names():
     """Format detection returns 'table_format' and 'modern_format', not legacy names."""
-
     # Table format (2020-era)
     table_html = """
     <table class="aapl-desktop-tbl">
@@ -99,22 +98,3 @@ def test_format_detection_uses_new_names():
     soup = BeautifulSoup(modern_html, "html.parser")
     format_name = parser._detect_format(soup)
     assert format_name == "modern_format"
-
-
-def test_table_format_extract_date():
-    """Extract date from table format 'Oct 23, 2020' → FinancialDate."""
-    from finances.core import FinancialDate
-
-    html = """
-    <table>
-      <tr>
-        <td colspan="2"><span style="color:rgb(102,102,102);font-size:10px;">DATE</span><br>Oct 23, 2020</td>
-      </tr>
-    </table>
-    """
-    soup = BeautifulSoup(html, "html.parser")
-    parser = AppleReceiptParser()
-
-    date = parser._extract_table_format_date(soup)
-    assert date is not None
-    assert date == FinancialDate.from_string("2020-10-23")

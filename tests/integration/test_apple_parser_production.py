@@ -20,7 +20,7 @@ class TestAppleParserProduction:
     def test_table_format_parsing(self, sample):
         """Test table_format (2020-era) receipt parsing with ALL field validation."""
         # Arrange
-        html_path = Path("data/apple/emails") / sample["html_filename"]
+        html_path = Path("tests/fixtures/apple/html") / sample["html_filename"]
         expected = sample["expected"]
         failures = []
 
@@ -105,7 +105,7 @@ class TestAppleParserProduction:
     def test_modern_format_parsing(self, sample):
         """Test modern_format (2025+) receipt parsing with ALL field validation."""
         # Arrange
-        html_path = Path("data/apple/emails") / sample["html_filename"]
+        html_path = Path("tests/fixtures/apple/html") / sample["html_filename"]
         expected = sample["expected"]
         failures = []
 
