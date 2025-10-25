@@ -239,27 +239,8 @@ class AppleReceiptParser:
                 receipt.base_name = receipt_id
                 return receipt
             elif format_detected == "modern_format":
-                # Modern format parser not yet implemented, fall back to old parser
-                receipt = ParsedReceipt(base_name=receipt_id)
-                # Reset tracking
-                self.selectors_tried = []
-                self.selectors_successful = []
-
-                receipt.format_detected = format_detected
-                self._extract_metadata(receipt, soup)
-                self._extract_items(receipt, soup)
-                self._extract_billing_info(receipt, soup)
-
-                # Store parsing metadata
-                receipt.parsing_metadata = {
-                    "selectors_successful": self.selectors_successful.copy(),
-                    "selectors_failed": [
-                        s for s in self.selectors_tried if s not in self.selectors_successful
-                    ],
-                    "extraction_method": "html_content_parser",
-                    "total_selectors_tried": len(self.selectors_tried),
-                    "success_rate": len(self.selectors_successful) / max(len(self.selectors_tried), 1),
-                }
+                receipt = self._parse_modern_format(soup)
+                receipt.base_name = receipt_id
                 return receipt
             else:
                 raise ValueError(f"Unknown format: {format_detected}")
@@ -1267,5 +1248,118 @@ class AppleReceiptParser:
             items=items,
             parsing_metadata={
                 "extraction_method": "table_format_parser",
+            },
+        )
+
+    def _extract_modern_format_date(self, soup: BeautifulSoup) -> FinancialDate | None:
+        """Extract receipt date from modern format HTML: October 11, 2025"""
+        date_candidates = soup.find_all("p")
+        for p_tag in date_candidates:
+            text: str = p_tag.get_text().strip()
+            try:
+                date_obj = datetime.strptime(text, "%B %d, %Y")
+                return FinancialDate(date=date_obj.date())
+            except ValueError:
+                continue
+        return None
+
+    def _extract_modern_format_field(self, soup: BeautifulSoup, label: str) -> str | None:
+        """Extract field using label pattern: <p>Label:</p><p>Value</p>"""
+        label_tags = soup.find_all("p", string=lambda s: s and label in str(s))
+        for label_tag in label_tags:
+            value_tag = label_tag.find_next_sibling("p")
+            if value_tag:
+                value: str = value_tag.get_text().strip()
+                if value and value != label:
+                    return value
+        return None
+
+    def _parse_modern_format(self, soup: BeautifulSoup) -> ParsedReceipt:
+        """Parse modern format (2025+) Apple receipt with CSS-in-JS structure."""
+        receipt_date = self._extract_modern_format_date(soup)
+        apple_id = self._extract_modern_format_field(soup, "Apple Account:")
+        order_id = self._extract_modern_format_field(soup, "Order ID:")
+        document_number = self._extract_modern_format_field(soup, "Document:")
+
+        # Extract billing amounts (simplified)
+        subtotal = None
+        tax = None
+        total = None
+
+        # Find all p tags and look for amounts
+        amount_tags = soup.find_all("p")
+        for tag in amount_tags:
+            tag_text: str = tag.get_text().strip()
+            if "Subtotal" in tag_text:
+                sibling = tag.find_next_sibling()
+                if sibling:
+                    sibling_text: str = sibling.get_text().strip()
+                    amt_cents = self._parse_currency(sibling_text)
+                    if amt_cents:
+                        subtotal = Money.from_cents(amt_cents)
+            elif tag_text == "Tax":
+                sibling = tag.find_next_sibling()
+                if sibling:
+                    sibling_text2: str = sibling.get_text().strip()
+                    amt_cents2 = self._parse_currency(sibling_text2)
+                    if amt_cents2:
+                        tax = Money.from_cents(amt_cents2)
+
+        # Extract total (last large amount)
+        for tag in reversed(amount_tags):
+            total_text: str = tag.get_text().strip()
+            total_cents = self._parse_currency(total_text)
+            if total_cents and total_cents > 1000:  # Reasonable total
+                total = Money.from_cents(total_cents)
+                break
+
+        # Extract items (simplified - look for subscription rows)
+        items = []
+        item_rows = soup.find_all("tr")
+        for row in item_rows:
+            title_tag = row.find("p", class_=lambda c: c and "gzadzy" in str(c))
+            if not title_tag:
+                continue
+
+            title: str = title_tag.get_text().strip()
+            subscription = "Renews" in row.get_text()
+
+            # Find price
+            price_tags = row.find_all("p")
+            cost = None
+            for ptag in price_tags:
+                ptext: str = ptag.get_text().strip()
+                cents = self._parse_currency(ptext)
+                if cents:
+                    cost = Money.from_cents(cents)
+                    break
+
+            if cost:
+                items.append(
+                    ParsedItem(
+                        title=title,
+                        cost=cost,
+                        quantity=1,
+                        subscription=subscription,
+                        item_type=None,
+                        metadata={"extraction_method": "modern_format_targeted"},
+                    )
+                )
+
+        return ParsedReceipt(
+            format_detected="modern_format",
+            apple_id=apple_id,
+            receipt_date=receipt_date,
+            order_id=order_id,
+            document_number=document_number,
+            subtotal=subtotal,
+            tax=tax,
+            total=total,
+            currency="USD",
+            payment_method=None,
+            billed_to=None,
+            items=items,
+            parsing_metadata={
+                "extraction_method": "modern_format_parser",
             },
         )
