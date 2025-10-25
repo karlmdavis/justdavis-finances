@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ..core.dates import FinancialDate
 from ..core.money import Money
@@ -452,12 +452,73 @@ class AppleReceiptParser:
 
     def _parse_modern_format(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """
-        Parse modern_format (2025+) receipts with .custom-* classes.
+        Parse modern_format (2025+) receipts with CSS-in-JS .custom-* classes.
 
-        Placeholder - to be implemented.
+        Uses targeted selectors for CSS-in-JS HTML structure.
         """
-        logger.warning("modern_format parser not yet implemented")
-        pass
+        receipt.receipt_date = self._extract_modern_format_date(soup)
+        receipt.apple_id = self._extract_modern_format_field(soup, "Apple Account:")
+        receipt.order_id = self._extract_modern_format_field(soup, "Order ID:")
+        receipt.document_number = self._extract_modern_format_field(soup, "Document:")
+
+        # Extract billing amounts from payment information section
+        subtotal = None
+        tax = None
+        total = None
+
+        billing_section = soup.find("div", class_=lambda c: c and "payment-information" in c)
+        if billing_section and isinstance(billing_section, Tag):
+            # Find all p tags with amounts
+            amount_rows = billing_section.find_all("p", class_=lambda c: c and "4tra68" in c)
+
+            for row in amount_rows:
+                label = row.get_text().strip()
+                # Get sibling div with amount
+                sibling = row.find_next_sibling("div")
+                if not sibling:
+                    continue
+
+                amount_tag = sibling.find("p")
+                if not amount_tag:
+                    continue
+
+                amount_text = amount_tag.get_text().strip()
+                amount_cents = self._parse_currency(amount_text)
+                if amount_cents is None:
+                    continue
+
+                if "Subtotal" in label:
+                    subtotal = Money.from_cents(amount_cents)
+                elif "Tax" in label:
+                    tax = Money.from_cents(amount_cents)
+
+            # Total is in p with class containing "15zbox7" (payment method row)
+            total_rows = billing_section.find_all("p", class_=lambda c: c and "15zbox7" in c)
+            for row in total_rows:
+                # Get sibling div with total amount
+                sibling = row.find_next_sibling("div")
+                if not sibling:
+                    continue
+
+                amount_tag = sibling.find("p")
+                if not amount_tag:
+                    continue
+
+                amount_text = amount_tag.get_text().strip()
+                amount_cents = self._parse_currency(amount_text)
+                if amount_cents is not None:
+                    total = Money.from_cents(amount_cents)
+                    break
+
+        receipt.subtotal = subtotal
+        receipt.tax = tax
+        receipt.total = total
+
+        # Extract items
+        receipt.items = self._extract_modern_format_items(soup)
+
+        # Update parsing metadata
+        receipt.parsing_metadata["extraction_method"] = "modern_format_parser"
 
     def _extract_metadata(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """Extract core metadata from the receipt."""
@@ -1222,3 +1283,101 @@ class AppleReceiptParser:
             )
 
         return text
+
+    def _extract_modern_format_date(self, soup: BeautifulSoup) -> FinancialDate | None:
+        """
+        Extract receipt date from modern format HTML.
+
+        Modern format has: <p class="custom-18w16cf">October 11, 2025</p>
+        """
+        # Find p tag with date pattern (Month Day, Year)
+        date_candidates = soup.find_all("p", class_=lambda c: c and c.startswith("custom-"))
+
+        for p_tag in date_candidates:
+            text = p_tag.get_text().strip()
+            # Try to parse date like "October 11, 2025"
+            try:
+                from datetime import datetime
+
+                date_obj = datetime.strptime(text, "%B %d, %Y")
+                return FinancialDate(date=date_obj.date())
+            except ValueError:
+                continue
+
+        return None
+
+    def _extract_modern_format_field(self, soup: BeautifulSoup, label: str) -> str | None:
+        """
+        Extract field from modern format using label pattern.
+
+        Modern format has:
+        <p class="custom-f41j3e">Label:</p>
+        <p class="custom-zresjj">Value</p>
+        """
+        # Find p tag containing label
+        label_tags = soup.find_all("p", string=lambda s: s and label in s)
+
+        for label_tag in label_tags:
+            # Get next sibling p tag
+            value_tag = label_tag.find_next_sibling("p")
+            if value_tag and isinstance(value_tag, Tag):
+                value = value_tag.get_text().strip()
+                if value and value != label:
+                    return str(value)
+
+        return None
+
+    def _extract_modern_format_items(self, soup: BeautifulSoup) -> list:
+        """
+        Extract items from modern format HTML.
+
+        Modern format has subscription lockup rows with:
+        - p.custom-gzadzy: title
+        - p.custom-wogfc8 with "Renews": subscription details
+        - p.custom-137u684: price
+        """
+        items = []
+
+        # Find all subscription lockup rows
+        item_rows = soup.find_all("tr", class_="subscription-lockup")
+
+        for row in item_rows:
+            # Extract title
+            title_tag = row.find("p", class_=lambda c: c and "gzadzy" in c)
+            if not title_tag:
+                continue
+
+            title = title_tag.get_text().strip()
+
+            # Check if subscription (has "Renews" text)
+            subscription = False
+            subscription_tags = row.find_all("p", class_=lambda c: c and "wogfc8" in c)
+            for tag in subscription_tags:
+                if "Renews" in tag.get_text():
+                    subscription = True
+                    break
+
+            # Extract price
+            price_tag = row.find("p", class_=lambda c: c and "137u684" in c)
+            if not price_tag:
+                continue
+
+            price_text = price_tag.get_text().strip()
+            cost_cents = self._parse_currency(price_text)
+            if cost_cents is None:
+                continue
+
+            cost = Money.from_cents(cost_cents)
+
+            items.append(
+                ParsedItem(
+                    title=title,
+                    cost=cost,
+                    quantity=1,
+                    subscription=subscription,
+                    item_type=None,
+                    metadata={"extraction_method": "modern_format_targeted"},
+                )
+            )
+
+        return items

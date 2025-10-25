@@ -4,6 +4,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from finances.apple.parser import AppleReceiptParser
+from finances.core import FinancialDate
 
 
 class TestSelectorUtilities:
@@ -98,3 +99,16 @@ def test_format_detection_uses_new_names():
     soup = BeautifulSoup(modern_html, "html.parser")
     format_name = parser._detect_format(soup)
     assert format_name == "modern_format"
+
+
+def test_modern_format_extract_date():
+    """Extract date from modern format 'October 11, 2025' → FinancialDate."""
+    html = """
+    <div><p class="custom-18w16cf">October 11, 2025</p></div>
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    parser = AppleReceiptParser()
+
+    date = parser._extract_modern_format_date(soup)
+    assert date is not None
+    assert date == FinancialDate.from_string("2025-10-11")
