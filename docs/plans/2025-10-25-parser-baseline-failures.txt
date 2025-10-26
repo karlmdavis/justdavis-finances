@@ -1,0 +1,238 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.0, pytest-8.4.2, pluggy-1.6.0
+rootdir: /Users/karl/workspaces/justdavis/personal/justdavis-finances
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 2 items
+
+tests/integration/test_apple_parser_production.py FF                     [100%]
+
+=================================== FAILURES ===================================
+_________ TestAppleParserProduction.test_table_format_parsing[sample0] _________
+
+self = <tests.integration.test_apple_parser_production.TestAppleParserProduction object at 0x10afcb110>
+sample = {'expected': {'apple_id': 'karl_apple@justdavis.com', 'document_number': '114382498203', 'format_detected': 'table_for...: 'Slay the Spire'}], ...}, 'html_filename': '20201024_084743_Your_receipt_from_Apple._d6f911bd-formatted-simple.html'}
+
+    @pytest.mark.parametrize("sample", TABLE_SAMPLES)
+    def test_table_format_parsing(self, sample):
+        """Test table_format (2020-era) receipt parsing with ALL field validation."""
+        # Arrange
+        html_path = Path("data/apple/emails") / sample["html_filename"]
+        expected = sample["expected"]
+        failures = []
+
+        # Act
+        with open(html_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        parser = AppleReceiptParser()
+        receipt = parser.parse_html_content(html_content)
+
+        # Assert ALL fields and collect failures
+        if receipt.format_detected != expected["format_detected"]:
+            failures.append(
+                f"format_detected: expected '{expected['format_detected']}', "
+                f"got '{receipt.format_detected}'"
+            )
+
+        if receipt.apple_id != expected["apple_id"]:
+            failures.append(
+                f"apple_id: expected '{expected['apple_id']}', " f"got '{receipt.apple_id}'"
+            )
+
+        if receipt.receipt_date != expected["receipt_date"]:
+            failures.append(
+                f"receipt_date: expected {expected['receipt_date']}, "
+                f"got {receipt.receipt_date}"
+            )
+
+        if receipt.order_id != expected["order_id"]:
+            failures.append(
+                f"order_id: expected '{expected['order_id']}', " f"got '{receipt.order_id}'"
+            )
+
+        if receipt.document_number != expected["document_number"]:
+            failures.append(
+                f"document_number: expected '{expected['document_number']}', "
+                f"got '{receipt.document_number}'"
+            )
+
+        if receipt.subtotal != expected["subtotal"]:
+            failures.append(
+                f"subtotal: expected {expected['subtotal']}, " f"got {receipt.subtotal}"
+            )
+
+        if receipt.tax != expected["tax"]:
+            failures.append(f"tax: expected {expected['tax']}, got {receipt.tax}")
+
+        if receipt.total != expected["total"]:
+            failures.append(f"total: expected {expected['total']}, got {receipt.total}")
+
+        if len(receipt.items) != len(expected["items"]):
+            failures.append(
+                f"items length: expected {len(expected['items'])}, "
+                f"got {len(receipt.items)}"
+            )
+        else:
+            # Check each item
+            for i, (actual_item, expected_item) in enumerate(
+                zip(receipt.items, expected["items"])
+            ):
+                if expected_item["title"] not in actual_item.title:
+                    failures.append(
+                        f"items[{i}].title: expected to contain "
+                        f"'{expected_item['title']}', got '{actual_item.title}'"
+                    )
+
+                if actual_item.cost != expected_item["cost"]:
+                    failures.append(
+                        f"items[{i}].cost: expected {expected_item['cost']}, "
+                        f"got {actual_item.cost}"
+                    )
+
+                if actual_item.quantity != expected_item["quantity"]:
+                    failures.append(
+                        f"items[{i}].quantity: expected {expected_item['quantity']}, "
+                        f"got {actual_item.quantity}"
+                    )
+
+                if actual_item.subscription != expected_item["subscription"]:
+                    failures.append(
+                        f"items[{i}].subscription: expected {expected_item['subscription']}, "
+                        f"got {actual_item.subscription}"
+                    )
+
+        # Report ALL failures at once
+        if failures:
+            failure_report = "\n".join([f"  - {f}" for f in failures])
+>           pytest.fail(
+                f"\n{len(failures)} field(s) failed for {sample['html_filename']}:\n"
+                f"{failure_report}"
+            )
+E           Failed:
+E           5 field(s) failed for 20201024_084743_Your_receipt_from_Apple._d6f911bd-formatted-simple.html:
+E             - format_detected: expected 'table_format', got 'legacy_aapl'
+E             - apple_id: expected 'karl_apple@justdavis.com', got 'None'
+E             - receipt_date: expected 2020-10-23, got None
+E             - document_number: expected '114382498203', got 'None'
+E             - items length: expected 1, got 52
+
+tests/integration/test_apple_parser_production.py:109: Failed
+________ TestAppleParserProduction.test_modern_format_parsing[sample0] _________
+
+self = <tests.integration.test_apple_parser_production.TestAppleParserProduction object at 0x10e643110>
+sample = {'expected': {'apple_id': 'karl_apple@justdavis.com', 'document_number': '776034761448', 'format_detected': 'modern_fo...e, 'title': 'YNAB'}], ...}, 'html_filename': '20251014_130109_Your_receipt_from_Apple._42f10feb-formatted-simple.html'}
+
+    @pytest.mark.parametrize("sample", MODERN_SAMPLES)
+    def test_modern_format_parsing(self, sample):
+        """Test modern_format (2025+) receipt parsing with ALL field validation."""
+        # Arrange
+        html_path = Path("data/apple/emails") / sample["html_filename"]
+        expected = sample["expected"]
+        failures = []
+
+        # Act
+        with open(html_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        parser = AppleReceiptParser()
+        receipt = parser.parse_html_content(html_content)
+
+        # Assert ALL fields and collect failures (same as table_format test)
+        if receipt.format_detected != expected["format_detected"]:
+            failures.append(
+                f"format_detected: expected '{expected['format_detected']}', "
+                f"got '{receipt.format_detected}'"
+            )
+
+        if receipt.apple_id != expected["apple_id"]:
+            failures.append(
+                f"apple_id: expected '{expected['apple_id']}', " f"got '{receipt.apple_id}'"
+            )
+
+        if receipt.receipt_date != expected["receipt_date"]:
+            failures.append(
+                f"receipt_date: expected {expected['receipt_date']}, "
+                f"got {receipt.receipt_date}"
+            )
+
+        if receipt.order_id != expected["order_id"]:
+            failures.append(
+                f"order_id: expected '{expected['order_id']}', " f"got '{receipt.order_id}'"
+            )
+
+        if receipt.document_number != expected["document_number"]:
+            failures.append(
+                f"document_number: expected '{expected['document_number']}', "
+                f"got '{receipt.document_number}'"
+            )
+
+        if receipt.subtotal != expected["subtotal"]:
+            failures.append(
+                f"subtotal: expected {expected['subtotal']}, " f"got {receipt.subtotal}"
+            )
+
+        if receipt.tax != expected["tax"]:
+            failures.append(f"tax: expected {expected['tax']}, got {receipt.tax}")
+
+        if receipt.total != expected["total"]:
+            failures.append(f"total: expected {expected['total']}, got {receipt.total}")
+
+        if len(receipt.items) != len(expected["items"]):
+            failures.append(
+                f"items length: expected {len(expected['items'])}, "
+                f"got {len(receipt.items)}"
+            )
+        else:
+            # Check each item
+            for i, (actual_item, expected_item) in enumerate(
+                zip(receipt.items, expected["items"])
+            ):
+                if expected_item["title"] not in actual_item.title:
+                    failures.append(
+                        f"items[{i}].title: expected to contain "
+                        f"'{expected_item['title']}', got '{actual_item.title}'"
+                    )
+
+                if actual_item.cost != expected_item["cost"]:
+                    failures.append(
+                        f"items[{i}].cost: expected {expected_item['cost']}, "
+                        f"got {actual_item.cost}"
+                    )
+
+                if actual_item.quantity != expected_item["quantity"]:
+                    failures.append(
+                        f"items[{i}].quantity: expected {expected_item['quantity']}, "
+                        f"got {actual_item.quantity}"
+                    )
+
+                if actual_item.subscription != expected_item["subscription"]:
+                    failures.append(
+                        f"items[{i}].subscription: expected {expected_item['subscription']}, "
+                        f"got {actual_item.subscription}"
+                    )
+
+        # Report ALL failures at once
+        if failures:
+            failure_report = "\n".join([f"  - {f}" for f in failures])
+>           pytest.fail(
+                f"\n{len(failures)} field(s) failed for {sample['html_filename']}:\n"
+                f"{failure_report}"
+            )
+E           Failed:
+E           9 field(s) failed for 20251014_130109_Your_receipt_from_Apple._42f10feb-formatted-simple.html:
+E             - format_detected: expected 'modern_format', got 'modern_custom'
+E             - apple_id: expected 'karl_apple@justdavis.com', got 'karl_apple@justdavis.comRISE'
+E             - receipt_date: expected 2025-10-11, got None
+E             - order_id: expected 'MSD3B7XL1D', got '99YNABYNAB'
+E             - document_number: expected '776034761448', got 'None'
+E             - tax: expected $1.50, got $24.98
+E             - total: expected $26.48, got $24.98
+E             - items[0].subscription: expected True, got False
+E             - items[1].subscription: expected True, got False
+
+tests/integration/test_apple_parser_production.py:206: Failed
+=========================== short test summary info ============================
+FAILED tests/integration/test_apple_parser_production.py::TestAppleParserProduction::test_table_format_parsing[sample0]
+FAILED tests/integration/test_apple_parser_production.py::TestAppleParserProduction::test_modern_format_parsing[sample0]
+============================== 2 failed in 0.35s ===============================

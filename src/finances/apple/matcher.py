@@ -57,6 +57,16 @@ class AppleMatcher:
         # Filter to receipts with required fields (date and total)
         valid_receipts = [r for r in apple_receipts if r.receipt_date is not None and r.total is not None]
 
+        # DIAGNOSTIC: Log filtering results
+        logger.info(
+            "Filtering receipts: %d total receipts, %d valid receipts (have date and total)",
+            len(apple_receipts),
+            len(valid_receipts),
+        )
+        if len(valid_receipts) < len(apple_receipts):
+            invalid_count = len(apple_receipts) - len(valid_receipts)
+            logger.warning("Filtered out %d receipts missing date or total", invalid_count)
+
         # Get absolute value for matching (receipts are always positive, transactions are negative for expenses)
         tx_amount_cents = transaction.amount.abs().to_cents()
         tx_date = datetime.combine(transaction.date.date, datetime.min.time())
@@ -138,17 +148,53 @@ class AppleMatcher:
         if not receipts:
             return None
 
+        # DIAGNOSTIC: Log what we're looking for
+        logger.info(
+            "Looking for exact match: date=%s, amount=%s (%d cents)",
+            tx_date.date(),
+            format_cents(tx_amount),
+            tx_amount,
+        )
+
         # Find exact date and amount matches
+        matches_by_date = []
+        matches_by_amount = []
         for receipt in receipts:
             # We know receipt_date and total are not None due to filter in match_single_transaction
             receipt_datetime = datetime.combine(receipt.receipt_date.date, datetime.min.time())  # type: ignore[union-attr]
-            if receipt_datetime.date() == tx_date.date() and receipt.total.to_cents() == tx_amount:  # type: ignore[union-attr]
-                logger.debug(
-                    "Found exact match: Receipt %s for %s",
+            receipt_amount_cents = receipt.total.to_cents()  # type: ignore[union-attr]
+
+            # Check date match
+            if receipt_datetime.date() == tx_date.date():
+                matches_by_date.append(f"{receipt.order_id}:{format_cents(receipt_amount_cents)}")
+
+            # Check amount match
+            if receipt_amount_cents == tx_amount:
+                matches_by_amount.append(f"{receipt.order_id}:{receipt_datetime.date()}")
+
+            # Check both
+            if receipt_datetime.date() == tx_date.date() and receipt_amount_cents == tx_amount:
+                logger.info(
+                    "Found exact match: Receipt %s for %s on %s",
                     receipt.order_id or receipt.base_name,
                     format_cents(receipt.total.to_cents()),  # type: ignore[union-attr]
+                    receipt_datetime.date(),
                 )
                 return receipt
+
+        # DIAGNOSTIC: Log near-misses
+        if matches_by_date:
+            logger.info(
+                "  Found %d receipts on same date but wrong amount: %s",
+                len(matches_by_date),
+                ", ".join(matches_by_date[:5]),
+            )
+        if matches_by_amount:
+            logger.info(
+                "  Found %d receipts with same amount but wrong date: %s",
+                len(matches_by_amount),
+                ", ".join(matches_by_amount[:5]),
+            )
 
         return None
 

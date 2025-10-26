@@ -98,9 +98,17 @@ class CashFlowAnalyzer:
         with open(transactions_file) as f:
             transactions = json.load(f)
 
+        # Validate accounts structure (detect double-nesting bug from old YNAB sync)
+        accounts_list = accounts_data.get("accounts", [])
+        if isinstance(accounts_list, dict):
+            raise ValueError(
+                "Invalid accounts.json structure (double-nested). "
+                "Please re-run 'finances flow' and select 'y' for ynab_sync to regenerate the cache."
+            )
+
         # Get current balances (convert from milliunits to dollars)
         current_balances = {}
-        for account in accounts_data["accounts"]:
+        for account in accounts_list:
             if account["name"] in self.config.cash_accounts:
                 current_balances[account["name"]] = account["balance"] / 1000
 
