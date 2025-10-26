@@ -12,7 +12,7 @@ TABLE_SAMPLE_1 = {
     "html_filename": "20201024_084743_Your_receipt_from_Apple._d6f911bd-formatted-simple.html",
     "expected": {
         "format_detected": "table_format",
-        "apple_id": "karl_apple@justdavis.com",
+        "apple_id": "test_user@example.com",
         "receipt_date": FinancialDate.from_string("2020-10-23"),
         "order_id": "MSBQLG265J",
         "document_number": "114382498203",
@@ -35,7 +35,7 @@ TABLE_SAMPLE_2 = {
     "html_filename": "20220302_235709_Your_receipt_from_Apple._910bb4e4-formatted-simple.html",
     "expected": {
         "format_detected": "table_format",
-        "apple_id": "karl_apple@justdavis.com",
+        "apple_id": "test_user@example.com",
         "receipt_date": FinancialDate.from_string("2022-03-01"),
         "order_id": "MSBXTTLGFV",
         "document_number": "190522161022",
@@ -58,7 +58,7 @@ TABLE_SAMPLE_3 = {
     "html_filename": "20250123_071123_Your_receipt_from_Apple._017670ab-formatted-simple.html",
     "expected": {
         "format_detected": "table_format",
-        "apple_id": "ericaannedavis@gmail.com",
+        "apple_id": "test_user2@example.com",
         "receipt_date": FinancialDate.from_string("2025-01-22"),
         "order_id": "MT8XNQNZD6",
         "document_number": "146905477009",

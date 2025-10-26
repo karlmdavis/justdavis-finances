@@ -1,0 +1,37 @@
+Script started on Sun Oct 26 14:55:15 2025
+Command: uv run finances flow
+2025-10-26 14:55:17 - finances.cli.flow - INFO - Registered 11 flow nodes
+
+🚀 Starting flow execution...
+You will be prompted for each step.
+
+
+[amazon_order_history_request]
+  Status: 2 files with 2 total records, 1 days old
+  Run this node? [y/N]
+
+[apple_email_fetch]
+  Status: 444 files with 444 total records, 1 days old
+  Run this node? [y/N] y
+2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Connecting to IMAP server: mail.justdavis.com:993
+2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Successfully connected to IMAP server
+2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Discovered 130 IMAP folders
+2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Searching 130 folders for Apple receipts
+2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Found 1 potential Apple emails in aPending
+2025-10-26 14:55:42 - finances.apple.email_fetcher - INFO - Found 113 potential Apple emails in INBOX.aProcessed
+2025-10-26 14:55:47 - finances.apple.email_fetcher - INFO - Found 87 receipts in 'INBOX.aProcessed'
+2025-10-26 14:55:47 - finances.apple.email_fetcher - INFO - Found 1 potential Apple emails in INBOX.Archived Mail
+2025-10-26 14:56:09 - finances.apple.email_fetcher - INFO - Found 420 potential Apple emails in INBOX
+2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO - Found 357 receipts in 'INBOX'
+2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO - Apple receipts found by folder:
+2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO -   INBOX: 357 emails
+2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO -   INBOX.aProcessed: 87 emails
+2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO - Total Apple receipts found: 444
+2025-10-26 14:56:27 - finances.apple.email_fetcher - INFO - Saved 444/444 emails to /Users/karl/workspaces/justdavis/personal/justdavis-finances/data/apple/emails
+2025-10-26 14:56:27 - finances.apple.email_fetcher - INFO - Disconnected from IMAP server
+
+✓ Updated status: 444 files with 444 total records, 0 days old
+
+[ynab_sync]
+  Status: 3 files with 6253 total records, 1 days old
+  Run this node? [y/N]
