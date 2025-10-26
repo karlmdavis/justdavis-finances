@@ -1,6 +1,6 @@
-Script started on Sun Oct 26 14:55:15 2025
+Script started on Sun Oct 26 14:58:15 2025
 Command: uv run finances flow
-2025-10-26 14:55:17 - finances.cli.flow - INFO - Registered 11 flow nodes
+2025-10-26 14:58:16 - finances.cli.flow - INFO - Registered 11 flow nodes
 
 🚀 Starting flow execution...
 You will be prompted for each step.
@@ -11,27 +11,906 @@ You will be prompted for each step.
   Run this node? [y/N]
 
 [apple_email_fetch]
-  Status: 444 files with 444 total records, 1 days old
-  Run this node? [y/N] y
-2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Connecting to IMAP server: mail.justdavis.com:993
-2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Successfully connected to IMAP server
-2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Discovered 130 IMAP folders
-2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Searching 130 folders for Apple receipts
-2025-10-26 14:55:36 - finances.apple.email_fetcher - INFO - Found 1 potential Apple emails in aPending
-2025-10-26 14:55:42 - finances.apple.email_fetcher - INFO - Found 113 potential Apple emails in INBOX.aProcessed
-2025-10-26 14:55:47 - finances.apple.email_fetcher - INFO - Found 87 receipts in 'INBOX.aProcessed'
-2025-10-26 14:55:47 - finances.apple.email_fetcher - INFO - Found 1 potential Apple emails in INBOX.Archived Mail
-2025-10-26 14:56:09 - finances.apple.email_fetcher - INFO - Found 420 potential Apple emails in INBOX
-2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO - Found 357 receipts in 'INBOX'
-2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO - Apple receipts found by folder:
-2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO -   INBOX: 357 emails
-2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO -   INBOX.aProcessed: 87 emails
-2025-10-26 14:56:26 - finances.apple.email_fetcher - INFO - Total Apple receipts found: 444
-2025-10-26 14:56:27 - finances.apple.email_fetcher - INFO - Saved 444/444 emails to /Users/karl/workspaces/justdavis/personal/justdavis-finances/data/apple/emails
-2025-10-26 14:56:27 - finances.apple.email_fetcher - INFO - Disconnected from IMAP server
-
-✓ Updated status: 444 files with 444 total records, 0 days old
+  Status: 444 files with 444 total records, 0 days old
+  Run this node? [y/N]
 
 [ynab_sync]
   Status: 3 files with 6253 total records, 1 days old
   Run this node? [y/N]
+
+[amazon_unzip]
+  Status: 78 files with 206466 total records, 1 days old
+  Run this node? [y/N]
+
+[apple_receipt_parsing]
+  Status: No data
+  Run this node? [y/N] y
+2025-10-26 14:58:29 - finances.apple.flow - INFO - Parsing 444 new receipts (skipping 0 already processed)
+2025-10-26 14:58:31 - finances.apple.flow - INFO - Parsing complete: 443 written, 1 skipped (no data), 0 failed
+
+✓ Updated status: 443 files with 443 total records, 0 days old
+
+[cash_flow_analysis]
+  Status: 1 files with 1 total records, 1 days old
+  Run this node? [y/N]
+
+[retirement_update]
+  Status: No data
+  Run this node? [y/N]
+
+[amazon_matching]
+  Status: 1 files with 644 total records, 1 days old
+  Run this node? [y/N]
+
+[apple_matching]
+  Status: 1 files with 262 total records, 1 days old
+  Run this node? [y/N] y
+2025-10-26 14:58:46 - finances.apple.loader - INFO - Loaded 443 Apple receipts from /Users/karl/workspaces/justdavis/personal/justdavis-finances/data/apple/exports
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-02-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-03-11, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 33 receipts with same amount but wrong date: MSBW7QMBJ8:2021-10-16, MSD27MZ1YX:2024-11-11, MSD1STWM89:2024-06-14, MSBYB0QHZF:2022-04-16, MSBZ8L31BL:2022-07-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-03-11, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-03-15, amount=$27.54 (2754 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8WKTYN8J:2024-03-14
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-03-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-03-27, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-03-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-03-31, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD1JHK8QW:$13.77
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-01, amount=$7,468.82 (746882 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-02, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MSD1BB03Q2:2024-02-04, MSD1QX0NHH:2024-05-31, MSD26QLBFX:2024-11-04, MSD34FGVVS:2025-08-01, MSD29HK333:2024-11-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-07, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-11, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 33 receipts with same amount but wrong date: MSBW7QMBJ8:2021-10-16, MSD27MZ1YX:2024-11-11, MSD1STWM89:2024-06-14, MSBYB0QHZF:2022-04-16, MSBZ8L31BL:2022-07-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-15, amount=$10.58 (1058 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8WQKSVQQ:2024-04-14
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-16, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-04-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-05-01, amount=$5,157.81 (515781 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-05-20, amount=$8,129.52 (812952 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MSD1Q40NYZ:$39.89, MQ5N3S2WZB:$7.41
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-05-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-05-21, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-05-29, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSDYGGX3S3:$63.50
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-05-31, amount=$63.50 (6350 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD1QX0NHH:$13.77
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSDYGGX3S3:2024-05-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-02, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT9WSTYX0Z:$10.59
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MSD1BB03Q2:2024-02-04, MSD1QX0NHH:2024-05-31, MSD26QLBFX:2024-11-04, MSD34FGVVS:2025-08-01, MSD29HK333:2024-11-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-03, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-14, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD1STWM89 for $15.89 on 2024-06-14
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-15, amount=$14,626.37 (1462637 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-17, amount=$3,390.94 (339094 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-18, amount=$127.19 (12719 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD1TDQ241:2024-06-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-18, amount=$99.99 (9999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD304N07N:2025-06-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-21, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-23, amount=$13.76 (1376 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8WYJ1M3H:2024-06-22
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-06-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-04, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD1VL9G7T for $13.77 on 2024-07-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-08, amount=$60.39 (6039 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD1W0XN5D:2024-07-07
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-10, amount=$42.36 (4236 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8WZWS2YW:2024-07-09
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-15, amount=$13,737.01 (1373701 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-17, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD1X6T42B:$55.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 33 receipts with same amount but wrong date: MSBW7QMBJ8:2021-10-16, MSD27MZ1YX:2024-11-11, MSD1STWM89:2024-06-14, MSBYB0QHZF:2022-04-16, MSBZ8L31BL:2022-07-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-19, amount=$55.11 (5511 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8X0XKK9Q:$20.10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSD28HLY0K:2024-11-19, MSD1X6T42B:2024-07-17
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-21, amount=$20.10 (2010 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8X0XKK9Q:2024-07-19
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-27, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-07-31, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-03, amount=$38.11 (3811 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8X2NNWWY:2024-08-02
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-04, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD1YFVLW3 for $13.77 on 2024-08-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-11, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 33 receipts with same amount but wrong date: MSBW7QMBJ8:2021-10-16, MSD27MZ1YX:2024-11-11, MSD1STWM89:2024-06-14, MSBYB0QHZF:2022-04-16, MSBZ8L31BL:2022-07-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-15, amount=$9.52 (952 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 5 receipts with same amount but wrong date: MT8X3GQQYL:2024-08-14, MT8WFNSDNB:2024-02-03, MT8WD7JB53:2024-01-13, MT8WBQFVBB:2024-01-05, MT8XJV2L8H:2024-12-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD20DF6N9:$63.59
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-22, amount=$63.59 (6359 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8X57LY2S:$10.59
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MT8X87G5SW:2024-09-22, MSD0XB7KLV:2023-08-21, MSD20DF6N9:2024-08-21
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-23, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-27, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-27, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-30, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5NDT345W for $7.41 on 2024-08-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-08-31, amount=$23.31 (2331 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts on same date but wrong amount: MT8X5MFXT0:$38.13, MSD216WLQ2:$13.77, MT8X641JQQ:$5.29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD20KF2XN:2024-08-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-02, amount=$38.13 (3813 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8X5MFXT0:2024-08-31
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-02, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MSD1BB03Q2:2024-02-04, MSD1QX0NHH:2024-05-31, MSD26QLBFX:2024-11-04, MSD34FGVVS:2025-08-01, MSD29HK333:2024-11-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-02, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-03, amount=$11,706.77 (1170677 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-08, amount=$45.57 (4557 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD21XBQW8:2024-09-07
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-11, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 33 receipts with same amount but wrong date: MSBW7QMBJ8:2021-10-16, MSD27MZ1YX:2024-11-11, MSD1STWM89:2024-06-14, MSBYB0QHZF:2022-04-16, MSBZ8L31BL:2022-07-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-11, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-16, amount=$95.39 (9539 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD22MQ11V for $95.39 on 2024-09-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-16, amount=$50.87 (5087 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD22MQ11V:$95.39
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MT8W1XF3JS:2023-09-25, MSD22KTGN1:2024-09-15, MSD23D73SM:2024-09-24
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-16, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD22MQ11V:$95.39
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-16, amount=$7.40 (740 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD22MQ11V:$95.39
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MT8X92S8Y7:2024-10-10, MT8X72QVKM:2024-09-15
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-21, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-23, amount=$63.59 (6359 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MT8X87G5SW:2024-09-22, MSD0XB7KLV:2023-08-21, MSD20DF6N9:2024-08-21
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-25, amount=$50.87 (5087 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8X8BJYGV:$56.16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MT8W1XF3JS:2023-09-25, MSD22KTGN1:2024-09-15, MSD23D73SM:2024-09-24
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-26, amount=$56.16 (5616 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8X8BJYGV:2024-09-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-27, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-09-30, amount=$34.95 (3495 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8X8JQGJX:2024-09-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-01, amount=$8,103.87 (810387 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-04, amount=$59.34 (5934 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD23XM5V9:2024-10-03
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-07, amount=$37.09 (3709 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 7 receipts with same amount but wrong date: MSD28HLZ35:2024-11-19, MQKVH306XF:2025-02-01, MQ5LWX1SH6:2023-01-22, MQKT4FQ522:2024-02-01, MQKS13KY3G:2023-02-01
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-11, amount=$7.40 (740 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MT8X92S8Y7:2024-10-10, MT8X72QVKM:2024-09-15
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-18, amount=$52.98 (5298 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MSD24VZ49M:2024-10-16, MSD32G7Y4N:2025-07-10, MSD2W3X2MZ:2025-05-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8XB58ZMZ:$14.80
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-21, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8XB58ZMZ:$14.80
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-22, amount=$14.80 (1480 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XB58ZMZ:2024-10-21
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-27, amount=$19.05 (1905 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MT8Y3T3QVF:2025-05-19, MT8XDB7D33:2024-10-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-10-30, amount=$28.60 (2860 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XDSB8N4:2024-10-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-01, amount=$10,983.63 (1098363 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-05, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MSD1BB03Q2:2024-02-04, MSD1QX0NHH:2024-05-31, MSD26QLBFX:2024-11-04, MSD34FGVVS:2025-08-01, MSD29HK333:2024-11-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-12, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 33 receipts with same amount but wrong date: MSBW7QMBJ8:2021-10-16, MSD27MZ1YX:2024-11-11, MSD1STWM89:2024-06-14, MSBYB0QHZF:2022-04-16, MSBZ8L31BL:2022-07-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-12, amount=$15.88 (1588 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MT8XF816YG:2024-11-11, MQ5Q4LW88T:2025-04-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-14, amount=$42.39 (4239 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 7 receipts with same amount but wrong date: MSD2800T4L:2024-11-13, MSBX4BZ5Z8:2022-01-04, MSBYT1TGYS:2022-05-29, MSD1B9M2BK:2024-01-31, MSD0MZGL90:2023-05-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-18, amount=$148.39 (14839 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD28D696H for $148.39 on 2024-11-18
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-20, amount=$55.11 (5511 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MSD28KL16L:$39.89, MQ5NNT3HJ4:$7.41
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSD28HLY0K:2024-11-19, MSD1X6T42B:2024-07-17
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-20, amount=$37.09 (3709 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MSD28KL16L:$39.89, MQ5NNT3HJ4:$7.41
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 7 receipts with same amount but wrong date: MSD28HLZ35:2024-11-19, MQKVH306XF:2025-02-01, MQ5LWX1SH6:2023-01-22, MQKT4FQ522:2024-02-01, MQKS13KY3G:2023-02-01
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-21, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-23, amount=$104.94 (10494 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8XGM4ZB8:$29.63
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-25, amount=$29.63 (2963 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XGM4ZB8:2024-11-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-11-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-02, amount=$9,127.12 (912712 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-02, amount=$42.35 (4235 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XHW3SBH:2024-11-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-02, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MSD1BB03Q2:2024-02-04, MSD1QX0NHH:2024-05-31, MSD26QLBFX:2024-11-04, MSD34FGVVS:2025-08-01, MSD29HK333:2024-11-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-03, amount=$725.80 (72580 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-07, amount=$29.64 (2964 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XJ48DFM:2024-12-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-10, amount=$42.38 (4238 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2BFTWNM:$15.89
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD29Y19T6:2024-12-08
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-11, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 33 receipts with same amount but wrong date: MSBW7QMBJ8:2021-10-16, MSD27MZ1YX:2024-11-11, MSD1STWM89:2024-06-14, MSBYB0QHZF:2022-04-16, MSBZ8L31BL:2022-07-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-17, amount=$9.52 (952 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 5 receipts with same amount but wrong date: MT8X3GQQYL:2024-08-14, MT8WFNSDNB:2024-02-03, MT8WD7JB53:2024-01-13, MT8WBQFVBB:2024-01-05, MT8XJV2L8H:2024-12-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-17, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-28, amount=$74.19 (7419 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2F3741X for $74.19 on 2024-12-28
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-29, amount=$24.34 (2434 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XL8GV9V:2024-12-28
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-29, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-31, amount=$51.94 (5194 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2FD10L2:$13.77
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-31, amount=$51.92 (5192 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2FD10L2:$13.77
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XM34GG0:2024-12-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2024-12-31, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2FD10L2:$13.77
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-01, amount=$9,885.04 (988504 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-02, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MSD1BB03Q2:2024-02-04, MSD1QX0NHH:2024-05-31, MSD26QLBFX:2024-11-04, MSD34FGVVS:2025-08-01, MSD29HK333:2024-11-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-05, amount=$1.05 (105 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBZK7591M:2022-08-15, MSD2FDQ7D3:2025-01-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-10, amount=$37.03 (3703 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XMDZLYM:2025-01-09
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-14, amount=$27.52 (2752 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MSD2GD9FTF:$15.89, MQ5NVY6NS8:$7.41
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XNDYF3F:2025-01-13
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-14, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2GD9FTF for $15.89 on 2025-01-14
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-14, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5NVY6NS8 for $7.41 on 2025-01-14
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2HDYYQ5:$23.85
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-21, amount=$23.85 (2385 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2HDYYQ5 for $23.85 on 2025-01-21
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-23, amount=$169.59 (16959 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8XQNX1Y0 for $169.59 on 2025-01-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-23, amount=$26.45 (2645 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8XQNX1Y0:$169.59
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XNQNZD6:2025-01-22
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-27, amount=$46.61 (4661 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MQ5NXF9DK4:2025-01-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-29, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8XQS7DFF:$77.33
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-01-30, amount=$77.33 (7733 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XQS7DFF:2025-01-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-01, amount=$15,765.84 (1576584 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQKVH306XF:$37.09
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-02, amount=$42.39 (4239 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 7 receipts with same amount but wrong date: MSD2800T4L:2024-11-13, MSBX4BZ5Z8:2022-01-04, MSBYT1TGYS:2022-05-29, MSD1B9M2BK:2024-01-31, MSD0MZGL90:2023-05-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-02, amount=$37.09 (3709 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 7 receipts with same amount but wrong date: MSD28HLZ35:2024-11-19, MQKVH306XF:2025-02-01, MQ5LWX1SH6:2023-01-22, MQKT4FQ522:2024-02-01, MQKS13KY3G:2023-02-01
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-02, amount=$11.02 (1102 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-04, amount=$24.36 (2436 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2JDGJ8J for $24.36 on 2025-02-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-06, amount=$20.12 (2012 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5NYF3W58 for $20.12 on 2025-02-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-10, amount=$26.48 (2648 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2K6LV78 for $26.48 on 2025-02-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-10, amount=$5,000.00 (500000 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2K6LV78:$26.48
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-12, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-18, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5NZ7DTHK for $5.29 on 2025-02-18
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-27, amount=$20.11 (2011 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MT8XV8VZ4L:2025-02-26, MT8Y1ZM03N:2025-05-02
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-02-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-01, amount=$8,661.23 (866123 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2L9JK3V:$21.18
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-02, amount=$21.18 (2118 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MSD394BD1V:2025-09-30, MSD30JY767:2025-06-30, MSD2L9JK3V:2025-03-01
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-05, amount=$23.30 (2330 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5Q0M5BYZ for $23.30 on 2025-03-05
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-09, amount=$15.89 (1589 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQKVKZ63LY for $15.89 on 2025-03-09
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-10, amount=$42.37 (4237 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2M86MSS for $42.37 on 2025-03-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-12, amount=$8.45 (845 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XWN9SNY:2025-03-11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-17, amount=$14.81 (1481 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5Q1W8725 for $14.81 on 2025-03-17
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-20, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2Q0S96V for $39.89 on 2025-03-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-24, amount=$24.36 (2436 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8XXZQ9LQ for $24.36 on 2025-03-24
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-03-30, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2Q09NQB for $7.41 on 2025-03-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-01, amount=$5,059.50 (505950 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-03, amount=$32.80 (3280 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQ5Q3N8H9S:$33.89
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8XZ9Z6XM:2025-04-02
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-04, amount=$33.89 (3389 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MQ5Q3N8H9S:2025-04-03
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-10, amount=$24.36 (2436 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2S03LZZ for $24.36 on 2025-04-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-16, amount=$15.88 (1588 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5Q4LW88T for $15.88 on 2025-04-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-17, amount=$28.58 (2858 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8Y0BS5QL:2025-04-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-20, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2TWZNN6 for $39.89 on 2025-04-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-20, amount=$23.30 (2330 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2SYNQT0 for $23.30 on 2025-04-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-27, amount=$62.54 (6254 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-04-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-01, amount=$4,145.76 (414576 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-03, amount=$20.11 (2011 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD2VT77SB:$47.67
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MT8XV8VZ4L:2025-02-26, MT8Y1ZM03N:2025-05-02
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-04, amount=$47.67 (4767 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD2VT77SB:2025-05-03
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-06, amount=$44.48 (4448 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MT8Y33SMF4:2025-05-05
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-10, amount=$52.98 (5298 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2W3X2MZ for $52.98 on 2025-05-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-13, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-20, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD2XN4VQM for $39.89 on 2025-05-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-20, amount=$19.05 (1905 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MSD2XN4VQM:$39.89, MSD2WV01TD:$37.07
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MT8Y3T3QVF:2025-05-19, MT8XDB7D33:2024-10-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-21, amount=$37.07 (3707 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD2WV01TD:2025-05-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-05-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-02, amount=$9,222.86 (922286 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQ5Q8WB3HY:$7.41
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-03, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-05, amount=$45.51 (4551 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD2YNJG76:2025-06-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-05, amount=$9.53 (953 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 4 receipts with same amount but wrong date: MT8SV868H7:2022-06-12, MT8Y5B0KW9:2025-06-04, MT8T8W51VD:2022-07-24, MT8YNNBYS7:2025-10-12
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-16, amount=$99.99 (9999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD304N07N for $99.99 on 2025-06-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-17, amount=$143.08 (14308 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8Y6NM5D6:$10.59
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSD2ZLBG3F:2025-06-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-18, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-19, amount=$222.59 (22259 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8Y7W7DGF for $222.59 on 2025-06-19
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-21, amount=$39.89 (3989 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 19 receipts with same amount but wrong date: MSD2XN4VQM:2025-05-20, MSD1Q40NYZ:2024-05-20, MSD1TQKZY0:2024-06-20, MSD231NS30:2024-09-20, MSD1XHFGJB:2024-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-06-29, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-01, amount=$11,486.68 (1148668 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8Y825WQN:$5.29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-02, amount=$21.18 (2118 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MSD394BD1V:2025-09-30, MSD30JY767:2025-06-30, MSD2L9JK3V:2025-03-01
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-02, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-08, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-11, amount=$52.98 (5298 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MSD24VZ49M:2024-10-16, MSD32G7Y4N:2025-07-10, MSD2W3X2MZ:2025-05-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-13, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-19, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8YD1W1J0 for $5.29 on 2025-07-19
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-20, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5QH9K66G for $6.35 on 2025-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-20, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8YD38KTD for $5.29 on 2025-07-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-21, amount=$40.06 (4006 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSD33F92YW:2025-07-20, MSDYGQSVD1:2025-08-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-21, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-21, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-07-29, amount=$16.94 (1694 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD339ZFVN for $16.94 on 2025-07-29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-01, amount=$12,220.91 (1222091 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MT8YDL2H78:$5.29, MSD34FGVVS:$13.77
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-02, amount=$13.77 (1377 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MSD1BB03Q2:2024-02-04, MSD1QX0NHH:2024-05-31, MSD26QLBFX:2024-11-04, MSD34FGVVS:2025-08-01, MSD29HK333:2024-11-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-02, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-06, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-08, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-10, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-10, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-12, amount=$1,482.94 (148294 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-12, amount=$26.48 (2648 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MSD3B7XL1D:2025-10-11, MSD34LG5N2:2025-08-11, MSD2K6LV78:2025-02-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-12, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-15, amount=$8.47 (847 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 8 receipts with same amount but wrong date: MT8YQX54M1:2025-10-24, MQKWFY6T5W:2025-09-27, MSD0XNHX11:2023-08-30, MT8TFSH20D:2022-08-05, MQKWFBZZVK:2025-09-22
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-15, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-17, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8YGZN2MV:$2.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-18, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-20, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSDYGQSVD1:$40.06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-21, amount=$37.95 (3795 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts on same date but wrong amount: MSDYGQ7YF4:$71.00, MT8YH8FQJZ:$8.47, MT8YH8FSG4:$5.29
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-22, amount=$71.00 (7100 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts with same amount but wrong date: MSDYGQ7YF4:2025-08-21
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-22, amount=$8.47 (847 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 8 receipts with same amount but wrong date: MT8YQX54M1:2025-10-24, MQKWFY6T5W:2025-09-27, MSD0XNHX11:2023-08-30, MT8TFSH20D:2022-08-05, MQKWFBZZVK:2025-09-22
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-22, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-08-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-02, amount=$7,287.16 (728716 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-05, amount=$21.19 (2119 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 5 receipts with same amount but wrong date: MT8VGTZ79S:2023-03-14, MT8LTZSW1F:2021-07-09, MQ5QMSX1FY:2025-09-04, MT8L34QWMN:2021-05-06, MSBTMMNV9Q:2021-05-14
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-07, amount=$61.45 (6145 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD376SGVZ for $61.45 on 2025-09-07
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-07, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5QN1D84X for $6.35 on 2025-09-07
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-07, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5QN20XM4 for $2.11 on 2025-09-07
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-07, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5QN20XM4 for $2.11 on 2025-09-07
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-08, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8YK47K2M:$7.41
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-09, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQ5QN7219D:$2.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-10, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5QN9ZSWB for $2.11 on 2025-09-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-11, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8YKF0112:$2.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-11, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8YKF0112 for $2.11 on 2025-09-11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-12, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQ5QNJSNZ9 for $2.11 on 2025-09-12
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-13, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-15, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-15, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-16, amount=$111.28 (11128 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD3854X56 for $111.28 on 2025-09-16
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-17, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8YL0JK7W for $2.11 on 2025-09-17
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-18, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQ5QQ42DG5:$2.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-19, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-20, amount=$40.08 (4008 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD394S74X for $40.08 on 2025-09-20
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-21, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MT8YLFSV75:$7.41
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-22, amount=$7.41 (741 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQKWFBZZVK:$8.47
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 35 receipts with same amount but wrong date: MQ5NS91SKZ:2024-12-16, MQ5MN384T2:2023-12-20, MQ5NHF1Y43:2024-09-20, MQ5NTJ7927:2024-12-30, MQ5N942GZ7:2024-07-30
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-23, amount=$63.59 (6359 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MT8X87G5SW:2024-09-22, MSD0XB7KLV:2023-08-21, MSD20DF6N9:2024-08-21
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-23, amount=$8.47 (847 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 8 receipts with same amount but wrong date: MT8YQX54M1:2025-10-24, MQKWFY6T5W:2025-09-27, MSD0XNHX11:2023-08-30, MT8TFSH20D:2022-08-05, MQKWFBZZVK:2025-09-22
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-26, amount=$50.87 (5087 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQ5QQXWG1X:$6.35
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MT8W1XF3JS:2023-09-25, MSD22KTGN1:2024-09-15, MSD23D73SM:2024-09-24
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-27, amount=$8.47 (847 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MQKWFY6T5W for $8.47 on 2025-09-27
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-27, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MQKWFY6T5W:$8.47
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-28, amount=$9.99 (999 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts with same amount but wrong date: MSBSYKJFSS:2021-03-03, MSBQLG265J:2020-10-23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-09-30, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD394BD1V:$21.18
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-01, amount=$8,296.00 (829600 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-02, amount=$21.18 (2118 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MSD394BD1V:2025-09-30, MSD30JY767:2025-06-30, MSD2L9JK3V:2025-03-01
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-04, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MT8YMVN6H0 for $5.29 on 2025-10-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-05, amount=$4.23 (423 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 10 receipts with same amount but wrong date: MT8MWX8VX0:2021-10-11, MQ5QSYW2SS:2025-10-06, MT8VYSSBQ7:2023-08-18, MT8TBXV89K:2022-08-03, MQ5QSS9VYS:2025-10-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-05, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-07, amount=$5.29 (529 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 67 receipts with same amount but wrong date: MSBV282BS9:2021-06-24, MSBZN0J64T:2022-08-24, MSBXQVT6FM:2022-02-24, MSBTDDNK7V:2021-04-19, MSBY5V7N5Z:2022-04-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-07, amount=$4.23 (423 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 10 receipts with same amount but wrong date: MT8MWX8VX0:2021-10-11, MQ5QSYW2SS:2025-10-06, MT8VYSSBQ7:2023-08-18, MT8TBXV89K:2022-08-03, MQ5QSS9VYS:2025-10-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-09, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-11, amount=$6.35 (635 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD3B7XL1D:$26.48
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 16 receipts with same amount but wrong date: MQKWBZML06:2025-09-10, MSBX0X57YD:2021-12-23, MQ5QQ99G2F:2025-09-20, MT8WMS780J:2024-04-06, MQ5QQXWG1X:2025-09-26
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-11, amount=$4.23 (423 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 1 receipts on same date but wrong amount: MSD3B7XL1D:$26.48
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 10 receipts with same amount but wrong date: MT8MWX8VX0:2021-10-11, MQ5QSYW2SS:2025-10-06, MT8VYSSBQ7:2023-08-18, MT8TBXV89K:2022-08-03, MQ5QSS9VYS:2025-10-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-12, amount=$26.48 (2648 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MT8YNNBYS7:$9.53, MQKWHQBTG5:$4.23
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 3 receipts with same amount but wrong date: MSD3B7XL1D:2025-10-11, MSD34LG5N2:2025-08-11, MSD2K6LV78:2025-02-10
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-13, amount=$9.53 (953 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MQ5QTKFNYK:$2.11, MQ5QTKGZLB:$2.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 4 receipts with same amount but wrong date: MT8SV868H7:2022-06-12, MT8Y5B0KW9:2025-06-04, MT8T8W51VD:2022-07-24, MT8YNNBYS7:2025-10-12
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-13, amount=$8.63 (863 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MQ5QTKFNYK:$2.11, MQ5QTKGZLB:$2.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-13, amount=$4.23 (423 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 2 receipts on same date but wrong amount: MQ5QTKFNYK:$2.11, MQ5QTKGZLB:$2.11
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 10 receipts with same amount but wrong date: MT8MWX8VX0:2021-10-11, MQ5QSYW2SS:2025-10-06, MT8VYSSBQ7:2023-08-18, MT8TBXV89K:2022-08-03, MQ5QSS9VYS:2025-10-04
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-15, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-15, amount=$2.11 (211 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 29 receipts with same amount but wrong date: MT8VXH60QY:2023-08-03, MQ5QN20XM4:2025-09-07, MQ5QQ42DG5:2025-09-18, MQ5QN9ZSWB:2025-09-10, MT8LT49TNN:2021-07-06
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-18, amount=$10.59 (1059 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO -   Found 18 receipts with same amount but wrong date: MT9WSTYX0Z:2024-06-02, MT8X57LY2S:2024-08-22, MT8QD13YL5:2022-02-12, MQ5QKGBQL4:2025-08-11, MT8KZS71YM:2021-04-25
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Filtering receipts: 443 total receipts, 443 valid receipts (have date and total)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Looking for exact match: date=2025-10-20, amount=$40.08 (4008 cents)
+2025-10-26 14:58:46 - finances.apple.matcher - INFO - Found exact match: Receipt MSD3DX86K8 for $40.08 on 2025-10-20
+
+🍎 Apple Matching Statistics
+============================================================
+
+YNAB Transactions (payee: Apple):
+  Matched:      206 transactions
+  Unmatched:     56 transactions
+  Total:        262 transactions
+  Match rate:  78.6%
+  Avg confidence: 0.87
+
+Apple Receipts:
+  Matched:      198 receipts
+  Unmatched:    245 receipts
+  Total:        443 receipts
+  Match rate:  44.7%
+============================================================
+
+✓ Updated status: 2 files with 524 total records, 0 days old
+  Cleaned up 1 old file(s) (archived in transaction_matches/archive/)
+
+[split_generation]
+  Status: 1 files with 591 total records, 1 days old
+  Run this node? [y/N]
+
+[ynab_apply]
+  Status: No data
+  Run this node? [y/N]
+
+============================================================
+EXECUTION SUMMARY
+============================================================
+Executed: 2 nodes
+Skipped:  9 nodes
+
+Executed nodes:
+  - apple_receipt_parsing
+  - apple_matching
+
+Skipped nodes:
+  - amazon_order_history_request
+  - apple_email_fetch
+  - ynab_sync
+  - amazon_unzip
+  - cash_flow_analysis
+  - retirement_update
+  - amazon_matching
+  - split_generation
+  - ynab_apply
+
+⏱️  Total execution time: 104.2 seconds
+
+✅ Flow completed successfully
+
+Command exit status: 0
+Script done on Sun Oct 26 15:00:00 2025

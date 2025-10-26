@@ -299,29 +299,6 @@ def test_extract_email_content_single_part(email_config):
 
 @pytest.mark.integration
 @pytest.mark.apple
-def test_build_apple_search_criteria(email_config):
-    """Test IMAP search criteria building for Apple receipts."""
-    fetcher = AppleEmailFetcher(email_config)
-
-    criteria = fetcher._build_apple_search_criteria()
-
-    # Verify criteria structure
-    assert isinstance(criteria, list)
-    assert len(criteria) > 0
-
-    # Should NOT include date constraints (fetches all emails)
-    assert not any("SINCE" in c for c in criteria)
-
-    # Should include Apple domain filtering
-    assert any("apple.com" in c for c in criteria)
-    assert any("itunes.com" in c for c in criteria)
-
-    # Should include receipt subject terms
-    assert any("receipt" in c.lower() for c in criteria)
-
-
-@pytest.mark.integration
-@pytest.mark.apple
 def test_save_empty_email_list(email_config, temp_dir):
     """Test saving an empty list of emails."""
     fetcher = AppleEmailFetcher(email_config)

@@ -1,7 +1,8 @@
 """
-Integration tests for Apple parser using real production HTML.
+Comprehensive integration tests for Apple parser using realistic HTML samples.
 
 Tests ALL fields for each sample and reports comprehensive failure list.
+Uses realistic HTML structure with sanitized test data.
 """
 
 from pathlib import Path
@@ -13,8 +14,8 @@ from tests.fixtures.apple.modern_format_samples import MODERN_SAMPLES
 from tests.fixtures.apple.table_format_samples import TABLE_SAMPLES
 
 
-class TestAppleParserProduction:
-    """Test parser against real production HTML files."""
+class TestAppleParserComprehensive:
+    """Comprehensive parser tests with realistic HTML samples and full field validation."""
 
     @pytest.mark.parametrize("sample", TABLE_SAMPLES)
     def test_table_format_parsing(self, sample):
