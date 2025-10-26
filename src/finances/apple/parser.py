@@ -372,13 +372,11 @@ class AppleReceiptParser:
             price_td = tr.find("td", class_="price-cell")
             if price_td:
                 price_text = price_td.get_text(strip=True)
-                price_text = price_text.replace("$", "").replace(",", "").strip()
-                try:
-                    cost_cents = int(float(price_text) * 100)
-                    cost = Money.from_cents(cost_cents)
-                except (ValueError, AttributeError):
+                cost_cents = self._parse_currency(price_text)
+                if cost_cents is None:
                     logger.warning(f"Could not parse price: {price_text}")
                     continue
+                cost = Money.from_cents(cost_cents)
 
                 # Check if it's a subscription (look for "Renews" text in the row)
                 row_text = tr.get_text()
@@ -399,11 +397,12 @@ class AppleReceiptParser:
                 # Find the td with the amount (usually last td in the row)
                 amount_td = parent.find_all("td")[-1]
                 if amount_td:
-                    amount_text = amount_td.get_text(strip=True).replace("$", "").replace(",", "").strip()
-                    try:  # noqa: SIM105
-                        receipt.subtotal = Money.from_cents(int(float(amount_text) * 100))
-                    except (ValueError, AttributeError):
-                        pass
+                    amount_text = amount_td.get_text(strip=True)
+                    amount_cents = self._parse_currency(amount_text)
+                    if amount_cents is not None:
+                        receipt.subtotal = Money.from_cents(amount_cents)
+                    else:
+                        logger.debug(f"Could not parse subtotal: {amount_text}")
 
         # Find "Tax" text
         tax_elem = soup.find(string=re.compile(r"^Tax$"))
@@ -412,11 +411,12 @@ class AppleReceiptParser:
             if parent:
                 amount_td = parent.find_all("td")[-1]
                 if amount_td:
-                    amount_text = amount_td.get_text(strip=True).replace("$", "").replace(",", "").strip()
-                    try:  # noqa: SIM105
-                        receipt.tax = Money.from_cents(int(float(amount_text) * 100))
-                    except (ValueError, AttributeError):
-                        pass
+                    amount_text = amount_td.get_text(strip=True)
+                    amount_cents = self._parse_currency(amount_text)
+                    if amount_cents is not None:
+                        receipt.tax = Money.from_cents(amount_cents)
+                    else:
+                        logger.debug(f"Could not parse tax: {amount_text}")
 
         # Find "TOTAL" text
         total_elem = soup.find(string=re.compile(r"TOTAL"))
@@ -429,12 +429,12 @@ class AppleReceiptParser:
                 for td in reversed(amount_tds):  # Check from end
                     text = td.get_text(strip=True)
                     if "$" in text:
-                        amount_text = text.replace("$", "").replace(",", "").strip()
-                        try:
-                            receipt.total = Money.from_cents(int(float(amount_text) * 100))
+                        amount_cents = self._parse_currency(text)
+                        if amount_cents is not None:
+                            receipt.total = Money.from_cents(amount_cents)
                             break
-                        except (ValueError, AttributeError):
-                            pass
+                        else:
+                            logger.debug(f"Could not parse total: {text}")
 
     def _parse_modern_format(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """

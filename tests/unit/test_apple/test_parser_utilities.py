@@ -112,3 +112,54 @@ def test_modern_format_extract_date():
     date = parser._extract_modern_format_date(soup)
     assert date is not None
     assert date == FinancialDate.from_string("2025-10-11")
+
+
+def test_parse_currency_standard_formats():
+    """Verify _parse_currency handles standard currency formats with integer-only arithmetic."""
+    parser = AppleReceiptParser()
+
+    # Standard dollar.cents format
+    assert parser._parse_currency("$12.34") == 1234
+    assert parser._parse_currency("$0.99") == 99
+    assert parser._parse_currency("$100.00") == 10000
+
+    # With whitespace
+    assert parser._parse_currency("$ 12.34") == 1234
+    assert parser._parse_currency("$  0.99") == 99
+
+    # Embedded in text (should extract currency)
+    assert parser._parse_currency("Total: $12.34") == 1234
+    assert parser._parse_currency("Amount $99.99 paid") == 9999
+
+
+def test_parse_currency_edge_cases():
+    """Verify _parse_currency handles edge cases correctly."""
+    parser = AppleReceiptParser()
+
+    # Single cent digit (should pad to two digits)
+    assert parser._parse_currency("$12.3") == 1230
+    assert parser._parse_currency("$12.0") == 1200
+
+    # No cents (dollars only)
+    assert parser._parse_currency("$12") == 1200
+    assert parser._parse_currency("$100") == 10000
+
+    # Zero amounts
+    assert parser._parse_currency("$0.00") == 0
+    assert parser._parse_currency("$0") == 0
+
+
+def test_parse_currency_invalid_input():
+    """Verify _parse_currency returns None for invalid input."""
+    parser = AppleReceiptParser()
+
+    # Non-currency text (no currency symbol)
+    assert parser._parse_currency("not a price") is None
+    assert parser._parse_currency("") is None
+    assert parser._parse_currency("abc") is None
+    assert parser._parse_currency("12.34") is None  # Missing $ symbol
+
+    # Malformed currency
+    assert parser._parse_currency("$") is None
+    assert parser._parse_currency("$.") is None
+    assert parser._parse_currency("$ .") is None
