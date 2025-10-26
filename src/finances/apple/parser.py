@@ -488,9 +488,9 @@ class AppleReceiptParser:
                 if payment_method_tag:
                     # Get the next div sibling (contains total amount)
                     total_div = payment_method_tag.find_next_sibling("div")
-                    if total_div:
+                    if total_div and isinstance(total_div, Tag):
                         amount_tag = total_div.find("p")
-                        if amount_tag:
+                        if amount_tag and isinstance(amount_tag, Tag):
                             amount_text = amount_tag.get_text().strip()
                             amount_cents = self._parse_currency(amount_text)
                             if amount_cents is not None:
