@@ -38,12 +38,12 @@ def test_parse_legacy_aapl_format_complete(parser, fixtures_dir):
     - Total: $32.97
     - Item: Procreate - $29.99
     """
-    html_path = fixtures_dir / "legacy_aapl_receipt.html"
+    html_path = fixtures_dir / "table_format_receipt.html"
 
     with open(html_path, encoding="utf-8") as f:
         html_content = f.read()
 
-    receipt = parser.parse_html_content(html_content, "legacy_test")
+    receipt = parser.parse_html_content(html_content, "table_format_test")
 
     # Verify format detection
     assert receipt.format_detected == "table_format"
@@ -99,12 +99,12 @@ def test_parse_legacy_aapl_format_complete(parser, fixtures_dir):
 )
 def test_parse_modern_custom_format_complete(parser, fixtures_dir):
     """Test end-to-end parsing of modern custom-* format receipt."""
-    html_path = fixtures_dir / "modern_custom_receipt.html"
+    html_path = fixtures_dir / "modern_format_receipt.html"
 
     with open(html_path, encoding="utf-8") as f:
         html_content = f.read()
 
-    receipt = parser.parse_html_content(html_content, "modern_test")
+    receipt = parser.parse_html_content(html_content, "modern_format_test")
 
     # Verify format detection
     assert receipt.format_detected == "modern_format"
@@ -190,7 +190,7 @@ def test_currency_values_are_money_objects(parser, fixtures_dir):
     """
     from finances.core.money import Money
 
-    html_path = fixtures_dir / "legacy_aapl_receipt.html"
+    html_path = fixtures_dir / "table_format_receipt.html"
 
     with open(html_path, encoding="utf-8") as f:
         html_content = f.read()
@@ -230,7 +230,7 @@ def test_currency_values_are_money_objects(parser, fixtures_dir):
 def test_parse_receipt_from_file_system(parser, fixtures_dir, temp_dir):
     """Test parsing receipt using file system path method."""
     # Copy a fixture to temp directory with expected naming
-    html_source = fixtures_dir / "legacy_aapl_receipt.html"
+    html_source = fixtures_dir / "table_format_receipt.html"
     test_base_name = "test_receipt_001"
 
     content_dir = temp_dir / "receipts"
@@ -276,7 +276,7 @@ def test_parse_receipt_file_not_found(parser, temp_dir):
 @pytest.mark.apple
 def test_receipt_to_dict_serialization(parser, fixtures_dir):
     """Test that parsed receipt can be serialized to dictionary."""
-    html_path = fixtures_dir / "legacy_aapl_receipt.html"
+    html_path = fixtures_dir / "table_format_receipt.html"
 
     with open(html_path, encoding="utf-8") as f:
         html_content = f.read()
@@ -334,7 +334,7 @@ def test_add_item_to_receipt(parser):
 )
 def test_parser_selector_tracking(parser, fixtures_dir):
     """Test that parser tracks selector usage for debugging."""
-    html_path = fixtures_dir / "legacy_aapl_receipt.html"
+    html_path = fixtures_dir / "table_format_receipt.html"
 
     with open(html_path, encoding="utf-8") as f:
         html_content = f.read()
