@@ -194,7 +194,7 @@ def test_is_apple_receipt_validation(email_config):
     valid_email = AppleReceiptEmail(
         message_id="valid001",
         subject="Your receipt from Apple",
-        sender="noreply@email.apple.com",
+        sender="no_reply@email.apple.com",
         date=datetime.now(),
         html_content="<html>Order ID: ABC123 Total: $29.99</html>",
         text_content="Order ID: ABC123 Total: $29.99",
@@ -238,9 +238,31 @@ def test_is_apple_receipt_validation(email_config):
         subject="Your receipt from Apple",
         sender="noreply@apple.com",
         date=datetime.now(),
-        html_content="<html>This is promotional content. Update your privacy policy. Total: $0</html>",
+        html_content="<html>This is promotional content. Total: $29.99</html>",
     )
     assert fetcher._is_apple_receipt(promo_email) is False
+
+    # Email with privacy policy footer link (should PASS - not an exclusion term)
+    privacy_footer_email = AppleReceiptEmail(
+        message_id="valid002",
+        subject="Your receipt from Apple",
+        sender="no_reply@email.apple.com",
+        date=datetime.now(),
+        html_content='<html>Order ID: XYZ789 Total: $14.99<br/><a href="https://apple.com/legal/privacy/">Privacy Policy</a></html>',
+        text_content="Order ID: XYZ789 Total: $14.99",
+    )
+    assert fetcher._is_apple_receipt(privacy_footer_email) is True
+
+    # Email with marketing in image URL (should PASS - not an exclusion term)
+    marketing_url_email = AppleReceiptEmail(
+        message_id="valid003",
+        subject="Your receipt from Apple",
+        sender="no_reply@email.apple.com",
+        date=datetime.now(),
+        html_content='<html><img src="https://cdn.apple.com/AppIcon-1x_U007emarketing-0-10.png"/> Order ID: ABC456 Total: $9.99</html>',
+        text_content="Order ID: ABC456 Total: $9.99",
+    )
+    assert fetcher._is_apple_receipt(marketing_url_email) is True
 
 
 @pytest.mark.integration
