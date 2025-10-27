@@ -63,10 +63,11 @@ class TestAmazonUnzipFlowNode:
         assert result.items_processed == 1
         assert result.new_items == 1
 
-        # Verify extraction results
+        # Verify extraction results (nested directory structure)
         extracted_dirs = list(raw_dir.glob("*_karl_amazon_data"))
         assert len(extracted_dirs) == 1
-        assert (extracted_dirs[0] / "Retail.OrderHistory.1.csv").exists()
+        csv_path = extracted_dirs[0] / "Retail.OrderHistory.1" / "Retail.OrderHistory.1.csv"
+        assert csv_path.exists()
 
     # test_execute_no_zip_files removed - covered by parameterized test_flownode_interface.py
 
@@ -80,23 +81,26 @@ class TestAmazonMatchingFlowNode:
         """Test AmazonMatchingFlowNode.execute() with Amazon and YNAB data."""
         node = AmazonMatchingFlowNode(temp_dir)
 
-        # Set up Amazon raw data
+        # Set up Amazon raw data with nested directory structure (current format)
         raw_dir = temp_dir / "amazon" / "raw" / "2025-01-01_karl_amazon_data"
-        raw_dir.mkdir(parents=True)
-        csv_file = raw_dir / "Retail.OrderHistory.1.csv"
+        csv_dir = raw_dir / "Retail.OrderHistory.1"
+        csv_dir.mkdir(parents=True)
+        csv_file = csv_dir / "Retail.OrderHistory.1.csv"
         csv_file.write_text(
-            "Order ID,Order Date,Purchase Order Number,Ship Date,Title,Category,ASIN/ISBN,"
-            "UNSPSC Code,Website,Release Date,Condition,Seller,Seller Credentials,"
-            "List Price Per Unit,Purchase Price Per Unit,Quantity,Payment Instrument Type,"
-            "Purchase Order State,Shipping Address Name,Shipping Address Street 1,"
-            "Shipping Address Street 2,Shipping Address City,Shipping Address State,"
-            "Shipping Address Zip,Order Status,Carrier Name & Tracking Number,Item Subtotal,"
-            "Item Subtotal Tax,Item Total,Tax Exemption Applied,Tax Exemption Type,"
-            "Exemption Opt-Out,Buyer Name,Currency,Group Name\n"
-            "111-2223334-5556667,08/15/2024,D01-1234567-1234567,08/15/2024,Echo Dot (4th Gen),"
-            "Electronics,B07XJ8C8F7,,,Amazon.com,,,,$49.99,$29.99,1,Visa - 1234,Shipped,"
-            "Karl Davis,123 Main St,,Seattle,WA,98101,Shipped,USPS(9400111899223344556677),"
-            "$29.99,$0.00,$29.99,,,,Karl Davis,USD,\n"
+            '"Website","Order ID","Order Date","Purchase Order Number","Currency",'
+            '"Unit Price","Unit Price Tax","Shipping Charge","Total Discounts","Total Owed",'
+            '"Shipment Item Subtotal","Shipment Item Subtotal Tax","ASIN","Product Condition",'
+            '"Quantity","Payment Instrument Type","Order Status","Shipment Status","Ship Date",'
+            '"Shipping Option","Shipping Address","Billing Address","Carrier Name & Tracking Number",'
+            '"Product Name","Gift Message","Gift Sender Name","Gift Recipient Contact Details",'
+            '"Item Serial Number"\n'
+            '"Amazon.com","111-2223334-5556667","2024-08-15T12:00:00Z","Not Applicable","USD",'
+            '"49.99","0.00","0","0","29.99","29.99","0.00","B07XJ8C8F7","New","1",'
+            '"Visa - 1234","Closed","Shipped","2024-08-15T14:00:00Z","standard",'
+            '"Karl Davis 123 Main St Seattle WA 98101 United States",'
+            '"Karl Davis 123 Main St Seattle WA 98101 United States",'
+            '"USPS(9400111899223344556677)","Echo Dot (4th Gen)","Not Available",'
+            '"Not Available","Not Available","Not Available"\n'
         )
 
         # Set up YNAB cache

@@ -11,11 +11,15 @@ def test_amazon_unzip_output_info_is_data_ready_returns_true_with_csv_files():
     """Verify is_data_ready returns True when CSV files exist."""
     with tempfile.TemporaryDirectory() as tmpdir:
         data_dir = Path(tmpdir)
-        raw_dir = data_dir / "amazon" / "raw"
-        raw_dir.mkdir(parents=True)
+        # Create proper Amazon account directory structure
+        account_dir = data_dir / "amazon" / "raw" / "2024-01-01_test_amazon_data"
+        csv_dir = account_dir / "Retail.OrderHistory.1"
+        csv_dir.mkdir(parents=True)
 
-        # Create CSV file
-        (raw_dir / "orders.csv").write_text("order_id,date\n123,2024-01-01")
+        # Create CSV file in nested structure
+        (csv_dir / "Retail.OrderHistory.1.csv").write_text(
+            '"Order ID","Order Date"\n"123","2024-01-01T12:00:00Z"'
+        )
 
         node = AmazonUnzipFlowNode(data_dir)
         info = node.get_output_info()
@@ -27,12 +31,19 @@ def test_amazon_unzip_output_info_get_output_files_counts_csv_rows():
     """Verify get_output_files returns CSV files with row counts."""
     with tempfile.TemporaryDirectory() as tmpdir:
         data_dir = Path(tmpdir)
-        raw_dir = data_dir / "amazon" / "raw"
-        raw_dir.mkdir(parents=True)
+        # Create proper Amazon account directory structure
+        account_dir = data_dir / "amazon" / "raw" / "2024-01-01_test_amazon_data"
+        csv_dir = account_dir / "Retail.OrderHistory.1"
+        csv_dir.mkdir(parents=True)
 
-        # Create CSV with 3 data rows
-        csv_content = "order_id,date\n123,2024-01-01\n456,2024-01-02\n789,2024-01-03"
-        (raw_dir / "orders.csv").write_text(csv_content)
+        # Create CSV with 3 data rows in nested structure
+        csv_content = (
+            '"Order ID","Order Date"\n'
+            '"123","2024-01-01T12:00:00Z"\n'
+            '"456","2024-01-02T12:00:00Z"\n'
+            '"789","2024-01-03T12:00:00Z"'
+        )
+        (csv_dir / "Retail.OrderHistory.1.csv").write_text(csv_content)
 
         node = AmazonUnzipFlowNode(data_dir)
         info = node.get_output_info()
