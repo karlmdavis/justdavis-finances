@@ -6,6 +6,7 @@ Tests FlowNode orchestration logic with real filesystem operations.
 """
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -28,20 +29,19 @@ class TestAppleReceiptParsingFlowNode:
         """Test execute() with HTML email files."""
         node = AppleReceiptParsingFlowNode(temp_dir)
 
-        # Create mock HTML emails
+        # Create mock HTML emails using valid fixture
         emails_dir = temp_dir / "apple" / "emails"
         emails_dir.mkdir(parents=True)
+
+        # Copy table_format_receipt.html fixture (has Order ID: ML7PQ2XYZ)
+        fixtures_dir = Path(__file__).parent.parent / "fixtures" / "apple"
+        fixture_html = fixtures_dir / "table_format_receipt.html"
+
+        with open(fixture_html, encoding="utf-8") as f:
+            html_content = f.read()
+
         html_file = emails_dir / "receipt_001.html"
-        html_file.write_text(
-            """
-            <html><body>
-            <div>Order ID: ML7PQ2XYZ</div>
-            <div>Order Date: Aug 15, 2024</div>
-            <div>Total: $32.97</div>
-            <div>Item: Test App - $29.99</div>
-            </body></html>
-        """
-        )
+        html_file.write_text(html_content)
 
         # Execute
         result = node.execute(flow_context)
@@ -51,8 +51,9 @@ class TestAppleReceiptParsingFlowNode:
         assert result.items_processed == 1
         exports_dir = temp_dir / "apple" / "exports"
         assert exports_dir.exists()
-        # File should be named by order_id (ML7PQ2XYZ), not email filename (receipt_001)
-        assert (exports_dir / "ML7PQ2XYZ.json").exists()
+        # File should be named by HTML filename stem (receipt_001), not order_id
+        # This prevents collisions when multiple receipts have the same order_id
+        assert (exports_dir / "receipt_001.json").exists()
 
     # test_execute_no_html_files removed - covered by parameterized test_flownode_interface.py
 
