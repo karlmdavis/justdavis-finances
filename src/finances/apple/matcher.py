@@ -289,9 +289,19 @@ class AppleMatcher:
 
         Returns:
             Receipt object
+
+        Raises:
+            ValueError: If parsed_receipt.base_name is None or empty
         """
         # We know receipt_date and total are not None due to filter in match_single_transaction
         # but for creating Receipt, we need to handle other optional fields properly
+
+        # Validate base_name exists (should always be set by parser)
+        if not parsed_receipt.base_name:
+            raise ValueError(
+                f"Receipt missing base_name (order_id={parsed_receipt.order_id}). "
+                "This indicates a parser bug - all receipts must have base_name set."
+            )
 
         # Convert ParsedItem list to list of ReceiptItem
         receipt_items = [
@@ -309,7 +319,7 @@ class AppleMatcher:
         ]
 
         return Receipt(
-            id=parsed_receipt.order_id or parsed_receipt.base_name or "",
+            id=parsed_receipt.base_name,
             date=parsed_receipt.receipt_date,  # type: ignore[arg-type]
             vendor="Apple",
             total=parsed_receipt.total,  # type: ignore[arg-type]
