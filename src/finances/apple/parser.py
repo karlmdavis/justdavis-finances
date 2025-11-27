@@ -193,33 +193,26 @@ class AppleReceiptParser:
 
         html_path = content_dir / f"{base_name}-formatted-simple.html"
         if not html_path.exists():
-            receipt.parsing_metadata["errors"] = ["HTML file not found"]
-            logger.error(f"HTML file not found: {html_path}")
-            return receipt
+            raise FileNotFoundError(f"HTML file not found: {html_path}")
 
-        try:
-            with open(html_path, encoding="utf-8") as f:
-                content = f.read()
+        with open(html_path, encoding="utf-8") as f:
+            content = f.read()
 
-            soup = BeautifulSoup(content, "lxml")
+        soup = BeautifulSoup(content, "lxml")
 
-            # Detect format type
-            receipt.format_detected = self._detect_format(soup)
-            logger.info(f"Detected format: {receipt.format_detected}")
+        # Detect format type
+        receipt.format_detected = self._detect_format(soup)
+        logger.info(f"Detected format: {receipt.format_detected}")
 
-            # Dispatch to format-specific parser
-            if receipt.format_detected == "table_format":
-                self._parse_table_format(receipt, soup)
-            elif receipt.format_detected == "modern_format":
-                self._parse_modern_format(receipt, soup)
-            else:
-                logger.warning(f"Unknown format detected: {receipt.format_detected}")
+        # Dispatch to format-specific parser
+        if receipt.format_detected == "table_format":
+            self._parse_table_format(receipt, soup)
+        elif receipt.format_detected == "modern_format":
+            self._parse_modern_format(receipt, soup)
+        else:
+            logger.warning(f"Unknown format detected: {receipt.format_detected}")
 
-            logger.info(f"Successfully parsed receipt: {receipt.order_id or base_name}")
-
-        except Exception as e:
-            logger.error(f"Error parsing receipt {base_name}: {e}")
-            receipt.parsing_metadata["errors"] = [str(e)]
+        logger.info(f"Successfully parsed receipt: {receipt.order_id or base_name}")
 
         return receipt
 
@@ -236,25 +229,18 @@ class AppleReceiptParser:
         """
         receipt = ParsedReceipt(base_name=receipt_id)
 
-        try:
-            soup = BeautifulSoup(html_content, "lxml")
+        soup = BeautifulSoup(html_content, "lxml")
 
-            # Detect format
-            receipt.format_detected = self._detect_format(soup)
+        # Detect format
+        receipt.format_detected = self._detect_format(soup)
 
-            # Dispatch to format-specific parser
-            if receipt.format_detected == "table_format":
-                self._parse_table_format(receipt, soup)
-            elif receipt.format_detected == "modern_format":
-                self._parse_modern_format(receipt, soup)
-            else:
-                logger.warning(f"Unknown format detected: {receipt.format_detected}")
-
-        except Exception as e:
-            logger.error(f"Error parsing HTML content for {receipt_id}: {e}")
-            if "parsing_metadata" not in receipt.__dict__:
-                receipt.parsing_metadata = {}
-            receipt.parsing_metadata["errors"] = [str(e)]
+        # Dispatch to format-specific parser
+        if receipt.format_detected == "table_format":
+            self._parse_table_format(receipt, soup)
+        elif receipt.format_detected == "modern_format":
+            self._parse_modern_format(receipt, soup)
+        else:
+            logger.warning(f"Unknown format detected: {receipt.format_detected}")
 
         return receipt
 
@@ -266,38 +252,33 @@ class AppleReceiptParser:
             "table_format": 2020-2023 era table-based receipts with .aapl-* classes
             "modern_format": 2025+ CSS-in-JS receipts with .custom-* classes
         """
-        try:
-            # Check for modern format (CSS-in-JS with .custom-* classes)
-            if soup.find(class_=re.compile(r"^custom-")):
-                return "modern_format"
+        # Check for modern format (CSS-in-JS with .custom-* classes)
+        if soup.find(class_=re.compile(r"^custom-")):
+            return "modern_format"
 
-            # Check for table format (.aapl-* classes, table structure)
-            if soup.find(class_=re.compile(r"^aapl-")):
-                return "table_format"
+        # Check for table format (.aapl-* classes, table structure)
+        if soup.find(class_=re.compile(r"^aapl-")):
+            return "table_format"
 
-            # Check for table-based format (fallback)
-            if soup.find("table"):
-                return "table_format"
+        # Check for table-based format (fallback)
+        if soup.find("table"):
+            return "table_format"
 
-            # Check for specific Apple receipt indicators
-            apple_indicators = [
-                "Apple Store",
-                "iTunes Store",
-                "App Store",
-                "apple.com",
-                "Your receipt from Apple",
-            ]
+        # Check for specific Apple receipt indicators
+        apple_indicators = [
+            "Apple Store",
+            "iTunes Store",
+            "App Store",
+            "apple.com",
+            "Your receipt from Apple",
+        ]
 
-            text_content = soup.get_text().lower()
-            for indicator in apple_indicators:
-                if indicator.lower() in text_content:
-                    return "table_format"  # Default to table format for unrecognized Apple receipts
+        text_content = soup.get_text().lower()
+        for indicator in apple_indicators:
+            if indicator.lower() in text_content:
+                return "table_format"  # Default to table format for unrecognized Apple receipts
 
-            return "unknown"
-
-        except Exception as e:
-            logger.warning(f"Error detecting format: {e}")
-            return "detection_failed"
+        return "unknown"
 
     def _parse_table_format(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """

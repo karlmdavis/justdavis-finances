@@ -130,12 +130,9 @@ def test_parse_receipt_file_not_found(parser, temp_dir):
     content_dir = temp_dir / "empty_receipts"
     content_dir.mkdir(parents=True, exist_ok=True)
 
-    receipt = parser.parse_receipt("nonexistent_receipt", content_dir)
-
-    # Should return ParsedReceipt with error metadata
-    assert isinstance(receipt, ParsedReceipt)
-    assert "errors" in receipt.parsing_metadata
-    assert "HTML file not found" in receipt.parsing_metadata["errors"]
+    # Should raise FileNotFoundError for missing files
+    with pytest.raises(FileNotFoundError, match="HTML file not found"):
+        parser.parse_receipt("nonexistent_receipt", content_dir)
 
 
 @pytest.mark.integration

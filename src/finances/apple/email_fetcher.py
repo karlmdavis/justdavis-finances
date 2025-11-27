@@ -132,41 +132,34 @@ class AppleEmailFetcher:
             List of folder names (unquoted, ready for IMAP SELECT command)
         """
         if not self.connection:
-            logger.warning("Cannot list folders without connection")
-            return []
+            raise RuntimeError("Cannot list folders without connection")
 
-        try:
-            result, folders = self.connection.list()
-            if result != "OK":
-                logger.warning("Failed to list IMAP folders")
-                return []
+        result, folders = self.connection.list()
+        if result != "OK":
+            raise RuntimeError(f"IMAP LIST command failed with result: {result}")
 
-            folder_names = []
-            for folder in folders:
-                # IMAP folder response format: b'(\\HasNoChildren) "/" "INBOX"'
-                # or: b'(\\HasNoChildren \\UnMarked) "." "Follow Up"'
-                if not isinstance(folder, bytes):
-                    continue
-                folder_str = folder.decode()
+        folder_names = []
+        for folder in folders:
+            # IMAP folder response format: b'(\\HasNoChildren) "/" "INBOX"'
+            # or: b'(\\HasNoChildren \\UnMarked) "." "Follow Up"'
+            if not isinstance(folder, bytes):
+                continue
+            folder_str = folder.decode()
 
-                # Use regex to extract folder name - everything after the delimiter
-                match = re.search(r'\([^)]+\)\s+"[^"]*"\s+(.+)', folder_str)
-                if match:
-                    folder_name = match.group(1).strip()
-                    # Remove quotes if present
-                    if folder_name.startswith('"') and folder_name.endswith('"'):
-                        folder_name = folder_name[1:-1]
+            # Use regex to extract folder name - everything after the delimiter
+            match = re.search(r'\([^)]+\)\s+"[^"]*"\s+(.+)', folder_str)
+            if match:
+                folder_name = match.group(1).strip()
+                # Remove quotes if present
+                if folder_name.startswith('"') and folder_name.endswith('"'):
+                    folder_name = folder_name[1:-1]
 
-                    # Skip malformed or system folders
-                    if folder_name and folder_name not in ["."]:
-                        folder_names.append(folder_name)
+                # Skip malformed or system folders
+                if folder_name and folder_name not in ["."]:
+                    folder_names.append(folder_name)
 
-            logger.info(f"Discovered {len(folder_names)} IMAP folders")
-            return folder_names
-
-        except Exception as e:
-            logger.error(f"Error listing folders: {e}", exc_info=True)
-            return []
+        logger.info(f"Discovered {len(folder_names)} IMAP folders")
+        return folder_names
 
     def fetch_apple_receipts(self) -> list[AppleReceiptEmail]:
         """
@@ -182,49 +175,44 @@ class AppleEmailFetcher:
         all_receipts = []
         folder_results: dict[str, int] = {}
 
-        try:
-            # Discover all folders recursively
-            all_folders = self._list_all_folders()
-            logger.info(f"Searching {len(all_folders)} folders for Apple receipts")
+        # Discover all folders recursively
+        all_folders = self._list_all_folders()
+        logger.info(f"Searching {len(all_folders)} folders for Apple receipts")
 
-            for folder in all_folders:
-                logger.debug(f"Searching folder: {folder}")
+        for folder in all_folders:
+            logger.debug(f"Searching folder: {folder}")
 
-                # Select folder - check connection exists
-                if not self.connection:
-                    logger.warning("Connection lost")
-                    break
+            # Select folder - check connection exists
+            if not self.connection:
+                raise RuntimeError("Connection lost during folder iteration")
 
-                # Try different folder name formats for compatibility
-                folder_attempts = [folder]
-                if " " in folder or "." in folder:
-                    folder_attempts.append(f'"{folder}"')
+            # Try different folder name formats for compatibility
+            folder_attempts = [folder]
+            if " " in folder or "." in folder:
+                folder_attempts.append(f'"{folder}"')
 
-                selected = False
-                for attempt_name in folder_attempts:
-                    try:
-                        result, _ = self.connection.select(attempt_name, readonly=True)
-                        if result == "OK":
-                            selected = True
-                            break
-                    except Exception as e:
-                        logger.debug(f"Cannot select folder '{attempt_name}': {e}")
-                        continue
-
-                if not selected:
-                    logger.debug(f"Cannot select folder '{folder}', skipping")
+            selected = False
+            for attempt_name in folder_attempts:
+                try:
+                    result, _ = self.connection.select(attempt_name, readonly=True)
+                    if result == "OK":
+                        selected = True
+                        break
+                except Exception as e:
+                    logger.debug(f"Cannot select folder '{attempt_name}': {e}")
                     continue
 
-                # Search for Apple receipt emails
-                receipts = self._search_apple_receipts_in_folder(folder)
+            if not selected:
+                logger.debug(f"Cannot select folder '{folder}', skipping")
+                continue
 
-                if receipts:
-                    all_receipts.extend(receipts)
-                    folder_results[folder] = len(receipts)
-                    logger.info(f"Found {len(receipts)} receipts in '{folder}'")
+            # Search for Apple receipt emails
+            receipts = self._search_apple_receipts_in_folder(folder)
 
-        except Exception as e:
-            logger.error(f"Error during email fetching: {e}", exc_info=True)
+            if receipts:
+                all_receipts.extend(receipts)
+                folder_results[folder] = len(receipts)
+                logger.info(f"Found {len(receipts)} receipts in '{folder}'")
 
         # Log summary by folder
         if folder_results:
@@ -239,146 +227,120 @@ class AppleEmailFetcher:
         """Search for all Apple receipts in a specific folder."""
         receipts: list[AppleReceiptEmail] = []
 
-        try:
-            # Use simple search patterns that work with all IMAP servers
-            # Run multiple searches and combine unique results
-            search_patterns = [
-                'SUBJECT "Your receipt from Apple"',
-                'SUBJECT "Receipt from Apple"',
-                'FROM "no_reply@email.apple.com"',
-            ]
+        # Use simple search patterns that work with all IMAP servers
+        # Run multiple searches and combine unique results
+        search_patterns = [
+            'SUBJECT "Your receipt from Apple"',
+            'SUBJECT "Receipt from Apple"',
+            'FROM "no_reply@email.apple.com"',
+        ]
 
-            all_msg_ids: set[bytes] = set()
+        all_msg_ids: set[bytes] = set()
 
-            # Check connection exists
-            if not self.connection:
-                logger.warning("Connection lost")
-                return receipts
+        # Check connection exists
+        if not self.connection:
+            raise RuntimeError("Connection lost during folder search")
 
-            # Execute each search pattern and collect unique message IDs
-            for pattern in search_patterns:
-                try:
-                    result, message_numbers = self.connection.search(None, pattern)
-                    if result == "OK" and message_numbers and message_numbers[0]:
-                        msg_ids = message_numbers[0].split()
-                        all_msg_ids.update(msg_ids)
-                except Exception as e:
-                    logger.debug(f"Search error for '{pattern}': {e}")
-                    continue
+        # Execute each search pattern and collect unique message IDs
+        for pattern in search_patterns:
+            result, message_numbers = self.connection.search(None, pattern)
+            if result == "OK" and message_numbers and message_numbers[0]:
+                msg_ids = message_numbers[0].split()
+                all_msg_ids.update(msg_ids)
 
-            if not all_msg_ids:
-                return receipts
+        if not all_msg_ids:
+            return receipts
 
-            logger.info(f"Found {len(all_msg_ids)} potential Apple emails in {folder}")
+        logger.info(f"Found {len(all_msg_ids)} potential Apple emails in {folder}")
 
-            # Process found emails
-            for msg_num in all_msg_ids:
-                try:
-                    receipt = self._fetch_and_parse_email(msg_num.decode(), folder)
-                    if receipt and self._is_apple_receipt(receipt):
-                        receipts.append(receipt)
-                except Exception as e:
-                    logger.warning(f"Error processing email {msg_num.decode()}: {e}")
-
-        except Exception as e:
-            logger.error(f"Error searching folder {folder}: {e}", exc_info=True)
+        # Process found emails
+        for msg_num in all_msg_ids:
+            receipt = self._fetch_and_parse_email(msg_num.decode(), folder)
+            if receipt and self._is_apple_receipt(receipt):
+                receipts.append(receipt)
 
         return receipts
 
     def _fetch_and_parse_email(self, msg_num: str, folder: str) -> AppleReceiptEmail | None:
         """Fetch and parse a single email."""
-        try:
-            # Fetch email data - check connection exists
-            if not self.connection:
-                logger.warning("Connection lost")
-                return None
-            result, msg_data = self.connection.fetch(msg_num, "(RFC822)")
+        # Fetch email data - check connection exists
+        if not self.connection:
+            raise RuntimeError("Connection lost during email fetch")
+        result, msg_data = self.connection.fetch(msg_num, "(RFC822)")
 
-            if result != "OK" or not msg_data or not msg_data[0]:
-                return None
-
-            # Parse email message
-            raw_email_data = msg_data[0][1]
-            if not isinstance(raw_email_data, bytes):
-                logger.warning(f"Expected bytes but got {type(raw_email_data)}")
-                return None
-            raw_email = raw_email_data
-            msg = email.message_from_bytes(raw_email)
-
-            # Extract basic information
-            subject = self._decode_header(msg.get("Subject", ""))
-            sender = self._decode_header(msg.get("From", ""))
-            date_str = msg.get("Date", "")
-            message_id = msg.get("Message-ID", f"{folder}_{msg_num}")
-
-            # Parse date
-            try:
-                email_date = email.utils.parsedate_to_datetime(date_str)
-            except Exception:
-                email_date = datetime.now()
-
-            # Extract email content
-            html_content, text_content = self._extract_email_content(msg)
-
-            # Create receipt email object
-            receipt_email = AppleReceiptEmail(
-                message_id=message_id,
-                subject=subject,
-                sender=sender,
-                date=email_date,
-                html_content=html_content,
-                text_content=text_content,
-                raw_content=raw_email.decode("utf-8", errors="ignore"),
-                folder=folder,
-                metadata={"msg_num": msg_num, "size": len(raw_email)},
-            )
-
-            return receipt_email
-
-        except Exception as e:
-            logger.error(f"Error fetching email {msg_num}: {e}", exc_info=True)
+        if result != "OK" or not msg_data or not msg_data[0]:
             return None
+
+        # Parse email message
+        raw_email_data = msg_data[0][1]
+        if not isinstance(raw_email_data, bytes):
+            raise TypeError(f"Expected bytes but got {type(raw_email_data)}")
+        raw_email = raw_email_data
+        msg = email.message_from_bytes(raw_email)
+
+        # Extract basic information
+        subject = self._decode_header(msg.get("Subject", ""))
+        sender = self._decode_header(msg.get("From", ""))
+        date_str = msg.get("Date", "")
+        message_id = msg.get("Message-ID", f"{folder}_{msg_num}")
+
+        # Parse date
+        email_date = email.utils.parsedate_to_datetime(date_str)
+
+        # Extract email content
+        html_content, text_content = self._extract_email_content(msg)
+
+        # Create receipt email object
+        receipt_email = AppleReceiptEmail(
+            message_id=message_id,
+            subject=subject,
+            sender=sender,
+            date=email_date,
+            html_content=html_content,
+            text_content=text_content,
+            raw_content=raw_email.decode("utf-8", errors="ignore"),
+            folder=folder,
+            metadata={"msg_num": msg_num, "size": len(raw_email)},
+        )
+
+        return receipt_email
 
     def _extract_email_content(self, msg: email.message.Message) -> tuple[str | None, str | None]:
         """Extract HTML and text content from email message."""
         html_content = None
         text_content = None
 
-        try:
-            if msg.is_multipart():
-                for part in msg.walk():
-                    content_type = part.get_content_type()
-                    content_disposition = str(part.get("Content-Disposition", ""))
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                content_disposition = str(part.get("Content-Disposition", ""))
 
-                    # Skip attachments
-                    if "attachment" in content_disposition:
-                        continue
+                # Skip attachments
+                if "attachment" in content_disposition:
+                    continue
 
-                    if content_type == "text/html":
-                        html_payload = part.get_payload(decode=True)
-                        if html_payload and isinstance(html_payload, bytes):
-                            html_content = html_payload.decode("utf-8", errors="ignore")
+                if content_type == "text/html":
+                    html_payload = part.get_payload(decode=True)
+                    if html_payload and isinstance(html_payload, bytes):
+                        html_content = html_payload.decode("utf-8", errors="ignore")
 
-                    elif content_type == "text/plain":
-                        text_payload = part.get_payload(decode=True)
-                        if text_payload and isinstance(text_payload, bytes):
-                            text_content = text_payload.decode("utf-8", errors="ignore")
+                elif content_type == "text/plain":
+                    text_payload = part.get_payload(decode=True)
+                    if text_payload and isinstance(text_payload, bytes):
+                        text_content = text_payload.decode("utf-8", errors="ignore")
 
-            else:
-                # Single part message
-                content_type = msg.get_content_type()
-                payload = msg.get_payload(decode=True)
+        else:
+            # Single part message
+            content_type = msg.get_content_type()
+            payload = msg.get_payload(decode=True)
 
-                if payload and isinstance(payload, bytes):
-                    content = payload.decode("utf-8", errors="ignore")
+            if payload and isinstance(payload, bytes):
+                content = payload.decode("utf-8", errors="ignore")
 
-                    if content_type == "text/html":
-                        html_content = content
-                    elif content_type == "text/plain":
-                        text_content = content
-
-        except Exception as e:
-            logger.error(f"Error extracting email content: {e}", exc_info=True)
+                if content_type == "text/html":
+                    html_content = content
+                elif content_type == "text/plain":
+                    text_content = content
 
         return html_content, text_content
 
@@ -387,24 +349,19 @@ class AppleEmailFetcher:
         if not header:
             return ""
 
-        try:
-            decoded_header = email.header.decode_header(header)
-            decoded_parts = []
+        decoded_header = email.header.decode_header(header)
+        decoded_parts = []
 
-            for part, encoding in decoded_header:
-                if isinstance(part, bytes):
-                    if encoding:
-                        decoded_parts.append(part.decode(encoding, errors="ignore"))
-                    else:
-                        decoded_parts.append(part.decode("utf-8", errors="ignore"))
+        for part, encoding in decoded_header:
+            if isinstance(part, bytes):
+                if encoding:
+                    decoded_parts.append(part.decode(encoding, errors="ignore"))
                 else:
-                    decoded_parts.append(str(part))
+                    decoded_parts.append(part.decode("utf-8", errors="ignore"))
+            else:
+                decoded_parts.append(str(part))
 
-            return "".join(decoded_parts)
-
-        except Exception as e:
-            logger.warning(f"Error decoding header {header}: {e}", exc_info=True)
-            return header
+        return "".join(decoded_parts)
 
     def _is_apple_receipt(self, email_obj: AppleReceiptEmail) -> bool:
         """
@@ -513,60 +470,53 @@ class AppleEmailFetcher:
             "files_created": [],
         }
 
-        for i, email_obj in enumerate(emails):
-            try:
-                # Create base filename from email metadata
-                # Use hash of message_id for stable filenames (prevents duplicates on re-fetch)
-                message_hash = hashlib.sha256(email_obj.message_id.encode()).hexdigest()[:8]
-                safe_subject = re.sub(r"[^\w\-_\.]", "_", email_obj.subject)[:50]
-                base_name = f"{email_obj.date.strftime('%Y%m%d_%H%M%S')}_{safe_subject}_{message_hash}"
+        for email_obj in emails:
+            # Create base filename from email metadata
+            # Use hash of message_id for stable filenames (prevents duplicates on re-fetch)
+            message_hash = hashlib.sha256(email_obj.message_id.encode()).hexdigest()[:8]
+            safe_subject = re.sub(r"[^\w\-_\.]", "_", email_obj.subject)[:50]
+            base_name = f"{email_obj.date.strftime('%Y%m%d_%H%M%S')}_{safe_subject}_{message_hash}"
 
-                # Save HTML content if available
-                if email_obj.html_content:
-                    html_file = output_dir / f"{base_name}-formatted-simple.html"
-                    with open(html_file, "w", encoding="utf-8") as f:
-                        f.write(email_obj.html_content)
-                    files_list: list[Any] = stats["files_created"]
-                    files_list.append(str(html_file))
+            # Save HTML content if available
+            if email_obj.html_content:
+                html_file = output_dir / f"{base_name}-formatted-simple.html"
+                with open(html_file, "w", encoding="utf-8") as f:
+                    f.write(email_obj.html_content)
+                files_list: list[Any] = stats["files_created"]
+                files_list.append(str(html_file))
 
-                # Save text content if available
-                if email_obj.text_content:
-                    text_file = output_dir / f"{base_name}.txt"
-                    with open(text_file, "w", encoding="utf-8") as f:
-                        f.write(email_obj.text_content)
-                    files_list = stats["files_created"]
-                    files_list.append(str(text_file))
-
-                # Save raw email
-                raw_file = output_dir / f"{base_name}.eml"
-                with open(raw_file, "w", encoding="utf-8") as f:
-                    f.write(email_obj.raw_content or "")
+            # Save text content if available
+            if email_obj.text_content:
+                text_file = output_dir / f"{base_name}.txt"
+                with open(text_file, "w", encoding="utf-8") as f:
+                    f.write(email_obj.text_content)
                 files_list = stats["files_created"]
-                files_list.append(str(raw_file))
+                files_list.append(str(text_file))
 
-                # Save metadata
-                metadata_file = output_dir / f"{base_name}_metadata.json"
-                metadata = {
-                    "message_id": email_obj.message_id,
-                    "subject": email_obj.subject,
-                    "sender": email_obj.sender,
-                    "date": email_obj.date.isoformat(),
-                    "folder": email_obj.folder,
-                    "metadata": email_obj.metadata,
-                }
+            # Save raw email
+            raw_file = output_dir / f"{base_name}.eml"
+            with open(raw_file, "w", encoding="utf-8") as f:
+                f.write(email_obj.raw_content or "")
+            files_list = stats["files_created"]
+            files_list.append(str(raw_file))
 
-                write_json(metadata_file, metadata)
-                files_list = stats["files_created"]
-                files_list.append(str(metadata_file))
+            # Save metadata
+            metadata_file = output_dir / f"{base_name}_metadata.json"
+            metadata = {
+                "message_id": email_obj.message_id,
+                "subject": email_obj.subject,
+                "sender": email_obj.sender,
+                "date": email_obj.date.isoformat(),
+                "folder": email_obj.folder,
+                "metadata": email_obj.metadata,
+            }
 
-                saved_count: int = stats["saved_successfully"]
-                stats["saved_successfully"] = saved_count + 1
+            write_json(metadata_file, metadata)
+            files_list = stats["files_created"]
+            files_list.append(str(metadata_file))
 
-            except Exception as e:
-                # PERF203: try-except in loop necessary for robust file I/O operations
-                logger.error(f"Error saving email {i}: {e}", exc_info=True)
-                error_count: int = stats["save_errors"]
-                stats["save_errors"] = error_count + 1
+            saved_count: int = stats["saved_successfully"]
+            stats["saved_successfully"] = saved_count + 1
 
         logger.info(f"Saved {stats['saved_successfully']}/{stats['total_emails']} emails to {output_dir}")
         return stats
