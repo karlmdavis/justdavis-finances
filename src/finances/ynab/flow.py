@@ -103,6 +103,9 @@ class YnabSyncFlowNode(FlowNode):
 
             items_synced = 0
 
+            # SECURITY: All subprocess commands use list form (not string concatenation)
+            # to prevent shell injection. Never interpolate user input into these commands.
+
             # Sync accounts
             result = subprocess.run(
                 ["ynab", "--output", "json", "list", "accounts"],

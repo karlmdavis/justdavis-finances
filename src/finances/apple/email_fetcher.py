@@ -112,10 +112,24 @@ class AppleEmailFetcher:
 
     def _list_all_folders(self) -> list[str]:
         """
-        List all IMAP folders recursively.
+        Recursively discover all IMAP folders across different server conventions.
+
+        Supports folder naming conventions:
+        - Quoted: '"[Gmail]/All Mail"', '"Follow Up"'
+        - Unquoted: 'INBOX', 'Sent'
+        - Dotted hierarchy: 'Archive.2024.October'
+        - With spaces: 'Follow Up', 'Important Mail'
+
+        Parses IMAP LIST responses using regex to extract folder names
+        from various formats returned by different email providers.
+
+        Error Handling:
+        - Returns empty list on connection failure
+        - Skips malformed folder entries (logged at debug level)
+        - Filters out system folders (e.g., ".")
 
         Returns:
-            List of folder names that can be searched
+            List of folder names (unquoted, ready for IMAP SELECT command)
         """
         if not self.connection:
             logger.warning("Cannot list folders without connection")
