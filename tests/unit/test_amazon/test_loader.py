@@ -35,10 +35,28 @@ class TestAmazonLoader:
         amazon_dir.mkdir(parents=True, exist_ok=True)
 
         if create_csv:
-            csv_file = amazon_dir / "Retail.OrderHistory.1.csv"
-            # Create valid Amazon CSV with all required columns
-            csv_content = "Order ID,Order Date,Ship Date,Total Owed,Product Name,Quantity,ASIN/ISBN,Item Subtotal,Item Tax\n"
-            csv_content += "123-456-789,01/01/2024,01/02/2024,$10.00,Test Item,1,B01234567,$9.00,$1.00\n"
+            # Create nested directory structure matching current Amazon export format
+            csv_dir = amazon_dir / "Retail.OrderHistory.1"
+            csv_dir.mkdir(parents=True, exist_ok=True)
+            csv_file = csv_dir / "Retail.OrderHistory.1.csv"
+
+            # Create valid Amazon CSV with current format (ISO8601 dates, current columns)
+            csv_content = (
+                '"Website","Order ID","Order Date","Purchase Order Number","Currency",'
+                '"Unit Price","Unit Price Tax","Shipping Charge","Total Discounts","Total Owed",'
+                '"Shipment Item Subtotal","Shipment Item Subtotal Tax","ASIN","Product Condition",'
+                '"Quantity","Payment Instrument Type","Order Status","Shipment Status","Ship Date",'
+                '"Shipping Option","Shipping Address","Billing Address","Carrier Name & Tracking Number",'
+                '"Product Name","Gift Message","Gift Sender Name","Gift Recipient Contact Details",'
+                '"Item Serial Number"\n'
+                '"Amazon.com","123-456-789","2024-01-01T12:00:00Z","Not Applicable","USD",'
+                '"10.00","1.00","0","0","10.00","9.00","1.00","B01234567","New","1",'
+                '"Visa - 1234","Closed","Shipped","2024-01-02T14:00:00Z","standard",'
+                '"Test User 123 Test St Test City WA 98101 United States",'
+                '"Test User 123 Test St Test City WA 98101 United States",'
+                '"USPS(9400111899223344556677)","Test Item","Not Available",'
+                '"Not Available","Not Available","Not Available"\n'
+            )
             csv_file.write_text(csv_content)
 
         return amazon_dir

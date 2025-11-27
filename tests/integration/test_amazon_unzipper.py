@@ -53,7 +53,7 @@ class TestAmazonUnzipperIntegration:
         # Verify extraction success
         assert result["success"] is True
         assert result["account_name"] == "karl"
-        assert result["files_extracted"] == 2  # CSV + JSON
+        assert result["files_extracted"] == 3  # Directory + CSV + JSON (nested structure)
 
         # Verify output directory structure
         output_dir = Path(result["output_directory"])
@@ -65,16 +65,16 @@ class TestAmazonUnzipperIntegration:
         assert "_karl_amazon_data" in output_dir.name
         assert output_dir.name.startswith("2025-")  # Current year
 
-        # Verify CSV files were extracted
+        # Verify CSV files were extracted (includes nested path from ZIP)
         assert len(result["csv_files"]) == 1
-        assert result["csv_files"][0] == "Retail.OrderHistory.1.csv"
+        assert "Retail.OrderHistory.1.csv" in result["csv_files"][0]
 
         # Verify JSON files were extracted
         assert len(result["json_files"]) == 1
         assert result["json_files"][0] == "metadata.json"
 
-        # Verify actual file extraction
-        csv_path = output_dir / "Retail.OrderHistory.1.csv"
+        # Verify actual file extraction (nested directory structure)
+        csv_path = output_dir / "Retail.OrderHistory.1" / "Retail.OrderHistory.1.csv"
         assert csv_path.exists()
         assert csv_path.is_file()
 
@@ -88,7 +88,7 @@ class TestAmazonUnzipperIntegration:
             orders = list(reader)
             assert len(orders) == 2
             assert orders[0]["Order ID"] == "111-2223334-5556667"
-            assert orders[0]["Title"] == "Echo Dot (4th Gen) Smart speaker with Alexa - Charcoal"
+            assert orders[0]["Product Name"] == "Echo Dot (4th Gen) Smart speaker with Alexa - Charcoal"
             assert orders[1]["Order ID"] == "112-3334445-6667778"
 
         # Verify JSON data integrity
@@ -117,17 +117,15 @@ class TestAmazonUnzipperIntegration:
             reader = csv.DictReader(f)
             orders = list(reader)
 
-            # Verify expected columns exist
+            # Verify expected columns exist (current Amazon format)
             expected_columns = [
                 "Order ID",
                 "Order Date",
-                "Title",
-                "ASIN/ISBN",
-                "Item Subtotal",
-                "Item Subtotal Tax",
-                "Item Total",
-                "Buyer Name",
-                "Ordering Customer Email",
+                "Product Name",
+                "ASIN",
+                "Total Owed",
+                "Unit Price",
+                "Currency",
             ]
 
             for column in expected_columns:
@@ -135,7 +133,7 @@ class TestAmazonUnzipperIntegration:
 
             # Verify data types and formats
             assert orders[0]["Order ID"].startswith("111-")
-            assert "$" in orders[0]["Item Subtotal"]  # Currency format preserved
+            assert orders[0]["Currency"] == "USD"
 
             # Verify multi-item order data
             assert orders[1]["Quantity"] == "2"  # Second order has 2 items
@@ -149,17 +147,18 @@ class TestAmazonUnzipperIntegration:
         assert result["account_name"] == "erica"
         assert "_erica_amazon_data" in result["output_directory"]
 
-        # Verify extracted content
+        # Verify extracted content (nested directory structure)
         assert len(result["csv_files"]) == 1
         output_dir = Path(result["output_directory"])
-        csv_path = output_dir / "Retail.OrderHistory.1.csv"
+        csv_path = output_dir / "Retail.OrderHistory.1" / "Retail.OrderHistory.1.csv"
 
         with open(csv_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             orders = list(reader)
             assert len(orders) == 1
             assert orders[0]["Order ID"] == "113-4445556-7778889"
-            assert orders[0]["Buyer Name"] == "Erica Davis"
+            # Buyer name is not a separate column in current format
+            assert "Erica Davis" in orders[0]["Shipping Address"]
 
     def test_extract_with_explicit_account_name(self, unzipper, karl_zip):
         """Test extraction with explicitly provided account name."""
@@ -185,9 +184,9 @@ class TestAmazonUnzipperIntegration:
         assert output_dir1 != output_dir2
         assert "_001" in output_dir2.name  # Should have sequence number
 
-        # Verify both directories contain extracted files
-        assert (output_dir1 / "Retail.OrderHistory.1.csv").exists()
-        assert (output_dir2 / "Retail.OrderHistory.1.csv").exists()
+        # Verify both directories contain extracted files (nested structure)
+        assert (output_dir1 / "Retail.OrderHistory.1" / "Retail.OrderHistory.1.csv").exists()
+        assert (output_dir2 / "Retail.OrderHistory.1" / "Retail.OrderHistory.1.csv").exists()
 
     def test_extract_corrupted_zip_file(self, unzipper, corrupted_zip):
         """Test error handling for corrupted ZIP files."""
@@ -254,11 +253,11 @@ class TestAmazonUnzipperIntegration:
         accounts = {extract["account_name"] for extract in result["extractions"]}
         assert accounts == {"karl", "erica"}
 
-        # Verify all output directories exist
+        # Verify all output directories exist (nested directory structure)
         for extraction in result["extractions"]:
             output_dir = Path(extraction["output_directory"])
             assert output_dir.exists()
-            assert (output_dir / "Retail.OrderHistory.1.csv").exists()
+            assert (output_dir / "Retail.OrderHistory.1" / "Retail.OrderHistory.1.csv").exists()
 
     def test_batch_extract_empty_directory(self, unzipper, temp_dir):
         """Test batch extraction with no ZIP files."""
@@ -323,8 +322,8 @@ class TestAmazonUnzipperIntegration:
         # Verify raw data directory was created
         assert raw_data_dir.exists()
 
-        # Verify extraction output
+        # Verify extraction output (nested directory structure)
         extraction = result["extractions"][0]
         output_dir = Path(extraction["output_directory"])
         assert output_dir.exists()
-        assert (output_dir / "Retail.OrderHistory.1.csv").exists()
+        assert (output_dir / "Retail.OrderHistory.1" / "Retail.OrderHistory.1.csv").exists()

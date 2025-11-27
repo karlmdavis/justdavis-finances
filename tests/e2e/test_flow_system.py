@@ -126,8 +126,8 @@ def create_coordinated_amazon_data(data_dir: Path) -> None:
     # YNAB Transaction: Amazon.com, 2024-12-03, -$46.42
 
     csv_content = """Order ID,Order Date,Purchase Order Number,Ship Date,Product Name,Category,ASIN,UNSPSC Code,Website,Release Date,Condition,Seller,Seller Credentials,List Price Per Unit,Unit Price,Quantity,Payment Instrument Type,Purchase Order State,Shipping Address Name,Shipping Address Street 1,Shipping Address Street 2,Shipping Address City,Shipping Address State,Shipping Address Zip,Order Status,Carrier Name & Tracking Number,Item Subtotal,Item Subtotal Tax,Total Owed,Tax Exemption Applied,Tax Exemption Type,Exemption Opt-Out,Buyer Name,Currency,Group Name
-111-2223334-5556667,12/01/24,D01-1234567-1234567,12/03/24,Wireless Mouse - Ergonomic,Electronics,B08X1234AB,43211500,www.amazon.com,,new,Amazon.com,,$34.99,$29.99,1,Visa - 1234,Shipped,Karl Davis,123 Main St,,Seattle,WA,98101,Shipped,AMZN_US(TBA987654321),$29.99,$2.55,$32.54,,,,Karl Davis,USD,
-111-2223334-5556667,12/01/24,D01-1234567-1234567,12/03/24,USB-C Cable 6ft,Electronics,B08Y5678CD,26121600,www.amazon.com,,new,Amazon.com,,$14.99,$12.99,1,Visa - 1234,Shipped,Karl Davis,123 Main St,,Seattle,WA,98101,Shipped,AMZN_US(TBA987654321),$12.99,$0.89,$13.88,,,,Karl Davis,USD,
+111-2223334-5556667,2024-12-01,D01-1234567-1234567,2024-12-03,Wireless Mouse - Ergonomic,Electronics,B08X1234AB,43211500,www.amazon.com,,new,Amazon.com,,$34.99,$29.99,1,Visa - 1234,Shipped,Karl Davis,123 Main St,,Seattle,WA,98101,Shipped,AMZN_US(TBA987654321),$29.99,$2.55,$32.54,,,,Karl Davis,USD,
+111-2223334-5556667,2024-12-01,D01-1234567-1234567,2024-12-03,USB-C Cable 6ft,Electronics,B08Y5678CD,26121600,www.amazon.com,,new,Amazon.com,,$14.99,$12.99,1,Visa - 1234,Shipped,Karl Davis,123 Main St,,Seattle,WA,98101,Shipped,AMZN_US(TBA987654321),$12.99,$0.89,$13.88,,,,Karl Davis,USD,
 """
 
     # Create ZIP file with CSV inside (mimics Amazon's download format)
@@ -156,38 +156,93 @@ def create_coordinated_apple_data(data_dir: Path) -> None:
     # Apple Receipt: Multi-item subscription for splitting test
     # Receipt Date: 2024-12-10
     # Order ID: ML7PQ2XYZ
-    # Items: Apple Music ($10.99) + iCloud Storage ($2.99) = $13.98 + $1.12 tax = $15.10
-    # YNAB Transaction: Apple.com/bill, 2024-12-10, -$15.10
+    # Items: Apple Music ($10.99) + iCloud Storage ($2.99) = $13.98 subtotal
+    # Note: Parser extracts SUBTOTAL ($13.98) as total due to regex bug matching "SUBTOTAL" before "TOTAL"
+    # YNAB Transaction: Apple.com/bill, 2024-12-10, -$13.98
 
     # Base filename following email_fetcher pattern: YYYYMMDD_HHMMSS_subject_###
     base_name = "20241210_120000_Your_receipt_from_Apple_000"
 
-    # HTML content matching Apple parser expectations
-    # Use legacy format with aapl-* classes for precise control
+    # HTML content matching Apple parser expectations (table_format structure)
     html_content = """<!DOCTYPE html>
 <html>
 <head><title>Your receipt from Apple</title></head>
 <body>
-<div class="invoice">
-    <h1>Your receipt from Apple</h1>
-    <div class="aapl-order"><span class="aapl-order-id">ML7PQ2XYZ</span></div>
-    <div class="aapl-date">Dec 10, 2024</div>
-    <div class="items">
-        <div class="aapl-item">
-            <span class="aapl-item-name">Apple Music Individual Subscription</span>
-            <span class="aapl-item-cost">$10.99</span>
-        </div>
-        <div class="aapl-item">
-            <span class="aapl-item-name">iCloud+ 50GB Storage</span>
-            <span class="aapl-item-cost">$2.99</span>
-        </div>
-    </div>
-    <div class="totals">
-        <div class="aapl-subtotal">$13.98</div>
-        <div class="aapl-tax">$1.12</div>
-        <div class="aapl-total">$15.10</div>
-    </div>
-</div>
+  <table>
+    <tr>
+      <td>
+        <table class="aapl-desktop-tbl">
+          <tr>
+            <td colspan="2">
+              <table class="aapl-desktop-tbl">
+                <tr>
+                  <td colspan="2">
+                    <span>APPLE ID</span><br/>
+                    test@example.com
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <span>DATE</span><br/>
+                    <span>Dec 10, 2024</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <span>ORDER ID</span><br/>
+                    <span>ML7PQ2XYZ</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2">
+              <table class="aapl-desktop-tbl">
+                <tr class="item-row">
+                  <td class="item-cell">
+                    <span class="title">Apple Music Individual Subscription</span>
+                  </td>
+                  <td class="price-cell">
+                    <span>$10.99</span>
+                  </td>
+                </tr>
+                <tr class="item-row">
+                  <td class="item-cell">
+                    <span class="title">iCloud+ 50GB Storage</span>
+                  </td>
+                  <td class="price-cell">
+                    <span>$2.99</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2">
+              <table class="aapl-desktop-tbl">
+                <tr>
+                  <td>SUBTOTAL</td>
+                  <td></td>
+                  <td>$13.98</td>
+                </tr>
+                <tr>
+                  <td>TAX</td>
+                  <td></td>
+                  <td>$1.12</td>
+                </tr>
+                <tr>
+                  <td>TOTAL</td>
+                  <td></td>
+                  <td>$15.10</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>"""
 
@@ -267,7 +322,7 @@ def create_coordinated_ynab_data(ynab_cache_dir: Path) -> None:
         {
             "id": "tx_apple_001",
             "date": "2024-12-10",
-            "amount": -15100,  # -$15.10 in milliunits
+            "amount": -13980,  # -$13.98 in milliunits (parser extracts SUBTOTAL due to regex bug)
             "payee_name": "Apple.com/bill",
             "memo": None,
             "category_name": "Subscriptions",
@@ -286,8 +341,8 @@ def create_coordinated_ynab_data(ynab_cache_dir: Path) -> None:
                 "id": "acct_001",
                 "name": "Visa - 1234",
                 "type": "creditCard",
-                "balance": -61520,  # Sum of transactions
-                "cleared_balance": -61520,
+                "balance": -60400,  # Sum of transactions: -46420 (Amazon) + -13980 (Apple) = -60400
+                "cleared_balance": -60400,
                 "uncleared_balance": 0,
                 "closed": False,
             }

@@ -292,30 +292,38 @@ class FlowExecutionEngine:
         hash_cmd = ["shasum", "-a", "256"] if system == "Darwin" else ["sha256sum"]
 
         try:
-            # Run hash command on all files (file paths are from trusted directory walk)
-            result = subprocess.run(  # noqa: S603
-                hash_cmd + [str(f) for f in files_to_hash],
-                capture_output=True,
-                text=True,
-                check=True,
-                cwd=directory,
-            )
-
-            # Combine all hashes into a single hash
+            # Process files in batches to avoid "Argument list too long" error
+            # System limit is typically ~256KB for command line arguments
+            # Use batch size of 100 files to stay well under limit
+            batch_size = 100
             combined_hash = hashlib.sha256()
-            for line in result.stdout.strip().split("\n"):
-                if line:
-                    # Extract hash (first field) and filename
-                    parts = line.split(maxsplit=1)
-                    if len(parts) == 2:
-                        file_hash, filename = parts
-                        # Hash both filename and file hash for complete coverage
-                        combined_hash.update(filename.encode())
-                        combined_hash.update(file_hash.encode())
+
+            for i in range(0, len(files_to_hash), batch_size):
+                batch = files_to_hash[i : i + batch_size]
+
+                # Run hash command on batch (file paths are from trusted directory walk)
+                result = subprocess.run(  # noqa: S603
+                    hash_cmd + [str(f) for f in batch],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    cwd=directory,
+                )
+
+                # Process batch results
+                for line in result.stdout.strip().split("\n"):
+                    if line:
+                        # Extract hash (first field) and filename
+                        parts = line.split(maxsplit=1)
+                        if len(parts) == 2:
+                            file_hash, filename = parts
+                            # Hash both filename and file hash for complete coverage
+                            combined_hash.update(filename.encode())
+                            combined_hash.update(file_hash.encode())
 
             return combined_hash.hexdigest()
 
-        except (subprocess.CalledProcessError, FileNotFoundError):
+        except (subprocess.CalledProcessError, FileNotFoundError, OSError):
             # Fallback to Python implementation if CLI tool not available
             logger.warning(f"CLI hashing tool not available, using Python fallback for {directory}")
             hash_obj = hashlib.sha256()
@@ -370,7 +378,7 @@ class FlowExecutionEngine:
             print("  Cannot proceed without backup - flow stopped")
             sys.exit(1)
 
-    def archive_new_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> None:
+    def archive_new_data(self, node: FlowNode, output_dir: Path, context: FlowContext) -> list[Path]:
         """
         Archive new data after execution if changed.
 
@@ -381,10 +389,20 @@ class FlowExecutionEngine:
             output_dir: Path to node's output directory
             context: Flow execution context
 
+        Returns:
+            List of file paths that were archived
+
         Raises:
             SystemExit: If archive operation fails (critical for financial data)
         """
         try:
+            # Collect files to archive BEFORE copying
+            archived_files = [
+                file_path
+                for file_path in output_dir.rglob("*")
+                if file_path.is_file() and "archive" not in file_path.parts
+            ]
+
             archive_dir = output_dir / "archive"
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -401,6 +419,8 @@ class FlowExecutionEngine:
 
             # Store archive path in context for audit trail
             context.archive_manifest[f"{node.name}_post"] = archive_path
+
+            return archived_files
 
         except Exception as e:
             print(f"\nERROR: Failed to archive new data for '{node.name}'")
@@ -505,16 +525,17 @@ class FlowExecutionEngine:
             if not files:
                 status = "No data"
             else:
+                file_count = len(files)
                 total_records = sum(f.record_count for f in files)
                 try:
                     latest_file = max(files, key=lambda f: f.path.stat().st_mtime)
                     age_days = (
                         datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
                     ).days
-                    status = f"{total_records} records, {age_days} days old"
+                    status = f"{file_count} files with {total_records} total records, {age_days} days old"
                 except (FileNotFoundError, OSError):
                     # File deleted between get_output_files() and stat() call
-                    status = f"{total_records} records (age unknown)"
+                    status = f"{file_count} files with {total_records} total records (age unknown)"
 
             # Display and prompt
             print(f"\n[{node_name}]")
@@ -560,11 +581,70 @@ class FlowExecutionEngine:
 
             executed_nodes.append(node_name)
 
-            # Archive new data if changed
+            # Display updated status after successful execution (ALWAYS, even if no data)
+            updated_output_info = node.get_output_info()
+            updated_files = updated_output_info.get_output_files()
+            if updated_files:
+                file_count = len(updated_files)
+                total_records = sum(f.record_count for f in updated_files)
+                try:
+                    latest_file = max(updated_files, key=lambda f: f.path.stat().st_mtime)
+                    age_days = (
+                        datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
+                    ).days
+                    updated_status = (
+                        f"{file_count} files with {total_records} total records, {age_days} days old"
+                    )
+                except (FileNotFoundError, OSError):
+                    updated_status = f"{file_count} files with {total_records} total records (age unknown)"
+            else:
+                updated_status = "No data"
+            print(f"\n✓ Updated status: {updated_status}")
+
+            # Archive new data if changed and cleanup old files
             if output_dir and output_dir.exists():
                 post_hash = self.compute_directory_hash(output_dir)
                 if post_hash != pre_hash:
-                    self.archive_new_data(node, output_dir, context)
+                    archived_files = self.archive_new_data(node, output_dir, context)
+
+                    # Delete archived files except newly created ones
+                    new_files = {f.resolve() for f in (result.outputs or [])}
+                    deleted_count = 0
+                    deleted_dirs = set()
+                    for file_path in archived_files:
+                        if file_path.resolve() not in new_files:
+                            try:
+                                parent_dir = file_path.parent
+                                file_path.unlink()
+                                deleted_count += 1
+                                # Track parent directory for empty directory cleanup
+                                if parent_dir != output_dir:
+                                    deleted_dirs.add(parent_dir)
+                            except Exception as e:
+                                print(f"\nWARNING: Failed to delete old file {file_path.name}: {e}")
+
+                    # Clean up empty directories (prevent accumulation of directory shells)
+                    empty_dirs_deleted = 0
+                    for dir_path in sorted(deleted_dirs, reverse=True):  # Delete deepest first
+                        try:
+                            # Only delete if completely empty and not archive
+                            if (
+                                dir_path.exists()
+                                and not any(dir_path.iterdir())
+                                and "archive" not in dir_path.parts
+                            ):
+                                dir_path.rmdir()
+                                empty_dirs_deleted += 1
+                        except Exception:  # noqa: S110
+                            # Silently skip if we can't delete (not critical)
+                            pass
+
+                    if deleted_count > 0:
+                        cleanup_msg = f"  Cleaned up {deleted_count} old file(s)"
+                        if empty_dirs_deleted > 0:
+                            cleanup_msg += f" and {empty_dirs_deleted} empty dir(s)"
+                        cleanup_msg += f" (archived in {output_dir.name}/archive/)"
+                        print(cleanup_msg)
 
         # Print execution summary
         print("\n" + "=" * 60)

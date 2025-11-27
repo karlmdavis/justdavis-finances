@@ -76,6 +76,19 @@ class CashFlowAnalysisFlowNode(FlowNode):
             # Generate dashboard (returns single Path, not list)
             dashboard_file = analyzer.generate_dashboard(output_dir)
 
+            # Display report with clickable file link (iTerm2 compatible)
+            import click
+
+            click.echo("\n📈 Cash Flow Analysis Report Generated")
+            click.echo("=" * 60)
+            click.echo("\nDashboard file:")
+            # Use file:// URL which iTerm2 recognizes for cmd+click
+            file_url = f"file://{dashboard_file.resolve()}"
+            click.echo(f"  {dashboard_file.name}")
+            click.echo(f"  Location: {file_url}")
+            click.echo("\n💡 Tip: Cmd+click the path to open in default app")
+            click.echo("=" * 60)
+
             return FlowResult(
                 success=True,
                 items_processed=1,
@@ -87,6 +100,13 @@ class CashFlowAnalysisFlowNode(FlowNode):
                 },
             )
         except Exception as e:
+            import logging
+            import traceback
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Cash flow analysis failed: {e}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+
             return FlowResult(
                 success=False,
                 error_message=f"Cash flow analysis failed: {e}",

@@ -18,8 +18,9 @@ from ..core.config import get_config
     help="Override environment configuration",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
+@click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.pass_context
-def main(ctx: click.Context, config_env: str | None, verbose: bool) -> None:
+def main(ctx: click.Context, config_env: str | None, verbose: bool, debug: bool) -> None:
     """
     Davis Family Finances - Professional Financial Management System
 
@@ -35,13 +36,26 @@ def main(ctx: click.Context, config_env: str | None, verbose: bool) -> None:
 
         os.environ["FINANCES_ENV"] = config_env
 
+    # Configure debug logging if requested
+    if debug:
+        import logging
+        import os
+
+        os.environ["LOG_LEVEL"] = "DEBUG"
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger("finances").setLevel(logging.DEBUG)
+
     # Store global options
     ctx.obj["verbose"] = verbose
+    ctx.obj["debug"] = debug
     ctx.obj["config"] = get_config()
 
     if verbose:
         click.echo(f"Environment: {ctx.obj['config'].environment.value}")
         click.echo(f"Data directory: {ctx.obj['config'].data_dir}")
+
+    if debug:
+        click.echo("Debug logging enabled")
 
 
 @main.command()

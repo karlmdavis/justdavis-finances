@@ -126,8 +126,8 @@ def load_orders(
         if accounts_filter and account_name not in accounts_filter:
             continue
 
-        # Load retail order CSV
-        retail_csv_pattern = "Retail.OrderHistory.*.csv"
+        # Load retail order CSV (may be nested in subdirectory)
+        retail_csv_pattern = "**/Retail.OrderHistory.*.csv"
         retail_csv_files = list(account_dir.glob(retail_csv_pattern))
 
         if not retail_csv_files:
@@ -136,8 +136,8 @@ def load_orders(
         # Load the retail CSV file (take first if multiple)
         retail_csv = retail_csv_files[0]
         try:
-            # Load CSV with pandas to get parsed dates
-            retail_df = pd.read_csv(retail_csv, parse_dates=["Order Date", "Ship Date"])
+            # Load CSV (let domain model handle date parsing to support multiple formats)
+            retail_df = pd.read_csv(retail_csv)
 
             # Convert each row to AmazonOrderItem
             order_items: list[AmazonOrderItem] = []

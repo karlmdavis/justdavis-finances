@@ -5,6 +5,7 @@ YNAB Flow Nodes
 Flow node implementations for YNAB integration.
 """
 
+import json
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -46,21 +47,21 @@ class YnabSyncOutputInfo(OutputInfo):
 
         # transactions.json - direct array
         transactions_file = self.cache_dir / "transactions.json"
-        if transactions_file.exists():
+        if transactions_file.exists() and transactions_file.stat().st_size > 0:
             data = read_json(transactions_file)
             count = len(data) if isinstance(data, list) else 0
             files.append(OutputFile(path=transactions_file, record_count=count))
 
         # accounts.json - nested in "accounts" key
         accounts_file = self.cache_dir / "accounts.json"
-        if accounts_file.exists():
+        if accounts_file.exists() and accounts_file.stat().st_size > 0:
             data = read_json(accounts_file)
             count = len(data.get("accounts", [])) if isinstance(data, dict) else 0
             files.append(OutputFile(path=accounts_file, record_count=count))
 
         # categories.json - nested in "category_groups" key
         categories_file = self.cache_dir / "categories.json"
-        if categories_file.exists():
+        if categories_file.exists() and categories_file.stat().st_size > 0:
             data = read_json(categories_file)
             count = len(data.get("category_groups", [])) if isinstance(data, dict) else 0
             files.append(OutputFile(path=categories_file, record_count=count))
@@ -94,15 +95,105 @@ class YnabSyncFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute YNAB sync using external ynab CLI tool."""
+        from ..core.json_utils import write_json
+
         try:
-            # Call the external ynab CLI tool
-            cmd = ["ynab", "sync", "--days", "30"]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)  # noqa: S603
+            cache_dir = self.data_dir / "ynab" / "cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+
+            items_synced = 0
+
+            # SECURITY: All subprocess commands use list form (not string concatenation)
+            # to prevent shell injection. Never interpolate user input into these commands.
+
+            # Sync accounts
+            result = subprocess.run(
+                ["ynab", "--output", "json", "list", "accounts"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            accounts_data = json.loads(result.stdout)
+            write_json(cache_dir / "accounts.json", accounts_data)
+            items_synced += len(accounts_data.get("accounts", []))
+
+            # Sync categories
+            result = subprocess.run(
+                ["ynab", "--output", "json", "list", "categories"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            categories_data = json.loads(result.stdout)
+            write_json(cache_dir / "categories.json", categories_data)
+            if isinstance(categories_data, dict):
+                items_synced += len(categories_data.get("category_groups", []))
+
+            # Sync transactions
+            result = subprocess.run(
+                ["ynab", "--output", "json", "list", "transactions"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            transactions_data = json.loads(result.stdout)
+            write_json(cache_dir / "transactions.json", transactions_data)
+            if isinstance(transactions_data, list):
+                items_synced += len(transactions_data)
+
+            # Generate detailed sync report
+            import click
+
+            from ..core.currency import format_cents
+
+            click.echo("\n📊 YNAB Sync Report")
+            click.echo("=" * 60)
+
+            # Account balances
+            accounts_list = accounts_data.get("accounts", [])
+            click.echo(f"\n💰 Account Balances ({len(accounts_list)} accounts):")
+
+            # Calculate max account name length for proper alignment
+            max_name_len = max(len(acc["name"]) for acc in accounts_list) if accounts_list else 40
+
+            for account in accounts_list:
+                balance_formatted = format_cents(account["balance"] // 10)  # milliunits → cents
+                status = "closed" if account.get("closed") else "active"
+                click.echo(f"  {account['name']:<{max_name_len}} {balance_formatted:>15}  [{status}]")
+
+            # Transaction counts by approval status
+            click.echo(f"\n📝 Transactions ({len(transactions_data)} total):")
+            if isinstance(transactions_data, list):
+                # Count by approval status
+                from collections import Counter
+
+                approval_counts = Counter(
+                    "approved" if tx.get("approved") else "unapproved" for tx in transactions_data
+                )
+                for status, count in sorted(approval_counts.items()):
+                    click.echo(f"  {status:15} {count:>6} transactions")
+
+            click.echo("=" * 60)
+
+            # Declare all cache files as outputs so cleanup preserves them
+            output_files = [
+                cache_dir / "accounts.json",
+                cache_dir / "categories.json",
+                cache_dir / "transactions.json",
+            ]
 
             return FlowResult(
                 success=True,
-                items_processed=1,
-                metadata={"ynab_sync": "completed", "output": result.stdout},
+                items_processed=items_synced,
+                outputs=output_files,
+                metadata={
+                    "ynab_sync": "completed",
+                    "cache_dir": str(cache_dir),
+                    "accounts_count": len(accounts_list),
+                    "transactions_count": (
+                        len(transactions_data) if isinstance(transactions_data, list) else 0
+                    ),
+                },
             )
         except subprocess.CalledProcessError as e:
             return FlowResult(
@@ -113,6 +204,11 @@ class YnabSyncFlowNode(FlowNode):
             return FlowResult(
                 success=False,
                 error_message="ynab CLI tool not found. Please install it first.",
+            )
+        except json.JSONDecodeError as e:
+            return FlowResult(
+                success=False,
+                error_message=f"YNAB sync failed: Invalid JSON response from ynab CLI: {e}",
             )
 
 
@@ -220,8 +316,11 @@ class RetirementUpdateFlowNode(FlowNode):
             )
 
     def execute(self, context: FlowContext) -> FlowResult:
-        """Execute retirement account update (manual step with account discovery)."""
-        from . import discover_retirement_accounts
+        """Execute retirement account update (interactive balance prompting)."""
+        import click
+
+        from ..core.currency import format_cents
+        from . import discover_retirement_accounts, generate_retirement_edits
 
         try:
             accounts = discover_retirement_accounts(self.data_dir)
@@ -232,17 +331,61 @@ class RetirementUpdateFlowNode(FlowNode):
                     error_message="No retirement accounts found in YNAB cache",
                 )
 
-            # Format account info for review instructions
-            account_list = "\n".join(f"  - {acc.name}: {acc.balance_cents} cents" for acc in accounts)
+            click.echo("\n💰 Retirement Account Balance Updates")
+            click.echo(f"Found {len(accounts)} retirement accounts.\n")
 
-            return FlowResult(
-                success=True,
-                items_processed=len(accounts),
-                requires_review=True,
-                review_instructions=f"Manually update retirement account balances:\n\n"
-                f"Discovered accounts:\n{account_list}\n\n"
-                f"Run `finances flow` to generate balance adjustments through the retirement update node",
-            )
+            # Prompt for each account's current balance
+            balance_updates: dict[str, int] = {}
+            for account in accounts:
+                current_balance_str = format_cents(account.balance_cents)
+                click.echo(f"Account: {account.name}")
+                click.echo(f"  Current YNAB balance: {current_balance_str}")
+
+                # Prompt for new balance
+                new_balance_input = click.prompt(
+                    "  Enter new balance (or press Enter to skip)", default="", show_default=False
+                )
+
+                if new_balance_input.strip():
+                    try:
+                        # Parse dollar amount to cents using integer-only arithmetic
+                        from ..core.currency import parse_dollars_to_cents
+
+                        new_balance_cents = parse_dollars_to_cents(new_balance_input.strip())
+                        balance_updates[account.id] = new_balance_cents
+                        click.echo(f"  ✓ Will update to {format_cents(new_balance_cents)}\n")
+                    except ValueError:
+                        click.echo("  ✗ Invalid amount, skipping this account\n")
+                else:
+                    click.echo("  Skipped\n")
+
+            if not balance_updates:
+                return FlowResult(
+                    success=True,
+                    items_processed=0,
+                    metadata={"message": "No balance updates provided"},
+                )
+
+            # Generate edits file
+            edits_file = generate_retirement_edits(self.data_dir, balance_updates)
+
+            if edits_file:
+                return FlowResult(
+                    success=True,
+                    items_processed=len(balance_updates),
+                    outputs=[edits_file],
+                    metadata={
+                        "accounts_updated": len(balance_updates),
+                        "edits_file": str(edits_file),
+                    },
+                )
+            else:
+                return FlowResult(
+                    success=True,
+                    items_processed=0,
+                    metadata={"message": "No adjustments needed (balances already match)"},
+                )
+
         except Exception as e:
             return FlowResult(
                 success=False,

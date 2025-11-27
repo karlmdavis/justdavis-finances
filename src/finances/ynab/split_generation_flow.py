@@ -135,7 +135,11 @@ class SplitGenerationFlowNode(FlowNode):
             # Process Amazon matches
             if amazon_matches_dir.exists():
                 for match_file in amazon_matches_dir.glob("*.json"):
-                    match_data = read_json(match_file)
+                    try:
+                        match_data = read_json(match_file)
+                    except Exception as e:
+                        logger.warning(f"Skipping malformed Amazon match file {match_file.name}: {e}")
+                        continue
 
                     # Extract matches from file
                     matches = match_data.get("matches", [])
@@ -185,7 +189,11 @@ class SplitGenerationFlowNode(FlowNode):
             # Process Apple matches
             if apple_matches_dir.exists():
                 for match_file in apple_matches_dir.glob("*.json"):
-                    match_data = read_json(match_file)
+                    try:
+                        match_data = read_json(match_file)
+                    except Exception as e:
+                        logger.warning(f"Skipping malformed Apple match file {match_file.name}: {e}")
+                        continue
 
                     # Extract matches from file
                     matches = match_data.get("matches", [])

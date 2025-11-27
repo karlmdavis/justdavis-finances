@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ynab list:*)",
+      "Bash(ynab get:*)",
+      "Bash(finances flow go --help)"
+    ]
+  }
+}

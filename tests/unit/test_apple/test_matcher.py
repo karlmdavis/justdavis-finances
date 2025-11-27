@@ -36,10 +36,12 @@ class TestAppleMatcher:
         IMPORTANT: Amounts are in CENTS (as integers) because the parser now returns
         integer cents. The parser converts "$29.99" → 2999 cents.
         Dates must be in ISO format (YYYY-MM-DD) for ParsedReceipt.from_dict().
+        base_name is required for all receipts (set by parser from HTML filename).
         """
         return [
             {
                 "order_id": "ML7PQ2XYZ",
+                "base_name": "20240815_120000_receipt_ML7PQ2XYZ",
                 "receipt_date": "2024-08-15",  # ISO format required
                 "apple_id": "test@example.com",
                 "subtotal": 2999,  # $29.99 → 2999 cents (parser output)
@@ -49,6 +51,7 @@ class TestAppleMatcher:
             },
             {
                 "order_id": "NX8QR3ABC",
+                "base_name": "20240816_120000_receipt_NX8QR3ABC",
                 "receipt_date": "2024-08-16",  # ISO format required
                 "apple_id": "family@example.com",
                 "subtotal": 999,  # $9.99 → 999 cents
@@ -60,6 +63,7 @@ class TestAppleMatcher:
             },
             {
                 "order_id": "KL5MN4DEF",
+                "base_name": "20240814_120000_receipt_KL5MN4DEF",
                 "receipt_date": "2024-08-14",  # ISO format required
                 "apple_id": "test@example.com",
                 "subtotal": 59998,  # $599.98 → 59998 cents
@@ -94,7 +98,7 @@ class TestAppleMatcher:
 
         # Should match the $32.97 Procreate purchase
         matched_receipt = result.receipts[0]
-        assert matched_receipt.id == "ML7PQ2XYZ"
+        assert matched_receipt.id == "20240815_120000_receipt_ML7PQ2XYZ"  # Uses base_name (filename)
 
     @pytest.mark.apple
     def test_multi_app_purchase_match(self, matcher, sample_apple_receipts):
@@ -117,7 +121,7 @@ class TestAppleMatcher:
 
         # Should match the multi-app purchase
         matched_receipt = result.receipts[0]
-        assert matched_receipt.id == "KL5MN4DEF"
+        assert matched_receipt.id == "20240814_120000_receipt_KL5MN4DEF"  # Uses base_name (filename)
         assert len(matched_receipt.items) == 2
 
     @pytest.mark.apple
@@ -360,6 +364,7 @@ class TestAppleEdgeCases:
         receipts = [
             {
                 "order_id": "free-app",
+                "base_name": "20240815_120000_free_app",
                 "receipt_date": "2024-08-15",
                 "apple_id": "test@example.com",
                 "total": 0,  # $0.00 → 0 cents
@@ -388,6 +393,7 @@ class TestAppleEdgeCases:
         receipts = [
             {
                 "order_id": "small-purchase",
+                "base_name": "20240815_120000_small_purchase",
                 "receipt_date": "2024-08-15",
                 "apple_id": "test@example.com",
                 "total": 99,  # $0.99 in cents
@@ -455,6 +461,7 @@ def test_currency_unit_consistency_with_ynab():
     receipts = [
         {
             "order_id": "TEST123",
+            "base_name": "20240815_120000_test_app",
             "receipt_date": "2024-08-15",
             "total": 4599,  # $45.99 in cents (as parser NOW returns)
             "items": [{"title": "Test App", "cost": 4599}],

@@ -68,12 +68,13 @@ def calculate_amazon_splits(
 
         splits.append(YnabSplit(amount=split_amount, memo=memo))
 
-    # Verify splits sum to transaction total
+    # Verify splits sum to transaction total (use absolute value for comparison)
+    # Transaction amount may be positive or negative depending on data source
     split_dicts = [{"amount": s.amount.to_milliunits(), "memo": s.memo} for s in splits]
-    if not validate_sum_equals_total(split_dicts, tx_milliunits):
+    if not validate_sum_equals_total(split_dicts, -abs(tx_milliunits)):
         total_splits = sum(s.amount.to_milliunits() for s in splits)
         raise SplitCalculationError(
-            f"Amazon splits total {total_splits} doesn't match transaction {tx_milliunits}"
+            f"Amazon splits total {total_splits} doesn't match transaction {tx_milliunits} (expected {-abs(tx_milliunits)})"
         )
 
     return splits
@@ -134,12 +135,13 @@ def calculate_apple_splits(
 
         splits.append(YnabSplit(amount=split_amount, memo=item.title))
 
-    # Verify splits sum to transaction total
+    # Verify splits sum to transaction total (use absolute value for comparison)
+    # Transaction amount may be positive or negative depending on data source
     split_dicts = [{"amount": s.amount.to_milliunits(), "memo": s.memo} for s in splits]
-    if not validate_sum_equals_total(split_dicts, tx_milliunits):
+    if not validate_sum_equals_total(split_dicts, -abs(tx_milliunits)):
         total_splits = sum(s.amount.to_milliunits() for s in splits)
         raise SplitCalculationError(
-            f"Apple splits total {total_splits} doesn't match transaction {tx_milliunits}"
+            f"Apple splits total {total_splits} doesn't match transaction {tx_milliunits} (expected {-abs(tx_milliunits)})"
         )
 
     return splits
@@ -192,12 +194,13 @@ def calculate_generic_splits(
             )
         )
 
-    # Verify splits sum to transaction total
+    # Verify splits sum to transaction total (use absolute value for comparison)
+    # Transaction amount may be positive or negative depending on data source
     split_dicts = [{"amount": s.amount.to_milliunits(), "memo": s.memo} for s in splits]
-    if not validate_sum_equals_total(split_dicts, tx_milliunits):
+    if not validate_sum_equals_total(split_dicts, -abs(tx_milliunits)):
         total_splits = sum(s.amount.to_milliunits() for s in splits)
         raise SplitCalculationError(
-            f"Generic splits total {total_splits} doesn't match transaction {tx_milliunits}"
+            f"Generic splits total {total_splits} doesn't match transaction {tx_milliunits} (expected {-abs(tx_milliunits)})"
         )
 
     return splits

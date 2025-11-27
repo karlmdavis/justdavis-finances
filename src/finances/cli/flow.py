@@ -49,7 +49,7 @@ def setup_flow_nodes() -> None:
 
     # Register nodes from domain modules
     flow_registry.register_node(YnabSyncFlowNode(config.data_dir))
-    flow_registry.register_node(AmazonOrderHistoryRequestFlowNode())
+    flow_registry.register_node(AmazonOrderHistoryRequestFlowNode(config.data_dir))
     flow_registry.register_node(AmazonUnzipFlowNode(config.data_dir))
     flow_registry.register_node(AmazonMatchingFlowNode(config.data_dir))
     flow_registry.register_node(AppleEmailFetchFlowNode(config.data_dir))
@@ -117,51 +117,22 @@ def flow() -> None:
         click.echo("You will be prompted for each step.\n")
         start_time = datetime.now()
 
-        executions = engine.execute_flow()
+        engine.execute_flow()
 
         end_time = datetime.now()
         total_time = (end_time - start_time).total_seconds()
 
-        # Display results
-        click.echo("\n" + "=" * 50)
-        click.echo("EXECUTION SUMMARY")
-        click.echo("=" * 50)
-
-        summary = engine.get_execution_summary(executions)
-
-        click.echo(f"Total nodes: {summary['total_nodes']}")
-        click.echo(f"Completed: {summary['completed']}")
-        click.echo(f"Failed: {summary['failed']}")
-        click.echo(f"Skipped: {summary['skipped']}")
-        click.echo(f"Success rate: {summary['success_rate']:.1%}")
-        click.echo(f"Total execution time: {total_time:.1f} seconds")
-
-        # Show review items
-        review_items = [
-            execution
-            for execution in executions.values()
-            if execution.result and execution.result.requires_review
-        ]
-
-        if review_items:
-            click.echo("\n🔍 Items requiring review:")
-            for execution in review_items:
-                click.echo(f"  • {execution.node_name}")
-                if execution.result and execution.result.review_instructions:
-                    click.echo(f"    {execution.result.review_instructions}")
-
-        # Final status
-        if summary["failed"] > 0:
-            click.echo("\n⚠️ Flow completed with errors")
-            exit_code = 1
-        else:
-            click.echo("\n✅ Flow completed successfully")
-            exit_code = 0
-
-        exit(exit_code)
+        # execute_flow() already prints its own execution summary
+        # Just display total time
+        click.echo(f"\n⏱️  Total execution time: {total_time:.1f} seconds")
+        click.echo("\n✅ Flow completed successfully")
 
     except Exception as e:
+        import traceback
+
         click.echo(f"\n❌ Flow execution failed: {e}", err=True)
+        click.echo("\nFull traceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
         raise click.ClickException(str(e)) from e
 
 
