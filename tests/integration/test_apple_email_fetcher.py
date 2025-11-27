@@ -8,6 +8,7 @@ Focuses on file system operations and email processing.
 
 import email
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -32,11 +33,11 @@ def sample_email_objects():
         AppleReceiptEmail(
             message_id="msg001",
             subject="Your receipt from Apple - Procreate",
-            sender="noreply@email.apple.com",
+            sender="no_reply@email.apple.com",
             date=datetime(2024, 8, 15, 10, 30, 0),
             html_content="<html><body><p>Receipt for Procreate $29.99</p></body></html>",
             text_content="Receipt for Procreate $29.99",
-            raw_content="From: noreply@email.apple.com\nSubject: Your receipt from Apple\n\nReceipt content",
+            raw_content="From: no_reply@email.apple.com\nSubject: Your receipt from Apple\n\nReceipt content",
             folder="INBOX",
             metadata={"msg_num": "1", "size": 1024},
         ),
@@ -115,7 +116,7 @@ def test_save_emails_complete(email_config, sample_email_objects, temp_dir):
 
     assert metadata1["message_id"] == "msg001"
     assert "Procreate" in metadata1["subject"]
-    assert metadata1["sender"] == "noreply@email.apple.com"
+    assert metadata1["sender"] == "no_reply@email.apple.com"
 
 
 @pytest.mark.integration
@@ -337,3 +338,169 @@ def test_save_empty_email_list(email_config, temp_dir):
 
     # Directory should still be created
     assert output_dir.exists()
+
+
+@pytest.mark.integration
+@pytest.mark.apple
+def test_list_all_folders(email_config):
+    """Test IMAP folder discovery and parsing."""
+    fetcher = AppleEmailFetcher(email_config)
+
+    # Mock IMAP connection with folder list response
+    mock_connection = MagicMock()
+    fetcher.connection = mock_connection
+
+    # Simulate IMAP LIST response with various folder formats
+    mock_folders = [
+        b'(\\HasNoChildren) "/" "INBOX"',
+        b'(\\HasNoChildren) "/" "[Gmail]/All Mail"',
+        b'(\\HasChildren) "/" "Archive"',
+        b'(\\HasNoChildren \\UnMarked) "." "Follow Up"',
+        b'(\\HasNoChildren) "/" "Sent Items"',
+        b"invalid_format",  # Should be skipped gracefully
+    ]
+    mock_connection.list.return_value = ("OK", mock_folders)
+
+    # Execute
+    folders = fetcher._list_all_folders()
+
+    # Verify
+    assert len(folders) == 5  # Should parse 5 valid folders, skip invalid
+    assert "INBOX" in folders
+    assert "[Gmail]/All Mail" in folders
+    assert "Archive" in folders
+    assert "Follow Up" in folders
+    assert "Sent Items" in folders
+
+
+@pytest.mark.integration
+@pytest.mark.apple
+def test_search_with_deduplication(email_config):
+    """Test multi-pattern search deduplicates message IDs."""
+    fetcher = AppleEmailFetcher(email_config)
+
+    # Mock IMAP connection
+    mock_connection = MagicMock()
+    fetcher.connection = mock_connection
+
+    # Simulate search results where some message IDs appear in multiple patterns
+    # Message IDs: 1, 2, 3 from first pattern; 2, 3, 4 from second pattern
+    # Result should be deduplicated to: 1, 2, 3, 4
+    search_results = {
+        'SUBJECT "Your receipt from Apple"': b"1 2 3",
+        'SUBJECT "Receipt from Apple"': b"2 3 4",
+        'FROM "no_reply@email.apple.com"': b"3 4 5",
+    }
+
+    def mock_search(_, pattern):
+        return ("OK", [search_results.get(pattern, b"")])
+
+    mock_connection.search.side_effect = mock_search
+    mock_connection.select.return_value = ("OK", [])
+
+    # Mock fetch to return minimal valid email data
+    def mock_fetch(msg_id, _):
+        email_content = f"""From: no_reply@email.apple.com
+Subject: Your receipt from Apple
+Date: Mon, 1 Jan 2024 12:00:00 +0000
+Message-ID: <msg{msg_id}@apple.com>
+
+Receipt for purchase $9.99
+Order ID: TEST123
+Total: $9.99
+"""
+        return ("OK", [[None, email_content.encode()]])
+
+    mock_connection.fetch.side_effect = mock_fetch
+
+    # Execute
+    receipts = fetcher._search_apple_receipts_in_folder("INBOX")
+
+    # Verify deduplication - should have 5 unique receipts (1, 2, 3, 4, 5)
+    # Each message ID appears only once despite being in multiple search results
+    assert len(receipts) == 5
+    assert len({r.message_id for r in receipts}) == 5
+
+
+@pytest.mark.integration
+@pytest.mark.apple
+def test_is_apple_receipt_edge_cases(email_config):
+    """Test email validation with edge cases and non-Apple emails."""
+    fetcher = AppleEmailFetcher(email_config)
+
+    # Test valid Apple receipt
+    valid_receipt = AppleReceiptEmail(
+        message_id="msg001",
+        subject="Your receipt from Apple",
+        sender="no_reply@email.apple.com",
+        date=datetime(2024, 1, 1),
+        html_content="<p>Total: $9.99</p><p>Order ID: ABC123</p>",
+        text_content="Total: $9.99\nOrder ID: ABC123",
+    )
+    assert fetcher._is_apple_receipt(valid_receipt) is True
+
+    # Test wrong sender domain
+    wrong_sender = AppleReceiptEmail(
+        message_id="msg002",
+        subject="Your receipt from Apple",
+        sender="fake@scammer.com",
+        date=datetime(2024, 1, 1),
+        html_content="<p>Total: $9.99</p>",
+        text_content="Total: $9.99",
+    )
+    assert fetcher._is_apple_receipt(wrong_sender) is False
+
+    # Test non-receipt subject
+    wrong_subject = AppleReceiptEmail(
+        message_id="msg003",
+        subject="Apple News Update",
+        sender="no_reply@email.apple.com",
+        date=datetime(2024, 1, 1),
+        html_content="<p>Check out these articles</p>",
+        text_content="Check out these articles",
+    )
+    assert fetcher._is_apple_receipt(wrong_subject) is False
+
+    # Test missing purchase indicators in content
+    no_purchase_content = AppleReceiptEmail(
+        message_id="msg004",
+        subject="Your receipt from Apple",
+        sender="no_reply@email.apple.com",
+        date=datetime(2024, 1, 1),
+        html_content="<p>Thank you for contacting us</p>",
+        text_content="Thank you for contacting us",
+    )
+    assert fetcher._is_apple_receipt(no_purchase_content) is False
+
+    # Test promotional email (excluded)
+    promotional = AppleReceiptEmail(
+        message_id="msg005",
+        subject="Your receipt from Apple - Special Offer!",
+        sender="no_reply@email.apple.com",
+        date=datetime(2024, 1, 1),
+        html_content="<p>Promotional offer! Total: $9.99</p>",
+        text_content="Promotional offer! Total: $9.99",
+    )
+    assert fetcher._is_apple_receipt(promotional) is False
+
+    # Test alternative valid sender (iTunes)
+    itunes_receipt = AppleReceiptEmail(
+        message_id="msg006",
+        subject="Receipt from Apple - Music subscription",
+        sender="do_not_reply@itunes.com",
+        date=datetime(2024, 1, 1),
+        html_content="<p>Subscription: $10.99</p><p>Total: $10.99</p>",
+        text_content="Subscription: $10.99\nTotal: $10.99",
+    )
+    assert fetcher._is_apple_receipt(itunes_receipt) is True
+
+    # Test email with currency symbols (valid purchase indicator)
+    currency_symbols = AppleReceiptEmail(
+        message_id="msg007",
+        subject="Your receipt from Apple",
+        sender="no_reply@email.apple.com",
+        date=datetime(2024, 1, 1),
+        html_content="<p>Total: €9.99</p><p>Order: TEST</p>",
+        text_content="Total: €9.99\nOrder: TEST",
+    )
+    assert fetcher._is_apple_receipt(currency_symbols) is True
