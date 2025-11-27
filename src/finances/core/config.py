@@ -17,8 +17,21 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (if it exists)
+# Note: .env is optional - configuration can come from system environment variables
+_env_file = Path(".env")
+if _env_file.exists():
+    load_dotenv()
+else:
+    # Log warning but don't fail - environment variables might be set system-wide
+    import sys
+
+    if not os.getenv("CI") and sys.stderr.isatty():
+        # Only warn in interactive mode (not in CI/automated environments)
+        print(
+            "Warning: No .env file found. Email and YNAB credentials must be set via environment variables.",
+            file=sys.stderr,
+        )
 
 
 class Environment(Enum):
@@ -48,6 +61,15 @@ class YNABConfig:
     timeout: int = 30
     rate_limit_delay: float = 0.5  # Seconds between API calls
 
+    def __repr__(self) -> str:
+        """Return string representation with API token redacted."""
+        return (
+            f"YNABConfig(api_token={'***REDACTED***' if self.api_token else None!r}, "
+            f"base_url={self.base_url!r}, "
+            f"timeout={self.timeout}, "
+            f"rate_limit_delay={self.rate_limit_delay})"
+        )
+
 
 @dataclass
 class EmailConfig:
@@ -59,6 +81,16 @@ class EmailConfig:
     username: str | None = None
     password: str | None = None
     use_oauth: bool = False
+
+    def __repr__(self) -> str:
+        """Return string representation with password redacted."""
+        return (
+            f"EmailConfig(imap_server={self.imap_server!r}, "
+            f"imap_port={self.imap_port}, "
+            f"username={self.username!r}, "
+            f"password={'***REDACTED***' if self.password else None!r}, "
+            f"use_oauth={self.use_oauth})"
+        )
 
 
 @dataclass
@@ -208,7 +240,10 @@ class Config:
 
         # Check email configuration if needed
         if self.email.username and not self.email.password and not self.email.use_oauth:
-            errors.append("EMAIL_PASSWORD is required when EMAIL_USERNAME is provided")
+            errors.append(
+                "EMAIL_PASSWORD is required when EMAIL_USERNAME is provided. "
+                "Add EMAIL_PASSWORD=your_password to your .env file or set it as an environment variable."
+            )
 
         # Validate numeric values
         try:

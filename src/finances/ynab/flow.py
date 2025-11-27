@@ -345,11 +345,10 @@ class RetirementUpdateFlowNode(FlowNode):
 
                 if new_balance_input.strip():
                     try:
-                        # Parse dollar amount and convert to cents
-                        new_balance_dollars = float(
-                            new_balance_input.strip().replace("$", "").replace(",", "")
-                        )
-                        new_balance_cents = int(new_balance_dollars * 100)
+                        # Parse dollar amount to cents using integer-only arithmetic
+                        from ..core.currency import parse_dollars_to_cents
+
+                        new_balance_cents = parse_dollars_to_cents(new_balance_input.strip())
                         balance_updates[account.id] = new_balance_cents
                         click.echo(f"  ✓ Will update to {format_cents(new_balance_cents)}\n")
                     except ValueError:
