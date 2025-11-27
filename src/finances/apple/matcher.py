@@ -58,14 +58,14 @@ class AppleMatcher:
         valid_receipts = [r for r in apple_receipts if r.receipt_date is not None and r.total is not None]
 
         # DIAGNOSTIC: Log filtering results
-        logger.info(
+        logger.debug(
             "Filtering receipts: %d total receipts, %d valid receipts (have date and total)",
             len(apple_receipts),
             len(valid_receipts),
         )
         if len(valid_receipts) < len(apple_receipts):
             invalid_count = len(apple_receipts) - len(valid_receipts)
-            logger.warning("Filtered out %d receipts missing date or total", invalid_count)
+            logger.debug("Filtered out %d receipts missing date or total", invalid_count)
 
         # Get absolute value for matching (receipts are always positive, transactions are negative for expenses)
         tx_amount_cents = transaction.amount.abs().to_cents()
@@ -149,7 +149,7 @@ class AppleMatcher:
             return None
 
         # DIAGNOSTIC: Log what we're looking for
-        logger.info(
+        logger.debug(
             "Looking for exact match: date=%s, amount=%s (%d cents)",
             tx_date.date(),
             format_cents(tx_amount),
@@ -174,7 +174,7 @@ class AppleMatcher:
 
             # Check both
             if receipt_datetime.date() == tx_date.date() and receipt_amount_cents == tx_amount:
-                logger.info(
+                logger.debug(
                     "Found exact match: Receipt %s for %s on %s",
                     receipt.order_id or receipt.base_name,
                     format_cents(receipt.total.to_cents()),  # type: ignore[union-attr]
@@ -184,13 +184,13 @@ class AppleMatcher:
 
         # DIAGNOSTIC: Log near-misses
         if matches_by_date:
-            logger.info(
+            logger.debug(
                 "  Found %d receipts on same date but wrong amount: %s",
                 len(matches_by_date),
                 ", ".join(matches_by_date[:5]),
             )
         if matches_by_amount:
-            logger.info(
+            logger.debug(
                 "  Found %d receipts with same amount but wrong date: %s",
                 len(matches_by_amount),
                 ", ".join(matches_by_amount[:5]),
