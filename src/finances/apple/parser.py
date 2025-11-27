@@ -354,6 +354,27 @@ class AppleReceiptParser:
                 except (ValueError, TypeError):
                     logger.warning(f"Could not parse date: {date_text}")
 
+        # Fallback: Try transitional format - look for date pattern without label
+        if not receipt.receipt_date:
+            from datetime import datetime
+
+            # Search for spans containing date-like text (e.g., "June 16, 2024")
+            for span in soup.find_all("span"):
+                text = span.get_text(strip=True)
+                # Try parsing with full month name
+                try:
+                    date_obj = datetime.strptime(text, "%B %d, %Y")
+                    receipt.receipt_date = FinancialDate(date=date_obj.date())
+                    break
+                except (ValueError, TypeError):
+                    # Also try abbreviated month
+                    try:
+                        date_obj = datetime.strptime(text, "%b %d, %Y")
+                        receipt.receipt_date = FinancialDate(date=date_obj.date())
+                        break
+                    except (ValueError, TypeError):
+                        continue
+
         # Extract order ID
         order_span = soup.find("span", string=re.compile(r"\s*ORDER ID\s*"))
         if order_span and order_span.parent:
@@ -369,6 +390,17 @@ class AppleReceiptParser:
                 if order_text:
                     receipt.order_id = order_text
 
+        # Fallback: Try transitional format with <b>Order ID:</b> pattern
+        if not receipt.order_id:
+            b_tag = soup.find("b", string=re.compile(r"Order ID:?", re.IGNORECASE))
+            if b_tag and b_tag.parent:
+                # Get parent span text and remove the label
+                span_text = b_tag.parent.get_text(strip=True)
+                # Remove label (everything up to and including the colon)
+                order_text = re.sub(r"^.*?Order ID:?\s*", "", span_text, flags=re.IGNORECASE).strip()
+                if order_text:
+                    receipt.order_id = order_text
+
         # Extract document number
         doc_span = soup.find("span", string=re.compile(r"\s*DOCUMENT NO\.\s*"))
         if doc_span and doc_span.parent:
@@ -376,6 +408,15 @@ class AppleReceiptParser:
             doc_text = td.get_text(strip=True).replace("DOCUMENT NO.", "").strip()
             if doc_text:
                 receipt.document_number = doc_text
+
+        # Fallback: Try transitional format with <b>Document:</b> pattern
+        if not receipt.document_number:
+            b_tag = soup.find("b", string=re.compile(r"Document:?", re.IGNORECASE))
+            if b_tag and b_tag.parent:
+                span_text = b_tag.parent.get_text(strip=True)
+                doc_text = re.sub(r"^.*?Document:?\s*", "", span_text, flags=re.IGNORECASE).strip()
+                if doc_text:
+                    receipt.document_number = doc_text
 
         # Extract items (look for elements with class="title")
         title_elements = soup.find_all("span", class_="title")
@@ -457,6 +498,43 @@ class AppleReceiptParser:
                             break
                         else:
                             logger.debug(f"Could not parse total: {text}")
+
+        # Fallback: For transitional format, look for inline-styled elements
+        if not receipt.total or not receipt.items:
+            # Find all spans with font-weight: 600 styling (potential titles)
+            title_spans = soup.find_all("span", style=re.compile(r"font-weight:\s*600"))
+
+            # Find all spans with dollar amounts (potential prices)
+            price_candidates = []
+            for span in soup.find_all("span"):
+                text = span.get_text(strip=True)
+                if "$" in text and re.match(r"^\$[\d,]+\.\d{2}$", text):
+                    cost_cents = self._parse_currency(text)
+                    if cost_cents is not None:
+                        price_candidates.append((span, cost_cents, text))
+
+            # Try to pair titles with prices based on proximity
+            for title_span in title_spans:
+                title = title_span.get_text(strip=True)
+                # Skip if title is empty or too long (likely not an item title)
+                if not title or len(title) > 100:
+                    continue
+
+                # Look for price near this title (in same table or nearby)
+                parent_table = title_span.find_parent("table")
+                if parent_table:
+                    # Find prices within the same table
+                    for price_span, cost_cents, _price_text in price_candidates:
+                        if parent_table.find(lambda tag, span=price_span: tag == span):
+                            cost = Money.from_cents(cost_cents)
+                            # Add item if not already present
+                            if not receipt.items:
+                                item = ParsedItem(title=title, cost=cost, quantity=1, subscription=False)
+                                receipt.items.append(item)
+                            # Set total if not already set
+                            if not receipt.total:
+                                receipt.total = cost
+                            break
 
     def _parse_modern_format(self, receipt: ParsedReceipt, soup: BeautifulSoup) -> None:
         """

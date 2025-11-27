@@ -100,4 +100,27 @@ TABLE_SAMPLE_3 = {
     },
 }
 
-TABLE_SAMPLES = [TABLE_SAMPLE_1, TABLE_SAMPLE_2, TABLE_SAMPLE_3]
+# Sample 4: Transitional format - 2024 AppleCare+ renewal with <b> tag labels
+TABLE_SAMPLE_4 = {
+    "html_filename": "20240617_031029_Your_receipt_from_Apple._1029d287-formatted-simple.html",
+    "expected": {
+        "format_detected": "table_format",
+        "apple_id": "karl@davisonlinehome.name",
+        "receipt_date": FinancialDate.from_string("2024-06-16"),
+        "order_id": "MSD1TBTDQZ",
+        "document_number": "210813794051",
+        "subtotal": None,  # Not shown separately for single-item
+        "tax": None,  # Not shown separately
+        "total": Money.from_cents(9999),  # $99.99
+        "items": [
+            {
+                "title": "AppleCare+",
+                "cost": Money.from_cents(9999),
+                "quantity": 1,
+                "subscription": False,
+            }
+        ],
+    },
+}
+
+TABLE_SAMPLES = [TABLE_SAMPLE_1, TABLE_SAMPLE_2, TABLE_SAMPLE_3, TABLE_SAMPLE_4]
