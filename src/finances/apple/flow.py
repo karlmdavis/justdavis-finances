@@ -84,11 +84,14 @@ class AppleEmailFetchFlowNode(FlowNode):
             stats = fetcher.save_emails_to_disk(emails, output_dir)
             fetcher.disconnect()
 
+            # Return ALL email files (not just newly created) to prevent engine cleanup
+            all_email_files = list(output_dir.glob("*.eml")) + list(output_dir.glob("*.html"))
+
             return FlowResult(
                 success=True,
                 items_processed=len(emails),
-                new_items=len(emails),
-                outputs=[output_dir / f for f in stats.get("files_created", [])],
+                new_items=len(stats.get("files_created", [])),
+                outputs=all_email_files,
                 metadata={
                     "emails_fetched": len(emails),
                     "files_created": len(stats.get("files_created", [])),
@@ -232,11 +235,14 @@ class AppleReceiptParsingFlowNode(FlowNode):
                 f"Parsing complete: {parsed_count} written, {skipped_count} skipped (no data), {failed_count} failed"
             )
 
+            # Return ALL parsed receipt files (not just newly created) to prevent engine cleanup
+            all_receipt_files = list(exports_dir.glob("*.json"))
+
             return FlowResult(
                 success=True,
                 items_processed=len(html_files),
                 new_items=parsed_count,
-                outputs=output_files,
+                outputs=all_receipt_files,
                 metadata={
                     "parsed_count": parsed_count,
                     "skipped_count": skipped_count,
