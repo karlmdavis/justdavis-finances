@@ -88,19 +88,14 @@ class AppleEmailFetcher:
 
             self.connection = imaplib.IMAP4_SSL(self.config.imap_server, self.config.imap_port)
 
-            if self.config.use_oauth:
-                # OAuth2 authentication would go here
-                logger.error("OAuth2 authentication not yet implemented")
-                return False
-            else:
-                # Basic authentication
-                self.connection.login(self.config.username, self.config.password)
+            # Authenticate with username/password
+            self.connection.login(self.config.username, self.config.password)
 
             logger.info("Successfully connected to IMAP server")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to connect to IMAP server: {e}")
+            logger.error(f"Failed to connect to IMAP server: {e}", exc_info=True)
             return False
 
     def disconnect(self) -> None:
@@ -111,7 +106,7 @@ class AppleEmailFetcher:
                 self.connection.logout()
                 logger.info("Disconnected from IMAP server")
             except Exception as e:
-                logger.warning(f"Error during disconnect: {e}")
+                logger.warning(f"Error during disconnect: {e}", exc_info=True)
             finally:
                 self.connection = None
 
@@ -134,33 +129,29 @@ class AppleEmailFetcher:
 
             folder_names = []
             for folder in folders:
-                try:
-                    # IMAP folder response format: b'(\\HasNoChildren) "/" "INBOX"'
-                    # or: b'(\\HasNoChildren \\UnMarked) "." "Follow Up"'
-                    if not isinstance(folder, bytes):
-                        continue
-                    folder_str = folder.decode()
-
-                    # Use regex to extract folder name - everything after the delimiter
-                    match = re.search(r'\([^)]+\)\s+"[^"]*"\s+(.+)', folder_str)
-                    if match:
-                        folder_name = match.group(1).strip()
-                        # Remove quotes if present
-                        if folder_name.startswith('"') and folder_name.endswith('"'):
-                            folder_name = folder_name[1:-1]
-
-                        # Skip malformed or system folders
-                        if folder_name and folder_name not in ["."]:
-                            folder_names.append(folder_name)
-                except Exception as e:
-                    logger.debug(f"Error parsing folder: {e}")
+                # IMAP folder response format: b'(\\HasNoChildren) "/" "INBOX"'
+                # or: b'(\\HasNoChildren \\UnMarked) "." "Follow Up"'
+                if not isinstance(folder, bytes):
                     continue
+                folder_str = folder.decode()
+
+                # Use regex to extract folder name - everything after the delimiter
+                match = re.search(r'\([^)]+\)\s+"[^"]*"\s+(.+)', folder_str)
+                if match:
+                    folder_name = match.group(1).strip()
+                    # Remove quotes if present
+                    if folder_name.startswith('"') and folder_name.endswith('"'):
+                        folder_name = folder_name[1:-1]
+
+                    # Skip malformed or system folders
+                    if folder_name and folder_name not in ["."]:
+                        folder_names.append(folder_name)
 
             logger.info(f"Discovered {len(folder_names)} IMAP folders")
             return folder_names
 
         except Exception as e:
-            logger.error(f"Error listing folders: {e}")
+            logger.error(f"Error listing folders: {e}", exc_info=True)
             return []
 
     def fetch_apple_receipts(self) -> list[AppleReceiptEmail]:
@@ -185,46 +176,41 @@ class AppleEmailFetcher:
             for folder in all_folders:
                 logger.debug(f"Searching folder: {folder}")
 
-                try:
-                    # Select folder - check connection exists
-                    if not self.connection:
-                        logger.warning("Connection lost")
-                        break
+                # Select folder - check connection exists
+                if not self.connection:
+                    logger.warning("Connection lost")
+                    break
 
-                    # Try different folder name formats for compatibility
-                    folder_attempts = [folder]
-                    if " " in folder or "." in folder:
-                        folder_attempts.append(f'"{folder}"')
+                # Try different folder name formats for compatibility
+                folder_attempts = [folder]
+                if " " in folder or "." in folder:
+                    folder_attempts.append(f'"{folder}"')
 
-                    selected = False
-                    for attempt_name in folder_attempts:
-                        try:
-                            result, _ = self.connection.select(attempt_name, readonly=True)
-                            if result == "OK":
-                                selected = True
-                                break
-                        except Exception as e:
-                            logger.debug(f"Cannot select folder '{attempt_name}': {e}")
-                            continue
-
-                    if not selected:
-                        logger.debug(f"Cannot select folder '{folder}', skipping")
+                selected = False
+                for attempt_name in folder_attempts:
+                    try:
+                        result, _ = self.connection.select(attempt_name, readonly=True)
+                        if result == "OK":
+                            selected = True
+                            break
+                    except Exception as e:
+                        logger.debug(f"Cannot select folder '{attempt_name}': {e}")
                         continue
 
-                    # Search for Apple receipt emails
-                    receipts = self._search_apple_receipts_in_folder(folder)
-
-                    if receipts:
-                        all_receipts.extend(receipts)
-                        folder_results[folder] = len(receipts)
-                        logger.info(f"Found {len(receipts)} receipts in '{folder}'")
-
-                except Exception as e:
-                    logger.debug(f"Error searching folder {folder}: {e}")
+                if not selected:
+                    logger.debug(f"Cannot select folder '{folder}', skipping")
                     continue
 
+                # Search for Apple receipt emails
+                receipts = self._search_apple_receipts_in_folder(folder)
+
+                if receipts:
+                    all_receipts.extend(receipts)
+                    folder_results[folder] = len(receipts)
+                    logger.info(f"Found {len(receipts)} receipts in '{folder}'")
+
         except Exception as e:
-            logger.error(f"Error during email fetching: {e}")
+            logger.error(f"Error during email fetching: {e}", exc_info=True)
 
         # Log summary by folder
         if folder_results:
@@ -281,7 +267,7 @@ class AppleEmailFetcher:
                     logger.warning(f"Error processing email {msg_num.decode()}: {e}")
 
         except Exception as e:
-            logger.error(f"Error searching folder {folder}: {e}")
+            logger.error(f"Error searching folder {folder}: {e}", exc_info=True)
 
         return receipts
 
@@ -336,7 +322,7 @@ class AppleEmailFetcher:
             return receipt_email
 
         except Exception as e:
-            logger.error(f"Error fetching email {msg_num}: {e}")
+            logger.error(f"Error fetching email {msg_num}: {e}", exc_info=True)
             return None
 
     def _extract_email_content(self, msg: email.message.Message) -> tuple[str | None, str | None]:
@@ -378,7 +364,7 @@ class AppleEmailFetcher:
                         text_content = content
 
         except Exception as e:
-            logger.error(f"Error extracting email content: {e}")
+            logger.error(f"Error extracting email content: {e}", exc_info=True)
 
         return html_content, text_content
 
@@ -403,7 +389,7 @@ class AppleEmailFetcher:
             return "".join(decoded_parts)
 
         except Exception as e:
-            logger.warning(f"Error decoding header {header}: {e}")
+            logger.warning(f"Error decoding header {header}: {e}", exc_info=True)
             return header
 
     def _is_apple_receipt(self, email_obj: AppleReceiptEmail) -> bool:
@@ -564,7 +550,7 @@ class AppleEmailFetcher:
 
             except Exception as e:
                 # PERF203: try-except in loop necessary for robust file I/O operations
-                logger.error(f"Error saving email {i}: {e}")
+                logger.error(f"Error saving email {i}: {e}", exc_info=True)
                 error_count: int = stats["save_errors"]
                 stats["save_errors"] = error_count + 1
 
