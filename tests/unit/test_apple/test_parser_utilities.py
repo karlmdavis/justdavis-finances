@@ -163,3 +163,97 @@ def test_parse_currency_invalid_input():
     assert parser._parse_currency("$") is None
     assert parser._parse_currency("$.") is None
     assert parser._parse_currency("$ .") is None
+
+
+def test_parse_currency_malformed_with_invalid_chars():
+    """Verify _parse_currency handles malformed input correctly."""
+    parser = AppleReceiptParser()
+
+    # Parser extracts valid currency from text (designed behavior)
+    # "$2.3x" → extracts "$2.3" → 230 cents
+    assert parser._parse_currency("$2.3x") == 230
+    assert parser._parse_currency("$12.34 extra text") == 1234
+
+    # Invalid characters BEFORE numbers prevent match
+    assert parser._parse_currency("x$12.34") == 1234  # Symbol after 'x' still matches
+    assert parser._parse_currency("$abc") is None  # No digits
+    assert parser._parse_currency("$x12.34") is None  # Letter between $ and digits
+
+    # Truly malformed (no valid number pattern)
+    assert parser._parse_currency("$$") is None
+    assert parser._parse_currency("$...") is None
+    assert parser._parse_currency("$ ") is None
+
+    # Negative amounts - parser still extracts the currency value
+    # (validation of negative amounts happens at business logic layer)
+    assert parser._parse_currency("-$12.34") == 1234  # Extracts $12.34
+    assert parser._parse_currency("$-12.34") is None  # Dash between $ and digits blocks match
+
+
+def test_parse_html_content_with_no_matching_format():
+    """Verify parser handles HTML that doesn't match any known format."""
+    parser = AppleReceiptParser()
+
+    # HTML with no recognizable Apple receipt structure
+    html = """
+    <html>
+        <body>
+            <h1>Some Random Page</h1>
+            <p>This is not an Apple receipt</p>
+        </body>
+    </html>
+    """
+
+    receipt = parser.parse_html_content(html, "test_receipt_id")
+
+    # Should return a receipt with base_name set but no parsed data
+    assert receipt.base_name == "test_receipt_id"
+    assert receipt.format_detected == "unknown"
+    assert receipt.order_id is None
+    assert receipt.receipt_date is None
+    assert receipt.total is None
+
+
+def test_parse_html_with_missing_required_fields():
+    """Verify parser handles receipts missing required fields gracefully."""
+    parser = AppleReceiptParser()
+
+    # Table format HTML but missing critical fields
+    incomplete_html = """
+    <html>
+        <body>
+            <table class="aapl-desktop-tbl">
+                <tr><td>APPLE ID</td><td>test@example.com</td></tr>
+            </table>
+        </body>
+    </html>
+    """
+
+    receipt = parser.parse_html_content(incomplete_html, "incomplete_receipt")
+
+    # Should detect format but have no order ID, date, or total
+    assert receipt.base_name == "incomplete_receipt"
+    assert receipt.format_detected == "table_format"
+    assert receipt.apple_id == "test@example.com"
+    assert receipt.order_id is None  # Missing
+    assert receipt.receipt_date is None  # Missing
+    assert receipt.total is None  # Missing
+    assert receipt.items == []  # No items
+
+
+def test_parse_currency_with_non_standard_amounts():
+    """Verify _parse_currency handles non-standard but valid amounts."""
+    parser = AppleReceiptParser()
+
+    # Very large amounts
+    assert parser._parse_currency("$9999.99") == 999999
+    assert parser._parse_currency("$10000.00") == 1000000
+
+    # Other currency symbols (should work per regex)
+    assert parser._parse_currency("€12.34") == 1234
+    assert parser._parse_currency("£99.99") == 9999
+    assert parser._parse_currency("¥500") == 50000
+
+    # Multiple currencies in text (should match first)
+    text_with_multiple = "Subtotal $10.00, Tax $1.00, Total $11.00"
+    assert parser._parse_currency(text_with_multiple) == 1000  # First match
