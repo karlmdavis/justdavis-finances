@@ -581,26 +581,6 @@ class FlowExecutionEngine:
 
             executed_nodes.append(node_name)
 
-            # Display updated status after successful execution (ALWAYS, even if no data)
-            updated_output_info = node.get_output_info()
-            updated_files = updated_output_info.get_output_files()
-            if updated_files:
-                file_count = len(updated_files)
-                total_records = sum(f.record_count for f in updated_files)
-                try:
-                    latest_file = max(updated_files, key=lambda f: f.path.stat().st_mtime)
-                    age_days = (
-                        datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
-                    ).days
-                    updated_status = (
-                        f"{file_count} files with {total_records} total records, {age_days} days old"
-                    )
-                except (FileNotFoundError, OSError):
-                    updated_status = f"{file_count} files with {total_records} total records (age unknown)"
-            else:
-                updated_status = "No data"
-            print(f"\n✓ Updated status: {updated_status}")
-
             # Archive new data if changed and cleanup old files
             if output_dir and output_dir.exists():
                 post_hash = self.compute_directory_hash(output_dir)
@@ -645,6 +625,26 @@ class FlowExecutionEngine:
                             cleanup_msg += f" and {empty_dirs_deleted} empty dir(s)"
                         cleanup_msg += f" (archived in {output_dir.name}/archive/)"
                         print(cleanup_msg)
+
+            # Display updated status after cleanup (ALWAYS, even if no data)
+            updated_output_info = node.get_output_info()
+            updated_files = updated_output_info.get_output_files()
+            if updated_files:
+                file_count = len(updated_files)
+                total_records = sum(f.record_count for f in updated_files)
+                try:
+                    latest_file = max(updated_files, key=lambda f: f.path.stat().st_mtime)
+                    age_days = (
+                        datetime.now() - datetime.fromtimestamp(latest_file.path.stat().st_mtime)
+                    ).days
+                    updated_status = (
+                        f"{file_count} files with {total_records} total records, {age_days} days old"
+                    )
+                except (FileNotFoundError, OSError):
+                    updated_status = f"{file_count} files with {total_records} total records (age unknown)"
+            else:
+                updated_status = "No data"
+            print(f"\n✓ Updated status: {updated_status}")
 
         # Print execution summary
         print("\n" + "=" * 60)
