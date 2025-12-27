@@ -273,7 +273,7 @@ class AppleMatcher:
         confidence = max(0, confidence - amount_penalty - date_penalty)
 
         # Boost for exact amount match despite date difference, but still apply date penalty
-        if amount_diff == 0 and date_diff_days <= 2:
+        if amount_diff == 0 and date_diff_days <= self.date_window_days:
             # Minimum confidence for exact amount matches, but still differentiate by date
             base_confidence = 0.85
             confidence = max(confidence, base_confidence - (date_diff_days * 0.05))
