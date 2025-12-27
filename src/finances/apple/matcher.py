@@ -38,6 +38,7 @@ class AppleMatcher:
 
         Args:
             date_window_days: Number of days to search before/after transaction date
+                (inclusive, e.g., 3 means ±3 days: matches within 3 days before or after)
         """
         self.date_window_days = date_window_days
 
