@@ -32,7 +32,7 @@ class MatchStrategy(Enum):
 class AppleMatcher:
     """Core Apple receipt to YNAB transaction matcher"""
 
-    def __init__(self, date_window_days: int = 2):
+    def __init__(self, date_window_days: int = 3):
         """
         Initialize the matcher.
 

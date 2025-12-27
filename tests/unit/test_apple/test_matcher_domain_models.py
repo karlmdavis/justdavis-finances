@@ -24,7 +24,7 @@ class TestAppleMatcherDomainModels:
     @pytest.fixture
     def matcher(self):
         """Create an AppleMatcher instance for testing."""
-        return AppleMatcher(date_window_days=2)
+        return AppleMatcher(date_window_days=3)
 
     @pytest.mark.apple
     def test_match_single_transaction_with_domain_model(self, matcher):

@@ -126,7 +126,7 @@ class TestAppleMatcher:
 
     @pytest.mark.apple
     def test_date_window_matching(self, matcher, sample_apple_receipts):
-        """Test matching within date window (±2 days)."""
+        """Test matching within date window (±3 days)."""
         transaction_dict = {
             "id": "test-txn-789",
             "date": "2024-08-18",  # 2 days after receipt
