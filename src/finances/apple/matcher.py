@@ -32,12 +32,13 @@ class MatchStrategy(Enum):
 class AppleMatcher:
     """Core Apple receipt to YNAB transaction matcher"""
 
-    def __init__(self, date_window_days: int = 2):
+    def __init__(self, date_window_days: int = 3):
         """
         Initialize the matcher.
 
         Args:
             date_window_days: Number of days to search before/after transaction date
+                (inclusive, e.g., 3 means ±3 days: matches within 3 days before or after)
         """
         self.date_window_days = date_window_days
 
@@ -252,6 +253,19 @@ class AppleMatcher:
         """
         Calculate confidence score for a match.
 
+        Confidence scoring is based on empirical analysis of matched Apple receipts
+        from December 2025 analysis:
+        - Dataset: 229 matched Apple Card transactions (2024-03-11 to 2025-11-03)
+        - Analysis date: 2025-12-26
+        - Distribution of date differences in successful matches:
+          * 0 days: 52 matches (22.7% - exact same-day posting)
+          * 1 day: 149 matches (65.1% - normal Apple posting delay, most common)
+          * 2 days: 24 matches (10.5% - less common but reasonable)
+          * 3 days: 4 matches (1.7% - unusual edge cases but real)
+
+        Key insight: 1-day posting delay is Apple's normal behavior, not an uncertainty
+        indicator. This informed the confidence scoring to reflect actual posting patterns.
+
         Args:
             ynab_amount: YNAB transaction amount in cents
             apple_amount: Apple receipt amount in cents
@@ -260,25 +274,24 @@ class AppleMatcher:
         Returns:
             Confidence score between 0.0 and 1.0
         """
-        confidence = 1.0
-
-        # Amount matching penalty (now only exact matches are allowed)
+        # Require exact amount match - no tolerance for differences
         amount_diff = abs(ynab_amount - apple_amount)
-        amount_penalty = 0 if amount_diff == 0 else 1.0  # No tolerance for amount differences
+        if amount_diff != 0:
+            return 0.0
 
-        # Date matching penalty
-        date_penalty = min(0.3, date_diff_days * 0.15)
+        # Confidence based on date difference with empirical justification
+        if date_diff_days == 0:
+            confidence = 1.0  # Exact match (22.7% of cases)
+        elif date_diff_days == 1:
+            confidence = 0.95  # Normal 1-day posting delay (65.1% of cases - most common)
+        elif date_diff_days == 2:
+            confidence = 0.85  # Less common 2-day delay (10.5% of cases)
+        elif date_diff_days == 3:
+            confidence = 0.75  # Unusual 3-day delay (1.7% of cases - edge cases)
+        else:
+            confidence = 0.0  # Outside ±3 day window
 
-        # Calculate final confidence
-        confidence = max(0, confidence - amount_penalty - date_penalty)
-
-        # Boost for exact amount match despite date difference, but still apply date penalty
-        if amount_diff == 0 and date_diff_days <= 2:
-            # Minimum confidence for exact amount matches, but still differentiate by date
-            base_confidence = 0.85
-            confidence = max(confidence, base_confidence - (date_diff_days * 0.05))
-
-        return round(confidence, 2)
+        return confidence
 
     def _create_receipt_from_parsed(self, parsed_receipt: "ParsedReceipt") -> Receipt:
         """

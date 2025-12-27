@@ -22,7 +22,8 @@ receipts and credit card transactions.
 
 Transaction Matching Features:
 - Exact Match Strategy: Same date + exact amount (confidence 1.0)
-- Date Window Strategy: ±1-2 days with exact amount (confidence 0.75-0.90)
+- Date Window Strategy: ±1-3 days + exact amount (confidence 0.75-0.95)
+- Requirement: All matches require exact amount - no tolerance for differences
 - Multi-Apple ID Support: Handles family accounts with proper attribution
 - High Performance: ~0.005 seconds per transaction
 - Current Success Rate: 85.1% match rate with 0.871 average confidence
