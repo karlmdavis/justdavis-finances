@@ -87,7 +87,7 @@ This solves the challenge of understanding what Apple purchases comprise each co
 4. **Confidence Scoring**: Assign reliability scores to matches.
 
 #### Handling Edge Cases
-- **Processing Delays**: Apple charges may appear 1-2 days after receipt date.
+- **Processing Delays**: Apple charges may appear 1-3 days after receipt date.
 - **Refunds**: Handle refunded purchases and credits.
 - **Subscription Renewals**: Identify recurring subscription charges.
 - **Family Sharing**: Attribute purchases to correct family member.
@@ -192,7 +192,7 @@ finances flow
 
 ### Test Scenarios
 1. **Perfect Matches**: Recent transactions with clear 1:1 receipt correspondence.
-2. **Processing Delays**: Receipts and charges with 1-2 day timing differences.
+2. **Processing Delays**: Receipts and charges with 1-3 day timing differences.
 3. **Multiple Apple IDs**: Transactions from different family members on same dates.
 4. **Edge Cases**: Refunds, subscription renewals, family sharing purchases.
 5. **Historical Data**: Older transactions to validate retroactive matching.
