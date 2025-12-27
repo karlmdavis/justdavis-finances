@@ -147,9 +147,10 @@ class TestAppleMatcher:
         match_result = matches[0]
         assert match_result.receipts
 
-        # Confidence should be lower due to date difference
-        assert match_result.confidence < 1.0
-        assert match_result.confidence >= 0.7  # Still good match
+        # Confidence should be exactly 0.75 for 3-day difference (based on empirical scoring)
+        assert (
+            match_result.confidence == 0.75
+        ), f"Expected 0.75 for 3-day difference, got {match_result.confidence}"
 
     @pytest.mark.apple
     def test_date_window_outside_range(self, matcher, sample_apple_receipts):
