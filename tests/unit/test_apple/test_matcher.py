@@ -129,7 +129,7 @@ class TestAppleMatcher:
         """Test matching within date window (±3 days)."""
         transaction_dict = {
             "id": "test-txn-789",
-            "date": "2024-08-18",  # 2 days after receipt
+            "date": "2024-08-19",  # 3 days after receipt (2024-08-16)
             "amount": -10980,  # $10.98 expense in milliunits
             "payee_name": "Apple Store",
             "account_name": "Chase Credit Card",
@@ -143,13 +143,33 @@ class TestAppleMatcher:
         matches = [result] if result.receipts else []
 
         assert len(matches) > 0
-        # Should find a match
+        # Should find a match (receipt on 2024-08-16, transaction on 2024-08-19 = 3 days apart)
         match_result = matches[0]
         assert match_result.receipts
 
         # Confidence should be lower due to date difference
         assert match_result.confidence < 1.0
         assert match_result.confidence >= 0.7  # Still good match
+
+    @pytest.mark.apple
+    def test_date_window_outside_range(self, matcher, sample_apple_receipts):
+        """Test that transactions 4 days apart do NOT match (outside ±3 day window)."""
+        transaction_dict = {
+            "id": "test-txn-outside",
+            "date": "2024-08-20",  # 4 days after receipt (2024-08-16) - outside window
+            "amount": -10980,  # $10.98 expense in milliunits
+            "payee_name": "Apple Store",
+            "account_name": "Chase Credit Card",
+        }
+
+        transaction = dict_to_ynab_transaction(transaction_dict)
+
+        # Normalize receipts data like the real system does
+        receipts_df = receipts_to_list_for_testing(sample_apple_receipts)
+        result = matcher.match_single_transaction(transaction, receipts_df)
+
+        # Should NOT find a match (4 days apart exceeds ±3 day window)
+        assert not result.receipts, "Should not match when dates are 4 days apart (outside ±3 day window)"
 
     @pytest.mark.apple
     def test_no_matches_found(self, matcher, sample_apple_receipts):
