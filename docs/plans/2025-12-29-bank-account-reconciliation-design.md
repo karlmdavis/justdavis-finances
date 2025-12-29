@@ -484,6 +484,25 @@ Files validated and ready for parsing.
 **Outputs:**
 - `data/bank_accounts/normalized/{slug}.json` (one per account)
 
+**Parser Implementation Strategy:**
+
+This implementation uses custom parsers for OFX and QIF formats rather than external libraries for the following reasons:
+
+1. **Unmaintained libraries**: The two major Python OFX libraries (ofxparse and ofxtools) have been abandoned since 2021-2022 with no releases in the past 3+ years, creating ongoing security and Python version compatibility risks.
+
+2. **Limited scope**: This system only needs balance extraction from OFX/QIF files (not full transaction parsing), which is a small subset of functionality that external libraries provide.
+
+3. **Simple formats**: QIF is a text-based format (~50 lines of regex-based parsing), and OFX balance extraction requires only matching specific SGML tags (`<LEDGERBAL>`, `<AVAILBAL>`, `<DTASOF>`).
+
+4. **Lower TCO**: Custom parsing (one-time 2-3 hour implementation) has lower total cost of ownership than maintaining dependencies on abandoned libraries that may break with Python version updates.
+
+5. **Consistency**: CSV formats already require custom parsers with validation; keeping all parsers in the same codebase simplifies maintenance.
+
+Implementation approach:
+- OFX: Regex-based extraction of balance tags from SGML format (~50 lines)
+- QIF: Line-by-line text parser with state machine (~30 lines)
+- CSV: Python `csv.DictReader` with custom validation (existing pattern)
+
 **Parsing Strategy:**
 
 For each configured account:
