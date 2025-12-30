@@ -160,6 +160,89 @@ data/
 3. **Empty accounts array:** Valid state, nodes skip gracefully
 4. **Invalid config:** Fail with validation errors
 
+### Config Stub Generation
+
+When `config.json` is missing, the node generates a stub from YNAB cache and fails with instructions:
+
+**Generated stub** (`data/bank_accounts/config.json`):
+```json
+{
+  "accounts": [
+    {
+      "ynab_account_id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+      "ynab_account_name": "Apple Card",
+      "slug": "TODO_REQUIRED",
+      "bank_name": "TODO_REQUIRED",
+      "account_type": "credit",
+      "statement_frequency": "TODO_REQUIRED",
+      "download_instructions": "TODO_REQUIRED"
+    },
+    {
+      "ynab_account_id": "b2c3d4e5-6789-01bc-def0-234567890abc",
+      "ynab_account_name": "Apple Savings",
+      "slug": "TODO_REQUIRED",
+      "bank_name": "TODO_REQUIRED",
+      "account_type": "savings",
+      "statement_frequency": "TODO_REQUIRED",
+      "download_instructions": "TODO_REQUIRED"
+    },
+    {
+      "ynab_account_id": "c3d4e5f6-7890-12cd-ef01-34567890abcd",
+      "ynab_account_name": "Chase Checking (...1503)",
+      "slug": "TODO_REQUIRED",
+      "bank_name": "TODO_REQUIRED",
+      "account_type": "checking",
+      "statement_frequency": "TODO_REQUIRED",
+      "download_instructions": "TODO_REQUIRED"
+    },
+    {
+      "ynab_account_id": "d4e5f6a7-8901-23de-f012-4567890abcde",
+      "ynab_account_name": "Chase Credit (...9579)",
+      "slug": "TODO_REQUIRED",
+      "bank_name": "TODO_REQUIRED",
+      "account_type": "credit",
+      "statement_frequency": "TODO_REQUIRED",
+      "download_instructions": "TODO_REQUIRED"
+    }
+  ]
+}
+```
+
+**Auto-filled fields** (from YNAB cache):
+- `ynab_account_id` - Account UUID from YNAB API
+- `ynab_account_name` - Account name from YNAB
+- `account_type` - Inferred from YNAB account type (credit_card → credit, checking → checking, savings → savings)
+
+**Manual fields** (user must complete):
+- `slug` - Short identifier for directory naming (e.g., "apple_card", "chase_checking")
+  - Recommendation: lowercase, underscores, descriptive
+  - Used in: `data/bank_accounts/raw/{slug}/`, `normalized/{slug}.json`
+- `bank_name` - Financial institution name (e.g., "Apple", "Chase")
+- `statement_frequency` - Export frequency: "monthly" or "daily"
+  - Use "monthly" for statement-based (Apple Card/Savings)
+  - Use "daily" for transaction exports (Chase Checking/Credit)
+- `download_instructions` - Step-by-step guide for downloading bank data
+  - Include: URL, navigation steps, date range selection, file format
+  - Template placeholders: `{month}` for monthly, `{start_date}` / `{end_date}` for daily
+
+**Error message when stub is created:**
+```
+❌ account_data_retrieve failed
+
+Configuration file not found. Created stub at:
+  data/bank_accounts/config.json
+
+Next steps:
+  1. Edit config.json and replace all "TODO_REQUIRED" values
+  2. Set slug (e.g., "apple_card", "chase_checking")
+  3. Set bank_name (e.g., "Apple", "Chase")
+  4. Set statement_frequency ("monthly" or "daily")
+  5. Add download_instructions for each account
+  6. Re-run this node
+
+Flow execution aborted.
+```
+
 ## Normalized Bank Account Format
 
 **Purpose:** Consistent format across all bank sources, optimized for reconciliation
