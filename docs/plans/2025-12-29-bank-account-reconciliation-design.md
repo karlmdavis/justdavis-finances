@@ -585,9 +585,9 @@ Summary: 4 accounts, 909 transactions, 12 duplicates removed
 **Outputs:**
 - `data/bank_accounts/reconciliation/{timestamp}_reconciliation.json`
 
-**Matching Strategy:**
+**Transaction Reconciliation (Bidirectional):**
 
-For each configured account:
+For each configured account, match transactions in both directions:
 
 1. **Load data:**
    - Bank transactions from normalized file
@@ -597,24 +597,52 @@ For each configured account:
    - Bank: Exclude if cleared_status == "pending"
    - YNAB: Exclude if cleared == "uncleared"
 
-3. **Match transactions:**
-   - Primary: Exact date + exact amount
-   - If unique match: Paired
-   - If no match: Bank transaction is missing from YNAB
-   - If multiple YNAB matches: Try fuzzy description matching
-     - If score > 0.8: Paired
-     - If score <= 0.8: Flag as ambiguous (generate flag_discrepancy operation)
+3. **Bank → YNAB matching** (find missing transactions):
+   - For each bank transaction:
+     - Search for YNAB transaction with same date + exact amount
+     - If unique match: Mark as reconciled
+     - If no match: Generate `create_transaction` operation
+     - If multiple YNAB matches: Try fuzzy description matching
+       - Normalize descriptions (lowercase, remove numbers, normalize spaces)
+       - Calculate similarity score (SequenceMatcher) against payee_name and memo
+       - If score > 0.8: Mark as reconciled
+       - If score <= 0.8: Generate `flag_discrepancy` operation (ambiguous match)
 
-4. **Fuzzy matching:**
-   - Normalize descriptions (lowercase, remove numbers, normalize spaces)
-   - Calculate similarity score (SequenceMatcher)
-   - Compare against payee_name and memo fields
+4. **YNAB → Bank matching** (find extra transactions):
+   - For each YNAB transaction not matched above:
+     - Generate `flag_discrepancy` operation
+     - Reason: "Transaction in YNAB but not in bank statement"
+     - Possible causes: Duplicate entry, incorrect date, pending reversal
 
-5. **Balance reconciliation:**
-   - Use most recent bank balance from normalized data
-   - Get YNAB balance as of that date
-   - Calculate difference
-   - Check if unmatched transactions explain the difference
+**Balance Reconciliation (Validation Only):**
+
+After transaction matching, verify arithmetic using traditional accounting reconciliation format:
+
+1. **Collect all balance points chronologically:**
+   - Extract all dates where bank has balance data
+   - For each date, calculate YNAB balance as of that date (sum of cleared/reconciled transactions)
+   - Sort chronologically (earliest first)
+
+2. **Calculate adjusted balances for each date:**
+   ```
+   Adjusted Bank Balance = Bank_Balance
+                         + sum(bank_txs_not_in_ynab where date <= balance_date)
+
+   Adjusted YNAB Balance = YNAB_Balance
+                         + sum(ynab_txs_not_in_bank where date <= balance_date)
+   ```
+
+3. **Track reconciliation history:**
+   - Work chronologically through all balance points
+   - For each date: reconciled (exact match) or diverged (calculate difference)
+   - Identify last reconciled date and first diverged date
+   - Filter output: show starting/ending balances, changes in divergence, and one entry before each change
+
+4. **Exact match requirement:**
+   - Reconciled: `Adjusted_Bank == Adjusted_YNAB` (exact, no tolerance)
+   - Mismatch: `Adjusted_Bank != Adjusted_YNAB` → investigation required
+
+**Note:** Balance reconciliation is arithmetic validation only. All substantive work happens in transaction matching. If transactions are fully matched, balances will reconcile exactly.
 
 **Operation Generation:**
 
@@ -623,9 +651,16 @@ For each configured account:
    - memo: Full description
    - No payee extraction/parsing
 
-2. **flag_discrepancy** for each ambiguous match:
+2. **flag_discrepancy** for ambiguous matches:
+   - Type: "ambiguous_match"
    - Include all YNAB candidate transactions
    - Include similarity scores
+   - Recommend manual review
+
+3. **flag_discrepancy** for YNAB transactions not in bank:
+   - Type: "ynab_not_in_bank"
+   - Include YNAB transaction details
+   - Possible causes: Duplicate entry, incorrect date, pending reversal
    - Recommend manual review
 
 **Pre-execution:**
@@ -640,30 +675,60 @@ For each configured account:
 ✅ account_data_reconcile completed
 
 apple_card:
-  Bank transactions: 243
-  YNAB transactions: 228
-  Matched: 228
-  Missing from YNAB: 15
-  Ambiguous: 0
-  Balance: ⚠️  -$1,370.30 difference (explained by 15 missing txs)
+  Transaction Reconciliation:
+    Bank transactions: 243
+    YNAB transactions: 228
+    Matched: 228
+    Missing from YNAB: 15
+    In YNAB but not bank: 0
+    Ambiguous: 0
+
+  Balance Reconciliation History:
+    2024-11-01: ✅ Reconciled (exact match: -$14,523.45)  [starting balance]
+    2024-11-30: ✅ Reconciled (exact match: -$15,234.56)  [before divergence]
+    2024-12-01: ⚠️  Diverged (difference: -$42.99, bank: -$15,277.55, adjusted YNAB: -$15,234.56)
+    2024-12-19: ⚠️  Diverged (difference: -$42.99, bank: -$17,150.00, adjusted YNAB: -$17,107.01)  [before change]
+    2024-12-20: ⚠️  Diverged (difference: -$85.50, bank: -$17,234.56, adjusted YNAB: -$17,149.06)
+    2024-12-31: ⚠️  Diverged (difference: -$137.03, bank: -$18,283.09, adjusted YNAB: -$18,146.06)  [ending balance]
+
+  Summary:
+    Last reconciled: 2024-11-30 (balances agreed: -$15,234.56)
+    First diverged:  2024-12-01 (difference appeared: -$42.99)
+    Divergence grew: 2024-12-20 (-$42.99 → -$85.50), 2024-12-31 (-$85.50 → -$137.03)
+    Action: Review transactions between 2024-11-30 and 2024-12-01
+
+  Current Status (as of 2024-12-31):
+    Bank balance:              -$18,283.09
+    + Bank TXs not in YNAB:       -$137.03  (15 transactions)
+    - YNAB TXs not in bank:         $0.00  (0 transactions)
+    = Adjusted bank balance:   -$18,146.06
+
+    YNAB balance:              -$18,146.06
+    = Adjusted YNAB balance:   -$18,146.06
+
+    Status: ⚠️  Mismatch ($137.03 discrepancy after adjustments)
 
 chase_credit:
-  Bank transactions: 468
-  YNAB transactions: 465
-  Matched: 459
-  Missing from YNAB: 6
-  Ambiguous: 3 (multiple YNAB txs with same date/amount)
-  Balance: (no balance data)
+  Transaction Reconciliation:
+    Bank transactions: 468
+    YNAB transactions: 465
+    Matched: 459
+    Missing from YNAB: 6
+    In YNAB but not bank: 3
+    Ambiguous: 3 (multiple YNAB txs with same date/amount)
 
-Summary:
-  18 operations generated:
-    - 15 transactions to create
-    - 3 ambiguous matches flagged for review
+  Balance Reconciliation:
+    Status: No balance data available
+
+Overall Summary:
+  21 operations generated:
+    - 15 create_transaction (apple_card)
+    - 6 create_transaction (chase_credit)
+    - 6 flag_discrepancy (3 ambiguous + 3 ynab_not_in_bank)
 
   Balance reconciliation:
-    - 2 accounts reconciled
-    - 1 mismatch (explained)
-    - 1 no balance data
+    - 1 account with divergence (apple_card: -$137.03)
+    - 1 account without balance data (chase_credit)
 
   → reconciliation/2025-12-27_20-30-45_reconciliation.json
 
