@@ -272,7 +272,6 @@ Flow execution aborted.
   ],
   "transactions": [
     {
-      "id": null,
       "posted_date": "2024-11-01",
       "transaction_date": "2024-10-31",
       "description": "SAFEWAY 1616...",
@@ -307,7 +306,6 @@ Flow execution aborted.
 - `amount_milliunits` - Amount in YNAB format (negative = expense)
 
 **Optional fields (account-specific):**
-- `id` - OFX FITID or null for CSV
 - `transaction_date` - If different from posted_date
 - `merchant` - Extracted merchant name (Apple Card only)
 - `type` - Bank's transaction type
@@ -330,7 +328,7 @@ Flow execution aborted.
 **Solution:** For each date, use transactions from the most recent export file.
 
 **Algorithm:**
-1. Load all CSV files with export timestamps
+1. Load all files (CSV and OFX) with export timestamps
 2. Group transactions by (posted_date, source_file)
 3. For each date, select transactions from file with latest export timestamp
 4. Preserve original file ordering within each date's transactions
@@ -338,6 +336,8 @@ Flow execution aborted.
 
 **Key principle:** Identical transactions within the SAME file are NOT duplicates
 (bank is authoritative - if they reported it, it happened).
+
+**Note:** OFX FITID (Financial Institution Transaction ID) is not extracted or used. All transaction identification is based on date, amount, and description fields.
 
 ## Unified YNAB Operations Format
 
