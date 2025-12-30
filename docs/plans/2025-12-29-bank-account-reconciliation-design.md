@@ -287,7 +287,7 @@ Flow execution aborted.
     }
   ],
   "source_metadata": {
-    "parsed_at": "2025-12-27T20:30:00",
+    "parsed_at": "2025-12-27T20:30:00Z",
     "transaction_count": 243,
     "balance_count": 2,
     "deduplication_summary": {
@@ -349,7 +349,7 @@ Flow execution aborted.
 {
   "version": "1.0",
   "metadata": {
-    "generated_at": "2025-12-27T20:30:45",
+    "generated_at": "2025-12-27T20:30:45Z",
     "source_system": "bank_reconciliation"
   },
   "operations": [
