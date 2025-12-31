@@ -101,18 +101,21 @@ Unified Operations JSON
 data/
 └── bank_accounts/
     ├── config.json                          # Account configuration (git-ignored)
-    ├── raw/                                 # User-downloaded exports
+    ├── raw/                                 # Copied from source_directory (original filenames preserved)
     │   ├── apple_card/
-    │   │   ├── 2024-11.csv
-    │   │   ├── 2024-11.ofx
-    │   │   ├── 2024-12.csv
-    │   │   └── 2024-12.ofx
+    │   │   ├── Apple Card Transactions - November 2024.csv
+    │   │   ├── Apple Card Transactions - November 2024.ofx
+    │   │   ├── Apple Card Transactions - December 2024.csv
+    │   │   └── Apple Card Transactions - December 2024.ofx
     │   ├── apple_savings/
+    │   │   ├── Savings Transactions - November 2024.csv
+    │   │   └── Savings Transactions - December 2024.csv
     │   ├── chase_checking/
-    │   │   └── 2024-12-01_to_2024-12-27.csv
+    │   │   ├── Chase1503_Activity_20251201.CSV
+    │   │   └── Chase1503_Activity_20251227.CSV
     │   └── chase_credit/
-    │       ├── 2024-01-01_to_2024-12-31.csv
-    │       └── 2024-01-01_to_2024-12-31.qif
+    │       ├── Chase9579_Activity20240101_20241231_20251228.CSV
+    │       └── Chase9579_Activity20240101_20241231_20251228.QIF
     ├── normalized/                          # Parsed, de-duplicated data
     │   ├── apple_card.json                 # One file per account (all data)
     │   ├── apple_savings.json
@@ -138,7 +141,18 @@ data/
       "bank_name": "Apple",
       "account_type": "credit",
       "statement_frequency": "monthly",
-      "download_instructions": "1. Go to wallet.apple.com\n2. Click Apple Card → Statements\n3. Download CSV + OFX for {month}\n4. Place in data/bank_accounts/raw/apple_card/{YYYY-MM}.csv and {YYYY-MM}.ofx"
+      "source_directory": "~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Apple Card and Savings Statements",
+      "import_patterns": [
+        {
+          "pattern": "Apple Card Transactions - *.csv",
+          "format_handler": "apple_card_csv"
+        },
+        {
+          "pattern": "Apple Card Transactions - *.ofx",
+          "format_handler": "apple_card_ofx"
+        }
+      ],
+      "download_instructions": "1. Go to wallet.apple.com\n2. Click Apple Card → Statements\n3. Download CSV + OFX for {month}\n4. Place in source directory above"
     },
     {
       "ynab_account_id": "uuid-from-ynab-api",
@@ -147,7 +161,14 @@ data/
       "bank_name": "Chase",
       "account_type": "checking",
       "statement_frequency": "daily",
-      "download_instructions": "1. Go to chase.com → Transactions\n2. Select date range\n3. Download CSV\n4. Place in data/bank_accounts/raw/chase_checking/{YYYY-MM-DD}_to_{YYYY-MM-DD}.csv"
+      "source_directory": "~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Chase Transactions",
+      "import_patterns": [
+        {
+          "pattern": "Chase1503_Activity*.CSV",
+          "format_handler": "chase_checking_csv"
+        }
+      ],
+      "download_instructions": "1. Go to chase.com → Transactions\n2. Select date range\n3. Download CSV\n4. Place in source directory above"
     }
   ]
 }
@@ -175,6 +196,8 @@ When `config.json` is missing, the node generates a stub from YNAB cache and fai
       "bank_name": "TODO_REQUIRED",
       "account_type": "credit",
       "statement_frequency": "TODO_REQUIRED",
+      "source_directory": "TODO_REQUIRED",
+      "import_patterns": [],
       "download_instructions": "TODO_REQUIRED"
     },
     {
@@ -184,6 +207,8 @@ When `config.json` is missing, the node generates a stub from YNAB cache and fai
       "bank_name": "TODO_REQUIRED",
       "account_type": "savings",
       "statement_frequency": "TODO_REQUIRED",
+      "source_directory": "TODO_REQUIRED",
+      "import_patterns": [],
       "download_instructions": "TODO_REQUIRED"
     },
     {
@@ -193,6 +218,8 @@ When `config.json` is missing, the node generates a stub from YNAB cache and fai
       "bank_name": "TODO_REQUIRED",
       "account_type": "checking",
       "statement_frequency": "TODO_REQUIRED",
+      "source_directory": "TODO_REQUIRED",
+      "import_patterns": [],
       "download_instructions": "TODO_REQUIRED"
     },
     {
@@ -202,6 +229,8 @@ When `config.json` is missing, the node generates a stub from YNAB cache and fai
       "bank_name": "TODO_REQUIRED",
       "account_type": "credit",
       "statement_frequency": "TODO_REQUIRED",
+      "source_directory": "TODO_REQUIRED",
+      "import_patterns": [],
       "download_instructions": "TODO_REQUIRED"
     }
   ]
@@ -221,9 +250,19 @@ When `config.json` is missing, the node generates a stub from YNAB cache and fai
 - `statement_frequency` - Export frequency: "monthly" or "daily"
   - Use "monthly" for statement-based (Apple Card/Savings)
   - Use "daily" for transaction exports (Chase Checking/Credit)
+- `source_directory` - Where user downloads bank exports (expanded, absolute path)
+  - Example: `~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Apple Card and Savings Statements`
+  - Files stay in this directory with original filenames
+  - `account_data_retrieve` will copy files matching import_patterns from here to `data/bank_accounts/raw/{slug}/`
+- `import_patterns` - List of filename patterns to import (with format handlers)
+  - Each pattern object has:
+    - `pattern` - Glob pattern to match files (e.g., "Apple Card Transactions - *.csv")
+    - `format_handler` - Handler name from format registry (e.g., "apple_card_csv")
+  - Supports wildcards: `*` (any chars), `?` (single char)
+  - Example: `[{"pattern": "Apple Card Transactions - *.csv", "format_handler": "apple_card_csv"}]`
 - `download_instructions` - Step-by-step guide for downloading bank data
   - Include: URL, navigation steps, date range selection, file format
-  - Template placeholders: `{month}` for monthly, `{start_date}` / `{end_date}` for daily
+  - Reference source_directory in instructions
 
 **Error message when stub is created:**
 ```
@@ -237,8 +276,16 @@ Next steps:
   2. Set slug (e.g., "apple_card", "chase_checking")
   3. Set bank_name (e.g., "Apple", "Chase")
   4. Set statement_frequency ("monthly" or "daily")
-  5. Add download_instructions for each account
-  6. Re-run this node
+  5. Set source_directory (where you download bank files)
+  6. Add import_patterns with format handlers (see format handler docs)
+  7. Add download_instructions for each account
+  8. Re-run this node
+
+Available format handlers:
+  - apple_card_csv, apple_card_ofx
+  - apple_savings_csv, apple_savings_ofx
+  - chase_checking_csv
+  - chase_credit_csv, chase_credit_qif
 
 Flow execution aborted.
 ```
@@ -704,40 +751,350 @@ class ReconciliationResult:
 5. **Serialization**: All models have `to_dict()` and `from_dict()` for JSON I/O
 6. **Tuple sequences**: Use `tuple[T, ...]` for immutable collections instead of `list[T]`
 
+## Format Handler Architecture
+
+**Purpose:** Plugin-style handlers for parsing different bank export formats with format-specific knowledge encapsulated in code.
+
+**Location:** `src/finances/bank_accounts/format_handlers/`
+
+### Design Rationale
+
+Bank export formats have format-specific characteristics that require specialized handling:
+- **Sign conventions**: Apple CSV uses consumer perspective (purchases positive), OFX uses accounting standard (purchases negative)
+- **Field mappings**: Different CSV column names across banks
+- **Balance data location**: Statement balance in OFX, running balance in CSV, or none
+- **Date formats**: Various formats across institutions
+
+Rather than requiring users to configure field mappings in JSON, we encapsulate format knowledge in code as format handlers that users reference by name.
+
+### Handler Interface
+
+```python
+# src/finances/bank_accounts/format_handlers/base.py
+
+from abc import ABC, abstractmethod
+from pathlib import Path
+from finances.bank_accounts.models import ParseResult
+
+class BankExportFormatHandler(ABC):
+    """Base class for all bank export format parsers."""
+
+    @property
+    @abstractmethod
+    def format_name(self) -> str:
+        """Unique identifier for this format (e.g., 'apple_card_csv')."""
+        pass
+
+    @property
+    @abstractmethod
+    def supported_extensions(self) -> tuple[str, ...]:
+        """File extensions this handler can process (e.g., ('.csv',))."""
+        pass
+
+    @abstractmethod
+    def validate_file(self, file_path: Path) -> bool:
+        """
+        Quick validation that file matches expected format.
+
+        Check:
+        - File extension
+        - Header structure (for CSV)
+        - Root elements (for XML/OFX)
+        - Required fields present
+        """
+        pass
+
+    @abstractmethod
+    def parse(self, file_path: Path) -> ParseResult:
+        """
+        Parse bank export file and return transactions and balance data.
+
+        Responsibilities:
+        1. Read format-specific file structure
+        2. Normalize signs to accounting standard:
+           - Expenses (purchases, debits) → NEGATIVE
+           - Income (payments, credits) → POSITIVE
+        3. Extract all available fields
+        4. Extract balance data if available:
+           - Statement balance (OFX/QIF): Single balance as of statement date
+           - Running balance (CSV): Balance after each transaction
+           - No balance: Empty balance_points list
+        5. Return immutable ParseResult
+
+        Raises:
+            ValueError: If file is malformed or missing required fields
+        """
+        pass
+```
+
+### ParseResult Model
+
+```python
+# src/finances/bank_accounts/models.py (addition to existing models)
+
+@dataclass(frozen=True)
+class ParseResult:
+    """Result of parsing a bank export file."""
+
+    transactions: tuple[BankTransaction, ...]  # Immutable sequence
+    balance_points: tuple[BalancePoint, ...]  # Immutable sequence
+    statement_date: FinancialDate | None = None  # For statement-based exports (OFX/QIF)
+
+    @classmethod
+    def create(
+        cls,
+        transactions: list[BankTransaction],
+        balance_points: list[BalancePoint] | None = None,
+        statement_date: FinancialDate | None = None
+    ) -> "ParseResult":
+        """Create ParseResult from lists (converts to immutable tuples)."""
+        return cls(
+            transactions=tuple(transactions),
+            balance_points=tuple(balance_points or []),
+            statement_date=statement_date
+        )
+```
+
+### Handler Registry
+
+```python
+# src/finances/bank_accounts/format_handlers/registry.py
+
+class FormatHandlerRegistry:
+    """Central registry for all bank export format handlers."""
+
+    _handlers: dict[str, Type[BankExportFormatHandler]] = {}
+
+    @classmethod
+    def register(cls, handler_class: Type[BankExportFormatHandler]) -> None:
+        """Register a format handler."""
+        # Store handler class, instantiate on demand
+        pass
+
+    @classmethod
+    def get(cls, format_name: str) -> BankExportFormatHandler:
+        """Get handler instance by format name."""
+        # Validate format_name exists, return instance
+        pass
+
+    @classmethod
+    def list_formats(cls) -> list[str]:
+        """List all registered format names."""
+        pass
+
+# Auto-register all handlers on import
+# (Implementation: import all handler modules and call register())
+```
+
+### Concrete Handler Examples (Pseudocode)
+
+**Apple Card CSV Handler:**
+
+```python
+class AppleCardCsvHandler(BankExportFormatHandler):
+    """
+    Apple Card CSV format.
+
+    Sign Convention: Consumer perspective (purchases positive, payments negative)
+    Normalization: Flip all signs (consumer → accounting)
+    Balance Data: None (CSV doesn't include balance)
+    """
+
+    format_name = "apple_card_csv"
+    supported_extensions = (".csv",)
+
+    def parse(self, file_path: Path) -> ParseResult:
+        # 1. Read CSV with DictReader
+        # 2. For each row:
+        #    - Parse amount (consumer perspective)
+        #    - Flip sign for normalization (amount_cents = -amount_cents)
+        #    - Create BankTransaction with Money/FinancialDate
+        # 3. Return ParseResult with transactions, no balances
+        pass
+```
+
+**Apple Card OFX Handler:**
+
+```python
+class AppleCardOfxHandler(BankExportFormatHandler):
+    """
+    Apple Card OFX format.
+
+    Sign Convention: Accounting standard (purchases negative, balance negative)
+    Normalization: Use as-is (already accounting standard)
+    Balance Data: Statement balance from LEDGERBAL tag
+    """
+
+    format_name = "apple_card_ofx"
+    supported_extensions = (".ofx",)
+
+    def parse(self, file_path: Path) -> ParseResult:
+        # 1. Read OFX file (SGML format)
+        # 2. Extract STMTTRN elements for transactions
+        #    - Parse TRNAMT (already accounting standard, use as-is)
+        #    - Create BankTransaction objects
+        # 3. Extract LEDGERBAL for statement balance
+        #    - Create BalancePoint with type="statement"
+        # 4. Return ParseResult with transactions and balance
+        pass
+```
+
+**Chase Checking CSV Handler:**
+
+```python
+class ChaseCheckingCsvHandler(BankExportFormatHandler):
+    """
+    Chase Checking CSV format.
+
+    Sign Convention: Accounting standard (debits negative, credits positive)
+    Normalization: Use as-is (already accounting standard)
+    Balance Data: Running balance column (balance after each transaction)
+    """
+
+    format_name = "chase_checking_csv"
+    supported_extensions = (".csv",)
+
+    def parse(self, file_path: Path) -> ParseResult:
+        # 1. Read CSV with DictReader
+        # 2. For each row:
+        #    - Parse amount (already accounting standard, use as-is)
+        #    - Parse balance from "Balance" column
+        #    - Create BankTransaction with running_balance field
+        #    - Create BalancePoint with type="running"
+        # 3. Return ParseResult with transactions and balance points
+        pass
+```
+
+### Initial Format Handlers
+
+Based on the bank accounts to support:
+
+1. **apple_card_csv** - Apple Card CSV exports (consumer sign convention → flip)
+2. **apple_card_ofx** - Apple Card OFX exports (accounting standard → use as-is)
+3. **apple_savings_csv** - Apple Savings CSV exports (similar to card)
+4. **apple_savings_ofx** - Apple Savings OFX exports
+5. **chase_checking_csv** - Chase checking CSV exports (accounting standard + running balance)
+6. **chase_credit_csv** - Chase credit card CSV exports (accounting standard)
+7. **chase_credit_qif** - Chase credit card QIF exports (accounting standard + statement balance)
+
+### Sign Convention Reference
+
+**Consumer Perspective** (flip required):
+- Purchases/Expenses: **POSITIVE** in file → convert to **NEGATIVE**
+- Payments/Income: **NEGATIVE** in file → convert to **POSITIVE**
+- Used by: Apple Card/Savings CSV
+
+**Accounting Standard** (use as-is):
+- Expenses: **NEGATIVE** in file → use **NEGATIVE**
+- Income: **POSITIVE** in file → use **POSITIVE**
+- Used by: Apple OFX, Chase all formats
+
+### Usage in Parser
+
+```python
+# In account_data_parse flow node
+
+from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
+
+def parse_account_exports(account_config: dict, raw_files: list[Path]) -> ParseResult:
+    """
+    Parse bank exports using configured format handler.
+
+    Pseudocode:
+    1. For each file in raw_files:
+       - Match filename against import_patterns in config
+       - Get format_handler name from matching pattern
+       - Get handler instance from registry
+       - Parse file → ParseResult
+       - Collect transactions and balances
+    2. De-duplicate transactions (most recent file wins per date)
+    3. De-duplicate balances (most recent file wins per date)
+    4. Return combined ParseResult
+    """
+    results = []
+
+    for file_path in raw_files:
+        # Find matching pattern in config
+        pattern_config = find_matching_pattern(file_path, account_config['import_patterns'])
+        if not pattern_config:
+            continue  # Skip unmatched files
+
+        # Get handler
+        format_name = pattern_config['format_handler']
+        handler = FormatHandlerRegistry.get(format_name)
+
+        # Parse
+        result = handler.parse(file_path)
+        results.append((file_path, result))
+
+    # De-duplicate and combine
+    combined_result = deduplicate_and_combine(results)
+    return combined_result
+```
+
+### Testing Strategy
+
+**Handler Unit Tests:**
+- Each handler has dedicated test file with synthetic data samples
+- Test sign normalization explicitly (verify expected output signs)
+- Test balance extraction (verify correct balance_type)
+- Test error handling (malformed files, missing fields)
+
+**Handler Integration Tests:**
+- Test handler registry (register, get, list)
+- Test multiple handlers with same extension
+- Test invalid format names
+
+**Test Fixtures:**
+- `tests/fixtures/bank_accounts/raw/`
+  - `apple_card_sample.csv` - Synthetic Apple Card CSV
+  - `apple_card_sample.ofx` - Synthetic Apple Card OFX
+  - `chase_checking_sample.csv` - Synthetic Chase checking CSV
+  - etc.
+
 ## Flow Node Designs
 
 ### Node 1: account_data_retrieve
 
-**Purpose:** Check data freshness and guide user to download missing/stale data
+**Purpose:** Copy bank export files from source directory to raw directory based on configured patterns
 
 **Dependencies:** `ynab_sync` (for config stub generation)
 
 **Inputs:**
 - `data/bank_accounts/config.json`
-- `data/bank_accounts/raw/{slug}/` (existing files)
+- Files in configured `source_directory` for each account
 
-**Outputs:** None (console output only)
+**Outputs:**
+- `data/bank_accounts/raw/{slug}/` (copied files with original filenames preserved)
 
 **Behavior:**
 
 1. Load config (create stub + fail if missing)
 2. If config has no accounts → skip gracefully
 3. For each account:
-   - Scan raw/{slug}/ for latest file
-   - Parse date/range from filename
-   - Calculate staleness:
-     - Monthly: Stale if >3 business days past month-end and missing that month
-     - Daily: Stale if >2 days old
-   - Determine if download needed (always suggest up to today)
-4. Display status + download instructions (from config)
-5. Prompt: "Run this node? [y/N]"
-6. If yes → validate required files exist → fail if missing
+   - Expand source_directory path (handle `~`, environment variables)
+   - Validate source_directory exists
+   - Scan source_directory for files matching import_patterns
+   - Copy matching files to `data/bank_accounts/raw/{slug}/` preserving original filenames
+   - Track: new files, existing files (skip), total copied
+4. Calculate data freshness from copied files:
+   - Parse dates from filenames or use file modification time
+   - Monthly: Stale if >3 business days past month-end and missing that month
+   - Daily: Stale if >2 days old
+5. Display status: files copied, freshness, download instructions if stale
+6. If no files match patterns → fail with clear message
+
+**File Copy Strategy:**
+- If file exists in destination with same name and size → skip (already copied)
+- If file exists with different size → overwrite with warning
+- Preserve original filename exactly (no renaming)
+- Create destination directory if missing
 
 **Pre-execution:**
 ```
 [account_data_retrieve]
   Current date: 2025-12-27 (Friday)
-  Status: 4 accounts configured, 2 stale
+  Status: 4 accounts configured
   Run this node? [y/N]
 ```
 
@@ -745,20 +1102,36 @@ class ReconciliationResult:
 ```
 ✅ account_data_retrieve completed
 
-Download status:
-  apple_card: ✅ Current (2024-12.ofx, 1 day old)
-  chase_checking: ⚠️  Stale (2024-12-20_to_2024-12-25.csv, 3 days old)
+apple_card:
+  Source: ~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Apple Card and Savings Statements
+  Files copied: 4 (2 new, 2 existing)
+    - Apple Card Transactions - December 2024.csv (new)
+    - Apple Card Transactions - December 2024.ofx (new)
+    - Apple Card Transactions - November 2024.csv (existing, skipped)
+    - Apple Card Transactions - November 2024.ofx (existing, skipped)
+  Status: ✅ Current (latest: December 2024, 1 day old)
 
-Download needed: chase_checking
-  Required: data/bank_accounts/raw/chase_checking/2024-12-26_to_2024-12-27.csv
+chase_checking:
+  Source: ~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Chase Transactions
+  Files copied: 1 (0 new, 1 existing)
+    - Chase1503_Activity_20251227.CSV (existing, skipped)
+  Status: ⚠️  Stale (latest: 2025-12-27, 3 days old)
 
-Instructions for chase_checking:
-  1. Go to chase.com → Transactions
-  2. Select date range: 12/26/2024 - 12/27/2024
-  3. Download CSV
-  4. Place in path above
+  Download needed:
+    1. Go to chase.com → Transactions
+    2. Select date range: 12/28/2024 - 12/30/2024
+    3. Download CSV
+    4. Place in: ~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Chase Transactions
 
-Files validated and ready for parsing.
+chase_credit:
+  Source: ~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Chase Transactions
+  Files copied: 2 (0 new, 2 existing)
+    - Chase9579_Activity20240101_20241231_20251228.CSV (existing, skipped)
+    - Chase9579_Activity20240101_20241231_20251228.QIF (existing, skipped)
+  Status: ✅ Current (latest: 2025-12-28, 1 day old)
+
+Summary: 7 files copied (2 new, 5 existing), 1 account stale
+Data ready for parsing.
 ```
 
 ### Node 2: account_data_parse
@@ -797,22 +1170,57 @@ Implementation approach:
 
 For each configured account:
 
-1. **Load all CSV files** with export timestamp metadata
-2. **Group transactions** by (posted_date, source_file)
-3. **De-duplicate:** For each date, select transactions from most recent export file
-4. **Load OFX/QIF** for balance data ONLY (don't extract transactions)
-5. **De-duplicate balances:** For each date, select balance from most recent file
-6. **Auto-detect date range** from transaction content (min/max posted_date)
-7. **Write normalized JSON** to `normalized/{slug}.json`
+1. **Load all files from raw/{slug}/** with file metadata (modification time)
+2. **Parse each file using format handler:**
+   - Match filename against import_patterns from config
+   - Get format_handler name from matching pattern
+   - Get handler instance from FormatHandlerRegistry
+   - Call handler.parse(file_path) → ParseResult
+   - Collect all ParseResults with file metadata
+3. **De-duplicate transactions:**
+   - Group by (posted_date, source_file)
+   - For each date, select transactions from most recent file (by modification time)
+   - Preserve original file ordering within each date
+4. **De-duplicate balances:**
+   - Group balance points by date
+   - For each date, select balance from most recent file
+5. **Auto-detect date range** from transaction content (min/max posted_date)
+6. **Write normalized JSON** to `normalized/{slug}.json`
 
-**Format Parsers:**
+**Format Handler Usage:**
 
-- Apple Card CSV → Extract merchant, category, purchased_by
-- Apple Card/Savings OFX → Extract balances only (LEDGERBAL, AVAILBAL)
-- Chase Checking CSV → Extract running_balance
-- Chase Credit CSV → Standard format
-- Chase Credit QIF → Extract cleared_status, check_number
-- All formats → Parse to common normalized structure
+Instead of hardcoded format-specific parsing logic, the parser uses the format handler registry:
+
+```python
+# Pseudocode for parsing logic
+
+for file_path in raw_files:
+    # Match filename against patterns
+    pattern_match = find_matching_pattern(file_path, account_config['import_patterns'])
+    if not pattern_match:
+        logger.warning(f"Skipping unmatched file: {file_path}")
+        continue
+
+    # Get handler from registry
+    format_name = pattern_match['format_handler']
+    handler = FormatHandlerRegistry.get(format_name)
+
+    # Parse file
+    result = handler.parse(file_path)  # Returns ParseResult
+
+    # Collect with metadata
+    parse_results.append({
+        'file': file_path,
+        'mod_time': file_path.stat().st_mtime,
+        'result': result
+    })
+
+# De-duplicate and combine
+final_result = deduplicate_and_combine(parse_results)
+```
+
+Format handlers handle all format-specific details (sign normalization, field extraction, balance parsing).
+Parser node only orchestrates: file matching, handler invocation, de-duplication.
 
 **Error Handling:**
 
@@ -1267,6 +1675,12 @@ def convert_legacy_to_unified(legacy_file: Path, output_file: Path):
 - Invalid YNAB account ID (fail with available accounts)
 - Duplicate slugs (fail with validation error)
 - Invalid statement_frequency value (fail)
+- Missing source_directory field (fail with validation error)
+- source_directory doesn't exist (fail with clear error)
+- Empty import_patterns array (fail - at least one pattern required)
+- Invalid format_handler name in pattern (fail with available handlers list)
+- Duplicate patterns for same account (warn or fail)
+- Pattern without format_handler field (fail with validation error)
 
 **Date Handling:**
 - Leap year dates (2024-02-29)
@@ -1281,10 +1695,27 @@ def convert_legacy_to_unified(legacy_file: Path, output_file: Path):
 - Amounts with many decimal places (should fail - milliunits only)
 
 **File Timestamp Detection:**
-- Filename with date range (2024-12-01_to_2024-12-31.csv)
-- Filename with single date (2024-12.csv)
+- Filename with date range (Chase9579_Activity20240101_20241231.CSV)
+- Filename with month (Apple Card Transactions - December 2024.csv)
 - Filename without date (should use file modification time)
-- Multiple files with same date (undefined behavior - should fail or pick deterministically)
+- Multiple files with same date (use most recent by modification time)
+
+**Format Handler Tests:**
+- Handler registration and retrieval from registry
+- Each handler parses its format correctly (unit tests with synthetic data)
+- Sign normalization for each handler (verify consumer → accounting conversion)
+- Balance extraction for handlers that support it (OFX statement, CSV running)
+- Invalid format name in config (should fail with available handlers list)
+- File matching pattern with multiple handlers for same extension (CSV)
+- Unmatched files in raw directory (should warn and skip)
+
+**File Pattern Matching:**
+- Glob pattern matching with wildcards (* and ?)
+- Case-sensitive vs case-insensitive matching (depends on filesystem)
+- Multiple patterns for same account (CSV + OFX)
+- Pattern matches multiple files (all should be copied/parsed)
+- Pattern matches no files (should fail or warn)
+- Overlapping patterns (first match wins or error?)
 
 **Key principle:** Unexpected input should fail fast with clear error message. Only valid, expected formats should parse successfully.
 
