@@ -1004,6 +1004,79 @@ def convert_legacy_to_unified(legacy_file: Path, output_file: Path):
 - Include edge cases: overlapping dates, duplicates, missing balances
 - Store in `tests/fixtures/bank_accounts/`
 
+### Test Scenarios
+
+**Critical edge cases to test:**
+
+**De-duplication:**
+- Overlapping date ranges with 3+ files (ensure most recent wins)
+- Same date in multiple files with different transaction counts
+- Transactions with identical date/amount/description in same file (not duplicates)
+- Empty export files
+- Single-day export vs. multi-month export overlap
+
+**Transaction Matching:**
+- Exact match: same date + amount (unique)
+- No match: transaction in bank but not YNAB
+- Multiple matches: 2+ YNAB transactions with same date + amount
+  - High similarity description (score > 0.8) → match
+  - Low similarity description (score <= 0.8) → flag discrepancy
+- Pending transactions (excluded from matching)
+- Same amount on same date, different descriptions
+- Unicode in descriptions (emoji, accented characters)
+- Very long descriptions (>200 characters)
+
+**Balance Reconciliation:**
+- Exact match: adjusted balances equal
+- Divergence: balances differ by missing transactions
+- First divergence: balances match initially, then diverge
+- Multiple divergences: difference grows over time
+- No balance data available (OFX/QIF missing)
+- Balance date in future (should fail)
+- Rounding: amounts differing by $0.01 (should NOT reconcile - exact match required)
+
+**Parser Edge Cases:**
+- CSV with missing required columns (should fail)
+- CSV with extra columns (should fail - unexpected input)
+- CSV with columns in wrong order (should fail - exact header match required)
+- CSV with malformed amounts ("---", "N/A", empty) (should fail)
+- CSV with malformed dates ("00/00/0000", "Invalid") (should fail)
+- CSV with newlines in description field (quoted) (should parse correctly)
+- OFX with missing balance tags (should fail)
+- OFX with malformed SGML (unclosed tags) (should fail)
+- QIF with missing required fields (!Type, D, T) (should fail)
+- Empty files (warning, continue with other files)
+- Files with BOM (byte order mark) (should handle gracefully or fail clearly)
+- Files with different line endings (CRLF, LF, CR) (should handle all formats)
+- Files with unexpected format (e.g., HTML error page saved as .csv) (should fail)
+
+**Configuration:**
+- Missing config.json (generate stub)
+- Empty accounts array (skip gracefully)
+- Invalid YNAB account ID (fail with available accounts)
+- Duplicate slugs (fail with validation error)
+- Invalid statement_frequency value (fail)
+
+**Date Handling:**
+- Leap year dates (2024-02-29)
+- Year boundaries (12/31 → 01/01)
+- Daylight saving time transitions (not applicable for dates, but test date parsing)
+- Invalid dates (2024-02-30, 2024-13-01)
+
+**Amount Handling:**
+- Zero amounts ($0.00)
+- Very large amounts (>$1,000,000)
+- Negative amounts (credits for credit cards, debits for checking)
+- Amounts with many decimal places (should fail - milliunits only)
+
+**File Timestamp Detection:**
+- Filename with date range (2024-12-01_to_2024-12-31.csv)
+- Filename with single date (2024-12.csv)
+- Filename without date (should use file modification time)
+- Multiple files with same date (undefined behavior - should fail or pick deterministically)
+
+**Key principle:** Unexpected input should fail fast with clear error message. Only valid, expected formats should parse successfully.
+
 ### Coverage Goals
 
 - 60%+ overall coverage with quality over quantity
