@@ -497,6 +497,213 @@ Flow execution aborted.
 - **Complete context** - Full source object for reviewer
 - **No extraction** - Use data as provided by source system
 
+## Domain Models
+
+**Purpose:** Type-safe dataclasses for all bank reconciliation operations using Money and FinancialDate primitives.
+
+**Location:** `src/finances/bank_accounts/models.py`
+
+### BankTransaction
+
+Represents a transaction from normalized bank account data.
+
+```python
+from dataclasses import dataclass
+from finances.core import Money, FinancialDate
+
+@dataclass(frozen=True)
+class BankTransaction:
+    """Immutable bank transaction from normalized format."""
+
+    # Required fields
+    posted_date: FinancialDate
+    description: str
+    amount: Money  # Negative for expenses, positive for income
+
+    # Optional fields (account-specific)
+    transaction_date: FinancialDate | None = None
+    merchant: str | None = None
+    type: str | None = None
+    category: str | None = None
+    memo: str | None = None
+    purchased_by: str | None = None
+    running_balance: Money | None = None
+    cleared_status: str | None = None
+    check_number: str | None = None
+
+    def to_dict(self) -> dict:
+        """Serialize to dict for JSON output."""
+        ...
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "BankTransaction":
+        """Deserialize from normalized format dict."""
+        ...
+```
+
+### BalancePoint
+
+Represents a balance snapshot at a specific date.
+
+```python
+@dataclass(frozen=True)
+class BalancePoint:
+    """Immutable balance snapshot from bank data."""
+
+    date: FinancialDate
+    amount: Money  # Ledger balance
+    available: Money | None = None  # Available balance (credit accounts)
+
+    def to_dict(self) -> dict:
+        """Serialize to dict for JSON output."""
+        ...
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "BalancePoint":
+        """Deserialize from normalized format dict."""
+        ...
+```
+
+### BankAccount
+
+Represents normalized bank account data.
+
+```python
+@dataclass(frozen=True)
+class BankAccount:
+    """Immutable normalized bank account data."""
+
+    account_id: str  # Slug from config
+    account_name: str
+    account_type: str  # credit, checking, savings
+    data_period_start: FinancialDate
+    data_period_end: FinancialDate
+    transactions: tuple[BankTransaction, ...]  # Immutable sequence
+    balances: tuple[BalancePoint, ...]  # Immutable sequence
+
+    @classmethod
+    def from_normalized_file(cls, filepath: Path) -> "BankAccount":
+        """Load from normalized JSON file."""
+        ...
+
+    def to_normalized_file(self, filepath: Path) -> None:
+        """Write to normalized JSON file."""
+        ...
+```
+
+### ReconciliationOperation
+
+Represents a single YNAB operation to apply.
+
+```python
+from enum import Enum
+
+class OperationType(Enum):
+    """Type of YNAB operation."""
+    CREATE_TRANSACTION = "create_transaction"
+    UPDATE_TRANSACTION_SPLITS = "update_transaction_splits"
+    FLAG_DISCREPANCY = "flag_discrepancy"
+
+@dataclass(frozen=True)
+class ReconciliationOperation:
+    """Immutable YNAB operation from reconciliation."""
+
+    operation_type: OperationType
+    confidence: float  # 0.0 to 1.0
+    target: dict  # YNAB transaction data
+    source: dict  # Bank transaction data or match context
+
+    # Optional for flag_discrepancy
+    discrepancy: dict | None = None
+
+    # Optional for update_transaction_splits
+    splits: list[dict] | None = None
+
+    def to_dict(self) -> dict:
+        """Serialize to unified operations format."""
+        ...
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ReconciliationOperation":
+        """Deserialize from unified operations format."""
+        ...
+```
+
+### BalanceReconciliation
+
+Represents balance reconciliation results for an account.
+
+```python
+@dataclass(frozen=True)
+class BalanceReconciliationPoint:
+    """Balance reconciliation at a single date."""
+
+    date: FinancialDate
+    bank_balance: Money
+    ynab_balance: Money
+    bank_txs_not_in_ynab: Money  # Sum of unmatched bank transactions
+    ynab_txs_not_in_bank: Money  # Sum of unmatched YNAB transactions
+    adjusted_bank_balance: Money
+    adjusted_ynab_balance: Money
+    is_reconciled: bool  # True if adjusted balances match exactly
+    difference: Money  # adjusted_bank - adjusted_ynab
+
+    def to_dict(self) -> dict:
+        """Serialize for output."""
+        ...
+
+@dataclass(frozen=True)
+class BalanceReconciliation:
+    """Complete balance reconciliation history for an account."""
+
+    account_id: str
+    points: tuple[BalanceReconciliationPoint, ...]  # Chronological
+    last_reconciled_date: FinancialDate | None  # Last date with exact match
+    first_diverged_date: FinancialDate | None  # First date with mismatch
+
+    @property
+    def current_status(self) -> BalanceReconciliationPoint:
+        """Most recent balance point."""
+        return self.points[-1] if self.points else None
+
+    def to_dict(self) -> dict:
+        """Serialize for output with filtered history."""
+        ...
+```
+
+### ReconciliationResult
+
+Represents complete reconciliation results for an account.
+
+```python
+@dataclass(frozen=True)
+class ReconciliationResult:
+    """Immutable reconciliation results for one account."""
+
+    account_id: str
+    bank_transactions_count: int
+    ynab_transactions_count: int
+    matched_count: int
+    missing_from_ynab_count: int
+    in_ynab_not_bank_count: int
+    ambiguous_count: int
+    operations: tuple[ReconciliationOperation, ...]
+    balance_reconciliation: BalanceReconciliation | None
+
+    def to_dict(self) -> dict:
+        """Serialize for output."""
+        ...
+```
+
+### Key Principles
+
+1. **Immutability**: All models use `@dataclass(frozen=True)` to prevent accidental mutation
+2. **Type safety**: Use `Money` for amounts, `FinancialDate` for dates, never raw integers or strings
+3. **No floating point**: Money handles all currency arithmetic with integer milliunits
+4. **Validation**: Dataclass `__post_init__` validates constraints (e.g., confidence 0.0-1.0)
+5. **Serialization**: All models have `to_dict()` and `from_dict()` for JSON I/O
+6. **Tuple sequences**: Use `tuple[T, ...]` for immutable collections instead of `list[T]`
+
 ## Flow Node Designs
 
 ### Node 1: account_data_retrieve
