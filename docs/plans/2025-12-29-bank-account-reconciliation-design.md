@@ -875,9 +875,13 @@ Summary: 4 accounts, 909 transactions, 12 duplicates removed
 **Outputs:**
 - `data/bank_accounts/reconciliation/{timestamp}_reconciliation.json`
 
-**Transaction Reconciliation (Bidirectional):**
+**Transaction Matching (Both Directions):**
 
-For each configured account, match transactions in both directions:
+For each configured account, match transactions in both directions to identify discrepancies.
+
+**Note:** Matching transactions both ways (bank→YNAB and YNAB→bank) does not mean bidirectional sync. Bank data remains authoritative (one-way reconciliation). We check both directions to find:
+- Bank transactions missing from YNAB → create them
+- YNAB transactions not in bank → flag for investigation (possible errors)
 
 1. **Load data:**
    - Bank transactions from normalized file
