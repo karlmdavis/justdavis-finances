@@ -1524,8 +1524,6 @@ Flow execution aborted.
 - Comprehensive error handling
 - E2E tests with synthetic data
 
-**Timeline:** 2-3 weeks
-
 ### Phase 2: Migrate Amazon Matcher (REQUIRED)
 
 **Scope:**
@@ -1543,8 +1541,6 @@ Flow execution aborted.
 - Convert historical Amazon split files using conversion helper
 - Verify manual review workflow still works
 - E2E test with real Amazon data
-
-**Timeline:** 1 week
 
 ### Phase 3: Migrate Apple Matcher (REQUIRED)
 
@@ -1564,8 +1560,6 @@ Flow execution aborted.
 - Verify manual review workflow still works
 - E2E test with real Apple data
 
-**Timeline:** 1 week
-
 ### Phase 4: Automated Apply (Future, Optional)
 
 **Scope:**
@@ -1578,8 +1572,6 @@ Flow execution aborted.
 - One format to support (unified)
 - Consistent behavior across all operation types
 - Automated application with review checkpoints
-
-**Timeline:** TBD (not part of initial scope)
 
 ### Migration Helpers
 
