@@ -1641,6 +1641,9 @@ def convert_legacy_to_unified(legacy_file: Path, output_file: Path):
 - Same amount on same date, different descriptions
 - Unicode in descriptions (emoji, accented characters)
 - Very long descriptions (>200 characters)
+- Split transactions: Bank transaction matches YNAB transaction by date+amount, but YNAB has subtransactions
+  - Match by total amount (splits are internal to YNAB, bank only sees total)
+  - Split details don't affect reconciliation matching
 
 **Balance Reconciliation:**
 - Exact match: adjusted balances equal
