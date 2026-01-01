@@ -1183,9 +1183,14 @@ For each configured account:
    - Preserve original file ordering within each date
 4. **De-duplicate balances:**
    - Group balance points by date
-   - For each date, select balance from most recent file
+   - For each date, select balance from most recent file (by modification time)
 5. **Auto-detect date range** from transaction content (min/max posted_date)
 6. **Write normalized JSON** to `normalized/{slug}.json`
+
+**File Timestamp Strategy:**
+- Always use file modification time (`st_mtime`) to determine "most recent"
+- Do NOT attempt to extract timestamps from file contents (OFX statement dates, etc.)
+- Simple, reliable, works consistently across all formats
 
 **Format Handler Usage:**
 
