@@ -1674,6 +1674,7 @@ def convert_legacy_to_unified(legacy_file: Path, output_file: Path):
 - Empty accounts array (skip gracefully)
 - Invalid YNAB account ID (fail with available accounts)
 - Duplicate slugs (fail with validation error)
+- Duplicate ynab_account_id values (fail - same account configured twice)
 - Invalid statement_frequency value (fail)
 - Missing source_directory field (fail with validation error)
 - source_directory doesn't exist (fail with clear error)
