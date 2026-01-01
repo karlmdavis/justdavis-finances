@@ -1542,9 +1542,13 @@ Flow execution aborted.
 - Operation structure: Matches unified format spec
 - Preserve all existing Amazon matching logic
 
+**Migration Notes:**
+- Old format files (`data/ynab/edits/`) will be archived on next run
+- No conversion needed - old format hasn't been used in production
+- Remove all old format support code after migration
+
 **Testing:**
-- Convert historical Amazon split files using conversion helper
-- Verify manual review workflow still works
+- Verify manual review workflow with new format
 - E2E test with real Amazon data
 
 ### Phase 3: Migrate Apple Matcher (REQUIRED)
@@ -1560,9 +1564,13 @@ Flow execution aborted.
 - Operation structure: Matches unified format spec
 - Preserve all existing Apple matching logic
 
+**Migration Notes:**
+- Old format files will be archived on next run
+- No conversion needed - old format hasn't been used in production
+- Remove all old format support code after migration
+
 **Testing:**
-- Convert historical Apple split files using conversion helper
-- Verify manual review workflow still works
+- Verify manual review workflow with new format
 - E2E test with real Apple data
 
 ### Phase 4: Automated Apply (Future, Optional)
@@ -1577,21 +1585,6 @@ Flow execution aborted.
 - One format to support (unified)
 - Consistent behavior across all operation types
 - Automated application with review checkpoints
-
-### Migration Helpers
-
-**Format Conversion Tool:**
-
-```python
-def convert_legacy_to_unified(legacy_file: Path, output_file: Path):
-    """
-    Convert old SplitEditBatch format to new unified operations format.
-
-    Reads legacy format and outputs unified format with proper structure.
-    Useful for migrating historical split files.
-    """
-    # Implementation details in migration code
-```
 
 ## Testing Strategy
 
