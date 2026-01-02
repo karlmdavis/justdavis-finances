@@ -1401,6 +1401,7 @@ We check both directions to find:
        - Calculate similarity score (SequenceMatcher) against payee_name and memo
        - If score > 0.8: Mark as reconciled
        - If score <= 0.8: Generate `flag_discrepancy` operation (ambiguous match)
+       - **Note:** 0.8 threshold chosen somewhat arbitrarily, can be tuned later as/if needed
      - **Note on splits:** YNAB transactions with subtransactions are matched by total amount.
        Bank only sees the total, not split details.
 
