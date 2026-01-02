@@ -297,6 +297,63 @@ Available format handlers:
 Flow execution aborted.
 ```
 
+### Configuration Validation
+
+**When:** Performed at the start of `account_data_retrieve` and `account_data_parse` nodes.
+
+**Valid Configuration Requirements:**
+
+**Required Fields (per account):**
+- `ynab_account_id` - Must be a valid UUID matching an account in YNAB cache
+- `ynab_account_name` - Non-empty string
+- `slug` - Non-empty string, lowercase, alphanumeric + underscores only
+- `bank_name` - Non-empty string
+- `account_type` - One of: "credit", "checking", "savings"
+- `statement_frequency` - One of: "monthly", "daily"
+- `source_directory` - Non-empty string, must exist as directory (path expanded with `~`)
+- `import_patterns` - Non-empty array
+- `download_instructions` - Non-empty string
+
+**Import Pattern Requirements (per pattern object):**
+- `pattern` - Non-empty string, valid glob pattern
+- `format_handler` - Must match a registered format handler name
+
+**Uniqueness Constraints:**
+- All `slug` values must be unique across accounts
+- All `ynab_account_id` values must be unique (no account configured twice)
+- Pattern strings within same account should be unique (duplicates warned)
+
+**Cross-Reference Validation:**
+- `ynab_account_id` must exist in `data/ynab/cache/accounts.json`
+- `source_directory` must exist as a readable directory
+- `format_handler` must be in registered handler list
+
+**Invalid Configuration Behaviors:**
+- Missing config file → Generate stub, fail with instructions
+- Empty `accounts` array → Skip gracefully (valid state, no work to do)
+- Missing required field → Fail with specific field name
+- Invalid `ynab_account_id` → Fail with list of available accounts
+- Duplicate `slug` → Fail with "Duplicate slug: {slug}"
+- Duplicate `ynab_account_id` → Fail with "Account {name} configured multiple times"
+- Invalid `account_type` → Fail with valid options list
+- Invalid `statement_frequency` → Fail with valid options list
+- Non-existent `source_directory` → Fail with "Directory not found: {path}"
+- Empty `import_patterns` → Fail with "At least one pattern required"
+- Invalid `format_handler` → Fail with list of available handlers
+- Pattern without `format_handler` → Fail with validation error
+
+**Error Message Format:**
+```
+❌ {node_name} failed
+
+Configuration error in data/bank_accounts/config.json:
+{specific error details}
+
+{remediation steps}
+
+Flow execution aborted.
+```
+
 ## Normalized Bank Account Format
 
 **Purpose:** Consistent format across all bank sources, optimized for reconciliation
