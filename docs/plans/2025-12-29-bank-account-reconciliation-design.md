@@ -724,7 +724,12 @@ class BalanceReconciliation:
         return self.points[-1] if self.points else None
 
     def to_dict(self) -> dict:
-        """Serialize for output with filtered history."""
+        """
+        Serialize for output with filtered history.
+
+        Filtering logic: Show starting/ending balances, changes in divergence, and one entry
+        before each change. See Balance Reconciliation section for details.
+        """
         ...
 ```
 
