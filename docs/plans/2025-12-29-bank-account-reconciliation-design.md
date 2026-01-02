@@ -41,7 +41,8 @@ Four accounts require reconciliation:
 #### Apple Card CSV
 ```csv
 Transaction Date,Clearing Date,Description,Merchant,Category,Type,Amount (USD),Purchased By
-12/30/2024,12/31/2024,"AMAZON MKTPL*ZP5WJ4KK2...","Amazon Mktpl*zp5wj4kk2","Other","Purchase","94.52","Karl Davis"
+12/30/2024,12/31/2024,"AMAZON MKTPL*ZP5WJ4KK2...","Amazon Mktpl*zp5wj4kk2",
+  "Other","Purchase","94.52","Karl Davis"
 ```
 
 #### Apple Card/Savings OFX
@@ -101,7 +102,8 @@ Unified Operations JSON
 data/
 └── bank_accounts/
     ├── config.json                          # Account configuration (git-ignored)
-    ├── raw/                                 # Copied from source_directory (original filenames preserved)
+    ├── raw/                                 # Copied from source_directory
+                                             #   (original filenames preserved)
     │   ├── apple_card/
     │   │   ├── Apple Card Transactions - November 2024.csv
     │   │   ├── Apple Card Transactions - November 2024.ofx
@@ -141,7 +143,8 @@ data/
       "bank_name": "Apple",
       "account_type": "credit",
       "statement_frequency": "monthly",
-      "source_directory": "~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Apple Card and Savings Statements",
+      "source_directory":
+        "~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Apple Card and Savings Statements",
       "import_patterns": [
         {
           "pattern": "Apple Card Transactions - *.csv",
@@ -152,7 +155,8 @@ data/
           "format_handler": "apple_card_ofx"
         }
       ],
-      "download_instructions": "1. Go to wallet.apple.com\n2. Click Apple Card → Statements\n3. Download CSV + OFX for {month}\n4. Place in source directory above"
+      "download_instructions":
+        "1. Go to wallet.apple.com\n2. Click Apple Card → Statements\n3. Download CSV + OFX for {month}\n4. Place in source directory above"
     },
     {
       "ynab_account_id": "uuid-from-ynab-api",
@@ -168,7 +172,8 @@ data/
           "format_handler": "chase_checking_csv"
         }
       ],
-      "download_instructions": "1. Go to chase.com → Transactions\n2. Select date range\n3. Download CSV\n4. Place in source directory above"
+      "download_instructions":
+        "1. Go to chase.com → Transactions\n2. Select date range\n3. Download CSV\n4. Place in source directory above"
     }
   ]
 }
@@ -240,7 +245,8 @@ When `config.json` is missing, the node generates a stub from YNAB cache and fai
 **Auto-filled fields** (from YNAB cache):
 - `ynab_account_id` - Account UUID from YNAB API
 - `ynab_account_name` - Account name from YNAB
-- `account_type` - Inferred from YNAB account type (credit_card → credit, checking → checking, savings → savings)
+- `account_type` - Inferred from YNAB account type
+  (credit_card → credit, checking → checking, savings → savings)
 
 **Manual fields** (user must complete):
 - `slug` - Short identifier for directory naming (e.g., "apple_card", "chase_checking")
@@ -253,7 +259,8 @@ When `config.json` is missing, the node generates a stub from YNAB cache and fai
 - `source_directory` - Where user downloads bank exports (expanded, absolute path)
   - Example: `~/Library/Mobile Documents/com~apple~CloudDocs/Bank Downloads/Apple Card and Savings Statements`
   - Files stay in this directory with original filenames
-  - `account_data_retrieve` will copy files matching import_patterns from here to `data/bank_accounts/raw/{slug}/`
+  - `account_data_retrieve` will copy files matching import_patterns from here to
+    `data/bank_accounts/raw/{slug}/`
 - `import_patterns` - List of filename patterns to import (with format handlers)
   - Each pattern object has:
     - `pattern` - Glob pattern to match files (e.g., "Apple Card Transactions - *.csv")
@@ -384,7 +391,8 @@ Flow execution aborted.
 **Key principle:** Identical transactions within the SAME file are NOT duplicates
 (bank is authoritative - if they reported it, it happened).
 
-**Note:** OFX FITID (Financial Institution Transaction ID) is not extracted or used. All transaction identification is based on date, amount, and description fields.
+**Note:** OFX FITID (Financial Institution Transaction ID) is not extracted or used.
+All transaction identification is based on date, amount, and description fields.
 
 ## Unified YNAB Operations Format
 
@@ -502,7 +510,8 @@ Flow execution aborted.
         "candidate_count": 2,
         "description_similarity_scores": [0.65, 0.42],
         "recommended_action": "review_and_match",
-        "explanation": "Bank transaction matches 2 YNAB transactions by date and amount, but descriptions don't match well enough."
+        "explanation":
+          "Bank transaction matches 2 YNAB transactions by date and amount, but descriptions don't match well enough."
       }
     }
   ],
@@ -546,7 +555,8 @@ Flow execution aborted.
 
 ## Domain Models
 
-**Purpose:** Type-safe dataclasses for all bank reconciliation operations using Money and FinancialDate primitives.
+**Purpose:** Type-safe dataclasses for all bank reconciliation operations using Money and
+FinancialDate primitives.
 
 **Location:** `src/finances/bank_accounts/models.py`
 
@@ -753,19 +763,22 @@ class ReconciliationResult:
 
 ## Format Handler Architecture
 
-**Purpose:** Plugin-style handlers for parsing different bank export formats with format-specific knowledge encapsulated in code.
+**Purpose:** Plugin-style handlers for parsing different bank export formats with
+  format-specific knowledge encapsulated in code.
 
 **Location:** `src/finances/bank_accounts/format_handlers/`
 
 ### Design Rationale
 
 Bank export formats have format-specific characteristics that require specialized handling:
-- **Sign conventions**: Apple CSV uses consumer perspective (purchases positive), OFX uses accounting standard (purchases negative)
+- **Sign conventions**: Apple CSV uses consumer perspective (purchases positive), OFX uses
+  accounting standard (purchases negative)
 - **Field mappings**: Different CSV column names across banks
 - **Balance data location**: Statement balance in OFX, running balance in CSV, or none
 - **Date formats**: Various formats across institutions
 
-Rather than requiring users to configure field mappings in JSON, we encapsulate format knowledge in code as format handlers that users reference by name.
+Rather than requiring users to configure field mappings in JSON, we encapsulate format knowledge
+  in code as format handlers that users reference by name.
 
 ### Handler Interface
 
@@ -1149,17 +1162,26 @@ Data ready for parsing.
 
 **Parser Implementation Strategy:**
 
-This implementation uses custom parsers for OFX and QIF formats rather than external libraries for the following reasons:
+This implementation uses custom parsers for OFX and QIF formats rather than external libraries
+  for the following reasons:
 
-1. **Unmaintained libraries**: The two major Python OFX libraries (ofxparse and ofxtools) have been abandoned since 2021-2022 with no releases in the past 3+ years, creating ongoing security and Python version compatibility risks.
+1. **Unmaintained libraries**: The two major Python OFX libraries (ofxparse and ofxtools) have
+  been abandoned since 2021-2022 with no releases in the past 3+ years, creating ongoing security
+  and Python version compatibility risks.
 
-2. **Limited scope**: This system only needs balance extraction from OFX/QIF files (not full transaction parsing), which is a small subset of functionality that external libraries provide.
+2. **Limited scope**: This system only needs balance extraction from OFX/QIF files (not full
+  transaction parsing), which is a small subset of functionality that external libraries provide.
 
-3. **Simple formats**: QIF is a text-based format (~50 lines of regex-based parsing), and OFX balance extraction requires only matching specific SGML tags (`<LEDGERBAL>`, `<AVAILBAL>`, `<DTASOF>`).
+3. **Simple formats**: QIF is a text-based format (~50 lines of regex-based parsing), and OFX
+  balance extraction requires only matching specific SGML tags
+  (`<LEDGERBAL>`, `<AVAILBAL>`, `<DTASOF>`).
 
-4. **Lower TCO**: Custom parsing (one-time 2-3 hour implementation) has lower total cost of ownership than maintaining dependencies on abandoned libraries that may break with Python version updates.
+4. **Lower TCO**: Custom parsing (one-time 2-3 hour implementation) has lower total cost of
+  ownership than maintaining dependencies on abandoned libraries that may break with Python
+  version updates.
 
-5. **Consistency**: CSV formats already require custom parsers with validation; keeping all parsers in the same codebase simplifies maintenance.
+5. **Consistency**: CSV formats already require custom parsers with validation; keeping all
+  parsers in the same codebase simplifies maintenance.
 
 Implementation approach:
 - OFX: Regex-based extraction of balance tags from SGML format (~50 lines)
@@ -1292,7 +1314,10 @@ Summary: 4 accounts, 909 transactions, 12 duplicates removed
 
 For each configured account, match transactions in both directions to identify discrepancies.
 
-**Note:** Matching transactions both ways (bank→YNAB and YNAB→bank) does not mean bidirectional sync. Bank data remains authoritative (one-way reconciliation). We check both directions to find:
+**Note:** Matching transactions both ways (bank→YNAB and YNAB→bank) does not mean bidirectional
+  sync.
+Bank data remains authoritative (one-way reconciliation).
+We check both directions to find:
 - Bank transactions missing from YNAB → create them
 - YNAB transactions not in bank → flag for investigation (possible errors)
 
@@ -1349,7 +1374,9 @@ After transaction matching, verify arithmetic using traditional accounting recon
    - Reconciled: `Adjusted_Bank == Adjusted_YNAB` (exact, no tolerance)
    - Mismatch: `Adjusted_Bank != Adjusted_YNAB` → investigation required
 
-**Note:** Balance reconciliation is arithmetic validation only. All substantive work happens in transaction matching. If transactions are fully matched, balances will reconcile exactly.
+**Note:** Balance reconciliation is arithmetic validation only.
+All substantive work happens in transaction matching.
+If transactions are fully matched, balances will reconcile exactly.
 
 **Operation Generation:**
 
@@ -1393,10 +1420,13 @@ apple_card:
   Balance Reconciliation History:
     2024-11-01: ✅ Reconciled (exact match: -$14,523.45)  [starting balance]
     2024-11-30: ✅ Reconciled (exact match: -$15,234.56)  [before divergence]
-    2024-12-01: ⚠️  Diverged (difference: -$42.99, bank: -$15,277.55, adjusted YNAB: -$15,234.56)
-    2024-12-19: ⚠️  Diverged (difference: -$42.99, bank: -$17,150.00, adjusted YNAB: -$17,107.01)  [before change]
+    2024-12-01: ⚠️  Diverged (difference: -$42.99, bank: -$15,277.55,
+      adjusted YNAB: -$15,234.56)
+    2024-12-19: ⚠️  Diverged (difference: -$42.99, bank: -$17,150.00,
+      adjusted YNAB: -$17,107.01)  [before change]
     2024-12-20: ⚠️  Diverged (difference: -$85.50, bank: -$17,234.56, adjusted YNAB: -$17,149.06)
-    2024-12-31: ⚠️  Diverged (difference: -$137.03, bank: -$18,283.09, adjusted YNAB: -$18,146.06)  [ending balance]
+    2024-12-31: ⚠️  Diverged (difference: -$137.03, bank: -$18,283.09,
+      adjusted YNAB: -$18,146.06)  [ending balance]
 
   Summary:
     Last reconciled: 2024-11-30 (balances agreed: -$15,234.56)
@@ -1711,7 +1741,8 @@ Flow execution aborted.
 - Pattern matches no files (should fail or warn)
 - Overlapping patterns (first match wins or error?)
 
-**Key principle:** Unexpected input should fail fast with clear error message. Only valid, expected formats should parse successfully.
+**Key principle:** Unexpected input should fail fast with clear error message.
+Only valid, expected formats should parse successfully.
 
 ### Coverage Goals
 
