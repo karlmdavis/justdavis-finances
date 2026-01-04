@@ -1,0 +1,189 @@
+"""Account data parsing flow node."""
+
+from pathlib import Path
+from typing import Any
+
+from finances.bank_accounts.deduplication import deduplicate_transactions
+from finances.bank_accounts.format_handlers.base import ParseResult
+from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
+from finances.bank_accounts.models import BalancePoint, BankAccountsConfig, ImportPattern
+from finances.core import FinancialDate
+from finances.core.json_utils import write_json
+
+
+def deduplicate_balances(parsed_files: list[tuple[Path, ParseResult, float]]) -> list[BalancePoint]:
+    """
+    Deduplicate balance points from multiple bank export files.
+
+    Strategy: For each date, use balance from the most recent file (by mtime).
+
+    Args:
+        parsed_files: List of (file_path, parse_result, mtime) tuples
+
+    Returns:
+        List of deduplicated BalancePoint objects, sorted chronologically by date
+    """
+    if not parsed_files:
+        return []
+
+    # Group balances by (date, file_path)
+    # Key: (date, file_path) -> Value: (balance_points, mtime)
+    balances_by_date_file: dict[tuple[FinancialDate, Path], tuple[list[BalancePoint], float]] = {}
+
+    for file_path, parse_result, mtime in parsed_files:
+        for balance in parse_result.balance_points:
+            key = (balance.date, file_path)
+            if key not in balances_by_date_file:
+                balances_by_date_file[key] = ([], mtime)
+            balances_by_date_file[key][0].append(balance)
+
+    # For each date, find the file with the latest mtime
+    # Key: date -> Value: (file_path, mtime)
+    latest_file_by_date: dict[FinancialDate, tuple[Path, float]] = {}
+
+    for (date, file_path), (_balances, mtime) in balances_by_date_file.items():
+        if date not in latest_file_by_date:
+            latest_file_by_date[date] = (file_path, mtime)
+        else:
+            _existing_path, existing_mtime = latest_file_by_date[date]
+            if mtime > existing_mtime:
+                latest_file_by_date[date] = (file_path, mtime)
+
+    # Collect balances from the selected files for each date
+    result: list[BalancePoint] = []
+
+    for (date, file_path), (balances, _mtime) in balances_by_date_file.items():
+        latest_path, _latest_mtime = latest_file_by_date[date]
+        if file_path == latest_path:
+            # This file is the latest for this date, include all balances
+            result.extend(balances)
+
+    # Sort by date (chronological order)
+    result.sort(key=lambda b: b.date)
+
+    return result
+
+
+def find_format_handler(file_path: Path, import_patterns: tuple[ImportPattern, ...]) -> str | None:
+    """
+    Find the format handler for a file based on import patterns.
+
+    Args:
+        file_path: Path to the file to match
+        import_patterns: Tuple of ImportPattern objects
+
+    Returns:
+        Format handler name if match found, None otherwise
+    """
+    for pattern in import_patterns:
+        # Use Path.match() for glob-style matching on filename
+        if file_path.match(pattern.pattern):
+            return str(pattern.format_handler)
+    return None
+
+
+def parse_account_data(
+    config: BankAccountsConfig, base_dir: Path, handler_registry: FormatHandlerRegistry
+) -> dict[str, dict[str, Any]]:
+    """
+    Parse raw bank files into normalized JSON format.
+
+    For each account in config:
+    - Reads files from base_dir/raw/{slug}
+    - Matches files against import_patterns to find format handlers
+    - Parses files using registered handlers
+    - De-duplicates transactions and balances across overlapping files
+    - Auto-detects date range from transaction dates
+    - Writes normalized JSON to base_dir/normalized/{slug}.json
+
+    Args:
+        config: Bank accounts configuration
+        base_dir: Base directory for data storage
+        handler_registry: Registry of format handlers
+
+    Returns:
+        Summary dict mapping account slug to {"transaction_count": N, "date_range": "..."}
+    """
+    summary: dict[str, dict[str, Any]] = {}
+
+    for account in config.accounts:
+        # Get raw directory
+        raw_dir = base_dir / "raw" / account.slug
+
+        # If raw directory doesn't exist, create empty normalized JSON
+        if not raw_dir.exists():
+            raw_dir.mkdir(parents=True)
+
+        # Collect parsed files: (file_path, ParseResult, mtime)
+        parsed_files: list[tuple[Path, ParseResult, float]] = []
+
+        # Process each file in raw directory
+        for file_path in raw_dir.iterdir():
+            # Skip directories
+            if not file_path.is_file():
+                continue
+
+            # Find matching format handler
+            handler_name = find_format_handler(file_path, account.import_patterns)
+            if handler_name is None:
+                # No matching pattern, skip file
+                continue
+
+            # Get handler from registry
+            try:
+                handler = handler_registry.get(handler_name)
+            except KeyError:
+                # Handler not found, skip file
+                # This should not happen if config validation ran, but be defensive
+                continue
+
+            # Parse file
+            try:
+                parse_result = handler.parse(file_path)
+                mtime = file_path.stat().st_mtime
+                parsed_files.append((file_path, parse_result, mtime))
+            except Exception:  # noqa: S112
+                # Parse failed, skip file
+                # In production, we might want to log this
+                continue
+
+        # De-duplicate transactions and balances
+        transactions = deduplicate_transactions(parsed_files)
+        balances = deduplicate_balances(parsed_files)
+
+        # Auto-detect date range from transactions
+        data_period: dict[str, str] | None = None
+        if transactions:
+            start_date = min(tx.posted_date for tx in transactions)
+            end_date = max(tx.posted_date for tx in transactions)
+            data_period = {
+                "start_date": str(start_date),
+                "end_date": str(end_date),
+            }
+
+        # Create normalized JSON structure
+        normalized_data = {
+            "account_id": account.slug,
+            "account_name": account.ynab_account_name,
+            "account_type": account.account_type,
+            "data_period": data_period,
+            "balances": [b.to_dict() for b in balances],
+            "transactions": [tx.to_dict() for tx in transactions],
+        }
+
+        # Write normalized JSON
+        normalized_dir = base_dir / "normalized"
+        normalized_dir.mkdir(parents=True, exist_ok=True)
+        normalized_file = normalized_dir / f"{account.slug}.json"
+        write_json(normalized_file, normalized_data)
+
+        # Create summary
+        transaction_count = len(transactions)
+        date_range = f"{data_period['start_date']} to {data_period['end_date']}" if data_period else "no data"
+
+        summary[account.slug] = {
+            "transaction_count": transaction_count,
+            "date_range": date_range,
+        }
+
+    return summary

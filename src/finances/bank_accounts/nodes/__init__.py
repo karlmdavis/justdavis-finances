@@ -1,5 +1,6 @@
 """Flow nodes for bank account data processing."""
 
+from finances.bank_accounts.nodes.parse import parse_account_data
 from finances.bank_accounts.nodes.retrieve import retrieve_account_data
 
-__all__ = ["retrieve_account_data"]
+__all__ = ["parse_account_data", "retrieve_account_data"]
