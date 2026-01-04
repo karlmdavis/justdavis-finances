@@ -142,3 +142,18 @@ class BalanceReconciliationPoint:
             "is_reconciled": self.is_reconciled,
             "difference": self.difference.to_milliunits(),
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "BalanceReconciliationPoint":
+        """Deserialize from dict."""
+        return cls(
+            date=FinancialDate.from_string(data["date"]),
+            bank_balance=Money.from_milliunits(data["bank_balance"]),
+            ynab_balance=Money.from_milliunits(data["ynab_balance"]),
+            bank_txs_not_in_ynab=Money.from_milliunits(data["bank_txs_not_in_ynab"]),
+            ynab_txs_not_in_bank=Money.from_milliunits(data["ynab_txs_not_in_bank"]),
+            adjusted_bank_balance=Money.from_milliunits(data["adjusted_bank_balance"]),
+            adjusted_ynab_balance=Money.from_milliunits(data["adjusted_ynab_balance"]),
+            is_reconciled=data["is_reconciled"],
+            difference=Money.from_milliunits(data["difference"]),
+        )

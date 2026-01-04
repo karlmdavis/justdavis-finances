@@ -139,3 +139,32 @@ def test_balance_reconciliation_point_diverged():
 
     # Even though raw balances differ, adjusted balances match
     assert point.is_reconciled is True
+
+
+def test_balance_reconciliation_point_serialization():
+    """Test to_dict and from_dict round-trip."""
+    point = BalanceReconciliationPoint(
+        date=FinancialDate.from_string("2024-12-31"),
+        bank_balance=Money.from_cents(-1828309),
+        ynab_balance=Money.from_cents(-1814606),
+        bank_txs_not_in_ynab=Money.from_cents(-13703),
+        ynab_txs_not_in_bank=Money.from_cents(0),
+        adjusted_bank_balance=Money.from_cents(-1814606),
+        adjusted_ynab_balance=Money.from_cents(-1814606),
+        is_reconciled=True,
+        difference=Money.from_cents(0),
+    )
+
+    data = point.to_dict()
+    assert data["date"] == "2024-12-31"
+    assert data["bank_balance"] == -18283090
+    assert data["ynab_balance"] == -18146060
+    assert data["bank_txs_not_in_ynab"] == -137030
+    assert data["ynab_txs_not_in_bank"] == 0
+    assert data["adjusted_bank_balance"] == -18146060
+    assert data["adjusted_ynab_balance"] == -18146060
+    assert data["is_reconciled"] is True
+    assert data["difference"] == 0
+
+    restored = BalanceReconciliationPoint.from_dict(data)
+    assert restored == point
