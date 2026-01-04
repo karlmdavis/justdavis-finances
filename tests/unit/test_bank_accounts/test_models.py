@@ -2,7 +2,7 @@
 
 import pytest
 
-from finances.bank_accounts.models import BankTransaction
+from finances.bank_accounts.models import BalancePoint, BalanceReconciliationPoint, BankTransaction
 from finances.core import FinancialDate, Money
 
 
@@ -66,3 +66,76 @@ def test_bank_transaction_from_dict():
     assert tx.description == "SAFEWAY 1616"
     assert tx.amount == Money.from_cents(-1363)
     assert tx.merchant == "Safeway"
+
+
+def test_balance_point_creation():
+    """Test creating BalancePoint with required fields."""
+    balance = BalancePoint(date=FinancialDate.from_string("2024-12-31"), amount=Money.from_cents(-18283090))
+
+    assert balance.date == FinancialDate.from_string("2024-12-31")
+    assert balance.amount == Money.from_cents(-18283090)
+    assert balance.available is None
+
+
+def test_balance_point_with_available():
+    """Test BalancePoint with available balance (credit accounts)."""
+    balance = BalancePoint(
+        date=FinancialDate.from_string("2024-12-31"),
+        amount=Money.from_cents(-18283090),
+        available=Money.from_cents(21716910),
+    )
+
+    assert balance.available == Money.from_cents(21716910)
+
+
+def test_balance_point_serialization():
+    """Test to_dict and from_dict."""
+    balance = BalancePoint(
+        date=FinancialDate.from_string("2024-12-31"),
+        amount=Money.from_cents(-18283090),
+        available=Money.from_cents(21716910),
+    )
+
+    data = balance.to_dict()
+    assert data["date"] == "2024-12-31"
+    assert data["amount_milliunits"] == -182830900
+    assert data["available_milliunits"] == 217169100
+
+    restored = BalancePoint.from_dict(data)
+    assert restored == balance
+
+
+def test_balance_reconciliation_point_reconciled():
+    """Test BalanceReconciliationPoint when balances match."""
+    point = BalanceReconciliationPoint(
+        date=FinancialDate.from_string("2024-11-30"),
+        bank_balance=Money.from_cents(-1523456),
+        ynab_balance=Money.from_cents(-1523456),
+        bank_txs_not_in_ynab=Money.from_cents(0),
+        ynab_txs_not_in_bank=Money.from_cents(0),
+        adjusted_bank_balance=Money.from_cents(-1523456),
+        adjusted_ynab_balance=Money.from_cents(-1523456),
+        is_reconciled=True,
+        difference=Money.from_cents(0),
+    )
+
+    assert point.is_reconciled is True
+    assert point.difference == Money.from_cents(0)
+
+
+def test_balance_reconciliation_point_diverged():
+    """Test BalanceReconciliationPoint when balances differ."""
+    point = BalanceReconciliationPoint(
+        date=FinancialDate.from_string("2024-12-31"),
+        bank_balance=Money.from_cents(-1828309),
+        ynab_balance=Money.from_cents(-1814606),
+        bank_txs_not_in_ynab=Money.from_cents(-13703),
+        ynab_txs_not_in_bank=Money.from_cents(0),
+        adjusted_bank_balance=Money.from_cents(-1814606),
+        adjusted_ynab_balance=Money.from_cents(-1814606),
+        is_reconciled=True,
+        difference=Money.from_cents(0),
+    )
+
+    # Even though raw balances differ, adjusted balances match
+    assert point.is_reconciled is True

@@ -79,3 +79,66 @@ class BankTransaction:
             cleared_status=data.get("cleared_status"),
             check_number=data.get("check_number"),
         )
+
+
+@dataclass(frozen=True)
+class BalancePoint:
+    """Immutable balance snapshot from bank data."""
+
+    date: FinancialDate
+    amount: Money  # Ledger balance
+    available: Money | None = None  # Available balance (credit accounts)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict for JSON output."""
+        result: dict[str, Any] = {
+            "date": str(self.date),
+            "amount_milliunits": self.amount.to_milliunits(),
+        }
+
+        if self.available is not None:
+            result["available_milliunits"] = self.available.to_milliunits()
+
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "BalancePoint":
+        """Deserialize from normalized format dict."""
+        return cls(
+            date=FinancialDate.from_string(data["date"]),
+            amount=Money.from_milliunits(data["amount_milliunits"]),
+            available=(
+                Money.from_milliunits(data["available_milliunits"])
+                if "available_milliunits" in data
+                else None
+            ),
+        )
+
+
+@dataclass(frozen=True)
+class BalanceReconciliationPoint:
+    """Balance reconciliation at a single date."""
+
+    date: FinancialDate
+    bank_balance: Money
+    ynab_balance: Money
+    bank_txs_not_in_ynab: Money  # Sum of unmatched bank transactions
+    ynab_txs_not_in_bank: Money  # Sum of unmatched YNAB transactions
+    adjusted_bank_balance: Money
+    adjusted_ynab_balance: Money
+    is_reconciled: bool  # True if adjusted balances match exactly
+    difference: Money  # adjusted_bank - adjusted_ynab
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize for output."""
+        return {
+            "date": str(self.date),
+            "bank_balance": self.bank_balance.to_milliunits(),
+            "ynab_balance": self.ynab_balance.to_milliunits(),
+            "bank_txs_not_in_ynab": self.bank_txs_not_in_ynab.to_milliunits(),
+            "ynab_txs_not_in_bank": self.ynab_txs_not_in_bank.to_milliunits(),
+            "adjusted_bank_balance": self.adjusted_bank_balance.to_milliunits(),
+            "adjusted_ynab_balance": self.adjusted_ynab_balance.to_milliunits(),
+            "is_reconciled": self.is_reconciled,
+            "difference": self.difference.to_milliunits(),
+        }
