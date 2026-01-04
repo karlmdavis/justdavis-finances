@@ -29,8 +29,9 @@ def test_bank_transaction_immutability():
         amount=Money.from_cents(-1363),
     )
 
+    # Test immutability - frozen dataclass should prevent attribute assignment
     with pytest.raises(AttributeError):
-        tx.amount = Money.from_cents(-5000)
+        tx.amount = Money.from_cents(-5000)  # type: ignore[misc,unused-ignore]
 
 
 def test_bank_transaction_to_dict():
