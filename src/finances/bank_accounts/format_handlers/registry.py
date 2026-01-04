@@ -1,0 +1,49 @@
+"""Central registry for bank export format handlers."""
+
+from .base import BankExportFormatHandler
+
+
+class FormatHandlerRegistry:
+    """Central registry for all bank export format handlers."""
+
+    def __init__(self) -> None:
+        self._handlers: dict[str, type[BankExportFormatHandler]] = {}
+
+    def register(self, handler_class: type[BankExportFormatHandler]) -> None:
+        """
+        Register a format handler.
+
+        Args:
+            handler_class: Handler class to register (not instance)
+        """
+        # Instantiate to get format_name
+        instance = handler_class()
+        self._handlers[instance.format_name] = handler_class
+
+    def get(self, format_name: str) -> BankExportFormatHandler:
+        """
+        Get handler instance by format name.
+
+        Args:
+            format_name: Name of the format handler to retrieve
+
+        Returns:
+            New instance of the requested handler
+
+        Raises:
+            KeyError: If format_name is not registered
+        """
+        if format_name not in self._handlers:
+            raise KeyError(f"Unknown format handler: {format_name}")
+
+        handler_class = self._handlers[format_name]
+        return handler_class()
+
+    def list_formats(self) -> list[str]:
+        """
+        List all registered format names.
+
+        Returns:
+            List of registered format names
+        """
+        return list(self._handlers.keys())
