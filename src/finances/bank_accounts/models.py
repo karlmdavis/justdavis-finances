@@ -7,6 +7,103 @@ from finances.core import FinancialDate, Money
 
 
 @dataclass(frozen=True)
+class ImportPattern:
+    """Immutable file import pattern configuration."""
+
+    pattern: str  # Glob pattern (e.g., "*_transactions.csv")
+    format_handler: str  # Handler name (e.g., "chase_checking_csv")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict for JSON output."""
+        return {
+            "pattern": self.pattern,
+            "format_handler": self.format_handler,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ImportPattern":
+        """Deserialize from dict."""
+        return cls(
+            pattern=data["pattern"],
+            format_handler=data["format_handler"],
+        )
+
+
+@dataclass(frozen=True)
+class AccountConfig:
+    """Immutable bank account configuration."""
+
+    # YNAB-sourced fields (auto-filled)
+    ynab_account_id: str
+    ynab_account_name: str
+
+    # User-provided fields
+    slug: str  # URL-safe identifier (e.g., "chase-checking")
+    bank_name: str  # Display name (e.g., "Chase")
+    account_type: str  # "checking", "credit", "savings", etc.
+    statement_frequency: str  # "monthly", "weekly", etc.
+    source_directory: str  # Where to find statement files
+    download_instructions: str  # User instructions for downloading
+
+    # Import configuration
+    import_patterns: tuple[ImportPattern, ...]  # Immutable sequence
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict for JSON output."""
+        return {
+            "ynab_account_id": self.ynab_account_id,
+            "ynab_account_name": self.ynab_account_name,
+            "slug": self.slug,
+            "bank_name": self.bank_name,
+            "account_type": self.account_type,
+            "statement_frequency": self.statement_frequency,
+            "source_directory": self.source_directory,
+            "download_instructions": self.download_instructions,
+            "import_patterns": [p.to_dict() for p in self.import_patterns],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AccountConfig":
+        """Deserialize from dict."""
+        return cls(
+            ynab_account_id=data["ynab_account_id"],
+            ynab_account_name=data["ynab_account_name"],
+            slug=data["slug"],
+            bank_name=data["bank_name"],
+            account_type=data["account_type"],
+            statement_frequency=data["statement_frequency"],
+            source_directory=data["source_directory"],
+            download_instructions=data["download_instructions"],
+            import_patterns=tuple(ImportPattern.from_dict(p) for p in data["import_patterns"]),
+        )
+
+
+@dataclass(frozen=True)
+class BankAccountsConfig:
+    """Immutable bank accounts configuration."""
+
+    accounts: tuple[AccountConfig, ...]  # Immutable sequence
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict for JSON output."""
+        return {
+            "accounts": [a.to_dict() for a in self.accounts],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "BankAccountsConfig":
+        """Deserialize from dict."""
+        return cls(
+            accounts=tuple(AccountConfig.from_dict(a) for a in data["accounts"]),
+        )
+
+    @classmethod
+    def empty(cls) -> "BankAccountsConfig":
+        """Create an empty configuration."""
+        return cls(accounts=())
+
+
+@dataclass(frozen=True)
 class BankTransaction:
     """Immutable bank transaction from normalized format."""
 
