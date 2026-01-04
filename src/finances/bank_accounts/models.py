@@ -254,3 +254,40 @@ class BalanceReconciliationPoint:
             is_reconciled=data["is_reconciled"],
             difference=Money.from_milliunits(data["difference"]),
         )
+
+
+@dataclass(frozen=True)
+class BalanceReconciliation:
+    """Complete balance reconciliation history for an account."""
+
+    account_id: str
+    points: tuple[BalanceReconciliationPoint, ...]
+    last_reconciled_date: FinancialDate | None
+    first_diverged_date: FinancialDate | None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict for JSON output."""
+        return {
+            "account_id": self.account_id,
+            "points": [p.to_dict() for p in self.points],
+            "last_reconciled_date": str(self.last_reconciled_date) if self.last_reconciled_date else None,
+            "first_diverged_date": str(self.first_diverged_date) if self.first_diverged_date else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "BalanceReconciliation":
+        """Deserialize from dict."""
+        return cls(
+            account_id=data["account_id"],
+            points=tuple(BalanceReconciliationPoint.from_dict(p) for p in data["points"]),
+            last_reconciled_date=(
+                FinancialDate.from_string(data["last_reconciled_date"])
+                if data["last_reconciled_date"]
+                else None
+            ),
+            first_diverged_date=(
+                FinancialDate.from_string(data["first_diverged_date"])
+                if data["first_diverged_date"]
+                else None
+            ),
+        )
