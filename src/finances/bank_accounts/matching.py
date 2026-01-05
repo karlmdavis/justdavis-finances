@@ -1,4 +1,39 @@
-"""Transaction matching algorithm for bank reconciliation."""
+"""
+Transaction matching algorithm for bank reconciliation.
+
+Architecture:
+    Three-tier matching strategy for pairing bank transactions with YNAB:
+    1. Exact matching: Date + amount match (highest confidence)
+    2. Fuzzy matching: SequenceMatcher on normalized descriptions
+    3. Ambiguous: Multiple similar matches (requires manual review)
+
+Configuration:
+    FUZZY_MATCH_CONFIDENCE_THRESHOLD: 0.8 (configurable)
+        - Scores above threshold → fuzzy match
+        - Scores below threshold → ambiguous (manual review)
+
+Normalization:
+    - Removes all digits and special characters
+    - Converts to lowercase
+    - Normalizes whitespace
+    - Example: "AMAZON.COM*XX1234" → "amazoncom"
+
+Usage:
+    result = find_matches(bank_tx, ynab_txs)
+    if result.match_type == "exact":
+        # High confidence - single match with date+amount
+    elif result.match_type == "fuzzy":
+        # Good confidence - description similarity above threshold
+    elif result.match_type == "ambiguous":
+        # Low confidence - multiple candidates or low scores
+    else:  # "none"
+        # No YNAB transaction found - create new
+
+Performance:
+    - O(n) for exact matching (filter by date+amount)
+    - O(n*m) for fuzzy matching (compare descriptions)
+    - Optimized for typical case: 1-100 transactions per reconciliation
+"""
 
 import re
 from dataclasses import dataclass
