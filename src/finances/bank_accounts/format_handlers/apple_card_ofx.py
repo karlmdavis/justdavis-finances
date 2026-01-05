@@ -65,7 +65,17 @@ class AppleCardOfxHandler(BankExportFormatHandler):
             name = self._extract_tag(trn_block, "NAME")
 
             if not all([posted_date, amount, name]):
-                raise ValueError("Missing required transaction fields in OFX")
+                missing_fields = []
+                if not posted_date:
+                    missing_fields.append("DTPOSTED")
+                if not amount:
+                    missing_fields.append("TRNAMT")
+                if not name:
+                    missing_fields.append("NAME")
+                raise ValueError(
+                    f"Missing required transaction fields in OFX: "
+                    f"{', '.join(missing_fields)}. Expected DTPOSTED, TRNAMT, and NAME tags."
+                )
 
             # Type narrowing after runtime validation
             posted_date = cast(str, posted_date)
