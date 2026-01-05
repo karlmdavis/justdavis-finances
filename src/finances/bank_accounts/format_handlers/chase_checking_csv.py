@@ -1,7 +1,6 @@
 """Chase Checking CSV format handler."""
 
 import csv
-from decimal import Decimal
 from pathlib import Path
 from typing import ClassVar
 
@@ -47,7 +46,7 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
                 reader = csv.DictReader(f)
                 headers = reader.fieldnames
                 return headers == self.EXPECTED_HEADERS
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return False
 
     def parse(self, file_path: Path) -> ParseResult:
@@ -68,14 +67,12 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
                     if not amount_str or amount_str == "---":
                         raise ValueError(f"Invalid amount format at line {row_num}: '{amount_str}'")
 
-                    amount_decimal = Decimal(amount_str)
                     # NO sign flip - already accounting standard
-                    amount_cents = int(amount_decimal * 100)
+                    amount = Money.from_dollars(amount_str)
 
                     # Parse running balance
                     balance_str = row["Balance"].strip()
-                    balance_decimal = Decimal(balance_str)
-                    balance_cents = int(balance_decimal * 100)
+                    balance_money = Money.from_dollars(balance_str)
 
                     # Parse check number (may be empty)
                     check_number_str = row["Check or Slip #"].strip()
@@ -88,9 +85,9 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
                     tx = BankTransaction(
                         posted_date=posted_date,
                         description=row["Description"],
-                        amount=Money.from_cents(amount_cents),
+                        amount=amount,
                         type=row["Type"],
-                        running_balance=Money.from_cents(balance_cents),
+                        running_balance=balance_money,
                         check_number=check_number,
                     )
 
@@ -99,7 +96,7 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
                     # Create balance point for this transaction
                     balance_point = BalancePoint(
                         date=posted_date,
-                        amount=Money.from_cents(balance_cents),
+                        amount=balance_money,
                         available=None,  # Checking accounts don't track available balance separately
                     )
 

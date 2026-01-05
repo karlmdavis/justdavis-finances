@@ -1,6 +1,5 @@
 """Chase Credit QIF format handler."""
 
-from decimal import Decimal
 from pathlib import Path
 from typing import ClassVar
 
@@ -49,7 +48,7 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
             with open(file_path, encoding="utf-8") as f:
                 first_line = f.readline().strip()
                 return first_line in self.VALID_HEADERS
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return False
 
     def parse(self, file_path: Path) -> ParseResult:
@@ -112,9 +111,8 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
         if not amount_str or amount_str == "---":
             raise ValueError(f"Invalid amount format at line {line_num}: '{amount_str}'")
 
-        amount_decimal = Decimal(amount_str)
         # NO sign flip - already accounting standard
-        amount_cents = int(amount_decimal * 100)
+        amount = Money.from_dollars(amount_str)
 
         # Parse date (MM/DD/YYYY format)
         date_str = tx_data.get("date", "").strip()
@@ -138,7 +136,7 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
         return BankTransaction(
             posted_date=posted_date,
             description=description,
-            amount=Money.from_cents(amount_cents),
+            amount=amount,
             memo=memo,
             cleared_status=cleared_status,
             check_number=check_number,

@@ -1,5 +1,4 @@
 import re
-from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
@@ -33,7 +32,7 @@ class AppleSavingsOfxHandler(BankExportFormatHandler):
         try:
             content = file_path.read_text(encoding="utf-8")
             return "<OFX>" in content and "<STMTTRN>" in content
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return False
 
     def parse(self, file_path: Path) -> ParseResult:
@@ -74,13 +73,12 @@ class AppleSavingsOfxHandler(BankExportFormatHandler):
             name = cast(str, name)
 
             # Parse amount (already accounting standard - use as-is)
-            amount_decimal = Decimal(amount)
-            amount_cents = int(amount_decimal * 100)
+            amount_money = Money.from_dollars(amount)
 
             tx = BankTransaction(
                 posted_date=self._parse_ofx_date(posted_date),
                 description=name,
-                amount=Money.from_cents(amount_cents),
+                amount=amount_money,
             )
 
             transactions.append(tx)
@@ -97,13 +95,10 @@ class AppleSavingsOfxHandler(BankExportFormatHandler):
             return []  # No balance data
 
         # Parse amount
-        ledger_decimal = Decimal(ledger_bal)
-        ledger_cents = int(ledger_decimal * 100)
+        ledger_money = Money.from_dollars(ledger_bal)
 
         # Savings accounts don't have available balance (unlike credit cards)
-        balance = BalancePoint(
-            date=self._parse_ofx_date(ledger_date), amount=Money.from_cents(ledger_cents), available=None
-        )
+        balance = BalancePoint(date=self._parse_ofx_date(ledger_date), amount=ledger_money, available=None)
 
         return [balance]
 

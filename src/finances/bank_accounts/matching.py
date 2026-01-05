@@ -7,6 +7,9 @@ from difflib import SequenceMatcher
 from finances.bank_accounts.models import BankTransaction
 from finances.core import FinancialDate, Money
 
+# Fuzzy matching configuration
+FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.8
+
 
 @dataclass(frozen=True)
 class YnabTransaction:
@@ -91,7 +94,7 @@ def find_matches(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> M
     # Get best match
     best_match, best_score = max(scores, key=lambda x: x[1])
 
-    if best_score > 0.8:
+    if best_score > FUZZY_MATCH_CONFIDENCE_THRESHOLD:
         return MatchResult(match_type="fuzzy", ynab_transaction=best_match, confidence=best_score)
     else:
         return MatchResult(

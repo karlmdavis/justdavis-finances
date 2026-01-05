@@ -58,8 +58,16 @@ def reconcile_account_data(
             match_result = find_matches(bank_tx, ynab_txs_for_account)
             bank_matches[bank_tx] = match_result
 
+        # Track matched YNAB transaction IDs
+        matched_ynab_ids = set()
+        for match_result in bank_matches.values():
+            if match_result.match_type in ("exact", "fuzzy") and match_result.ynab_transaction:
+                # Use object id to track which YNAB transactions were matched
+                matched_ynab_ids.add(id(match_result.ynab_transaction))
+
         # Track unmatched transactions
         unmatched_bank_txs = [tx for tx, result in bank_matches.items() if result.match_type == "none"]
+        unmatched_ynab_txs = [tx for tx in ynab_txs_for_account if id(tx) not in matched_ynab_ids]
 
         # 3. Generate operations
         operations: list[dict[str, Any]] = []
@@ -102,15 +110,28 @@ def reconcile_account_data(
                 )
 
         # 4. Build balance reconciliation
-        # Create simplified YNAB balances dict (for now, use empty dict - will be populated in future)
+        # Calculate YNAB running balances from transactions
         ynab_balances: dict[FinancialDate, Money] = {}
+        if balance_points and ynab_txs_for_account:
+            # Sort YNAB transactions by date
+            sorted_ynab_txs = sorted(ynab_txs_for_account, key=lambda tx: tx.date)
+
+            # Calculate running balance for each balance point date
+            for balance_point in balance_points:
+                balance_date = balance_point.date
+                # Sum all YNAB transactions up to and including this date
+                running_balance = sum(
+                    (tx.amount for tx in sorted_ynab_txs if tx.date <= balance_date),
+                    Money.from_cents(0),
+                )
+                ynab_balances[balance_date] = running_balance
 
         balance_recon = build_balance_reconciliation(
             account_id=account.slug,
             balance_points=balance_points,
             ynab_balances=ynab_balances,
             unmatched_bank_txs=unmatched_bank_txs,
-            unmatched_ynab_txs=[],  # Simplified for now
+            unmatched_ynab_txs=unmatched_ynab_txs,
         )
 
         # Build account result

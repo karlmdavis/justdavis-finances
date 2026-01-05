@@ -1,5 +1,4 @@
 import re
-from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
@@ -33,7 +32,7 @@ class AppleCardOfxHandler(BankExportFormatHandler):
         try:
             content = file_path.read_text(encoding="utf-8")
             return "<OFX>" in content and "<STMTTRN>" in content
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return False
 
     def parse(self, file_path: Path) -> ParseResult:
@@ -74,13 +73,12 @@ class AppleCardOfxHandler(BankExportFormatHandler):
             name = cast(str, name)
 
             # Parse amount (already accounting standard - use as-is)
-            amount_decimal = Decimal(amount)
-            amount_cents = int(amount_decimal * 100)
+            amount_money = Money.from_dollars(amount)
 
             tx = BankTransaction(
                 posted_date=self._parse_ofx_date(posted_date),
                 description=name,
-                amount=Money.from_cents(amount_cents),
+                amount=amount_money,
             )
 
             transactions.append(tx)
@@ -100,16 +98,14 @@ class AppleCardOfxHandler(BankExportFormatHandler):
         avail_bal = self._extract_tag(content, "BALAMT", parent="AVAILBAL")
 
         # Parse amounts
-        ledger_decimal = Decimal(ledger_bal)
-        ledger_cents = int(ledger_decimal * 100)
+        ledger_money = Money.from_dollars(ledger_bal)
 
         available = None
         if avail_bal:
-            avail_decimal = Decimal(avail_bal)
-            available = Money.from_cents(int(avail_decimal * 100))
+            available = Money.from_dollars(avail_bal)
 
         balance = BalancePoint(
-            date=self._parse_ofx_date(ledger_date), amount=Money.from_cents(ledger_cents), available=available
+            date=self._parse_ofx_date(ledger_date), amount=ledger_money, available=available
         )
 
         return [balance]

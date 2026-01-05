@@ -1,7 +1,6 @@
 """Chase Credit CSV format handler."""
 
 import csv
-from decimal import Decimal
 from pathlib import Path
 from typing import ClassVar
 
@@ -47,7 +46,7 @@ class ChaseCreditCsvHandler(BankExportFormatHandler):
                 reader = csv.DictReader(f)
                 headers = reader.fieldnames
                 return headers == self.EXPECTED_HEADERS
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return False
 
     def parse(self, file_path: Path) -> ParseResult:
@@ -67,9 +66,8 @@ class ChaseCreditCsvHandler(BankExportFormatHandler):
                     if not amount_str or amount_str == "---":
                         raise ValueError(f"Invalid amount format at line {row_num}: '{amount_str}'")
 
-                    amount_decimal = Decimal(amount_str)
                     # NO sign flip - already accounting standard
-                    amount_cents = int(amount_decimal * 100)
+                    amount = Money.from_dollars(amount_str)
 
                     # Parse memo (may be empty)
                     memo_str = row["Memo"].strip()
@@ -84,7 +82,7 @@ class ChaseCreditCsvHandler(BankExportFormatHandler):
                         transaction_date=transaction_date,
                         posted_date=posted_date,
                         description=row["Description"],
-                        amount=Money.from_cents(amount_cents),
+                        amount=amount,
                         type=row["Type"],
                         category=row["Category"],
                         memo=memo,

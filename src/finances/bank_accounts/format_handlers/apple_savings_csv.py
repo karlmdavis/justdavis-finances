@@ -1,7 +1,6 @@
 """Apple Savings CSV format handler."""
 
 import csv
-from decimal import Decimal
 from pathlib import Path
 from typing import ClassVar
 
@@ -46,7 +45,7 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
                 reader = csv.DictReader(f)
                 headers = reader.fieldnames
                 return headers == self.EXPECTED_HEADERS
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return False
 
     def parse(self, file_path: Path) -> ParseResult:
@@ -66,15 +65,14 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
                     if not amount_str or amount_str == "---":
                         raise ValueError(f"Invalid amount format at line {row_num}: '{amount_str}'")
 
-                    amount_decimal = Decimal(amount_str)
                     # Flip sign: consumer perspective → accounting standard
-                    amount_cents = int(amount_decimal * -100)
+                    amount = Money.from_dollars(amount_str) * -1
 
                     tx = BankTransaction(
                         posted_date=self._parse_date(row["Clearing Date"]),
                         transaction_date=self._parse_date(row["Transaction Date"]),
                         description=row["Description"],
-                        amount=Money.from_cents(amount_cents),
+                        amount=amount,
                         type=row["Transaction Type"],
                     )
 
