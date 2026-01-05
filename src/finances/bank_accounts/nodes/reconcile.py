@@ -15,6 +15,43 @@ from finances.core import FinancialDate, Money
 from finances.core.json_utils import read_json, write_json
 
 
+def calculate_ynab_balances(
+    ynab_txs: list[YnabTransaction],
+    balance_points: list[BalancePoint],
+) -> dict[FinancialDate, Money]:
+    """
+    Calculate YNAB running balances for each balance point date.
+
+    Sums all YNAB transactions up to and including each balance point date.
+
+    Args:
+        ynab_txs: List of YNAB transactions for the account
+        balance_points: List of bank balance points with dates
+
+    Returns:
+        Dictionary mapping balance point dates to calculated YNAB balances
+    """
+    ynab_balances: dict[FinancialDate, Money] = {}
+
+    if not balance_points or not ynab_txs:
+        return ynab_balances
+
+    # Sort YNAB transactions by date for efficient calculation
+    sorted_ynab_txs = sorted(ynab_txs, key=lambda tx: tx.date)
+
+    # Calculate running balance for each balance point date
+    for balance_point in balance_points:
+        balance_date = balance_point.date
+        # Sum all YNAB transactions up to and including this date
+        running_balance = sum(
+            (tx.amount for tx in sorted_ynab_txs if tx.date <= balance_date),
+            Money.from_cents(0),
+        )
+        ynab_balances[balance_date] = running_balance
+
+    return ynab_balances
+
+
 def reconcile_account_data(
     config: BankAccountsConfig,
     base_dir: Path,
@@ -111,20 +148,7 @@ def reconcile_account_data(
 
         # 4. Build balance reconciliation
         # Calculate YNAB running balances from transactions
-        ynab_balances: dict[FinancialDate, Money] = {}
-        if balance_points and ynab_txs_for_account:
-            # Sort YNAB transactions by date
-            sorted_ynab_txs = sorted(ynab_txs_for_account, key=lambda tx: tx.date)
-
-            # Calculate running balance for each balance point date
-            for balance_point in balance_points:
-                balance_date = balance_point.date
-                # Sum all YNAB transactions up to and including this date
-                running_balance = sum(
-                    (tx.amount for tx in sorted_ynab_txs if tx.date <= balance_date),
-                    Money.from_cents(0),
-                )
-                ynab_balances[balance_date] = running_balance
+        ynab_balances = calculate_ynab_balances(ynab_txs_for_account, balance_points)
 
         balance_recon = build_balance_reconciliation(
             account_id=account.slug,
