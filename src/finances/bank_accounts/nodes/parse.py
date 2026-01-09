@@ -1,14 +1,12 @@
 """Account data parsing flow node."""
 
 from pathlib import Path
-from typing import Any
 
 from finances.bank_accounts.deduplication import deduplicate_transactions
 from finances.bank_accounts.format_handlers.base import ParseResult
 from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
 from finances.bank_accounts.models import BalancePoint, BankAccountsConfig, ImportPattern
 from finances.core import FinancialDate
-from finances.core.json_utils import write_json
 
 
 def deduplicate_balances(parsed_files: list[tuple[Path, ParseResult, float]]) -> list[BalancePoint]:
@@ -84,17 +82,19 @@ def find_format_handler(file_path: Path, import_patterns: tuple[ImportPattern, .
 
 def parse_account_data(
     config: BankAccountsConfig, base_dir: Path, handler_registry: FormatHandlerRegistry
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, ParseResult]:
     """
-    Parse raw bank files into normalized JSON format.
+    Parse raw bank files and return parsed data.
 
     For each account in config:
     - Reads files from base_dir/raw/{slug}
     - Matches files against import_patterns to find format handlers
     - Parses files using registered handlers
     - De-duplicates transactions and balances across overlapping files
-    - Auto-detects date range from transaction dates
-    - Writes normalized JSON to base_dir/normalized/{slug}.json
+    - Returns ParseResult with transactions, balance_points, and statement_date
+
+    Note: This function does NOT write files. The caller is responsible for
+    serialization and timestamping using DataStore.save() for Pattern C accumulation.
 
     Args:
         config: Bank accounts configuration
@@ -102,17 +102,19 @@ def parse_account_data(
         handler_registry: Registry of format handlers
 
     Returns:
-        Summary dict mapping account slug to {"transaction_count": N, "date_range": "..."}
+        Dict mapping account slug to ParseResult objects
     """
-    summary: dict[str, dict[str, Any]] = {}
+    results: dict[str, ParseResult] = {}
 
     for account in config.accounts:
         # Get raw directory
         raw_dir = base_dir / "raw" / account.slug
 
-        # If raw directory doesn't exist, create empty normalized JSON
+        # If raw directory doesn't exist, create empty ParseResult
         if not raw_dir.exists():
             raw_dir.mkdir(parents=True)
+            results[account.slug] = ParseResult.create(transactions=[])
+            continue
 
         # Collect parsed files: (file_path, ParseResult, mtime)
         parsed_files: list[tuple[Path, ParseResult, float]] = []
@@ -151,39 +153,17 @@ def parse_account_data(
         transactions = deduplicate_transactions(parsed_files)
         balances = deduplicate_balances(parsed_files)
 
-        # Auto-detect date range from transactions
-        data_period: dict[str, str] | None = None
+        # Auto-detect statement date from transactions
+        statement_date: FinancialDate | None = None
         if transactions:
-            start_date = min(tx.posted_date for tx in transactions)
-            end_date = max(tx.posted_date for tx in transactions)
-            data_period = {
-                "start_date": str(start_date),
-                "end_date": str(end_date),
-            }
+            # Use the latest transaction date as statement date
+            statement_date = max(tx.posted_date for tx in transactions)
 
-        # Create normalized JSON structure
-        normalized_data = {
-            "account_id": account.slug,
-            "account_name": account.ynab_account_name,
-            "account_type": account.account_type,
-            "data_period": data_period,
-            "balances": [b.to_dict() for b in balances],
-            "transactions": [tx.to_dict() for tx in transactions],
-        }
+        # Create ParseResult
+        results[account.slug] = ParseResult.create(
+            transactions=list(transactions),
+            balance_points=list(balances),
+            statement_date=statement_date,
+        )
 
-        # Write normalized JSON
-        normalized_dir = base_dir / "normalized"
-        normalized_dir.mkdir(parents=True, exist_ok=True)
-        normalized_file = normalized_dir / f"{account.slug}.json"
-        write_json(normalized_file, normalized_data)
-
-        # Create summary
-        transaction_count = len(transactions)
-        date_range = f"{data_period['start_date']} to {data_period['end_date']}" if data_period else "no data"
-
-        summary[account.slug] = {
-            "transaction_count": transaction_count,
-            "date_range": date_range,
-        }
-
-    return summary
+    return results

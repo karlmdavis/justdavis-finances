@@ -138,18 +138,53 @@ def parse(config: Path, base_dir: Path) -> None:
 
         # Call parse_account_data()
         click.echo("Parsing bank export files...")
-        summary = parse_account_data(bank_config, base_dir, registry)
+        parse_results = parse_account_data(bank_config, base_dir, registry)
 
-        # Display summary
+        # Write normalized JSON files (standalone CLI needs file output)
+        from finances.core.json_utils import write_json
+
+        normalized_dir = base_dir / "normalized"
+        normalized_dir.mkdir(parents=True, exist_ok=True)
+
+        # Display summary and write files
         click.echo("\nParsing Summary:")
-        for account_slug, stats in summary.items():
-            click.echo(f"  {account_slug}:")
-            click.echo(f"    Transactions: {stats['transaction_count']}")
-            click.echo(f"    Date range: {stats['date_range']}")
+        total_transactions = 0
+        for account in bank_config.accounts:
+            slug = account.slug
+            if slug not in parse_results:
+                continue
 
-        total_transactions = sum(s["transaction_count"] for s in summary.values())
+            result = parse_results[slug]
+            transaction_count = len(result.transactions)
+            total_transactions += transaction_count
+
+            # Auto-detect date range from transactions
+            if result.transactions:
+                start_date = min(tx.posted_date for tx in result.transactions)
+                end_date = max(tx.posted_date for tx in result.transactions)
+                date_range = f"{start_date} to {end_date}"
+                data_period = {"start_date": str(start_date), "end_date": str(end_date)}
+            else:
+                date_range = "no data"
+                data_period = None
+
+            click.echo(f"  {slug}:")
+            click.echo(f"    Transactions: {transaction_count}")
+            click.echo(f"    Date range: {date_range}")
+
+            # Write normalized JSON
+            normalized_data = {
+                "account_id": slug,
+                "account_name": account.ynab_account_name,
+                "account_type": account.account_type,
+                "data_period": data_period,
+                "balances": [b.to_dict() for b in result.balance_points],
+                "transactions": [tx.to_dict() for tx in result.transactions],
+            }
+            normalized_file = normalized_dir / f"{slug}.json"
+            write_json(normalized_file, normalized_data)
+
         click.echo(f"\nTotal transactions parsed: {total_transactions}")
-
         click.echo("\nDone! account_data_parse completed")
 
     except FileNotFoundError as e:
@@ -189,6 +224,10 @@ def reconcile(config: Path, base_dir: Path) -> None:
     This command currently generates operations for all bank transactions.
     """
     try:
+        from datetime import datetime
+
+        from finances.core.json_utils import write_json
+
         # Load config
         click.echo(f"Loading configuration from {config}...")
         bank_config = load_config(config)
@@ -202,7 +241,52 @@ def reconcile(config: Path, base_dir: Path) -> None:
 
         # Call reconcile_account_data()
         click.echo("Reconciling bank data with YNAB...")
-        operations_file = reconcile_account_data(bank_config, base_dir, ynab_transactions)
+        results = reconcile_account_data(bank_config, base_dir, ynab_transactions)
+
+        # Write operations file (standalone CLI writes files)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        operations_file = base_dir / "reconciliation" / f"{timestamp}_reconciliation.json"
+        operations_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Build output structure
+        from typing import Any
+
+        account_results: list[dict[str, Any]] = []
+        for account in bank_config.accounts:
+            slug = account.slug
+            if slug not in results:
+                continue
+
+            result = results[slug]
+            account_results.append(
+                {
+                    "account_id": slug,
+                    "operations": list(result.operations),
+                    "balance_reconciliation": result.reconciliation.to_dict(),
+                }
+            )
+
+        # Calculate summary
+        all_operations = [op for account in account_results for op in account["operations"]]
+        operations_by_type = {
+            "create_transaction": sum(1 for op in all_operations if op.get("type") == "create_transaction"),
+            "flag_discrepancy": sum(1 for op in all_operations if op.get("type") == "flag_discrepancy"),
+        }
+
+        output_data = {
+            "version": "1.0",
+            "metadata": {
+                "generated_at": datetime.now().isoformat(),
+                "source_system": "bank_reconciliation",
+            },
+            "accounts": account_results,
+            "summary": {
+                "total_operations": len(all_operations),
+                "operations_by_type": operations_by_type,
+            },
+        }
+
+        write_json(operations_file, output_data)
 
         # Display operations file path
         click.echo("\nReconciliation complete!")

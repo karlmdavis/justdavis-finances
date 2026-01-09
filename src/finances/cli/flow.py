@@ -44,6 +44,12 @@ def setup_flow_nodes() -> None:
         AppleMatchingFlowNode,
         AppleReceiptParsingFlowNode,
     )
+    from ..bank_accounts.flow import (
+        BankDataParseFlowNode,
+        BankDataReconcileFlowNode,
+        BankDataRetrieveFlowNode,
+    )
+    from ..bank_accounts.models import BankAccountsConfig
     from ..ynab.flow import RetirementUpdateFlowNode, YnabSyncFlowNode
     from ..ynab.split_generation_flow import SplitGenerationFlowNode
 
@@ -58,6 +64,12 @@ def setup_flow_nodes() -> None:
     flow_registry.register_node(SplitGenerationFlowNode(config.data_dir))
     flow_registry.register_node(RetirementUpdateFlowNode(config.data_dir))
     flow_registry.register_node(CashFlowAnalysisFlowNode(config.data_dir))
+
+    # Register bank accounts nodes
+    bank_config = BankAccountsConfig.load()
+    flow_registry.register_node(BankDataRetrieveFlowNode(config.data_dir, bank_config))
+    flow_registry.register_node(BankDataParseFlowNode(config.data_dir, bank_config))
+    flow_registry.register_node(BankDataReconcileFlowNode(config.data_dir, bank_config))
 
     # YNAB apply: applies generated splits (manual step)
     def ynab_apply_executor(context: FlowContext) -> FlowResult:

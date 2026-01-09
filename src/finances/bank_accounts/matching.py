@@ -38,6 +38,7 @@ Performance:
 import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from typing import Any
 
 from finances.bank_accounts.models import BankTransaction
 from finances.core import FinancialDate, Money
@@ -55,6 +56,20 @@ class YnabTransaction:
     payee_name: str | None = None
     memo: str | None = None
     account_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict for JSON output."""
+        result = {
+            "date": str(self.date),
+            "amount_milliunits": self.amount.to_milliunits(),
+        }
+        if self.payee_name is not None:
+            result["payee_name"] = self.payee_name
+        if self.memo is not None:
+            result["memo"] = self.memo
+        if self.account_id is not None:
+            result["account_id"] = self.account_id
+        return result
 
 
 @dataclass(frozen=True)

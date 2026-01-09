@@ -60,7 +60,7 @@ class TestRetrieveNode:
         assert not (dest_dir / "other_file.txt").exists()
 
         # Verify result summary
-        assert result == {"test-checking": {"files_copied": 2, "files_skipped": 0}}
+        assert result == {"test-checking": {"copied": 2, "skipped": 0}}
 
     def test_retrieve_skips_existing_files(self) -> None:
         """Test that existing files with same name/size are skipped."""
@@ -93,7 +93,7 @@ class TestRetrieveNode:
         result = retrieve_account_data(config, self.base_dir)
 
         # Verify file was skipped
-        assert result == {"test-checking": {"files_copied": 0, "files_skipped": 1}}
+        assert result == {"test-checking": {"copied": 0, "skipped": 1}}
 
     def test_retrieve_copies_file_with_different_size(self) -> None:
         """Test that files with same name but different size are copied."""
@@ -126,7 +126,7 @@ class TestRetrieveNode:
         result = retrieve_account_data(config, self.base_dir)
 
         # Verify file was copied (replacing old one)
-        assert result == {"test-checking": {"files_copied": 1, "files_skipped": 0}}
+        assert result == {"test-checking": {"copied": 1, "skipped": 0}}
         assert (dest_dir / "statement.csv").read_text() == "new transaction data"
 
     def test_retrieve_fails_on_missing_source_dir(self) -> None:
@@ -201,8 +201,8 @@ class TestRetrieveNode:
 
         # Verify both accounts processed
         assert result == {
-            "chase-checking": {"files_copied": 1, "files_skipped": 0},
-            "chase-credit": {"files_copied": 1, "files_skipped": 0},
+            "chase-checking": {"copied": 1, "skipped": 0},
+            "chase-credit": {"copied": 1, "skipped": 0},
         }
 
         # Verify files in correct directories
@@ -244,7 +244,7 @@ class TestRetrieveNode:
         assert (dest_dir / "transactions.csv").exists()
         assert (dest_dir / "statement.ofx").exists()
         assert not (dest_dir / "other.txt").exists()
-        assert result == {"test-checking": {"files_copied": 2, "files_skipped": 0}}
+        assert result == {"test-checking": {"copied": 2, "skipped": 0}}
 
     def test_retrieve_no_matching_files(self) -> None:
         """Test retrieve when no files match patterns."""
@@ -275,7 +275,7 @@ class TestRetrieveNode:
         dest_dir = self.base_dir / "raw" / "test-checking"
         assert dest_dir.exists()  # Directory created even if empty
         assert list(dest_dir.iterdir()) == []
-        assert result == {"test-checking": {"files_copied": 0, "files_skipped": 0}}
+        assert result == {"test-checking": {"copied": 0, "skipped": 0}}
 
     def test_retrieve_expanduser_in_source_path(self) -> None:
         """Test that ~ in source_directory is expanded."""
@@ -318,7 +318,7 @@ class TestRetrieveNode:
             result = retrieve_account_data(config, self.base_dir)
 
             # Verify file was copied
-            assert result == {"test-checking": {"files_copied": 1, "files_skipped": 0}}
+            assert result == {"test-checking": {"copied": 1, "skipped": 0}}
             assert (self.base_dir / "raw" / "test-checking" / "statement.csv").exists()
         finally:
             # Restore original HOME

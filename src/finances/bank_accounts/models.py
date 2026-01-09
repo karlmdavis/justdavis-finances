@@ -102,6 +102,40 @@ class BankAccountsConfig:
         """Create an empty configuration."""
         return cls(accounts=())
 
+    @classmethod
+    def load(cls, config_path: str | None = None) -> "BankAccountsConfig":
+        """
+        Load bank accounts configuration from JSON file.
+
+        Args:
+            config_path: Optional path to config file. If None, uses default location
+                        from FINANCES_CONFIG_DIR or ./config/bank_accounts_config.json
+
+        Returns:
+            Loaded configuration
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+        """
+        import os
+        from pathlib import Path
+
+        from finances.core.json_utils import read_json
+
+        if config_path is None:
+            # Try environment variable first, then default location
+            config_dir = os.getenv("FINANCES_CONFIG_DIR", "./config")
+            config_path_obj = Path(config_dir) / "bank_accounts_config.json"
+        else:
+            config_path_obj = Path(config_path)
+
+        if not config_path_obj.exists():
+            # Return empty config if file doesn't exist (graceful degradation)
+            return cls.empty()
+
+        data = read_json(config_path_obj)
+        return cls.from_dict(data)
+
 
 @dataclass(frozen=True)
 class BankTransaction:

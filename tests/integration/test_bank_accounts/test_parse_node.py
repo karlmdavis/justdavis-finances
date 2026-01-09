@@ -9,7 +9,6 @@ from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistr
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, BankTransaction, ImportPattern
 from finances.bank_accounts.nodes import parse_account_data
 from finances.core import FinancialDate, Money
-from finances.core.json_utils import read_json
 
 
 class TestCsvHandler(BankExportFormatHandler):
@@ -106,7 +105,7 @@ class TestParseNode:
         shutil.rmtree(self.temp_dir)
 
     def test_parse_creates_normalized_json(self) -> None:
-        """Test parse node creates normalized JSON from raw files."""
+        """Test parse node returns ParseResult with transactions."""
         # Create raw directory with test files
         raw_dir = self.base_dir / "raw" / "test-checking"
         raw_dir.mkdir(parents=True)
@@ -136,30 +135,20 @@ class TestParseNode:
         )
 
         # Run parse
-        result = parse_account_data(config, self.base_dir, self.registry)
+        results = parse_account_data(config, self.base_dir, self.registry)
 
-        # Verify normalized JSON was created
-        normalized_file = self.base_dir / "normalized" / "test-checking.json"
-        assert normalized_file.exists()
+        # Verify result structure
+        assert "test-checking" in results
+        result = results["test-checking"]
 
-        # Read and verify JSON structure
-        data = read_json(normalized_file)
-        assert data["account_id"] == "test-checking"
-        assert data["account_name"] == "Test Checking"
-        assert data["account_type"] == "checking"
-        assert len(data["transactions"]) == 3
-        assert data["transactions"][0]["posted_date"] == "2024-01-01"
-        assert data["transactions"][0]["description"] == "Coffee Shop"
-        assert data["transactions"][0]["amount_milliunits"] == -5000
+        # Verify ParseResult has transactions
+        assert len(result.transactions) == 3
+        assert result.transactions[0].posted_date == FinancialDate.from_string("2024-01-01")
+        assert result.transactions[0].description == "Coffee Shop"
+        assert result.transactions[0].amount.to_milliunits() == -5000
 
-        # Verify data_period auto-detection
-        assert data["data_period"]["start_date"] == "2024-01-01"
-        assert data["data_period"]["end_date"] == "2024-01-03"
-
-        # Verify result summary
-        assert "test-checking" in result
-        assert result["test-checking"]["transaction_count"] == 3
-        assert "2024-01-01 to 2024-01-03" in result["test-checking"]["date_range"]
+        # Verify statement_date auto-detection (should be latest transaction date)
+        assert result.statement_date == FinancialDate.from_string("2024-01-03")
 
     def test_parse_deduplicates_overlapping_files(self) -> None:
         """Test that overlapping date ranges are deduplicated."""
@@ -204,21 +193,18 @@ class TestParseNode:
         )
 
         # Run parse
-        parse_account_data(config, self.base_dir, self.registry)
-
-        # Read normalized JSON
-        normalized_file = self.base_dir / "normalized" / "test-checking.json"
-        data = read_json(normalized_file)
+        results = parse_account_data(config, self.base_dir, self.registry)
+        result = results["test-checking"]
 
         # Verify deduplication: Jan 1 from file1, Jan 2-3 from file2 (newer), Jan 4 from file2
-        assert len(data["transactions"]) == 4
-        assert data["transactions"][0]["description"] == "Old Transaction Jan 1"  # From file1
-        assert data["transactions"][1]["description"] == "New Transaction Jan 2"  # From file2 (newer)
-        assert data["transactions"][2]["description"] == "New Transaction Jan 3"  # From file2 (newer)
-        assert data["transactions"][3]["description"] == "New Transaction Jan 4"  # From file2
+        assert len(result.transactions) == 4
+        assert result.transactions[0].description == "Old Transaction Jan 1"  # From file1
+        assert result.transactions[1].description == "New Transaction Jan 2"  # From file2 (newer)
+        assert result.transactions[2].description == "New Transaction Jan 3"  # From file2 (newer)
+        assert result.transactions[3].description == "New Transaction Jan 4"  # From file2
 
     def test_parse_auto_detects_date_range(self) -> None:
-        """Test that data_period is auto-detected from transactions."""
+        """Test that statement_date is auto-detected from transactions."""
         # Create raw directory
         raw_dir = self.base_dir / "raw" / "test-checking"
         raw_dir.mkdir(parents=True)
@@ -248,17 +234,12 @@ class TestParseNode:
         )
 
         # Run parse
-        result = parse_account_data(config, self.base_dir, self.registry)
+        results = parse_account_data(config, self.base_dir, self.registry)
+        result = results["test-checking"]
 
-        # Verify date range auto-detection
-        normalized_file = self.base_dir / "normalized" / "test-checking.json"
-        data = read_json(normalized_file)
-
-        assert data["data_period"]["start_date"] == "2024-03-15"
-        assert data["data_period"]["end_date"] == "2024-07-10"
-
-        # Verify result summary
-        assert result["test-checking"]["date_range"] == "2024-03-15 to 2024-07-10"
+        # Verify statement_date is latest transaction date
+        assert result.statement_date == FinancialDate.from_string("2024-07-10")
+        assert len(result.transactions) == 3
 
     def test_parse_handles_multiple_file_formats(self) -> None:
         """Test parse with multiple file formats per account."""
@@ -299,16 +280,14 @@ TRNAMT:-20.00"""
         )
 
         # Run parse
-        parse_account_data(config, self.base_dir, self.registry)
+        results = parse_account_data(config, self.base_dir, self.registry)
+        result = results["test-checking"]
 
         # Verify both files were parsed
-        normalized_file = self.base_dir / "normalized" / "test-checking.json"
-        data = read_json(normalized_file)
-
-        assert len(data["transactions"]) == 2
+        assert len(result.transactions) == 2
         # Transactions should be sorted by date
-        assert data["transactions"][0]["description"] == "CSV Transaction"
-        assert data["transactions"][1]["description"] == "OFX Transaction"
+        assert result.transactions[0].description == "CSV Transaction"
+        assert result.transactions[1].description == "OFX Transaction"
 
     def test_parse_handles_empty_raw_directory(self) -> None:
         """Test parse when raw directory has no matching files."""
@@ -334,20 +313,13 @@ TRNAMT:-20.00"""
         )
 
         # Run parse
-        result = parse_account_data(config, self.base_dir, self.registry)
+        results = parse_account_data(config, self.base_dir, self.registry)
+        result = results["test-checking"]
 
-        # Verify empty normalized JSON was created
-        normalized_file = self.base_dir / "normalized" / "test-checking.json"
-        assert normalized_file.exists()
-
-        data = read_json(normalized_file)
-        assert len(data["transactions"]) == 0
-        assert len(data["balances"]) == 0
-        assert data["data_period"] is None
-
-        # Verify result summary
-        assert result["test-checking"]["transaction_count"] == 0
-        assert result["test-checking"]["date_range"] == "no data"
+        # Verify empty ParseResult was created
+        assert len(result.transactions) == 0
+        assert len(result.balance_points) == 0
+        assert result.statement_date is None
 
     def test_parse_multiple_accounts(self) -> None:
         """Test parse with multiple accounts."""
@@ -390,16 +362,12 @@ TRNAMT:-20.00"""
         )
 
         # Run parse
-        result = parse_account_data(config, self.base_dir, self.registry)
+        results = parse_account_data(config, self.base_dir, self.registry)
 
         # Verify both accounts processed
-        assert "chase-checking" in result
-        assert "chase-credit" in result
-
-        # Verify normalized files exist
-        assert (self.base_dir / "normalized" / "chase-checking.json").exists()
-        assert (self.base_dir / "normalized" / "chase-credit.json").exists()
+        assert "chase-checking" in results
+        assert "chase-credit" in results
 
         # Verify transaction counts
-        assert result["chase-checking"]["transaction_count"] == 1
-        assert result["chase-credit"]["transaction_count"] == 1
+        assert len(results["chase-checking"].transactions) == 1
+        assert len(results["chase-credit"].transactions) == 1

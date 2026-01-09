@@ -14,7 +14,7 @@ from finances.bank_accounts.models import (
 )
 from finances.bank_accounts.nodes import reconcile_account_data
 from finances.core import FinancialDate, Money
-from finances.core.json_utils import read_json, write_json
+from finances.core.json_utils import write_json
 
 
 class TestReconcileNode:
@@ -79,17 +79,14 @@ class TestReconcileNode:
         ]
 
         normalized_data = {
-            "account_id": "test-checking",
-            "account_name": "Test Checking",
-            "account_type": "checking",
+            "account_slug": "test-checking",
+            "parsed_at": "2024-01-08T14:23:45",
             "transactions": [tx.to_dict() for tx in bank_txs],
-            "balances": [bp.to_dict() for bp in balance_points],
-            "data_period": {
-                "start_date": "2024-01-01",
-                "end_date": "2024-01-03",
-            },
+            "balance_points": [bp.to_dict() for bp in balance_points],
+            "statement_date": "2024-01-03",
         }
-        write_json(normalized_dir / "test-checking.json", normalized_data)
+        # Write timestamped file (Pattern C)
+        write_json(normalized_dir / "2024-01-08_14-23-45_test-checking.json", normalized_data)
 
         # Create synthetic YNAB transactions (only matches one bank tx)
         ynab_txs = [
@@ -103,23 +100,14 @@ class TestReconcileNode:
         ]
 
         # Run reconcile
-        result_file = reconcile_account_data(config, self.base_dir, ynab_txs)
+        results = reconcile_account_data(config, self.base_dir, ynab_txs)
 
-        # Verify output file was created
-        assert result_file.exists()
-        assert result_file.parent == self.base_dir / "reconciliation"
+        # Verify results structure
+        assert "test-checking" in results
+        result = results["test-checking"]
 
-        # Read and verify operations
-        data = read_json(result_file)
-        assert data["version"] == "1.0"
-        assert "metadata" in data
-        assert "accounts" in data
-
-        # Verify account operations
-        account_data = data["accounts"][0]
-        assert account_data["account_id"] == "test-checking"
-
-        operations = account_data["operations"]
+        # Verify operations
+        operations = list(result.operations)
         # Should have 2 create_transaction operations (unmatched bank txs)
         create_ops = [op for op in operations if op["type"] == "create_transaction"]
         assert len(create_ops) == 2
@@ -129,9 +117,12 @@ class TestReconcileNode:
         assert create_ops[0]["account_id"] == "acct_123"
         assert "transaction" in create_ops[0]
 
-        # Verify summary
-        assert data["summary"]["total_operations"] == 2
-        assert data["summary"]["operations_by_type"]["create_transaction"] == 2
+        # Verify unmatched transactions
+        assert len(result.unmatched_bank_txs) == 2
+        assert len(result.unmatched_ynab_txs) == 0
+
+        # Verify balance reconciliation exists
+        assert result.reconciliation.account_id == "test-checking"
 
     def test_reconcile_with_matched_transactions(self) -> None:
         """Test reconcile when transactions match exactly."""
@@ -177,17 +168,14 @@ class TestReconcileNode:
         ]
 
         normalized_data = {
-            "account_id": "test-checking",
-            "account_name": "Test Checking",
-            "account_type": "checking",
+            "account_slug": "test-checking",
+            "parsed_at": "2024-01-08T14:23:45",
             "transactions": [tx.to_dict() for tx in bank_txs],
-            "balances": [bp.to_dict() for bp in balance_points],
-            "data_period": {
-                "start_date": "2024-01-01",
-                "end_date": "2024-01-02",
-            },
+            "balance_points": [bp.to_dict() for bp in balance_points],
+            "statement_date": "2024-01-02",
         }
-        write_json(normalized_dir / "test-checking.json", normalized_data)
+        # Write timestamped file (Pattern C)
+        write_json(normalized_dir / "2024-01-08_14-23-45_test-checking.json", normalized_data)
 
         # Create synthetic YNAB transactions that exactly match bank txs
         ynab_txs = [
@@ -208,31 +196,26 @@ class TestReconcileNode:
         ]
 
         # Run reconcile
-        result_file = reconcile_account_data(config, self.base_dir, ynab_txs)
+        results = reconcile_account_data(config, self.base_dir, ynab_txs)
 
-        # Verify output file was created
-        assert result_file.exists()
+        # Verify results structure
+        assert "test-checking" in results
+        result = results["test-checking"]
 
-        # Read and verify operations
-        data = read_json(result_file)
-
-        # Verify account operations
-        account_data = data["accounts"][0]
-        operations = account_data["operations"]
+        # Verify operations
+        operations = list(result.operations)
 
         # Should have NO create_transaction operations (all matched)
         create_ops = [op for op in operations if op["type"] == "create_transaction"]
         assert len(create_ops) == 0
 
-        # Verify summary shows no operations needed
-        assert data["summary"]["total_operations"] == 0
-        assert data["summary"]["operations_by_type"]["create_transaction"] == 0
+        # Verify unmatched transactions
+        assert len(result.unmatched_bank_txs) == 0
+        assert len(result.unmatched_ynab_txs) == 0
 
         # Verify balance reconciliation exists
-        assert "balance_reconciliation" in account_data
-        balance_recon = account_data["balance_reconciliation"]
-        assert balance_recon["account_id"] == "test-checking"
-        assert len(balance_recon["points"]) == 1
+        assert result.reconciliation.account_id == "test-checking"
+        assert len(result.reconciliation.points) == 1
 
     def test_reconcile_with_ambiguous_matches(self) -> None:
         """Test reconcile generates flag_discrepancy for ambiguous matches."""
@@ -273,17 +256,14 @@ class TestReconcileNode:
         ]
 
         normalized_data = {
-            "account_id": "test-checking",
-            "account_name": "Test Checking",
-            "account_type": "checking",
+            "account_slug": "test-checking",
+            "parsed_at": "2024-01-08T14:23:45",
             "transactions": [tx.to_dict() for tx in bank_txs],
-            "balances": [bp.to_dict() for bp in balance_points],
-            "data_period": {
-                "start_date": "2024-01-01",
-                "end_date": "2024-01-01",
-            },
+            "balance_points": [bp.to_dict() for bp in balance_points],
+            "statement_date": "2024-01-01",
         }
-        write_json(normalized_dir / "test-checking.json", normalized_data)
+        # Write timestamped file (Pattern C)
+        write_json(normalized_dir / "2024-01-08_14-23-45_test-checking.json", normalized_data)
 
         # Create YNAB transactions with same date/amount but different descriptions
         ynab_txs = [
@@ -304,17 +284,14 @@ class TestReconcileNode:
         ]
 
         # Run reconcile
-        result_file = reconcile_account_data(config, self.base_dir, ynab_txs)
+        results = reconcile_account_data(config, self.base_dir, ynab_txs)
 
-        # Verify output file was created
-        assert result_file.exists()
+        # Verify results structure
+        assert "test-checking" in results
+        result = results["test-checking"]
 
-        # Read and verify operations
-        data = read_json(result_file)
-
-        # Verify account operations
-        account_data = data["accounts"][0]
-        operations = account_data["operations"]
+        # Verify operations
+        operations = list(result.operations)
 
         # Should have 1 flag_discrepancy operation (ambiguous match)
         flag_ops = [op for op in operations if op["type"] == "flag_discrepancy"]
@@ -327,7 +304,3 @@ class TestReconcileNode:
         assert len(flag_ops[0]["candidates"]) == 2
         assert "message" in flag_ops[0]
         assert "manual review" in flag_ops[0]["message"].lower()
-
-        # Verify summary
-        assert data["summary"]["total_operations"] == 1
-        assert data["summary"]["operations_by_type"]["flag_discrepancy"] == 1

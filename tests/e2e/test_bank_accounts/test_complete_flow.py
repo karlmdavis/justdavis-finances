@@ -18,7 +18,6 @@ from finances.bank_accounts.nodes.parse import parse_account_data
 from finances.bank_accounts.nodes.reconcile import reconcile_account_data
 from finances.bank_accounts.nodes.retrieve import retrieve_account_data
 from finances.core import FinancialDate, Money
-from finances.core.json_utils import read_json
 
 
 @pytest.fixture
@@ -129,8 +128,8 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
 
     # Verify retrieve worked
     assert "chase_credit" in retrieve_summary
-    assert retrieve_summary["chase_credit"]["files_copied"] == 1
-    assert retrieve_summary["chase_credit"]["files_skipped"] == 0
+    assert retrieve_summary["chase_credit"]["copied"] == 1
+    assert retrieve_summary["chase_credit"]["skipped"] == 0
 
     # Verify file was copied
     raw_file = base_dir / "raw" / "chase_credit" / "chase_transactions.csv"
@@ -139,53 +138,54 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
     # Step 2: Parse
     registry = FormatHandlerRegistry()
     registry.register(ChaseCreditCsvHandler)
-    parse_summary = parse_account_data(bank_config, base_dir, registry)
+    parse_results = parse_account_data(bank_config, base_dir, registry)
 
-    # Verify parse worked
-    assert "chase_credit" in parse_summary
-    assert parse_summary["chase_credit"]["transaction_count"] == 3
-    assert "2024-01-15 to 2024-01-25" in parse_summary["chase_credit"]["date_range"]
+    # Verify parse worked - returns dict[str, ParseResult]
+    assert "chase_credit" in parse_results
+    result = parse_results["chase_credit"]
+    assert len(result.transactions) == 3
+    assert len(result.balance_points) == 0  # Credit card CSV has no balances
 
-    # Verify normalized JSON was created
-    normalized_file = base_dir / "normalized" / "chase_credit.json"
-    assert normalized_file.exists()
+    # Verify date range
+    start_date = min(tx.posted_date for tx in result.transactions)
+    end_date = max(tx.posted_date for tx in result.transactions)
+    assert str(start_date) == "2024-01-15"
+    assert str(end_date) == "2024-01-25"
 
-    # Verify normalized JSON structure
-    normalized_data = read_json(normalized_file)
-    assert normalized_data["account_id"] == "chase_credit"
-    assert normalized_data["account_name"] == "Chase Credit"
-    assert normalized_data["account_type"] == "credit"
-    assert len(normalized_data["transactions"]) == 3
-    assert len(normalized_data["balances"]) == 0  # Credit card CSV has no balances
+    # Write normalized files for reconcile step (parse node no longer writes files)
+    from finances.core.json_utils import write_json
+
+    normalized_dir = base_dir / "normalized"
+    normalized_dir.mkdir(parents=True, exist_ok=True)
+    for account in bank_config.accounts:
+        slug = account.slug
+        if slug not in parse_results:
+            continue
+        result = parse_results[slug]
+        data_period = None
+        if result.transactions:
+            start = min(tx.posted_date for tx in result.transactions)
+            end = max(tx.posted_date for tx in result.transactions)
+            data_period = {"start_date": str(start), "end_date": str(end)}
+        normalized_data = {
+            "account_id": slug,
+            "account_name": account.ynab_account_name,
+            "account_type": account.account_type,
+            "data_period": data_period,
+            "balances": [b.to_dict() for b in result.balance_points],
+            "transactions": [tx.to_dict() for tx in result.transactions],
+        }
+        write_json(normalized_dir / f"{slug}.json", normalized_data)
 
     # Step 3: Reconcile
-    operations_file = reconcile_account_data(bank_config, base_dir, ynab_transactions)
+    results = reconcile_account_data(bank_config, base_dir, ynab_transactions)
 
-    # Verify operations file exists
-    assert operations_file.exists()
-    assert operations_file.parent == base_dir / "reconciliation"
-    assert operations_file.name.endswith("_reconciliation.json")
-
-    # Read and verify operations
-    operations_data = read_json(operations_file)
-
-    # Verify structure
-    assert operations_data["version"] == "1.0"
-    assert "metadata" in operations_data
-    assert "accounts" in operations_data
-    assert "summary" in operations_data
-
-    # Verify metadata
-    assert operations_data["metadata"]["source_system"] == "bank_reconciliation"
-    assert "generated_at" in operations_data["metadata"]
-
-    # Verify accounts
-    assert len(operations_data["accounts"]) == 1
-    account_data = operations_data["accounts"][0]
-    assert account_data["account_id"] == "chase_credit"
+    # Verify results structure
+    assert "chase_credit" in results
+    result = results["chase_credit"]
 
     # Verify operations
-    operations = account_data["operations"]
+    operations = list(result.operations)
 
     # Should have 2 create_transaction operations (AMAZON and PAYMENT don't match)
     create_ops = [op for op in operations if op["type"] == "create_transaction"]
@@ -217,22 +217,14 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
     assert -123450 in amounts  # AMAZON: -$123.45 in milliunits
     assert 500000 in amounts  # PAYMENT: +$500.00 in milliunits
 
+    # Verify unmatched transactions
+    assert len(result.unmatched_bank_txs) == 2
+    assert len(result.unmatched_ynab_txs) == 1  # Target transaction not in bank data
+
     # Verify balance reconciliation is included
-    assert "balance_reconciliation" in account_data
-    balance_recon = account_data["balance_reconciliation"]
-    assert balance_recon["account_id"] == "chase_credit"
-    assert "points" in balance_recon
-    assert "last_reconciled_date" in balance_recon
-    assert "first_diverged_date" in balance_recon
-
-    # Verify points is a list (even if empty for credit card with no balance data)
-    assert isinstance(balance_recon["points"], list)
-
-    # Verify summary
-    summary = operations_data["summary"]
-    assert summary["total_operations"] == 2
-    assert summary["operations_by_type"]["create_transaction"] == 2
-    assert summary["operations_by_type"]["flag_discrepancy"] == 0
+    balance_recon = result.reconciliation
+    assert balance_recon.account_id == "chase_credit"
+    assert isinstance(balance_recon.points, tuple)
 
 
 def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_bank_csv):
@@ -291,20 +283,47 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
     retrieve_account_data(config, base_dir)
     registry = FormatHandlerRegistry()
     registry.register(ChaseCreditCsvHandler)
-    parse_account_data(config, base_dir, registry)
-    operations_file = reconcile_account_data(config, base_dir, ynab_txs)
+    parse_results = parse_account_data(config, base_dir, registry)
 
-    # Verify operations
-    operations_data = read_json(operations_file)
+    # Write normalized files for reconcile step
+    from finances.core.json_utils import write_json
+
+    normalized_dir = base_dir / "normalized"
+    normalized_dir.mkdir(parents=True, exist_ok=True)
+    for account in config.accounts:
+        slug = account.slug
+        if slug not in parse_results:
+            continue
+        result = parse_results[slug]
+        data_period = None
+        if result.transactions:
+            start = min(tx.posted_date for tx in result.transactions)
+            end = max(tx.posted_date for tx in result.transactions)
+            data_period = {"start_date": str(start), "end_date": str(end)}
+        normalized_data = {
+            "account_id": slug,
+            "account_name": account.ynab_account_name,
+            "account_type": account.account_type,
+            "data_period": data_period,
+            "balances": [b.to_dict() for b in result.balance_points],
+            "transactions": [tx.to_dict() for tx in result.transactions],
+        }
+        write_json(normalized_dir / f"{slug}.json", normalized_data)
+
+    results = reconcile_account_data(config, base_dir, ynab_txs)
+
+    # Verify results structure
+    assert "chase_credit_all_matched" in results
+    result = results["chase_credit_all_matched"]
 
     # Should have ZERO create_transaction operations (all matched)
-    account_data = operations_data["accounts"][0]
-    create_ops = [op for op in account_data["operations"] if op["type"] == "create_transaction"]
+    operations = list(result.operations)
+    create_ops = [op for op in operations if op["type"] == "create_transaction"]
     assert len(create_ops) == 0
 
-    # Verify summary reflects no operations
-    assert operations_data["summary"]["total_operations"] == 0
-    assert operations_data["summary"]["operations_by_type"]["create_transaction"] == 0
+    # Verify no unmatched transactions
+    assert len(result.unmatched_bank_txs) == 0
+    assert len(result.unmatched_ynab_txs) == 0
 
 
 def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
@@ -377,15 +396,42 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
     retrieve_account_data(config, base_dir)
     registry = FormatHandlerRegistry()
     registry.register(ChaseCreditCsvHandler)
-    parse_account_data(config, base_dir, registry)
-    operations_file = reconcile_account_data(config, base_dir, ynab_txs)
+    parse_results = parse_account_data(config, base_dir, registry)
 
-    # Verify operations
-    operations_data = read_json(operations_file)
+    # Write normalized files for reconcile step
+    from finances.core.json_utils import write_json
+
+    normalized_dir = base_dir / "normalized"
+    normalized_dir.mkdir(parents=True, exist_ok=True)
+    for account in config.accounts:
+        slug = account.slug
+        if slug not in parse_results:
+            continue
+        result = parse_results[slug]
+        data_period = None
+        if result.transactions:
+            start = min(tx.posted_date for tx in result.transactions)
+            end = max(tx.posted_date for tx in result.transactions)
+            data_period = {"start_date": str(start), "end_date": str(end)}
+        normalized_data = {
+            "account_id": slug,
+            "account_name": account.ynab_account_name,
+            "account_type": account.account_type,
+            "data_period": data_period,
+            "balances": [b.to_dict() for b in result.balance_points],
+            "transactions": [tx.to_dict() for tx in result.transactions],
+        }
+        write_json(normalized_dir / f"{slug}.json", normalized_data)
+
+    results = reconcile_account_data(config, base_dir, ynab_txs)
+
+    # Verify results structure
+    assert "chase_credit_ambiguous" in results
+    result = results["chase_credit_ambiguous"]
 
     # Should have ONE flag_discrepancy operation (ambiguous match)
-    account_data = operations_data["accounts"][0]
-    flag_ops = [op for op in account_data["operations"] if op["type"] == "flag_discrepancy"]
+    operations = list(result.operations)
+    flag_ops = [op for op in operations if op["type"] == "flag_discrepancy"]
     assert len(flag_ops) == 1
 
     # Verify flag_discrepancy structure
@@ -414,10 +460,9 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
     assert "Trader Joes" in payee_names
     assert "Whole Foods" in payee_names
 
-    # Verify summary reflects flag operation
-    assert operations_data["summary"]["total_operations"] == 1
-    assert operations_data["summary"]["operations_by_type"]["flag_discrepancy"] == 1
-    assert operations_data["summary"]["operations_by_type"]["create_transaction"] == 0
+    # Verify unmatched transactions (all YNAB txs are candidates, so none are unmatched)
+    assert len(result.unmatched_bank_txs) == 0  # Bank tx has ambiguous match
+    assert len(result.unmatched_ynab_txs) == 3  # All candidates remain unmatched
 
 
 def test_complete_flow_empty_source_directory(tmp_data_dir):
@@ -456,16 +501,47 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
 
     # Execute pipeline
     retrieve_summary = retrieve_account_data(config, base_dir)
-    assert retrieve_summary["chase_credit_empty"]["files_copied"] == 0
+    assert retrieve_summary["chase_credit_empty"]["copied"] == 0
 
     registry = FormatHandlerRegistry()
     registry.register(ChaseCreditCsvHandler)
-    parse_summary = parse_account_data(config, base_dir, registry)
-    assert parse_summary["chase_credit_empty"]["transaction_count"] == 0
-    assert parse_summary["chase_credit_empty"]["date_range"] == "no data"
+    parse_results = parse_account_data(config, base_dir, registry)
+    result = parse_results["chase_credit_empty"]
+    assert len(result.transactions) == 0
+    assert len(result.balance_points) == 0
 
-    operations_file = reconcile_account_data(config, base_dir, [])
+    # Write normalized files for reconcile step
+    from finances.core.json_utils import write_json
 
-    # Verify operations
-    operations_data = read_json(operations_file)
-    assert operations_data["summary"]["total_operations"] == 0
+    normalized_dir = base_dir / "normalized"
+    normalized_dir.mkdir(parents=True, exist_ok=True)
+    for account in config.accounts:
+        slug = account.slug
+        if slug not in parse_results:
+            continue
+        result = parse_results[slug]
+        data_period = None
+        if result.transactions:
+            start = min(tx.posted_date for tx in result.transactions)
+            end = max(tx.posted_date for tx in result.transactions)
+            data_period = {"start_date": str(start), "end_date": str(end)}
+        normalized_data = {
+            "account_id": slug,
+            "account_name": account.ynab_account_name,
+            "account_type": account.account_type,
+            "data_period": data_period,
+            "balances": [b.to_dict() for b in result.balance_points],
+            "transactions": [tx.to_dict() for tx in result.transactions],
+        }
+        write_json(normalized_dir / f"{slug}.json", normalized_data)
+
+    results = reconcile_account_data(config, base_dir, [])
+
+    # Verify results structure
+    assert "chase_credit_empty" in results
+    result = results["chase_credit_empty"]
+
+    # Verify no operations (no transactions to process)
+    assert len(result.operations) == 0
+    assert len(result.unmatched_bank_txs) == 0
+    assert len(result.unmatched_ynab_txs) == 0

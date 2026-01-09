@@ -22,7 +22,7 @@ def retrieve_account_data(config: BankAccountsConfig, base_dir: Path) -> dict[st
         base_dir: Base directory for data storage
 
     Returns:
-        Summary dict mapping account slug to {"files_copied": N, "files_skipped": M}
+        Summary dict mapping account slug to {"copied": N, "skipped": M}
 
     Raises:
         FileNotFoundError: If source_directory does not exist for any account
@@ -68,6 +68,6 @@ def retrieve_account_data(config: BankAccountsConfig, base_dir: Path) -> dict[st
                     files_copied += 1
 
         # Store summary for this account
-        summary[account.slug] = {"files_copied": files_copied, "files_skipped": files_skipped}
+        summary[account.slug] = {"copied": files_copied, "skipped": files_skipped}
 
     return summary
