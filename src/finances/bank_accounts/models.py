@@ -107,20 +107,24 @@ class BankAccountsConfig:
         """
         Load bank accounts configuration from JSON file.
 
+        If config doesn't exist and YNAB cache is available, creates a stub
+        configuration file with TODO_REQUIRED placeholders for user to fill in.
+
         Args:
             config_path: Optional path to config file. If None, uses default location
                         from FINANCES_CONFIG_DIR or ./config/bank_accounts_config.json
 
         Returns:
-            Loaded configuration
+            Loaded configuration, or empty config if file doesn't exist
 
         Raises:
-            FileNotFoundError: If config file doesn't exist
+            None - gracefully returns empty config if file cannot be created
         """
         import os
         from pathlib import Path
 
-        from finances.core.json_utils import read_json
+        from finances.bank_accounts.config import generate_config_stub
+        from finances.core.json_utils import read_json, write_json
 
         if config_path is None:
             # Try environment variable first, then default location
@@ -130,7 +134,52 @@ class BankAccountsConfig:
             config_path_obj = Path(config_path)
 
         if not config_path_obj.exists():
-            # Return empty config if file doesn't exist (graceful degradation)
+            # Try to create stub from YNAB accounts
+            try:
+                # Get data directory from environment or default
+                data_dir = Path(os.getenv("FINANCES_DATA_DIR", "./data"))
+                ynab_accounts_file = data_dir / "ynab" / "cache" / "accounts.json"
+
+                if ynab_accounts_file.exists():
+                    # Load YNAB accounts
+                    accounts_data = read_json(ynab_accounts_file)
+
+                    # Handle both {"accounts": [...]} and [...] formats
+                    if isinstance(accounts_data, dict) and "accounts" in accounts_data:
+                        accounts_list = accounts_data["accounts"]
+                    elif isinstance(accounts_data, list):
+                        accounts_list = accounts_data
+                    else:
+                        accounts_list = []
+
+                    # Convert to dict format expected by generate_config_stub
+                    ynab_accounts_dict = {
+                        acct["id"]: {"name": acct["name"], "type": acct["type"]}
+                        for acct in accounts_list
+                        if not acct.get("closed", False) and acct.get("on_budget", True)
+                    }
+
+                    # Generate stub config
+                    stub_config = generate_config_stub(ynab_accounts_dict)
+
+                    # Create config directory if needed
+                    config_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+                    # Save stub to file
+                    write_json(config_path_obj, stub_config.to_dict())
+
+                    print(f"\n✓ Created stub configuration at {config_path_obj}")
+                    print("  Please edit this file and replace all TODO_REQUIRED values.")
+                    print("  See docs/bank-accounts-reconciliation.md for details.\n")
+            except Exception as e:
+                # If stub creation fails for any reason, just return empty config
+                # This is intentionally broad to handle any failure gracefully
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Failed to create stub config: {e}")
+
+            # Return empty config (don't load stub - user needs to edit it first)
             return cls.empty()
 
         data = read_json(config_path_obj)

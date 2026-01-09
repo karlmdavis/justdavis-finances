@@ -1,5 +1,7 @@
 """Tests for bank account configuration models."""
 
+from pathlib import Path
+
 import pytest
 
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, ImportPattern
@@ -310,3 +312,184 @@ class TestBankAccountsConfig:
 
         with pytest.raises(AttributeError):
             config.accounts = ()  # type: ignore[misc]
+
+    def test_load_creates_stub_when_config_missing_and_ynab_cache_exists(
+        self, tmp_path: Path, capsys, monkeypatch
+    ):
+        """Test that load() creates stub config when file doesn't exist and YNAB cache is available."""
+        # Setup directories
+        config_dir = tmp_path / "config"
+        data_dir = tmp_path / "data"
+        ynab_cache_dir = data_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True)
+
+        # Create YNAB accounts cache
+        ynab_accounts = {
+            "accounts": [
+                {
+                    "id": "acc-123",
+                    "name": "Chase Checking",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 100000,
+                    "cleared_balance": 100000,
+                    "uncleared_balance": 0,
+                },
+                {
+                    "id": "acc-456",
+                    "name": "Apple Card",
+                    "type": "creditCard",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": -50000,
+                    "cleared_balance": -50000,
+                    "uncleared_balance": 0,
+                },
+                {
+                    "id": "acc-789",
+                    "name": "Closed Account",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": True,  # Should be excluded
+                    "balance": 0,
+                    "cleared_balance": 0,
+                    "uncleared_balance": 0,
+                },
+            ]
+        }
+
+        from finances.core.json_utils import write_json
+
+        write_json(ynab_cache_dir / "accounts.json", ynab_accounts)
+
+        # Set environment variables
+        monkeypatch.setenv("FINANCES_CONFIG_DIR", str(config_dir))
+        monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
+
+        # Load config (should create stub)
+        config = BankAccountsConfig.load()
+
+        # Verify empty config returned (user needs to edit stub first)
+        assert len(config.accounts) == 0
+
+        # Verify stub file was created
+        stub_file = config_dir / "bank_accounts_config.json"
+        assert stub_file.exists()
+
+        # Verify stub contents
+        from finances.core.json_utils import read_json
+
+        stub_data = read_json(stub_file)
+        assert "accounts" in stub_data
+        assert len(stub_data["accounts"]) == 2  # Only non-closed, on-budget accounts
+
+        # Verify first account (checking)
+        acct1 = stub_data["accounts"][0]
+        assert acct1["ynab_account_id"] == "acc-123"
+        assert acct1["ynab_account_name"] == "Chase Checking"
+        assert acct1["account_type"] == "checking"
+        assert acct1["slug"] == "TODO_REQUIRED"
+        assert acct1["bank_name"] == "TODO_REQUIRED"
+        assert acct1["source_directory"] == "TODO_REQUIRED"
+        assert acct1["import_patterns"] == []
+
+        # Verify second account (credit)
+        acct2 = stub_data["accounts"][1]
+        assert acct2["ynab_account_id"] == "acc-456"
+        assert acct2["ynab_account_name"] == "Apple Card"
+        assert acct2["account_type"] == "credit"
+
+        # Verify helpful message was printed
+        captured = capsys.readouterr()
+        assert "Created stub configuration" in captured.out
+        assert str(stub_file) in captured.out
+        assert "TODO_REQUIRED" in captured.out
+
+    def test_load_does_not_create_stub_when_config_exists(self, tmp_path: Path, monkeypatch, capsys):
+        """Test that load() does NOT create stub when config file already exists."""
+        # Setup directories
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        data_dir = tmp_path / "data"
+        ynab_cache_dir = data_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True)
+
+        # Create existing config file
+        existing_config = {
+            "accounts": [
+                {
+                    "ynab_account_id": "existing-123",
+                    "ynab_account_name": "Existing Account",
+                    "slug": "existing-account",
+                    "bank_name": "Existing Bank",
+                    "account_type": "checking",
+                    "statement_frequency": "monthly",
+                    "source_directory": str(tmp_path / "downloads"),
+                    "download_instructions": "Download from bank.com",
+                    "import_patterns": [{"pattern": "*.csv", "format_handler": "test_csv"}],
+                }
+            ]
+        }
+
+        from finances.core.json_utils import write_json
+
+        config_file = config_dir / "bank_accounts_config.json"
+        write_json(config_file, existing_config)
+
+        # Create YNAB accounts cache (should be ignored since config exists)
+        ynab_accounts = {
+            "accounts": [
+                {
+                    "id": "ynab-999",
+                    "name": "Different Account",
+                    "type": "savings",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 200000,
+                    "cleared_balance": 200000,
+                    "uncleared_balance": 0,
+                }
+            ]
+        }
+        write_json(ynab_cache_dir / "accounts.json", ynab_accounts)
+
+        # Set environment variables
+        monkeypatch.setenv("FINANCES_CONFIG_DIR", str(config_dir))
+        monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
+
+        # Load config (should load existing, not create stub)
+        config = BankAccountsConfig.load()
+
+        # Verify existing config was loaded
+        assert len(config.accounts) == 1
+        assert config.accounts[0].ynab_account_id == "existing-123"
+        assert config.accounts[0].slug == "existing-account"
+
+        # Verify no stub creation message
+        captured = capsys.readouterr()
+        assert "Created stub configuration" not in captured.out
+
+    def test_load_graceful_degradation_when_no_ynab_cache(self, tmp_path: Path, monkeypatch, capsys):
+        """Test that load() returns empty config gracefully when neither config nor YNAB cache exists."""
+        # Setup directories (no YNAB cache)
+        config_dir = tmp_path / "config"
+        data_dir = tmp_path / "data"
+
+        # Set environment variables
+        monkeypatch.setenv("FINANCES_CONFIG_DIR", str(config_dir))
+        monkeypatch.setenv("FINANCES_DATA_DIR", str(data_dir))
+
+        # Load config (should return empty gracefully)
+        config = BankAccountsConfig.load()
+
+        # Verify empty config returned
+        assert len(config.accounts) == 0
+
+        # Verify no stub file was created
+        config_file = config_dir / "bank_accounts_config.json"
+        assert not config_file.exists()
+
+        # Verify no stub creation message
+        captured = capsys.readouterr()
+        assert "Created stub configuration" not in captured.out
