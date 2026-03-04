@@ -122,8 +122,8 @@ class AppleSavingsOfxHandler(BankExportFormatHandler):
                 return None
             content = parent_match.group(1)
 
-        # Extract tag value
-        pattern = f"<{tag}>(.*?)<"
+        # Extract tag value (match up to next tag or end of string)
+        pattern = f"<{tag}>([^<]*)"
         match = re.search(pattern, content)
         return match.group(1).strip() if match else None
 

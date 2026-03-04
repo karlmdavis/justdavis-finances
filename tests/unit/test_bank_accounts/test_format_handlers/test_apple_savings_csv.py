@@ -36,29 +36,29 @@ def test_parse_transactions(sample_csv):
 
     assert len(result.transactions) == 3
 
-    # First transaction (interest - consumer positive, should be flipped to negative)
+    # First transaction (credit/interest - positive inflow)
     tx1 = result.transactions[0]
     assert tx1.posted_date == FinancialDate.from_string("2024-12-31")
     assert tx1.transaction_date == FinancialDate.from_string("2024-12-30")
-    assert tx1.description == "Interest Earned"
-    assert tx1.amount == Money.from_cents(-125)  # Flipped sign (deposit → negative)
+    assert tx1.description == "Interest Paid"
+    assert tx1.amount == Money.from_cents(125)  # Credit = positive
     assert tx1.type == "Interest"
 
-    # Second transaction (withdrawal - consumer negative, should be flipped to positive)
+    # Second transaction (debit/withdrawal - negative outflow)
     tx2 = result.transactions[1]
     assert tx2.posted_date == FinancialDate.from_string("2024-12-30")
     assert tx2.transaction_date == FinancialDate.from_string("2024-12-29")
-    assert tx2.description == "Withdrawal to Apple Card"
-    assert tx2.amount == Money.from_cents(50000)  # Flipped sign (withdrawal → positive)
-    assert tx2.type == "Transfer"
+    assert tx2.description == "ACH Online transfer to JPMORGAN CHASE BANK, NA"
+    assert tx2.amount == Money.from_cents(-50000)  # Debit = negative
+    assert tx2.type == "ACH"
 
-    # Third transaction (deposit - consumer positive, should be flipped to negative)
+    # Third transaction (credit/deposit - positive inflow)
     tx3 = result.transactions[2]
     assert tx3.posted_date == FinancialDate.from_string("2024-12-29")
     assert tx3.transaction_date == FinancialDate.from_string("2024-12-28")
-    assert tx3.description == "Deposit from Checking"
-    assert tx3.amount == Money.from_cents(-100000)  # Flipped sign (deposit → negative)
-    assert tx3.type == "Transfer"
+    assert tx3.description == "ACH Online transfer from JPMORGAN CHASE BANK, NA"
+    assert tx3.amount == Money.from_cents(100000)  # Credit = positive
+    assert tx3.type == "ACH"
 
 
 def test_parse_no_balances(sample_csv):
@@ -88,8 +88,8 @@ def test_validate_file_wrong_extension(tmp_path):
 
 def test_parse_invalid_amount_fails(tmp_path):
     """Test parsing fails with invalid amount format."""
-    csv_content = """Transaction Date,Clearing Date,Description,Amount (USD),Transaction Type,Balance (USD)
-12/30/2024,12/31/2024,"TEST","---","Interest",42053.56
+    csv_content = """Transaction Date,Posted Date,Activity Type,Transaction Type,Description,Currency Code,Amount
+12/30/2024,12/31/2024,"Interest","Credit","TEST","USD","---"
 """
 
     csv_file = tmp_path / "invalid.csv"

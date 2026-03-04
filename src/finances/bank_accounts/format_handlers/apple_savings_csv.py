@@ -13,18 +13,19 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
     """
     Apple Savings CSV format handler.
 
-    Sign Convention: Consumer perspective (deposits positive, withdrawals negative)
-    Normalization: Flip all signs (consumer → accounting)
-    Balance Data: None (balance column exists but is unreliable - ignore it)
+    Sign Convention: Amounts are absolute values; Transaction Type (Credit/Debit) determines sign.
+    Normalization: Credit → positive (deposit/inflow), Debit → negative (withdrawal/outflow)
+    Balance Data: None (no balance column in this format)
     """
 
     EXPECTED_HEADERS: ClassVar[list[str]] = [
         "Transaction Date",
-        "Clearing Date",
-        "Description",
-        "Amount (USD)",
+        "Posted Date",
+        "Activity Type",
         "Transaction Type",
-        "Balance (USD)",
+        "Description",
+        "Currency Code",
+        "Amount",
     ]
 
     @property
@@ -60,20 +61,22 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
 
             for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
                 try:
-                    # Parse amount and flip sign (consumer → accounting)
-                    amount_str = row["Amount (USD)"].strip()
+                    # Parse amount (always absolute) and apply sign from Transaction Type
+                    amount_str = row["Amount"].strip()
                     if not amount_str or amount_str == "---":
                         raise ValueError(f"Invalid amount format at line {row_num}: '{amount_str}'")
 
-                    # Flip sign: consumer perspective → accounting standard
-                    amount = Money.from_dollars(amount_str) * -1
+                    # Credit = positive (deposit/inflow), Debit = negative (withdrawal/outflow)
+                    amount = Money.from_dollars(amount_str)
+                    if row["Transaction Type"].strip() != "Credit":
+                        amount = amount * -1
 
                     tx = BankTransaction(
-                        posted_date=self._parse_date(row["Clearing Date"]),
+                        posted_date=self._parse_date(row["Posted Date"]),
                         transaction_date=self._parse_date(row["Transaction Date"]),
                         description=row["Description"],
                         amount=amount,
-                        type=row["Transaction Type"],
+                        type=row["Activity Type"],
                     )
 
                     transactions.append(tx)
