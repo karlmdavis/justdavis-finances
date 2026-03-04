@@ -84,11 +84,11 @@ def retrieve(config: Path, base_dir: Path) -> None:
         click.echo("\nRetrieval Summary:")
         for account_slug, stats in summary.items():
             click.echo(f"  {account_slug}:")
-            click.echo(f"    Files copied: {stats['files_copied']}")
-            click.echo(f"    Files skipped: {stats['files_skipped']}")
+            click.echo(f"    Files copied: {stats['copied']}")
+            click.echo(f"    Files skipped: {stats['skipped']}")
 
-        total_copied = sum(s["files_copied"] for s in summary.values())
-        total_skipped = sum(s["files_skipped"] for s in summary.values())
+        total_copied = sum(s["copied"] for s in summary.values())
+        total_skipped = sum(s["skipped"] for s in summary.values())
         click.echo(f"\nTotal: {total_copied} copied, {total_skipped} skipped")
 
         click.echo("\nDone! account_data_retrieve completed")

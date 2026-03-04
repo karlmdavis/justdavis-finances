@@ -252,8 +252,8 @@ class TestBankDataParseFlowNode:
         file2_time = files[1].name.split("_test-checking.json")[0]
         assert file1_time != file2_time
 
-    def test_output_files_include_all_accumulated(self, test_config, flow_context):
-        """FlowResult.outputs should include all accumulated files (Pattern C protection)."""
+    def test_output_files_include_only_new_file(self, test_config, flow_context):
+        """FlowResult.outputs should include only the newly created file; flow engine handles cleanup."""
         # Create raw data
         create_raw_bank_data(test_config["data_dir"], "test-checking")
 
@@ -270,10 +270,10 @@ class TestBankDataParseFlowNode:
         # Second execution
         result2 = parse_node.execute(flow_context)
 
-        # Verify second run's outputs includes BOTH files
-        assert len(result2.outputs) == 2
+        # Verify second run's outputs includes ONLY the new file (flow engine archives old ones)
+        assert len(result2.outputs) == 1
 
-        # Verify both are paths
+        # Verify output is a valid path
         for output in result2.outputs:
             assert isinstance(output, Path)
             assert output.exists()
@@ -412,8 +412,8 @@ class TestBankDataReconcileFlowNode:
         file2_time = files[1].name.split("_operations.json")[0]
         assert file1_time != file2_time
 
-    def test_output_files_include_all_accumulated(self, test_config, flow_context):
-        """FlowResult.outputs should include all accumulated files (Pattern C protection)."""
+    def test_output_files_include_only_new_file(self, test_config, flow_context):
+        """FlowResult.outputs should include only the newly created file; flow engine handles cleanup."""
         # Setup
         create_raw_bank_data(test_config["data_dir"], "test-checking")
         parse_node = BankDataParseFlowNode(test_config["data_dir"], test_config["config"])
@@ -445,8 +445,8 @@ class TestBankDataReconcileFlowNode:
         # Second execution
         result2 = reconcile_node.execute(flow_context)
 
-        # Verify second run's outputs includes BOTH files
-        assert len(result2.outputs) == 2
+        # Verify second run's outputs includes ONLY the new file (flow engine archives old ones)
+        assert len(result2.outputs) == 1
 
     def test_returns_warning_when_diverged(self, test_config, flow_context):
         """Node should return warning when accounts have discrepancies.

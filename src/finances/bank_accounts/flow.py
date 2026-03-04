@@ -255,16 +255,11 @@ class BankDataParseFlowNode(FlowNode):
                 output_file = self.store.save(account_slug, data)
                 new_files.append(output_file)
 
-            # Get ALL existing files for cleanup protection
-            output_info = self.get_output_info()
-            output_files = output_info.get_output_files()
-            all_paths = [f.path for f in output_files]
-
             return FlowResult(
                 success=True,
                 items_processed=len(parse_results),
                 new_items=len(new_files),
-                outputs=all_paths,  # Protects all accumulated files
+                outputs=new_files,  # Only protect newly created files; flow engine archives and cleans up old ones
                 metadata={
                     "accounts_parsed": list(parse_results.keys()),
                     "total_transactions": total_txs,
@@ -411,11 +406,6 @@ class BankDataReconcileFlowNode(FlowNode):
             # Use DataStore to create timestamped file
             output_file = self.store.save(data)
 
-            # Get ALL existing files for cleanup protection
-            output_info = self.get_output_info()
-            output_files = output_info.get_output_files()
-            all_paths = [f.path for f in output_files]
-
             # Check for divergences from results
             reconciled_count = sum(
                 1 for r in reconcile_results.values() if r.reconciliation.last_reconciled_date is not None
@@ -430,7 +420,9 @@ class BankDataReconcileFlowNode(FlowNode):
                     success=True,
                     items_processed=len(reconcile_results),
                     new_items=1,
-                    outputs=all_paths,
+                    outputs=[
+                        output_file
+                    ],  # Only newly created file; flow engine archives and cleans up old ones
                     requires_review=True,
                     review_instructions=f"{diverged_count} account(s) have balance discrepancies",
                     metadata={
@@ -444,7 +436,7 @@ class BankDataReconcileFlowNode(FlowNode):
                 success=True,
                 items_processed=len(reconcile_results),
                 new_items=1,
-                outputs=all_paths,
+                outputs=[output_file],  # Only newly created file; flow engine archives and cleans up old ones
                 metadata={
                     "reconciled": reconciled_count,
                     "diverged": diverged_count,
