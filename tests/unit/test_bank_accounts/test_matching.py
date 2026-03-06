@@ -2,7 +2,13 @@
 
 import pytest
 
-from finances.bank_accounts.matching import MatchResult, YnabTransaction, find_matches, normalize_description
+from finances.bank_accounts.matching import (
+    FUZZY_MATCH_CONFIDENCE_THRESHOLD,
+    MatchResult,
+    YnabTransaction,
+    find_matches,
+    normalize_description,
+)
 from finances.bank_accounts.models import BankTransaction
 from finances.core import FinancialDate, Money
 
@@ -455,3 +461,72 @@ def test_transfer_date_window_too_far_apart():
     result = find_matches(bank_tx, ynab_txs)
 
     assert result.match_type == "none"
+
+
+def test_ynab_payee_expansion_daily_cash_deposit():
+    """Test that YNAB 'Deposit' expands to match bank 'Daily Cash Deposit' when ambiguous."""
+    # Apple Savings: bank has "Daily Cash Deposit", YNAB Direct Import abbreviates to "Deposit".
+    # With two candidates on the same date+amount, the expansion makes both score 1.0 so
+    # the first candidate wins as a fuzzy match instead of falling to ambiguous.
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-02-02"),
+        description="Daily Cash Deposit",
+        amount=Money.from_cents(6),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-02-02"),
+            amount=Money.from_cents(6),
+            payee_name="Deposit",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-02-02"),
+            amount=Money.from_cents(6),
+            payee_name="Deposit",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    # Expansion makes ynab_desc "daily cash deposit" == bank_desc → score 1.0 → fuzzy match
+    assert result.match_type == "fuzzy"
+    assert result.confidence is not None
+    assert result.confidence >= 0.8
+
+
+def test_ynab_payee_expansion_unknown_payee_unchanged():
+    """Test that an unknown YNAB payee is not expanded and behavior is unchanged.
+
+    "Safeway" is not in YNAB_PAYEE_EXPANSIONS so it stays as "safeway" after
+    normalization.  "safeway grocery" vs "safeway" scores ~0.64 (below threshold)
+    so the result is ambiguous — confirming no spurious expansion boosted the score.
+    """
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-03-01"),
+        description="SAFEWAY GROCERY",
+        amount=Money.from_cents(-2500),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-03-01"),
+            amount=Money.from_cents(-2500),
+            payee_name="Safeway",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-03-01"),
+            amount=Money.from_cents(-2500),
+            payee_name="Target",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    # No expansion → raw similarity below threshold → ambiguous (not artificially boosted)
+    assert result.match_type == "ambiguous"
+    assert result.candidates is not None
+    assert len(result.candidates) == 2
+    # All scores below threshold proves no expansion occurred
+    assert result.similarity_scores is not None
+    assert all(score < FUZZY_MATCH_CONFIDENCE_THRESHOLD for score in result.similarity_scores)

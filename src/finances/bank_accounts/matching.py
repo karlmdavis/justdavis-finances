@@ -18,6 +18,14 @@ Normalization:
     - Normalizes whitespace
     - Example: "AMAZON.COM*XX1234" → "amazoncom"
 
+YNAB Payee Expansion:
+    YNAB Direct Import sometimes abbreviates payee names relative to the bank's
+    description.
+    YNAB_PAYEE_EXPANSIONS maps the normalized YNAB abbreviation to the bank's full
+    description so fuzzy scoring compares equal strings.
+    Example: YNAB "Deposit" → expanded to "daily cash deposit" to match Apple Savings
+      bank CSV.
+
 Usage:
     result = find_matches(bank_tx, ynab_txs)
     if result.match_type == "exact":
@@ -45,6 +53,12 @@ from finances.core import FinancialDate, Money
 
 # Fuzzy matching configuration
 FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.8
+
+# Known cases where YNAB Direct Import uses a shorter payee name than the bank description.
+# Expanding the YNAB side preserves the bank's more specific description as the reference.
+YNAB_PAYEE_EXPANSIONS: dict[str, str] = {
+    "deposit": "daily cash deposit",  # Apple Savings: YNAB strips "Daily Cash" prefix
+}
 
 
 @dataclass(frozen=True)
@@ -156,6 +170,7 @@ def find_matches(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> M
         if ynab_tx.memo:
             ynab_parts.append(ynab_tx.memo)
         ynab_desc = normalize_description(" ".join(ynab_parts) if ynab_parts else "")
+        ynab_desc = YNAB_PAYEE_EXPANSIONS.get(ynab_desc, ynab_desc)  # expand if known abbreviation
 
         # Calculate similarity using SequenceMatcher
         score = SequenceMatcher(None, bank_desc, ynab_desc).ratio()
