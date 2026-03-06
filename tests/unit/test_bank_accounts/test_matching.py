@@ -282,3 +282,176 @@ def test_fuzzy_match_combines_payee_and_memo():
     assert result.ynab_transaction == ynab_txs[0]
     assert result.confidence is not None
     assert result.confidence > 0.8
+
+
+def test_transaction_date_fallback_when_posted_date_misses():
+    """Test fallback to transaction_date when posted_date finds no match (Apple Card 1-day offset)."""
+    # Apple Card: transaction_date is purchase date (what YNAB stores), posted_date is next day
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2023-04-29"),
+        transaction_date=FinancialDate.from_string("2023-04-28"),
+        description="BLAZE PIZZA",
+        amount=Money.from_cents(-3849),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2023-04-28"),
+            amount=Money.from_cents(-3849),
+            payee_name="Blaze Pizza",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_txs[0]
+    assert result.confidence == 1.0
+
+
+def test_posted_date_preferred_over_transaction_date():
+    """Test that posted_date match is used when found, not transaction_date."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2023-04-29"),
+        transaction_date=FinancialDate.from_string("2023-04-28"),
+        description="SAFEWAY",
+        amount=Money.from_cents(-2500),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2023-04-29"),
+            amount=Money.from_cents(-2500),
+            payee_name="Safeway",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2023-04-28"),
+            amount=Money.from_cents(-2500),
+            payee_name="Safeway",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    # Should use the posted_date match (first one), not the transaction_date match
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_txs[0]
+
+
+def test_transaction_date_fallback_not_used_when_none():
+    """Test that fallback is not attempted when transaction_date is None."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2023-04-29"),
+        transaction_date=None,
+        description="SOME STORE",
+        amount=Money.from_cents(-1500),
+    )
+
+    # YNAB tx on a different date - should not be matched
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2023-04-28"),
+            amount=Money.from_cents(-1500),
+            payee_name="Some Store",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    assert result.match_type == "none"
+
+
+def test_transaction_date_fallback_not_used_when_equal_to_posted_date():
+    """Test that fallback is skipped when transaction_date equals posted_date."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2023-04-29"),
+        transaction_date=FinancialDate.from_string("2023-04-29"),  # Same as posted_date
+        description="SOME STORE",
+        amount=Money.from_cents(-1500),
+    )
+
+    # No YNAB tx on that date - fallback would be a no-op anyway
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2023-04-28"),
+            amount=Money.from_cents(-1500),
+            payee_name="Some Store",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    assert result.match_type == "none"
+
+
+def test_transfer_date_window_matches_payment():
+    """Test transfer date-window fallback matches payment 2 days after YNAB transfer entry."""
+    # Bank: payment posted 2 days after YNAB recorded the transfer initiation
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-06-17"),
+        transaction_date=None,
+        description="APPLECARD GSBANK PAYMENT",
+        amount=Money.from_cents(-1462637),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-06-15"),
+            amount=Money.from_cents(-1462637),
+            payee_name="Transfer to Apple Card",
+            is_transfer=True,
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_txs[0]
+    assert result.confidence == 1.0
+
+
+def test_transfer_date_window_not_used_for_non_transfers():
+    """Test transfer date-window fallback is not used for non-transfer YNAB entries."""
+    # Regular YNAB entry (is_transfer=False) with matching amount but 2 days off
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-12-17"),
+        transaction_date=None,
+        description="KINDLE 529",
+        amount=Money.from_cents(-529),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-12-15"),
+            amount=Money.from_cents(-529),
+            payee_name="Amazon Kindle",
+            is_transfer=False,
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    assert result.match_type == "none"
+
+
+def test_transfer_date_window_too_far_apart():
+    """Test transfer date-window fallback does not match when offset exceeds 5 days."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-11-20"),
+        transaction_date=None,
+        description="CHASE CREDIT PAYMENT",
+        amount=Money.from_cents(-354009),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-11-14"),  # 6 days before posted_date
+            amount=Money.from_cents(-354009),
+            payee_name="Transfer to Chase Credit",
+            is_transfer=True,
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    assert result.match_type == "none"

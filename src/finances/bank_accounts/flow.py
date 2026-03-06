@@ -388,6 +388,7 @@ class BankDataReconcileFlowNode(FlowNode):
                     payee_name=tx.get("payee_name"),
                     memo=tx.get("memo"),
                     account_id=tx.get("account_id"),
+                    is_transfer=tx.get("transfer_account_id") is not None,
                 )
                 for tx in transactions_data
             ]

@@ -56,6 +56,7 @@ class YnabTransaction:
     payee_name: str | None = None
     memo: str | None = None
     account_id: str | None = None
+    is_transfer: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON output."""
@@ -115,8 +116,27 @@ def find_matches(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> M
     Returns:
         MatchResult with match_type and associated data
     """
-    # Filter by date + amount
+    # Filter by posted_date + amount (primary)
     candidates = [tx for tx in ynab_txs if tx.date == bank_tx.posted_date and tx.amount == bank_tx.amount]
+
+    # Fallback: try transaction_date when it differs from posted_date
+    if (
+        len(candidates) == 0
+        and bank_tx.transaction_date is not None
+        and bank_tx.transaction_date != bank_tx.posted_date
+    ):
+        candidates = [
+            tx for tx in ynab_txs if tx.date == bank_tx.transaction_date and tx.amount == bank_tx.amount
+        ]
+
+    # Transfer fallback: ±5 day window for YNAB transfer entries
+    # Handles YNAB initiation date vs bank clearing date offset (observed max: 4 days)
+    if len(candidates) == 0:
+        for ynab_tx in ynab_txs:
+            if ynab_tx.is_transfer and ynab_tx.amount == bank_tx.amount:
+                days_diff = abs(bank_tx.posted_date.age_days(ynab_tx.date))
+                if days_diff <= 5:
+                    candidates.append(ynab_tx)
 
     if len(candidates) == 0:
         return MatchResult(match_type="none")
