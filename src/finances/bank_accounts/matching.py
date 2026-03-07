@@ -58,6 +58,7 @@ FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.8
 # Expanding the YNAB side preserves the bank's more specific description as the reference.
 YNAB_PAYEE_EXPANSIONS: dict[str, str] = {
     "deposit": "daily cash deposit",  # Apple Savings: YNAB strips "Daily Cash" prefix
+    "amazon kindle services": "kindle svcs",  # Chase Credit: Kindle subscription
 }
 
 
@@ -113,7 +114,9 @@ def normalize_description(text: str) -> str:
     return text.strip()
 
 
-def find_matches(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> MatchResult:
+def find_matches(
+    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction], ynab_date_offset_days: int = 0
+) -> MatchResult:
     """
     Find YNAB transaction matching bank transaction.
 
@@ -126,6 +129,9 @@ def find_matches(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> M
     Args:
         bank_tx: Bank transaction to match
         ynab_txs: List of YNAB transactions to search
+        ynab_date_offset_days: Days to shift bank posted_date when searching YNAB.
+            Used when YNAB uses a different date convention than the bank CSV
+            (e.g., Apple Savings: YNAB uses earned date, bank uses deposited date).
 
     Returns:
         MatchResult with match_type and associated data
@@ -142,6 +148,15 @@ def find_matches(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> M
         candidates = [
             tx for tx in ynab_txs if tx.date == bank_tx.transaction_date and tx.amount == bank_tx.amount
         ]
+
+    # Fallback: try posted_date adjusted by account-level YNAB date offset
+    # Handles cases where YNAB uses a different date convention than the bank CSV
+    # (e.g., Apple Savings: YNAB uses earned date, bank uses deposited date, ~1 day offset)
+    if len(candidates) == 0 and ynab_date_offset_days != 0:
+        from datetime import timedelta
+
+        offset_date = FinancialDate(date=bank_tx.posted_date.date + timedelta(days=ynab_date_offset_days))
+        candidates = [tx for tx in ynab_txs if tx.date == offset_date and tx.amount == bank_tx.amount]
 
     # Transfer fallback: ±5 day window for YNAB transfer entries
     # Handles YNAB initiation date vs bank clearing date offset (observed max: 4 days)

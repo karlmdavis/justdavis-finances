@@ -48,6 +48,9 @@ class AccountConfig:
     # Import configuration
     import_patterns: tuple[ImportPattern, ...]  # Immutable sequence
 
+    # Date offset configuration
+    ynab_date_offset_days: int = 0  # Days to shift bank posted_date when searching YNAB
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON output."""
         return {
@@ -60,6 +63,7 @@ class AccountConfig:
             "source_directory": self.source_directory,
             "download_instructions": self.download_instructions,
             "import_patterns": [p.to_dict() for p in self.import_patterns],
+            "ynab_date_offset_days": self.ynab_date_offset_days,
         }
 
     @classmethod
@@ -75,6 +79,7 @@ class AccountConfig:
             source_directory=data["source_directory"],
             download_instructions=data["download_instructions"],
             import_patterns=tuple(ImportPattern.from_dict(p) for p in data["import_patterns"]),
+            ynab_date_offset_days=data.get("ynab_date_offset_days", 0),
         )
 
 

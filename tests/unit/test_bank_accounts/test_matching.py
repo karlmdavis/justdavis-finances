@@ -495,6 +495,79 @@ def test_ynab_payee_expansion_daily_cash_deposit():
     assert result.confidence >= 0.8
 
 
+def test_ynab_date_offset_matches_when_posted_date_misses():
+    """Test ynab_date_offset_days=-1 fallback finds match when YNAB uses day-before date."""
+    # Apple Savings: bank posted Jan 2, YNAB earned/recorded Jan 1 (offset -1)
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-01-02"),
+        description="Daily Cash Deposit",
+        amount=Money.from_cents(15),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-01-01"),  # one day before posted_date
+            amount=Money.from_cents(15),
+            payee_name="Deposit",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs, ynab_date_offset_days=-1)
+
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_txs[0]
+    assert result.confidence == 1.0
+
+
+def test_ynab_date_offset_zero_not_triggered():
+    """Test that offset=0 (default) skips the offset fallback entirely."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-01-02"),
+        description="Daily Cash Deposit",
+        amount=Money.from_cents(15),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-01-01"),  # offset would find this, but offset=0
+            amount=Money.from_cents(15),
+            payee_name="Deposit",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs, ynab_date_offset_days=0)
+
+    assert result.match_type == "none"
+
+
+def test_ynab_date_offset_not_triggered_when_step1_succeeds():
+    """Test that offset fallback is not triggered when posted_date already found candidates."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-01-02"),
+        description="Daily Cash Deposit",
+        amount=Money.from_cents(15),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-01-02"),  # exact posted_date match
+            amount=Money.from_cents(15),
+            payee_name="Deposit",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-01-01"),  # offset match — should NOT be used
+            amount=Money.from_cents(15),
+            payee_name="Deposit",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs, ynab_date_offset_days=-1)
+
+    # Step 1 found one candidate → exact match; offset step is never reached
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_txs[0]
+
+
 def test_ynab_payee_expansion_unknown_payee_unchanged():
     """Test that an unknown YNAB payee is not expanded and behavior is unchanged.
 

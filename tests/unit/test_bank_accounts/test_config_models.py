@@ -131,6 +131,7 @@ class TestAccountConfig:
                     "format_handler": "chase_credit_csv",
                 }
             ],
+            "ynab_date_offset_days": 0,
         }
 
     def test_from_dict(self):
@@ -257,6 +258,7 @@ class TestBankAccountsConfig:
                             "format_handler": "test_handler",
                         }
                     ],
+                    "ynab_date_offset_days": 0,
                 }
             ]
         }

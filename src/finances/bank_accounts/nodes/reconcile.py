@@ -126,22 +126,19 @@ def reconcile_account_data(
         # Filter YNAB transactions for this account
         ynab_txs_for_account = [tx for tx in ynab_transactions if tx.account_id == account.ynab_account_id]
 
-        # 2. Match bank transactions with YNAB transactions
+        # 2. Match bank transactions with YNAB transactions (greedy one-to-one)
+        # Each claimed YNAB tx is removed from the pool so two bank txs can't claim the same one.
         bank_matches: dict[BankTransaction, MatchResult] = {}
+        remaining_ynab = list(ynab_txs_for_account)
         for bank_tx in bank_txs:
-            match_result = find_matches(bank_tx, ynab_txs_for_account)
+            match_result = find_matches(bank_tx, remaining_ynab, account.ynab_date_offset_days)
             bank_matches[bank_tx] = match_result
-
-        # Track matched YNAB transaction IDs
-        matched_ynab_ids = set()
-        for match_result in bank_matches.values():
             if match_result.match_type in ("exact", "fuzzy") and match_result.ynab_transaction:
-                # Use object id to track which YNAB transactions were matched
-                matched_ynab_ids.add(id(match_result.ynab_transaction))
+                remaining_ynab.remove(match_result.ynab_transaction)
 
         # Track unmatched transactions
         unmatched_bank_txs = [tx for tx, result in bank_matches.items() if result.match_type == "none"]
-        unmatched_ynab_txs = [tx for tx in ynab_txs_for_account if id(tx) not in matched_ynab_ids]
+        unmatched_ynab_txs = remaining_ynab  # whatever wasn't claimed
 
         # 3. Generate operations
         operations: list[dict[str, Any]] = []
