@@ -463,6 +463,68 @@ def test_transfer_date_window_too_far_apart():
     assert result.match_type == "none"
 
 
+def test_single_payee_ambiguous_claims_first():
+    """When all YNAB candidates share the same payee, claim the first one as fuzzy.
+
+    Covers Kindle/Venmo/Apple scenarios where N identical YNAB entries exist for N
+    identical bank txs and description similarity can't distinguish between them.
+    """
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-11-01"),
+        description="Kindle Svcs*WH9KF0GQ3",
+        amount=Money.from_cents(-529),
+    )
+
+    # Two YNAB entries with same payee — scores are equal and below threshold
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-11-01"),
+            amount=Money.from_cents(-529),
+            payee_name="Amazon Kindle Services",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-11-01"),
+            amount=Money.from_cents(-529),
+            payee_name="Amazon Kindle Services",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    # Single-payee fallback: claims first candidate rather than flagging ambiguous
+    assert result.match_type == "fuzzy"
+    assert result.ynab_transaction == ynab_txs[0]
+    assert result.confidence is not None
+
+
+def test_multi_payee_ambiguous_still_ambiguous():
+    """When candidates have different payee names, ambiguous is preserved (genuine ambiguity)."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-12-15"),
+        description="PURCHASE",
+        amount=Money.from_cents(-500),
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-12-15"),
+            amount=Money.from_cents(-500),
+            payee_name="CVS Pharmacy",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-12-15"),
+            amount=Money.from_cents(-500),
+            payee_name="Canteen Vending",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    assert result.match_type == "ambiguous"
+    assert result.candidates is not None
+    assert len(result.candidates) == 2
+
+
 def test_ynab_payee_expansion_daily_cash_deposit():
     """Test that YNAB 'Deposit' expands to match bank 'Daily Cash Deposit' when ambiguous."""
     # Apple Savings: bank has "Daily Cash Deposit", YNAB Direct Import abbreviates to "Deposit".

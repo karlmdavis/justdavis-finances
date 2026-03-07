@@ -124,7 +124,8 @@ def find_matches(
     1. Filter YNAB txs by exact date + amount
     2. If unique match → return exact match
     3. If multiple matches → fuzzy match by description similarity
-    4. If no matches → return none
+    4. If all candidates share the same payee → claim first (single-payee fallback)
+    5. If no matches → return none
 
     Args:
         bank_tx: Bank transaction to match
@@ -196,9 +197,17 @@ def find_matches(
 
     if best_score > FUZZY_MATCH_CONFIDENCE_THRESHOLD:
         return MatchResult(match_type="fuzzy", ynab_transaction=best_match, confidence=best_score)
-    else:
-        return MatchResult(
-            match_type="ambiguous",
-            candidates=tuple(tx for tx, _ in scores),
-            similarity_scores=tuple(score for _, score in scores),
-        )
+
+    # Single-payee fallback: when all candidates share the same normalized payee name,
+    # description similarity can't distinguish between them — claim the first one.
+    # The greedy pool in the caller ensures each YNAB tx is claimed by at most one bank tx,
+    # so this is safe even when there are N identical YNAB entries for N identical bank txs.
+    unique_payees = {normalize_description(tx.payee_name or "") for tx, _ in scores}
+    if len(unique_payees) == 1:
+        return MatchResult(match_type="fuzzy", ynab_transaction=best_match, confidence=best_score)
+
+    return MatchResult(
+        match_type="ambiguous",
+        candidates=tuple(tx for tx, _ in scores),
+        similarity_scores=tuple(score for _, score in scores),
+    )
