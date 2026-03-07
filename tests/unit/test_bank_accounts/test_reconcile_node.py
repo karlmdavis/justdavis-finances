@@ -23,7 +23,7 @@ def _make_account(slug: str = "test-account", ynab_account_id: str = "acct-001")
         bank_name="Test Bank",
         account_type="checking",
         statement_frequency="monthly",
-        source_directory="/tmp/test",  # noqa: S108 — placeholder, never used as a real path
+        source_directory="~/Downloads/test",
         download_instructions="N/A",
         import_patterns=(ImportPattern(pattern="*.csv", format_handler="chase_checking_csv"),),
     )
