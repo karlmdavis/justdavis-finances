@@ -162,7 +162,7 @@ def _prompt_account(slug: str) -> str:
     try:
         response = input("Process this account? [Y/n] ").strip().lower()
         return "n" if response == "n" else "y"
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         print()
         return "n"
 
@@ -187,7 +187,7 @@ def _prompt_create_batch(has_multiple: bool, payload: list[dict[str, Any]]) -> s
             if response == "s" and has_multiple:
                 return "s"
             return "n"
-        except (EOFError, KeyboardInterrupt):
+        except EOFError:
             print()
             return "n"
 
@@ -197,7 +197,7 @@ def _prompt_apply_individual() -> bool:
     try:
         response = input("    Apply transaction? [y/N] ").strip().lower()
         return response == "y"
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         print()
         return False
 
@@ -207,7 +207,7 @@ def _prompt_acknowledge_batch() -> str:
     try:
         response = input("  Acknowledge all, Skip all? [A/n] ").strip().lower()
         return "n" if response == "n" else "a"
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         print()
         return "n"
 
