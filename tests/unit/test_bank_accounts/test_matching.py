@@ -665,3 +665,72 @@ def test_ynab_payee_expansion_unknown_payee_unchanged():
     # All scores below threshold proves no expansion occurred
     assert result.similarity_scores is not None
     assert all(score < FUZZY_MATCH_CONFIDENCE_THRESHOLD for score in result.similarity_scores)
+
+
+def test_merchant_field_preferred_over_description_for_fuzzy_matching():
+    """Merchant field (clean) used instead of verbose description for fuzzy scoring.
+
+    Apple Card OFX: description is verbose ('STARBUCKS 800-782-7282 WA USA'),
+    merchant is clean ('Starbucks'). With two candidates on same date+amount,
+    merchant should score high against the YNAB payee name, resolving to fuzzy match.
+    """
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-06-15"),
+        description="STARBUCKS 800-782-7282 UTAH AVE S 98134 WA USA",
+        amount=Money.from_cents(-650),
+        merchant="Starbucks",
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-06-15"),
+            amount=Money.from_cents(-650),
+            payee_name="Starbucks",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-06-15"),
+            amount=Money.from_cents(-650),
+            payee_name="Spotify",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    # merchant "Starbucks" matches YNAB payee "Starbucks" closely → fuzzy (not ambiguous)
+    assert result.match_type == "fuzzy"
+    assert result.ynab_transaction == ynab_txs[0]
+    assert result.confidence is not None
+    assert result.confidence > FUZZY_MATCH_CONFIDENCE_THRESHOLD
+
+
+def test_description_used_when_merchant_absent():
+    """When merchant is None, description is used as before (no regression).
+
+    Uses Chase-style description 'SAFEWAY' which closely matches YNAB 'Safeway'
+    to verify description-based fuzzy matching still works when merchant is absent.
+    """
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-06-15"),
+        description="SAFEWAY",
+        amount=Money.from_cents(-1999),
+        merchant=None,
+    )
+
+    ynab_txs = [
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-06-15"),
+            amount=Money.from_cents(-1999),
+            payee_name="Safeway",
+        ),
+        YnabTransaction(
+            date=FinancialDate.from_string("2024-06-15"),
+            amount=Money.from_cents(-1999),
+            payee_name="Target",
+        ),
+    ]
+
+    result = find_matches(bank_tx, ynab_txs)
+
+    # description "safeway" vs "safeway" = 1.0 → fuzzy match to Safeway (not ambiguous)
+    assert result.match_type == "fuzzy"
+    assert result.ynab_transaction == ynab_txs[0]

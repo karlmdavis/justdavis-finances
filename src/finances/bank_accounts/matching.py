@@ -177,8 +177,8 @@ def find_matches(
     # Multiple candidates - fuzzy match by description
     scores: list[tuple[YnabTransaction, float]] = []
     for ynab_tx in candidates:
-        # Normalize descriptions
-        bank_desc = normalize_description(bank_tx.description)
+        # Prefer merchant field (clean, matches YNAB payee names) over verbose description
+        bank_desc = normalize_description(bank_tx.merchant if bank_tx.merchant else bank_tx.description)
         # Combine payee_name and memo for better matching
         ynab_parts = []
         if ynab_tx.payee_name:
