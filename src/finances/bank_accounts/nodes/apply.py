@@ -282,6 +282,12 @@ def apply_reconciliation_operations(
                 continue
 
             # Display account summary
+            if total_flags > 0:
+                flag_dates = sorted(flags.keys())
+                date_range = f"{flag_dates[0]} \u2013 {flag_dates[-1]}"
+                noun = f"transaction{'s' if total_flags != 1 else ''}"
+                print(f"    Needing Manual Fixes: {total_flags} {noun}")
+                print(f"                          ({date_range})")
             if total_creates > 0:
                 create_dates = sorted(creates.keys())
                 date_range = f"{create_dates[0]} \u2013 {create_dates[-1]}"
@@ -291,12 +297,6 @@ def apply_reconciliation_operations(
                 print(
                     f"                          (across {days} day{'s' if days != 1 else ''}, {date_range})"
                 )
-            if total_flags > 0:
-                flag_dates = sorted(flags.keys())
-                date_range = f"{flag_dates[0]} \u2013 {flag_dates[-1]}"
-                noun = f"transaction{'s' if total_flags != 1 else ''}"
-                print(f"    Needing Manual Fixes: {total_flags} {noun}")
-                print(f"                          ({date_range})")
 
             print()
             choice = _prompt_account(slug)
@@ -347,10 +347,10 @@ def apply_reconciliation_operations(
             all_dates: set[str] = set(creates.keys()) | set(flags.keys())
             batches: list[tuple[str, str, list[dict[str, Any]]]] = []
             for date in sorted(all_dates):
-                if date in creates:
-                    batches.append((date, "create", creates[date]))
                 if date in flags:
                     batches.append((date, "flag", flags[date]))
+                if date in creates:
+                    batches.append((date, "create", creates[date]))
 
             for date, batch_type, batch_ops in batches:
                 if batch_type == "create":
