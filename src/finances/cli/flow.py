@@ -46,6 +46,7 @@ def setup_flow_nodes() -> None:
     )
     from ..bank_accounts.flow import (
         BankDataParseFlowNode,
+        BankDataReconcileApplyFlowNode,
         BankDataReconcileFlowNode,
         BankDataRetrieveFlowNode,
     )
@@ -70,6 +71,7 @@ def setup_flow_nodes() -> None:
     flow_registry.register_node(BankDataRetrieveFlowNode(config.data_dir, bank_config))
     flow_registry.register_node(BankDataParseFlowNode(config.data_dir, bank_config))
     flow_registry.register_node(BankDataReconcileFlowNode(config.data_dir, bank_config))
+    flow_registry.register_node(BankDataReconcileApplyFlowNode(config.data_dir, bank_config))
 
     # YNAB apply: applies generated splits (manual step)
     def ynab_apply_executor(context: FlowContext) -> FlowResult:

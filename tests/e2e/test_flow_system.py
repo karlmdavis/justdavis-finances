@@ -613,12 +613,13 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
 
     Level 3 (depends on level 2):
     13. split_generation - Execute (depends on amazon_matching + apple_matching)
+    14. bank_data_reconcile_apply - Skip (depends on bank_data_reconcile)
 
     Level 4 (depends on level 3):
-    14. ynab_apply - Skip (would modify real YNAB data)
+    15. ynab_apply - Skip (would modify real YNAB data)
 
     Nodes executed: amazon_unzip, apple_receipt_parsing, amazon_matching, apple_matching, split_generation
-    Nodes skipped: amazon_order_history_request, apple_email_fetch, bank_data_retrieve, ynab_sync, bank_data_parse, cash_flow_analysis, retirement_update, bank_data_reconcile, ynab_apply
+    Nodes skipped: amazon_order_history_request, apple_email_fetch, bank_data_retrieve, ynab_sync, bank_data_parse, cash_flow_analysis, retirement_update, bank_data_reconcile, bank_data_reconcile_apply, ynab_apply
     """
     import os
 
@@ -698,9 +699,13 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
             wait_for_node_prompt(child, "split_generation")
             send_node_decision(child, execute=True)
 
-            # Level 4 - Step 14: ynab_apply - Skip
-            wait_for_node_prompt(child, "ynab_apply")
+            # Level 3 - Step 14: bank_data_reconcile_apply - Skip (depends on bank_data_reconcile)
+            wait_for_node_prompt(child, "bank_data_reconcile_apply")
             assert_node_executed(output.getvalue(), "split_generation", "completed")
+            send_node_decision(child, execute=False)
+
+            # Level 4 - Step 15: ynab_apply - Skip
+            wait_for_node_prompt(child, "ynab_apply")
             send_node_decision(child, execute=False)
 
             # Wait for execution summary
@@ -794,13 +799,13 @@ def test_flow_preview_and_cancel(flow_test_env_coordinated):
         with capture_and_log_on_failure(child) as output:
             # Skip all nodes (preview without execution)
             # In the new model, users preview each node and can skip all of them
-            for _ in range(14):  # 14 nodes in the flow
+            for _ in range(15):  # 15 nodes in the flow
                 child.sendline("n")
 
             # Wait for execution summary showing all skipped
             child.expect("EXECUTION SUMMARY", timeout=10)
             child.expect("Executed: 0 nodes", timeout=5)
-            child.expect("Skipped:  14 nodes", timeout=5)
+            child.expect("Skipped:  15 nodes", timeout=5)
 
             # Wait for process to complete
             child.expect(pexpect.EOF, timeout=5)

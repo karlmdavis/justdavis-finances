@@ -20,6 +20,8 @@ from finances.core.flow import (
     OutputInfo,
 )
 
+_TIMESTAMP_FMT = "%Y-%m-%d_%H-%M-%S"
+
 
 class BankDataRetrieveOutputInfo(OutputInfo):
     """Validates that raw account data exists for configured accounts."""
@@ -455,4 +457,153 @@ class BankDataReconcileFlowNode(FlowNode):
                 success=False,
                 error_message=f"Reconcile failed: {e}",
                 outputs=all_paths,
+            )
+
+
+class BankDataReconcileApplyOutputInfo(OutputInfo):
+    """Validates that apply log files exist."""
+
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+
+    def is_data_ready(self) -> bool:
+        """Check if at least one apply log exists."""
+        if not self.output_dir.exists():
+            return False
+        return len(list(self.output_dir.glob("*_apply_log.ndjson"))) >= 1
+
+    def get_output_files(self) -> list[OutputFile]:
+        """Return all apply log NDJSON files."""
+        if not self.output_dir.exists():
+            return []
+        return [OutputFile(path=f, record_count=1) for f in self.output_dir.glob("*.ndjson")]
+
+
+class BankDataReconcileApplyFlowNode(FlowNode):
+    """
+    Interactive flow node for applying reconciliation operations.
+
+    Reads from: data/bank_accounts/reconciliation/{latest}_operations.json
+    Writes to:  data/bank_accounts/reconciliation_apply/{timestamp}_apply_log.ndjson
+    Depends on: bank_data_reconcile
+    """
+
+    def __init__(self, data_dir: Path, config: BankAccountsConfig):
+        super().__init__("bank_data_reconcile_apply")
+        self._dependencies = {"bank_data_reconcile"}
+        self.data_dir = data_dir
+        self.config = config
+        self.apply_dir = data_dir / "bank_accounts" / "reconciliation_apply"
+
+    def get_output_info(self) -> OutputInfo:
+        """Return output validation info."""
+        return BankDataReconcileApplyOutputInfo(self.apply_dir)
+
+    def get_output_dir(self) -> Path | None:
+        """Return output directory path."""
+        return self.apply_dir
+
+    def get_data_summary(self, context: FlowContext) -> NodeDataSummary:
+        """Return summary of pending operations from latest reconciliation file."""
+        reconciliation_dir = self.data_dir / "bank_accounts" / "reconciliation"
+        ops_files = (
+            sorted(reconciliation_dir.glob("*_operations.json")) if reconciliation_dir.exists() else []
+        )
+
+        if not ops_files:
+            return NodeDataSummary(
+                exists=False,
+                last_updated=None,
+                age_days=None,
+                item_count=0,
+                size_bytes=0,
+                summary_text="No reconciliation data — run bank_data_reconcile first",
+            )
+
+        latest = ops_files[-1]
+        try:
+            from finances.core.json_utils import read_json
+
+            data = read_json(latest)
+            accounts_data = data.get("accounts", {})
+            creates = sum(
+                sum(1 for op in acct.get("operations", []) if op.get("type") == "create_transaction")
+                for acct in accounts_data.values()
+            )
+            flags = sum(
+                sum(1 for op in acct.get("operations", []) if op.get("type") == "flag_discrepancy")
+                for acct in accounts_data.values()
+            )
+            from finances.core import FinancialDate
+
+            mtime = latest.stat().st_mtime
+            last_modified = datetime.fromtimestamp(mtime)
+            age = FinancialDate.today().age_days(
+                FinancialDate.from_string(last_modified.strftime("%Y-%m-%d"))
+            )
+            return NodeDataSummary(
+                exists=True,
+                last_updated=last_modified,
+                age_days=abs(age),
+                item_count=creates + flags,
+                size_bytes=latest.stat().st_size,
+                summary_text=f"{creates} creates, {flags} flags pending",
+            )
+        except Exception:
+            return NodeDataSummary(
+                exists=True,
+                last_updated=None,
+                age_days=None,
+                item_count=0,
+                size_bytes=0,
+                summary_text="Could not read reconciliation data",
+            )
+
+    @property
+    def requires_review(self) -> bool:
+        """Always requires review — node is inherently interactive."""
+        return True
+
+    def execute(self, context: FlowContext) -> FlowResult:
+        """Execute interactive apply operation."""
+        from finances.bank_accounts.nodes.apply import apply_reconciliation_operations
+
+        # Find latest reconciliation ops file
+        reconciliation_dir = self.data_dir / "bank_accounts" / "reconciliation"
+        ops_files = (
+            sorted(reconciliation_dir.glob("*_operations.json")) if reconciliation_dir.exists() else []
+        )
+
+        if not ops_files:
+            return FlowResult(
+                success=False,
+                error_message="No reconciliation operations file found — run bank_data_reconcile first",
+                outputs=[],
+            )
+
+        ops_file = ops_files[-1]
+        timestamp = datetime.now().strftime(_TIMESTAMP_FMT)
+        apply_log_path = self.apply_dir / f"{timestamp}_apply_log.ndjson"
+
+        try:
+            counts = apply_reconciliation_operations(ops_file, apply_log_path, self.config)
+
+            return FlowResult(
+                success=True,
+                items_processed=counts["applied"] + counts["skipped"] + counts["acknowledged"],
+                new_items=counts["applied"],
+                outputs=[apply_log_path],
+                requires_review=False,
+                metadata={
+                    "applied": counts["applied"],
+                    "skipped": counts["skipped"],
+                    "acknowledged": counts["acknowledged"],
+                    "log_file": str(apply_log_path),
+                },
+            )
+        except Exception as e:
+            return FlowResult(
+                success=False,
+                error_message=f"Apply failed: {e}",
+                outputs=[apply_log_path] if apply_log_path.exists() else [],
             )
