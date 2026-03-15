@@ -1,12 +1,14 @@
 """Unit tests for bank_accounts.nodes.apply."""
 
 import json
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 from finances.bank_accounts.models import BankAccountsConfig
 from finances.bank_accounts.nodes.apply import (
+    _format_amount,
     _group_operations,
     _make_import_id,
     apply_reconciliation_operations,
@@ -86,6 +88,21 @@ def _make_flag_op(
 
 
 # ---------------------------------------------------------------------------
+# _format_amount tests
+# ---------------------------------------------------------------------------
+
+
+def test_format_amount_expense():
+    """Negative milliunits display as -$X.XX."""
+    assert _format_amount(-12990) == "-$12.99"
+
+
+def test_format_amount_income():
+    """Positive milliunits display as +$X.XX."""
+    assert _format_amount(12990) == "+$12.99"
+
+
+# ---------------------------------------------------------------------------
 # import_id tests
 # ---------------------------------------------------------------------------
 
@@ -112,14 +129,18 @@ def test_import_id_unique_for_different_descriptions():
 
 
 def test_import_id_format():
-    """import_id has expected prefix format."""
+    """import_id is a valid UUID (always exactly 36 characters)."""
     import_id = _make_import_id("apple-card", "2024-03-15", -12990, "SPOTIFY USA")
-    parts = import_id.split(":")
-    assert parts[0] == "bank"
-    assert parts[1] == "apple-card"
-    assert parts[2] == "2024-03-15"
-    assert parts[3] == "-12990"
-    assert len(parts[4]) == 8  # sha256[:8]
+    assert len(import_id) == 36
+    uuid_pattern = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    assert uuid_pattern.match(import_id), f"import_id {import_id!r} is not a valid UUID"
+
+
+def test_import_id_within_ynab_limit():
+    """import_id is always ≤ 36 characters even with very long slug and large amount."""
+    long_slug = "this-is-a-very-long-bank-account-slug-that-exceeds-normal-length"
+    import_id = _make_import_id(long_slug, "2024-03-15", -999999999999, "A" * 200)
+    assert len(import_id) <= 36
 
 
 # ---------------------------------------------------------------------------
