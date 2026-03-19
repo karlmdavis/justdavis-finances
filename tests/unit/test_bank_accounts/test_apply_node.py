@@ -217,7 +217,7 @@ def test_account_with_no_pending_ops_skipped_silently():
 
         # No prompt should have been issued
         mock_input.assert_not_called()
-        assert counts == {"applied": 0, "skipped": 0, "acknowledged": 0, "failed": 0}
+        assert counts == {"applied": 0, "skipped": 0, "acknowledged": 0, "failed": 0, "deleted": 0}
         # Log should be empty
         assert not log_path.exists() or log_path.read_text().strip() == ""
 
@@ -618,3 +618,148 @@ def test_batches_interleaved_by_date():
 
         # Flag on 2024-05-01 should appear before create on 2024-06-20
         assert dates == ["2024-05-01", "2024-06-20"]
+
+
+# ---------------------------------------------------------------------------
+# DELETE batch tests
+# ---------------------------------------------------------------------------
+
+
+def _make_delete_op(
+    ynab_date: str = "2024-03-20",
+    amount: int = -12340,
+    payee_name: str = "Netflix",
+    ynab_id: str = "ynab-abc-123",
+) -> dict:
+    return {
+        "type": "delete_ynab_transaction",
+        "transaction": {
+            "id": ynab_id,
+            "date": ynab_date,
+            "amount": amount,
+            "payee_name": payee_name,
+        },
+    }
+
+
+def test_delete_batch_applied():
+    """'y' on delete batch → ynab delete transaction called per op, logged as applied."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        ops_file = _build_ops_file(
+            tmp_path,
+            {
+                "apple-card": {
+                    "account_id": "acct-apple",
+                    "operations": [
+                        _make_delete_op("2024-03-20", -12340, "Netflix", "ynab-id-1"),
+                        _make_delete_op("2024-03-20", -9990, "Spotify", "ynab-id-2"),
+                    ],
+                }
+            },
+        )
+        log_path = tmp_path / "log.ndjson"
+        config = _make_config()
+
+        # Account prompt: y; delete batch prompt: y
+        with (
+            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("builtins.input", side_effect=["y", "y"]),
+        ):
+            mock_run.return_value.returncode = 0
+            counts = apply_reconciliation_operations(ops_file, log_path, config)
+
+        # Should call ynab delete transaction twice (once per op)
+        assert mock_run.call_count == 2
+        for call in mock_run.call_args_list:
+            cmd = call[0][0]
+            assert cmd[:4] == ["ynab", "delete", "transaction", "--id"]
+
+        assert counts["deleted"] == 2
+        assert counts["applied"] == 0
+        assert counts["skipped"] == 0
+
+        lines = log_path.read_text().strip().splitlines()
+        assert len(lines) == 2
+        for line in lines:
+            entry = json.loads(line)
+            assert entry["op_type"] == "delete_ynab_transaction"
+            assert entry["action"] == "applied"
+            assert entry["ynab_exit_code"] == 0
+
+
+def test_delete_batch_skipped():
+    """'N' on delete batch → all logged as skipped, no ynab call."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        ops_file = _build_ops_file(
+            tmp_path,
+            {
+                "apple-card": {
+                    "account_id": "acct-apple",
+                    "operations": [
+                        _make_delete_op("2024-03-20", -12340, "Netflix", "ynab-id-1"),
+                    ],
+                }
+            },
+        )
+        log_path = tmp_path / "log.ndjson"
+        config = _make_config()
+
+        # Account prompt: y; delete batch prompt: n
+        with (
+            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("builtins.input", side_effect=["y", "n"]),
+        ):
+            counts = apply_reconciliation_operations(ops_file, log_path, config)
+
+        mock_run.assert_not_called()
+        assert counts["deleted"] == 0
+        assert counts["skipped"] == 1
+
+        lines = log_path.read_text().strip().splitlines()
+        assert len(lines) == 1
+        entry = json.loads(lines[0])
+        assert entry["op_type"] == "delete_ynab_transaction"
+        assert entry["action"] == "skipped"
+
+
+def test_delete_batch_split():
+    """'s' on delete batch → individual review, one applied, one skipped."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        ops_file = _build_ops_file(
+            tmp_path,
+            {
+                "apple-card": {
+                    "account_id": "acct-apple",
+                    "operations": [
+                        _make_delete_op("2024-03-20", -12340, "Netflix", "ynab-id-1"),
+                        _make_delete_op("2024-03-20", -9990, "Spotify", "ynab-id-2"),
+                    ],
+                }
+            },
+        )
+        log_path = tmp_path / "log.ndjson"
+        config = _make_config()
+
+        # Account prompt: y; batch prompt: s; item 1: y; item 2: n
+        with (
+            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("builtins.input", side_effect=["y", "s", "y", "n"]),
+            patch("builtins.print"),
+        ):
+            mock_run.return_value.returncode = 0
+            counts = apply_reconciliation_operations(ops_file, log_path, config)
+
+        assert mock_run.call_count == 1
+        assert counts["deleted"] == 1
+        assert counts["skipped"] == 1
+
+        lines = log_path.read_text().strip().splitlines()
+        assert len(lines) == 2
+        entries = [json.loads(line) for line in lines]
+        applied = [e for e in entries if e["action"] == "applied"]
+        skipped = [e for e in entries if e["action"] == "skipped"]
+        assert len(applied) == 1
+        assert len(skipped) == 1

@@ -44,6 +44,7 @@ def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]
             "account_id": str,
             "creates": {date: [op, ...]},
             "flags": {date: [op, ...]},
+            "deletes": {date: [op, ...]},
         }}
     """
     result: dict[str, dict[str, Any]] = {}
@@ -51,16 +52,22 @@ def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]
         account_id = account_data.get("account_id", "")
         creates: dict[str, list[dict[str, Any]]] = {}
         flags: dict[str, list[dict[str, Any]]] = {}
+        deletes: dict[str, list[dict[str, Any]]] = {}
         for op in account_data.get("operations", []):
-            date = op["transaction"].get("posted_date", "")
             if op.get("type") == "create_transaction":
+                date = op["transaction"].get("posted_date", "")
                 creates.setdefault(date, []).append(op)
             elif op.get("type") == "flag_discrepancy":
+                date = op["transaction"].get("posted_date", "")
                 flags.setdefault(date, []).append(op)
+            elif op.get("type") == "delete_ynab_transaction":
+                date = op["transaction"].get("date", "")
+                deletes.setdefault(date, []).append(op)
         result[slug] = {
             "account_id": account_id,
             "creates": creates,
             "flags": flags,
+            "deletes": deletes,
         }
     return result
 
@@ -214,6 +221,66 @@ def _prompt_acknowledge_batch() -> str:
         return "n"
 
 
+def _display_delete_batch(date: str, ops: list[dict[str, Any]], ynab_delete_log_path: Path) -> None:
+    """Display a DELETE batch header with line items."""
+    n = len(ops)
+    noun = f"{n} Transaction{'s' if n != 1 else ''}"
+    print()
+    print(f"  Delete Unmatched YNAB {noun} on {date}?")
+    print("    These YNAB entries have no corresponding bank transaction.")
+    print()
+    for i, op in enumerate(ops, 1):
+        ynab_tx = op["transaction"]
+        amount_display = _format_amount(ynab_tx["amount"])
+        payee = ynab_tx.get("payee_name", "(unknown)")
+        ynab_id = ynab_tx.get("id", "")
+        memo = ynab_tx.get("memo")
+        print(f"    {i}. Amount: {amount_display}")
+        print(f"       Payee:  {payee}")
+        if memo:
+            print(f"       Memo:   {memo}")
+        print(f"       YNAB ID: {ynab_id}")
+    print()
+    times = f"({n} time{'s' if n != 1 else ''})"
+    print(f"    Command To Be Run: ynab delete transaction --id {{id}}  {times}")
+    print(f"                       --delete-log {ynab_delete_log_path}")
+
+
+def _display_individual_delete(date: str, op: dict[str, Any], ynab_delete_log_path: Path) -> None:
+    """Display a single DELETE item for individual review."""
+    ynab_tx = op["transaction"]
+    amount_display = _format_amount(ynab_tx["amount"])
+    payee = ynab_tx.get("payee_name", "(unknown)")
+    ynab_id = ynab_tx.get("id", "")
+    print()
+    print("  Delete YNAB Transaction Individually?")
+    memo = ynab_tx.get("memo")
+    print(f"    Date:    {date}")
+    print(f"    Amount:  {amount_display}")
+    print(f"    Payee:   {payee}")
+    if memo:
+        print(f"    Memo:    {memo}")
+    print(f"    YNAB ID: {ynab_id}")
+    print()
+    print(f"    Command To Be Run: ynab delete transaction --id {ynab_id}")
+    print(f"                       --delete-log {ynab_delete_log_path}")
+
+
+def _prompt_delete_batch(has_multiple: bool) -> str:
+    """Prompt for delete batch action. Returns 'y', 'n', or 's' (if multiple items)."""
+    prompt = "  Delete all, Split batch, Skip all? [y/N/s] " if has_multiple else "  Delete, Skip? [y/N] "
+    try:
+        response = input(prompt).strip().lower()
+        if response == "y":
+            return "y"
+        if response == "s" and has_multiple:
+            return "s"
+        return "n"
+    except EOFError:
+        print()
+        return "n"
+
+
 def apply_reconciliation_operations(
     ops_file: Path,
     apply_log_path: Path,
@@ -246,9 +313,12 @@ def apply_reconciliation_operations(
 
     grouped = _group_operations(accounts_data)
 
-    counts: dict[str, int] = {"applied": 0, "skipped": 0, "acknowledged": 0, "failed": 0}
+    counts: dict[str, int] = {"applied": 0, "skipped": 0, "acknowledged": 0, "failed": 0, "deleted": 0}
 
     apply_log_path.parent.mkdir(parents=True, exist_ok=True)
+    ynab_delete_log_path = apply_log_path.with_name(
+        apply_log_path.name.replace("_apply_log.ndjson", "_ynab_delete_log.ndjson")
+    )
 
     print()
     print("  This node reconciles (i.e. corrects) the transaction data in YNAB,")
@@ -280,10 +350,12 @@ def apply_reconciliation_operations(
             account_id = group["account_id"] or slug_to_account_id.get(slug, "")
             creates = group["creates"]  # {date: [op, ...]}
             flags = group["flags"]  # {date: [op, ...]}
+            deletes = group["deletes"]  # {date: [op, ...]}
 
             total_creates = sum(len(ops) for ops in creates.values())
             total_flags = sum(len(ops) for ops in flags.values())
-            total_pending = total_creates + total_flags
+            total_deletes = sum(len(ops) for ops in deletes.values())
+            total_pending = total_creates + total_flags + total_deletes
 
             print(f"\n  Account Reconciliation Overview: {slug}")
 
@@ -298,6 +370,15 @@ def apply_reconciliation_operations(
                 noun = f"transaction{'s' if total_flags != 1 else ''}"
                 print(f"    Needing Manual Fixes: {total_flags} {noun}")
                 print(f"                          ({date_range})")
+            if total_deletes > 0:
+                delete_dates = sorted(deletes.keys())
+                date_range = f"{delete_dates[0]} \u2013 {delete_dates[-1]}"
+                days = len(delete_dates)
+                noun = f"transaction{'s' if total_deletes != 1 else ''}"
+                print(f"    To Be Deleted:        {total_deletes} {noun}")
+                print(
+                    f"                          (across {days} day{'s' if days != 1 else ''}, {date_range})"
+                )
             if total_creates > 0:
                 create_dates = sorted(creates.keys())
                 date_range = f"{create_dates[0]} \u2013 {create_dates[-1]}"
@@ -312,6 +393,34 @@ def apply_reconciliation_operations(
             choice = _prompt_account(slug)
             if choice == "n":
                 # Log all ops as skipped
+                for _date, ops in sorted(flags.items()):
+                    for op in ops:
+                        bank_tx = op["transaction"]
+                        candidates = op.get("candidates", [])
+                        candidate_names = [c.get("payee_name", "(unknown)") for c in candidates]
+                        write_log(
+                            {
+                                "op_type": "flag_discrepancy",
+                                "action": "skipped",
+                                "account_slug": slug,
+                                "posted_date": bank_tx["posted_date"],
+                                "amount_milliunits": bank_tx["amount_milliunits"],
+                                "candidates": candidate_names,
+                            }
+                        )
+                        counts["skipped"] += 1
+                for _date, ops in sorted(deletes.items()):
+                    for op in ops:
+                        ynab_tx = op["transaction"]
+                        write_log(
+                            {
+                                "op_type": "delete_ynab_transaction",
+                                "action": "skipped",
+                                "account_slug": slug,
+                                "transaction": ynab_tx,
+                            }
+                        )
+                        counts["skipped"] += 1
                 for _date, ops in sorted(creates.items()):
                     for op in ops:
                         bank_tx = op["transaction"]
@@ -335,24 +444,9 @@ def apply_reconciliation_operations(
                             }
                         )
                         counts["skipped"] += 1
-                for _date, ops in sorted(flags.items()):
-                    for op in ops:
-                        bank_tx = op["transaction"]
-                        candidates = op.get("candidates", [])
-                        candidate_names = [c.get("payee_name", "(unknown)") for c in candidates]
-                        write_log(
-                            {
-                                "op_type": "flag_discrepancy",
-                                "action": "skipped",
-                                "account_slug": slug,
-                                "posted_date": bank_tx["posted_date"],
-                                "amount_milliunits": bank_tx["amount_milliunits"],
-                                "candidates": candidate_names,
-                            }
-                        )
-                        counts["skipped"] += 1
                 continue
 
+            # Process in order: flags, deletes, creates
             for date, batch_ops in sorted(flags.items()):
                 _display_flag_batch(date, batch_ops)
                 action = _prompt_acknowledge_batch()
@@ -374,6 +468,105 @@ def apply_reconciliation_operations(
                     if log_action == "acknowledged":
                         counts["acknowledged"] += 1
                     else:
+                        counts["skipped"] += 1
+
+            for date, batch_ops in sorted(deletes.items()):
+                _display_delete_batch(date, batch_ops, ynab_delete_log_path)
+                has_multiple = len(batch_ops) > 1
+                action = _prompt_delete_batch(has_multiple)
+
+                if action == "y":
+                    for op in batch_ops:
+                        ynab_tx = op["transaction"]
+                        ynab_id = ynab_tx.get("id", "")
+                        del_proc = subprocess.run(
+                            [
+                                "ynab",
+                                "delete",
+                                "transaction",
+                                "--id",
+                                ynab_id,
+                                "--delete-log",
+                                str(ynab_delete_log_path),
+                            ],
+                        )
+                        exit_code = del_proc.returncode
+                        if exit_code != 0:
+                            print(f"  ERROR: ynab exited with code {exit_code}")
+                            write_log(
+                                {
+                                    "op_type": "delete_ynab_transaction",
+                                    "action": "failed",
+                                    "account_slug": slug,
+                                    "transaction": ynab_tx,
+                                    "ynab_exit_code": exit_code,
+                                }
+                            )
+                            counts["failed"] += 1
+                        else:
+                            write_log(
+                                {
+                                    "op_type": "delete_ynab_transaction",
+                                    "action": "applied",
+                                    "account_slug": slug,
+                                    "transaction": ynab_tx,
+                                    "ynab_exit_code": exit_code,
+                                }
+                            )
+                            counts["deleted"] += 1
+
+                elif action == "s":
+                    # Individual review
+                    for op in batch_ops:
+                        ynab_tx = op["transaction"]
+                        ynab_id = ynab_tx.get("id", "")
+                        _display_individual_delete(date, op, ynab_delete_log_path)
+                        if _prompt_apply_individual():
+                            result = subprocess.run(
+                                [
+                                    "ynab",
+                                    "delete",
+                                    "transaction",
+                                    "--id",
+                                    ynab_id,
+                                    "--delete-log",
+                                    str(ynab_delete_log_path),
+                                ],
+                            )
+                            exit_code = result.returncode
+                            write_log(
+                                {
+                                    "op_type": "delete_ynab_transaction",
+                                    "action": "applied",
+                                    "account_slug": slug,
+                                    "transaction": ynab_tx,
+                                    "ynab_exit_code": exit_code,
+                                }
+                            )
+                            counts["deleted"] += 1
+                        else:
+                            write_log(
+                                {
+                                    "op_type": "delete_ynab_transaction",
+                                    "action": "skipped",
+                                    "account_slug": slug,
+                                    "transaction": ynab_tx,
+                                }
+                            )
+                            counts["skipped"] += 1
+                    print("  [Returning to batch view]")
+
+                else:  # n
+                    for op in batch_ops:
+                        ynab_tx = op["transaction"]
+                        write_log(
+                            {
+                                "op_type": "delete_ynab_transaction",
+                                "action": "skipped",
+                                "account_slug": slug,
+                                "transaction": ynab_tx,
+                            }
+                        )
                         counts["skipped"] += 1
 
             for date, batch_ops in sorted(creates.items()):

@@ -392,13 +392,17 @@ class BankDataReconcileFlowNode(FlowNode):
                     memo=tx.get("memo"),
                     account_id=tx.get("account_id"),
                     is_transfer=tx.get("transfer_account_id") is not None,
+                    id=tx.get("id"),
                 )
                 for tx in transactions_data
             ]
 
+            # Build raw YNAB lookup by ID for delete op construction
+            raw_ynab_by_id = {tx["id"]: tx for tx in transactions_data if "id" in tx}
+
             # Call reconcile function (now returns ReconciliationResult objects)
             reconcile_results = reconcile_account_data(
-                self.config, self.data_dir / "bank_accounts", ynab_transactions
+                self.config, self.data_dir / "bank_accounts", ynab_transactions, raw_ynab_by_id
             )
 
             # Serialize to JSON
@@ -535,6 +539,10 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                 sum(1 for op in acct.get("operations", []) if op.get("type") == "flag_discrepancy")
                 for acct in accounts_data.values()
             )
+            deletes = sum(
+                sum(1 for op in acct.get("operations", []) if op.get("type") == "delete_ynab_transaction")
+                for acct in accounts_data.values()
+            )
             from finances.core import FinancialDate
 
             mtime = latest.stat().st_mtime
@@ -546,9 +554,9 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                 exists=True,
                 last_updated=last_modified,
                 age_days=abs(age),
-                item_count=creates + flags,
+                item_count=creates + flags + deletes,
                 size_bytes=latest.stat().st_size,
-                summary_text=f"{creates} creates, {flags} flags pending",
+                summary_text=f"{creates} creates, {flags} flags, {deletes} deletes pending",
             )
         except Exception:
             return NodeDataSummary(
@@ -591,7 +599,10 @@ class BankDataReconcileApplyFlowNode(FlowNode):
 
             return FlowResult(
                 success=True,
-                items_processed=counts["applied"] + counts["skipped"] + counts["acknowledged"],
+                items_processed=counts["applied"]
+                + counts["skipped"]
+                + counts["acknowledged"]
+                + counts["deleted"],
                 new_items=counts["applied"],
                 outputs=[apply_log_path],
                 requires_review=False,
@@ -599,6 +610,7 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                     "applied": counts["applied"],
                     "skipped": counts["skipped"],
                     "acknowledged": counts["acknowledged"],
+                    "deleted": counts["deleted"],
                     "log_file": str(apply_log_path),
                 },
             )

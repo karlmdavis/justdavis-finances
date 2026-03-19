@@ -72,6 +72,7 @@ class YnabTransaction:
     memo: str | None = None
     account_id: str | None = None
     is_transfer: bool = False
+    id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON output."""
@@ -85,6 +86,8 @@ class YnabTransaction:
             result["memo"] = self.memo
         if self.account_id is not None:
             result["account_id"] = self.account_id
+        if self.id is not None:
+            result["id"] = self.id
         return result
 
 

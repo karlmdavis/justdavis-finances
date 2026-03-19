@@ -76,6 +76,7 @@ def reconcile_account_data(
     config: BankAccountsConfig,
     base_dir: Path,
     ynab_transactions: list[YnabTransaction],
+    raw_ynab_by_id: dict[str, dict] | None = None,
 ) -> dict[str, ReconciliationResult]:
     """
     Reconcile bank data with YNAB transactions.
@@ -95,6 +96,9 @@ def reconcile_account_data(
     Returns:
         Dictionary mapping account slug to ReconciliationResult
     """
+    if raw_ynab_by_id is None:
+        raw_ynab_by_id = {}
+
     # Process each account
     results: dict[str, ReconciliationResult] = {}
 
@@ -179,6 +183,38 @@ def reconcile_account_data(
                         "message": "Multiple possible matches - manual review required",
                     }
                 )
+
+        # 3b. Generate delete operations for orphaned YNAB transactions
+        raw_intervals = normalized_data.get("coverage_intervals", [])
+        coverage_intervals = [
+            (
+                FinancialDate.from_string(iv["start_date"]),
+                FinancialDate.from_string(iv["end_date"]),
+            )
+            for iv in raw_intervals
+        ]
+
+        for ynab_tx in unmatched_ynab_txs:
+            if not coverage_intervals:
+                continue  # No authoritative window known — skip silently
+            if not any(start <= ynab_tx.date <= end for start, end in coverage_intervals):
+                continue
+            if ynab_tx.is_transfer:
+                continue
+            if ynab_tx.payee_name == "Starting Balance":
+                continue
+            if ynab_tx.id is None:
+                raise ValueError(
+                    f"YNAB transaction with date={ynab_tx.date} amount={ynab_tx.amount} "
+                    f"is an orphan within coverage but has no id — "
+                    f"this indicates a programming error in the YNAB cache loader"
+                )
+            operations.append(
+                {
+                    "type": "delete_ynab_transaction",
+                    "transaction": raw_ynab_by_id[ynab_tx.id],
+                }
+            )
 
         # 4. Build balance reconciliation
         # Calculate YNAB running balances from transactions
