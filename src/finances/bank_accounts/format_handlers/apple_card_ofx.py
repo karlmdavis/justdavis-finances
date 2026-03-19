@@ -44,10 +44,19 @@ class AppleCardOfxHandler(BankExportFormatHandler):
 
         transactions = self._parse_transactions(content)
         balance_points = self._parse_balances(content)
-        statement_date = balance_points[0].date if balance_points else None
+
+        dtstart = self._extract_tag(content, "DTSTART", parent="BANKTRANLIST")
+        dtend = self._extract_tag(content, "DTEND", parent="BANKTRANLIST")
+        statement_start_date = self._parse_ofx_date(dtstart) if dtstart else None
+        statement_date = (
+            self._parse_ofx_date(dtend) if dtend else (balance_points[0].date if balance_points else None)
+        )
 
         return ParseResult.create(
-            transactions=transactions, balance_points=balance_points, statement_date=statement_date
+            transactions=transactions,
+            balance_points=balance_points,
+            statement_date=statement_date,
+            statement_start_date=statement_start_date,
         )
 
     def _parse_transactions(self, content: str) -> list[BankTransaction]:

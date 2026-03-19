@@ -15,6 +15,8 @@ class ParseResult:
     transactions: tuple[BankTransaction, ...]  # Immutable sequence
     balance_points: tuple[BalancePoint, ...]  # Immutable sequence
     statement_date: FinancialDate | None = None  # For statement-based exports (OFX/QIF)
+    statement_start_date: FinancialDate | None = None  # Start of statement period (per-file)
+    coverage_intervals: tuple[tuple[FinancialDate, FinancialDate], ...] = ()  # Authoritative date ranges
 
     @classmethod
     def create(
@@ -22,12 +24,16 @@ class ParseResult:
         transactions: list[BankTransaction],
         balance_points: list[BalancePoint] | None = None,
         statement_date: FinancialDate | None = None,
+        statement_start_date: FinancialDate | None = None,
+        coverage_intervals: tuple[tuple[FinancialDate, FinancialDate], ...] = (),
     ) -> "ParseResult":
         """Create ParseResult from lists (converts to immutable tuples)."""
         return cls(
             transactions=tuple(transactions),
             balance_points=tuple(balance_points or []),
             statement_date=statement_date,
+            statement_start_date=statement_start_date,
+            coverage_intervals=coverage_intervals,
         )
 
 

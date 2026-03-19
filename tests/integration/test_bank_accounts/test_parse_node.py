@@ -147,8 +147,10 @@ class TestParseNode:
         assert result.transactions[0].description == "Coffee Shop"
         assert result.transactions[0].amount.to_milliunits() == -5000
 
-        # Verify statement_date auto-detection (should be latest transaction date)
-        assert result.statement_date == FinancialDate.from_string("2024-01-03")
+        # Verify coverage_intervals auto-detection (min to max posted_date for single CSV file)
+        assert result.coverage_intervals == (
+            (FinancialDate.from_string("2024-01-01"), FinancialDate.from_string("2024-01-03")),
+        )
 
     def test_parse_deduplicates_overlapping_files(self) -> None:
         """Test that overlapping date ranges are deduplicated."""
@@ -237,8 +239,10 @@ class TestParseNode:
         results = parse_account_data(config, self.base_dir, self.registry)
         result = results["test-checking"]
 
-        # Verify statement_date is latest transaction date
-        assert result.statement_date == FinancialDate.from_string("2024-07-10")
+        # Verify coverage_intervals cover the transaction range
+        assert result.coverage_intervals == (
+            (FinancialDate.from_string("2024-03-15"), FinancialDate.from_string("2024-07-10")),
+        )
         assert len(result.transactions) == 3
 
     def test_parse_handles_multiple_file_formats(self) -> None:
@@ -319,7 +323,7 @@ TRNAMT:-20.00"""
         # Verify empty ParseResult was created
         assert len(result.transactions) == 0
         assert len(result.balance_points) == 0
-        assert result.statement_date is None
+        assert result.coverage_intervals == ()
 
     def test_parse_multiple_accounts(self) -> None:
         """Test parse with multiple accounts."""
@@ -371,3 +375,107 @@ TRNAMT:-20.00"""
         # Verify transaction counts
         assert len(results["chase-checking"].transactions) == 1
         assert len(results["chase-credit"].transactions) == 1
+
+    def test_coverage_intervals_single_file(self) -> None:
+        """Single file produces one interval from min to max posted_date."""
+        raw_dir = self.base_dir / "raw" / "test-checking"
+        raw_dir.mkdir(parents=True)
+        (raw_dir / "statement.csv").write_text(
+            "Date,Description,Amount\n"
+            "2024-01-05,Coffee,-500\n"
+            "2024-01-10,Grocery,-2500\n"
+            "2024-01-20,Paycheck,100000"
+        )
+        config = BankAccountsConfig(
+            accounts=(
+                AccountConfig(
+                    ynab_account_id="acct_123",
+                    ynab_account_name="Test",
+                    slug="test-checking",
+                    bank_name="Test Bank",
+                    account_type="checking",
+                    statement_frequency="monthly",
+                    source_directory="/tmp/source",  # noqa: S108
+                    download_instructions="",
+                    import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
+                ),
+            )
+        )
+        results = parse_account_data(config, self.base_dir, self.registry)
+        result = results["test-checking"]
+        assert result.coverage_intervals == (
+            (FinancialDate.from_string("2024-01-05"), FinancialDate.from_string("2024-01-20")),
+        )
+
+    def test_coverage_intervals_two_non_overlapping_files(self) -> None:
+        """Two non-overlapping statement files produce two independent intervals."""
+        raw_dir = self.base_dir / "raw" / "test-checking"
+        raw_dir.mkdir(parents=True)
+        # January statement
+        (raw_dir / "jan.csv").write_text(
+            "Date,Description,Amount\n" "2024-01-01,Jan A,-100\n" "2024-01-31,Jan B,-200"
+        )
+        # March statement (February gap)
+        (raw_dir / "mar.csv").write_text(
+            "Date,Description,Amount\n" "2024-03-01,Mar A,-300\n" "2024-03-31,Mar B,-400"
+        )
+        config = BankAccountsConfig(
+            accounts=(
+                AccountConfig(
+                    ynab_account_id="acct_123",
+                    ynab_account_name="Test",
+                    slug="test-checking",
+                    bank_name="Test Bank",
+                    account_type="checking",
+                    statement_frequency="monthly",
+                    source_directory="/tmp/source",  # noqa: S108
+                    download_instructions="",
+                    import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
+                ),
+            )
+        )
+        results = parse_account_data(config, self.base_dir, self.registry)
+        result = results["test-checking"]
+        # Two separate intervals preserved
+        assert result.coverage_intervals == (
+            (FinancialDate.from_string("2024-01-01"), FinancialDate.from_string("2024-01-31")),
+            (FinancialDate.from_string("2024-03-01"), FinancialDate.from_string("2024-03-31")),
+        )
+
+    def test_coverage_intervals_overlapping_files_intersection(self) -> None:
+        """Two overlapping files (different boundaries) produce their intersection.
+
+        Simulates e.g. OFX Jan 1-5 + CSV Jan 3-31: the conservative intersection
+        is [Jan 3, Jan 5], preventing false orphan detections at statement boundaries.
+        """
+        raw_dir = self.base_dir / "raw" / "test-checking"
+        raw_dir.mkdir(parents=True)
+        # File A covers Jan 1-5 (earlier start, earlier end)
+        (raw_dir / "file_a.csv").write_text(
+            "Date,Description,Amount\n" "2024-01-01,File A Jan 1,-100\n" "2024-01-05,File A Jan 5,-200"
+        )
+        # File B covers Jan 3-31 (later start, later end)
+        (raw_dir / "file_b.csv").write_text(
+            "Date,Description,Amount\n" "2024-01-03,File B Jan 3,-300\n" "2024-01-31,File B Jan 31,-400"
+        )
+        config = BankAccountsConfig(
+            accounts=(
+                AccountConfig(
+                    ynab_account_id="acct_123",
+                    ynab_account_name="Test",
+                    slug="test-checking",
+                    bank_name="Test Bank",
+                    account_type="checking",
+                    statement_frequency="monthly",
+                    source_directory="/tmp/source",  # noqa: S108
+                    download_instructions="",
+                    import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
+                ),
+            )
+        )
+        results = parse_account_data(config, self.base_dir, self.registry)
+        result = results["test-checking"]
+        # Intersection of [Jan 1, Jan 5] and [Jan 3, Jan 31] → [Jan 3, Jan 5]
+        assert result.coverage_intervals == (
+            (FinancialDate.from_string("2024-01-03"), FinancialDate.from_string("2024-01-05")),
+        )

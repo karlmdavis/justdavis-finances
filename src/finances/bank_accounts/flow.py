@@ -248,9 +248,10 @@ class BankDataParseFlowNode(FlowNode):
                     "parsed_at": datetime.now().isoformat(),
                     "transactions": [tx.to_dict() for tx in result.transactions],
                     "balance_points": [bp.to_dict() for bp in result.balance_points],
-                    "statement_date": (
-                        result.statement_date.to_iso_string() if result.statement_date else None
-                    ),
+                    "coverage_intervals": [
+                        {"start_date": str(start), "end_date": str(end)}
+                        for start, end in result.coverage_intervals
+                    ],
                 }
 
                 # Use DataStore to create timestamped file

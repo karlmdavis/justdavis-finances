@@ -9,6 +9,33 @@ from finances.bank_accounts.models import BalancePoint, BankAccountsConfig, Impo
 from finances.core import FinancialDate
 
 
+def _consolidate_intervals(
+    intervals: list[tuple[FinancialDate, FinancialDate]],
+) -> list[tuple[FinancialDate, FinancialDate]]:
+    """Merge overlapping intervals using intersection (conservative).
+
+    When two intervals overlap, shrink to their common area.
+    Non-overlapping intervals are kept as independent entries.
+    Intervals are sorted by start date before processing.
+    """
+    if not intervals:
+        return []
+    sorted_ivs = sorted(intervals, key=lambda x: x[0])
+    result = []
+    cur_start, cur_end = sorted_ivs[0]
+    for start, end in sorted_ivs[1:]:
+        if start <= cur_end:  # intervals overlap: intersect
+            cur_start = max(cur_start, start)
+            cur_end = min(cur_end, end)
+            if cur_start > cur_end:  # intersection is empty (degenerate)
+                cur_start, cur_end = start, end
+        else:  # no overlap: emit current, advance
+            result.append((cur_start, cur_end))
+            cur_start, cur_end = start, end
+    result.append((cur_start, cur_end))
+    return result
+
+
 def deduplicate_balances(parsed_files: list[tuple[Path, ParseResult, float]]) -> list[BalancePoint]:
     """
     Deduplicate balance points from multiple bank export files.
@@ -153,17 +180,25 @@ def parse_account_data(
         transactions = deduplicate_transactions(parsed_files)
         balances = deduplicate_balances(parsed_files)
 
-        # Auto-detect statement date from transactions
-        statement_date: FinancialDate | None = None
-        if transactions:
-            # Use the latest transaction date as statement date
-            statement_date = max(tx.posted_date for tx in transactions)
+        # Compute coverage intervals: one raw interval per file, then consolidate
+        raw_intervals: list[tuple[FinancialDate, FinancialDate]] = []
+        for _file_path, file_result, _mtime in parsed_files:
+            start = file_result.statement_start_date or (
+                min(tx.posted_date for tx in file_result.transactions) if file_result.transactions else None
+            )
+            end = file_result.statement_date or (
+                max(tx.posted_date for tx in file_result.transactions) if file_result.transactions else None
+            )
+            if start and end:
+                raw_intervals.append((start, end))
+
+        coverage_intervals = tuple(_consolidate_intervals(raw_intervals))
 
         # Create ParseResult
         results[account.slug] = ParseResult.create(
             transactions=list(transactions),
             balance_points=list(balances),
-            statement_date=statement_date,
+            coverage_intervals=coverage_intervals,
         )
 
     return results
