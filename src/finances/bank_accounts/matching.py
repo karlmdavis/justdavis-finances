@@ -52,13 +52,20 @@ from finances.bank_accounts.models import BankTransaction
 from finances.core import FinancialDate, Money
 
 # Fuzzy matching configuration
-FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.8
+FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.75
 
-# Known cases where YNAB Direct Import uses a shorter payee name than the bank description.
-# Expanding the YNAB side preserves the bank's more specific description as the reference.
+# Known mismatches between YNAB payee names and bank merchant names.
+# Maps normalized YNAB payee → string that scores well against the bank's merchant field.
+# Covers two directions: YNAB shorter than bank (Direct Import abbreviates), and
+# YNAB longer than bank (Apple Card truncates merchant names).
 YNAB_PAYEE_EXPANSIONS: dict[str, str] = {
     "deposit": "daily cash deposit",  # Apple Savings: YNAB strips "Daily Cash" prefix
     "amazon kindle services": "kindle svcs",  # Chase Credit: Kindle subscription
+    "expresscare urgent care centers": "express care of westminster",  # Apple Card truncates brand+location
+    "children's urgent care of westminster": "children's urgent care",  # Apple Card truncates location suffix
+    "canteen vending": "vending machine",  # Apple Card: bank reports hardware brand "Vending Machine", YNAB resolves to vendor "Canteen Vending"
+    "canteen": "vending machine",  # Apple Card: some YNAB entries use abbreviated "Canteen" payee
+    "uplift": "joinuplift.co",  # Apple Card: bank uses domain "joinuplift.co", YNAB resolves to short brand name "Uplift"
 }
 
 

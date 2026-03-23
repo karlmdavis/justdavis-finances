@@ -844,3 +844,79 @@ def test_import_posted_date_fallback_matches_manually_entered_ynab_tx():
     assert result.match_type == "exact"
     assert result.ynab_transaction == ynab_tx
     assert result.confidence == 1.0
+
+
+def test_expresscare_brand_name_expansion():
+    """Regression: Apple Card merchant "Express Care Of Westmi" should fuzzy-match
+    "ExpressCare Urgent Care Centers" rather than "Children's Urgent Care of Westminster".
+
+    Without a YNAB_PAYEE_EXPANSIONS entry, SequenceMatcher gives "Children's Urgent Care
+    of Westminster" a higher score (~0.48) than "ExpressCare Urgent Care Centers" (~0.42)
+    because the location suffix "care of westm..." creates a long common substring with the
+    wrong candidate. The expansion normalizes the YNAB payee to the bank's format so the
+    correct candidate scores well above the threshold.
+    """
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2025-03-26"),
+        description="EXPRESS CARE OF WESTMI1011 BALTIMORE BLVD WESTMINSTER 21157 MD USA",
+        merchant="Express Care Of Westmi",
+        amount=Money.from_milliunits(-30000),
+    )
+
+    ynab_expresscare = YnabTransaction(
+        date=FinancialDate.from_string("2025-03-26"),
+        amount=Money.from_milliunits(-30000),
+        payee_name="ExpressCare Urgent Care Centers",
+    )
+    ynab_childrens_1 = YnabTransaction(
+        date=FinancialDate.from_string("2025-03-26"),
+        amount=Money.from_milliunits(-30000),
+        payee_name="Children's Urgent Care of Westminster",
+    )
+    ynab_childrens_2 = YnabTransaction(
+        date=FinancialDate.from_string("2025-03-26"),
+        amount=Money.from_milliunits(-30000),
+        payee_name="Children's Urgent Care of Westminster",
+    )
+
+    result = find_matches(bank_tx, [ynab_childrens_1, ynab_expresscare, ynab_childrens_2])
+
+    assert result.match_type == "fuzzy", f"Expected fuzzy, got {result.match_type}"
+    assert result.ynab_transaction == ynab_expresscare
+
+
+def test_childrens_urgent_care_threshold():
+    """Regression: Apple Card merchant "Children's Urgent Care" should fuzzy-match
+    "Children's Urgent Care of Westminster" even when "ExpressCare Urgent Care Centers"
+    is also a candidate.
+
+    The bank truncates the merchant name, dropping "of Westminster". The score of the
+    correct match is ~0.759 — clearly the right answer but just below the old 0.8 threshold.
+    """
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2025-03-26"),
+        description="CHILDREN'S URGENT CARE265 BALTIMORE BOULEVARD WESTMINSTER 21157 MD USA",
+        merchant="Children's Urgent Care",
+        amount=Money.from_milliunits(-30000),
+    )
+
+    ynab_childrens_1 = YnabTransaction(
+        date=FinancialDate.from_string("2025-03-26"),
+        amount=Money.from_milliunits(-30000),
+        payee_name="Children's Urgent Care of Westminster",
+    )
+    ynab_expresscare = YnabTransaction(
+        date=FinancialDate.from_string("2025-03-26"),
+        amount=Money.from_milliunits(-30000),
+        payee_name="ExpressCare Urgent Care Centers",
+    )
+    ynab_childrens_2 = YnabTransaction(
+        date=FinancialDate.from_string("2025-03-26"),
+        amount=Money.from_milliunits(-30000),
+        payee_name="Children's Urgent Care of Westminster",
+    )
+
+    result = find_matches(bank_tx, [ynab_childrens_1, ynab_expresscare, ynab_childrens_2])
+
+    assert result.match_type == "fuzzy", f"Expected fuzzy, got {result.match_type}"
+    assert result.ynab_transaction == ynab_childrens_1
