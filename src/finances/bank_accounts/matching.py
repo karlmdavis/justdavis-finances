@@ -73,6 +73,7 @@ class YnabTransaction:
     account_id: str | None = None
     is_transfer: bool = False
     id: str | None = None
+    import_posted_date: FinancialDate | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON output."""
@@ -117,85 +118,80 @@ def normalize_description(text: str) -> str:
     return text.strip()
 
 
-def find_matches(
-    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction], ynab_date_offset_days: int = 0
-) -> MatchResult:
+def _by_posted_date(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> list[YnabTransaction]:
+    """Filter YNAB txs matching bank posted_date + amount (primary strategy)."""
+    return [tx for tx in ynab_txs if tx.date == bank_tx.posted_date and tx.amount == bank_tx.amount]
+
+
+def _by_transaction_date(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> list[YnabTransaction]:
+    """Fallback: try transaction_date when it differs from posted_date.
+
+    Handles Apple Card 1-day offset where YNAB stores purchase date but bank CSV
+    uses posted (clearing) date.
     """
-    Find YNAB transaction matching bank transaction.
+    if bank_tx.transaction_date is None or bank_tx.transaction_date == bank_tx.posted_date:
+        return []
+    return [tx for tx in ynab_txs if tx.date == bank_tx.transaction_date and tx.amount == bank_tx.amount]
 
-    Strategy:
-    1. Filter YNAB txs by exact date + amount
-    2. If unique match → return exact match
-    3. If multiple matches → fuzzy match by description similarity
-    4. If all candidates share the same payee → claim first (single-payee fallback)
-    5. If no matches → return none
 
-    Args:
-        bank_tx: Bank transaction to match
-        ynab_txs: List of YNAB transactions to search
-        ynab_date_offset_days: Days to shift bank posted_date when searching YNAB.
-            Used when YNAB uses a different date convention than the bank CSV
-            (e.g., Apple Savings: YNAB uses earned date, bank uses deposited date).
+def _by_import_posted_date(
+    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]
+) -> list[YnabTransaction]:
+    """Fallback: match via YNAB import_id's encoded clearing date.
 
-    Returns:
-        MatchResult with match_type and associated data
+    Handles manually-entered YNAB transactions later matched by Direct Import:
+    the transaction's date field retains the manual entry date but import_id
+    encodes the actual bank clearing date (format: YNAB:<amount>:<date>:<seq>).
     """
-    # Filter by posted_date + amount (primary)
-    candidates = [tx for tx in ynab_txs if tx.date == bank_tx.posted_date and tx.amount == bank_tx.amount]
+    return [
+        tx for tx in ynab_txs if tx.import_posted_date == bank_tx.posted_date and tx.amount == bank_tx.amount
+    ]
 
-    # Fallback: try transaction_date when it differs from posted_date
-    if (
-        len(candidates) == 0
-        and bank_tx.transaction_date is not None
-        and bank_tx.transaction_date != bank_tx.posted_date
-    ):
-        candidates = [
-            tx for tx in ynab_txs if tx.date == bank_tx.transaction_date and tx.amount == bank_tx.amount
-        ]
 
-    # Fallback: try posted_date adjusted by account-level YNAB date offset
-    # Handles cases where YNAB uses a different date convention than the bank CSV
-    # (e.g., Apple Savings: YNAB uses earned date, bank uses deposited date, ~1 day offset)
-    if len(candidates) == 0 and ynab_date_offset_days != 0:
-        from datetime import timedelta
+def _by_ynab_date_offset(
+    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction], ynab_date_offset_days: int
+) -> list[YnabTransaction]:
+    """Fallback: try posted_date adjusted by account-level YNAB date offset.
 
-        offset_date = FinancialDate(date=bank_tx.posted_date.date + timedelta(days=ynab_date_offset_days))
-        candidates = [tx for tx in ynab_txs if tx.date == offset_date and tx.amount == bank_tx.amount]
+    Handles cases where YNAB uses a different date convention than the bank CSV
+    (e.g., Apple Savings: YNAB uses earned date, bank uses deposited date, ~1 day offset).
+    """
+    if ynab_date_offset_days == 0:
+        return []
+    from datetime import timedelta
 
-    # Transfer fallback: ±5 day window for YNAB transfer entries
-    # Handles YNAB initiation date vs bank clearing date offset (observed max: 4 days)
-    if len(candidates) == 0:
-        for ynab_tx in ynab_txs:
-            if ynab_tx.is_transfer and ynab_tx.amount == bank_tx.amount:
-                days_diff = abs(bank_tx.posted_date.age_days(ynab_tx.date))
-                if days_diff <= 5:
-                    candidates.append(ynab_tx)
+    offset_date = FinancialDate(date=bank_tx.posted_date.date + timedelta(days=ynab_date_offset_days))
+    return [tx for tx in ynab_txs if tx.date == offset_date and tx.amount == bank_tx.amount]
 
-    if len(candidates) == 0:
-        return MatchResult(match_type="none")
 
-    if len(candidates) == 1:
-        return MatchResult(match_type="exact", ynab_transaction=candidates[0], confidence=1.0)
+def _by_transfer_window(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> list[YnabTransaction]:
+    """Fallback: ±5 day window for YNAB transfer entries.
 
-    # Multiple candidates - fuzzy match by description
+    Handles YNAB initiation date vs bank clearing date offset (observed max: 4 days).
+    Only applies to transactions marked as transfers in YNAB.
+    """
+    return [
+        tx
+        for tx in ynab_txs
+        if tx.is_transfer and tx.amount == bank_tx.amount and abs(bank_tx.posted_date.age_days(tx.date)) <= 5
+    ]
+
+
+def _pick_best(bank_tx: BankTransaction, candidates: list[YnabTransaction]) -> MatchResult:
+    """Resolve multiple candidates via fuzzy description matching."""
     scores: list[tuple[YnabTransaction, float]] = []
     for ynab_tx in candidates:
         # Prefer merchant field (clean, matches YNAB payee names) over verbose description
         bank_desc = normalize_description(bank_tx.merchant if bank_tx.merchant else bank_tx.description)
-        # Combine payee_name and memo for better matching
-        ynab_parts = []
-        if ynab_tx.payee_name:
-            ynab_parts.append(ynab_tx.payee_name)
-        if ynab_tx.memo:
-            ynab_parts.append(ynab_tx.memo)
-        ynab_desc = normalize_description(" ".join(ynab_parts) if ynab_parts else "")
+        # Use payee_name only — memo is user-annotated context and inflates the string
+        # length, which drives SequenceMatcher scores below the threshold even when the
+        # payee names are identical.
+        ynab_desc = normalize_description(ynab_tx.payee_name or "")
         ynab_desc = YNAB_PAYEE_EXPANSIONS.get(ynab_desc, ynab_desc)  # expand if known abbreviation
 
-        # Calculate similarity using SequenceMatcher
         score = SequenceMatcher(None, bank_desc, ynab_desc).ratio()
         scores.append((ynab_tx, score))
 
-    # Get best match
     best_match, best_score = max(scores, key=lambda x: x[1])
 
     if best_score > FUZZY_MATCH_CONFIDENCE_THRESHOLD:
@@ -214,3 +210,40 @@ def find_matches(
         candidates=tuple(tx for tx, _ in scores),
         similarity_scores=tuple(score for _, score in scores),
     )
+
+
+def find_matches(
+    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction], ynab_date_offset_days: int = 0
+) -> MatchResult:
+    """
+    Find YNAB transaction matching bank transaction.
+
+    Waterfall of strategies (first non-empty result wins):
+    1. posted_date + amount (primary)
+    2. transaction_date + amount (Apple Card 1-day offset)
+    3. import_posted_date + amount (YNAB Direct Import re-match of manual entries)
+    4. posted_date + offset + amount (account-level date convention difference)
+    5. transfer ±5 day window (YNAB initiation vs bank clearing date)
+
+    Args:
+        bank_tx: Bank transaction to match
+        ynab_txs: List of YNAB transactions to search
+        ynab_date_offset_days: Days to shift bank posted_date when searching YNAB.
+            Used when YNAB uses a different date convention than the bank CSV
+            (e.g., Apple Savings: YNAB uses earned date, bank uses deposited date).
+
+    Returns:
+        MatchResult with match_type and associated data
+    """
+    candidates = (
+        _by_posted_date(bank_tx, ynab_txs)
+        or _by_transaction_date(bank_tx, ynab_txs)
+        or _by_import_posted_date(bank_tx, ynab_txs)
+        or _by_ynab_date_offset(bank_tx, ynab_txs, ynab_date_offset_days)
+        or _by_transfer_window(bank_tx, ynab_txs)
+    )
+    if not candidates:
+        return MatchResult(match_type="none")
+    if len(candidates) == 1:
+        return MatchResult(match_type="exact", ynab_transaction=candidates[0], confidence=1.0)
+    return _pick_best(bank_tx, candidates)

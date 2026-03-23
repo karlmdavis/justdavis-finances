@@ -52,14 +52,14 @@ def test_exact_match_single():
 
 def test_fuzzy_match_multiple():
     """Test fuzzy matching when multiple YNAB txs have same date+amount."""
-    # Bank transaction
+    # Bank transaction — description closely matches one YNAB payee name
     bank_tx = BankTransaction(
         posted_date=FinancialDate.from_string("2024-12-15"),
-        description="AMAZON.COM*XX1234 ORDER #123-456789",
+        description="AMAZON.COM",
         amount=Money.from_cents(-4567),
     )
 
-    # YNAB transactions - multiple with same date+amount
+    # YNAB transactions - multiple with same date+amount, different payees
     ynab_txs = [
         YnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
@@ -83,7 +83,7 @@ def test_fuzzy_match_multiple():
 
     result = find_matches(bank_tx, ynab_txs)
 
-    # Should be fuzzy match (best score > 0.8)
+    # payee-only: "amazon.com" vs "amazon.com" = 1.0 → fuzzy match (best score > 0.8)
     assert result.match_type == "fuzzy"
     assert result.ynab_transaction == ynab_txs[0]  # Best match by description similarity
     assert result.confidence is not None
@@ -227,8 +227,13 @@ def test_match_result_immutability():
         result.match_type = "fuzzy"  # type: ignore[misc,unused-ignore]
 
 
-def test_fuzzy_match_uses_memo_when_no_payee():
-    """Test fuzzy matching uses memo when payee_name is None."""
+def test_fuzzy_match_no_payee_single_payee_fallback():
+    """When all candidates have no payee_name, single-payee fallback claims the first.
+
+    Memo is NOT used for matching (user-annotated context, not bank-sourced).  With
+    payee_name=None for every candidate the normalized desc is "" for all, so
+    unique_payees has length 1 and the single-payee fallback fires.
+    """
     bank_tx = BankTransaction(
         posted_date=FinancialDate.from_string("2024-12-15"),
         description="AMAZON ORDER 123-456789",
@@ -252,17 +257,20 @@ def test_fuzzy_match_uses_memo_when_no_payee():
 
     result = find_matches(bank_tx, ynab_txs)
 
+    # Single-payee fallback fires (both normalize to ""); first candidate is claimed.
     assert result.match_type == "fuzzy"
     assert result.ynab_transaction == ynab_txs[0]
-    assert result.confidence is not None
-    assert result.confidence > 0.8
 
 
-def test_fuzzy_match_combines_payee_and_memo():
-    """Test fuzzy matching combines payee_name and memo for better matching."""
+def test_fuzzy_match_excludes_memo_from_score():
+    """Memo is NOT included when computing fuzzy similarity — payee_name only.
+
+    A long user-entered memo must not inflate the YNAB string length and drag the
+    SequenceMatcher score below the threshold when the payee names match exactly.
+    """
     bank_tx = BankTransaction(
         posted_date=FinancialDate.from_string("2024-12-15"),
-        description="AMAZON.COM ORDER 123-456789",
+        description="AMAZON.COM",
         amount=Money.from_cents(-4567),
     )
 
@@ -271,7 +279,7 @@ def test_fuzzy_match_combines_payee_and_memo():
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name="Amazon.com",
-            memo="Order 123-456789",
+            memo="This is a very long user-entered memo that would dilute the score if included",
         ),
         YnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
@@ -283,7 +291,7 @@ def test_fuzzy_match_combines_payee_and_memo():
 
     result = find_matches(bank_tx, ynab_txs)
 
-    # Should match first transaction using combined payee+memo
+    # payee-only: "amazon.com" vs "amazon.com" = 1.0 → fuzzy match despite long memo
     assert result.match_type == "fuzzy"
     assert result.ynab_transaction == ynab_txs[0]
     assert result.confidence is not None
@@ -734,3 +742,105 @@ def test_description_used_when_merchant_absent():
     # description "safeway" vs "safeway" = 1.0 → fuzzy match to Safeway (not ambiguous)
     assert result.match_type == "fuzzy"
     assert result.ynab_transaction == ynab_txs[0]
+
+
+def test_same_date_same_amount_different_payee_with_user_memos():
+    """Regression: two bank txs / two YNAB txs, same date+amount, distinct payees.
+
+    Before the fix, including the user-entered YNAB memo in the description string
+    inflated the denominator of SequenceMatcher.ratio(), driving all four scores below
+    the 0.8 threshold even when payee names were identical.  Both bank transactions
+    ended up flagged as ambiguous and both YNAB transactions remained unmatched.
+
+    After the fix (payee_name only), each bank transaction fuzzy-matches its correct
+    YNAB counterpart and no transactions are left unmatched.
+
+    This test calls find_matches() twice (once per bank tx) against the shrinking pool,
+    mirroring the greedy-pool logic used in the reconciliation pipeline.
+    """
+    date = FinancialDate.from_string("2024-09-26")
+    amount = Money.from_cents(-50000)  # $500.00
+
+    bank1 = BankTransaction(
+        posted_date=date,
+        description="VANGUARD BUY INVESTMENT PURCHASE",
+        amount=amount,
+    )
+    bank2 = BankTransaction(
+        posted_date=date,
+        description="Manual DB-Bkrg 09/26",
+        amount=amount,
+    )
+
+    ynab1 = YnabTransaction(
+        date=date,
+        amount=amount,
+        payee_name="VANGUARD BUY INVESTMENT PURCHASE",
+        memo="Moved to brokerage per monthly plan",
+    )
+    ynab2 = YnabTransaction(
+        date=date,
+        amount=amount,
+        payee_name="Manual DB-Bkrg 09/26",
+        memo="Transfer to cover brokerage debit",
+    )
+
+    remaining = [ynab1, ynab2]
+
+    # First bank tx should fuzzy-match ynab1
+    result1 = find_matches(bank1, remaining)
+    assert result1.match_type == "fuzzy", f"Expected fuzzy, got {result1.match_type}"
+    assert result1.ynab_transaction == ynab1
+    assert result1.confidence is not None
+    assert result1.confidence > FUZZY_MATCH_CONFIDENCE_THRESHOLD
+
+    # Simulate greedy pool: remove claimed YNAB tx
+    remaining = [tx for tx in remaining if tx is not result1.ynab_transaction]
+
+    # Second bank tx now has only one candidate → exact match
+    result2 = find_matches(bank2, remaining)
+    assert result2.match_type == "exact", f"Expected exact, got {result2.match_type}"
+    assert result2.ynab_transaction == ynab2
+    assert result2.confidence == 1.0
+
+    # Both YNAB transactions are claimed — nothing left unmatched
+    remaining = [tx for tx in remaining if tx is not result2.ynab_transaction]
+    assert remaining == []
+
+
+def test_import_posted_date_fallback_matches_manually_entered_ynab_tx():
+    """Regression: manually-entered YNAB tx with order date resolves via import_posted_date.
+
+    Scenario: User manually enters an Amazon charge in YNAB at the order date (2024-11-29).
+    YNAB Direct Import later matches it when the charge clears (2024-12-02), storing
+    the clearing date in import_id but leaving the transaction date unchanged.
+    The bank CSV uses the clearing date (2024-12-02) as posted_date.
+
+    _by_posted_date should find nothing (date mismatch).
+    _by_import_posted_date should find the match via import_id's clearing date.
+    """
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-12-02"),
+        description="AMAZON.COM",
+        amount=Money.from_cents(-1125),  # -$11.25 = -112490 milliunits... but cents here
+    )
+
+    # YNAB transaction manually entered at order date, Direct Import set import_id
+    ynab_tx = YnabTransaction(
+        date=FinancialDate.from_string("2024-11-29"),  # manual entry date (order date)
+        amount=Money.from_cents(-1125),
+        payee_name="Amazon",
+        import_posted_date=FinancialDate.from_string("2024-12-02"),  # bank clearing date
+    )
+    # Unrelated YNAB transaction on the actual posted date but wrong amount
+    ynab_other = YnabTransaction(
+        date=FinancialDate.from_string("2024-12-02"),
+        amount=Money.from_cents(-999),
+        payee_name="Target",
+    )
+
+    result = find_matches(bank_tx, [ynab_tx, ynab_other])
+
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_tx
+    assert result.confidence == 1.0

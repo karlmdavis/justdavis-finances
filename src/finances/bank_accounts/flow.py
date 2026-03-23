@@ -1,5 +1,6 @@
 """Flow node implementations for bank accounts domain."""
 
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -383,19 +384,32 @@ class BankDataReconcileFlowNode(FlowNode):
 
             transactions_data = read_json(transactions_file)
 
-            # Convert to bank_accounts.matching.YnabTransaction format
-            ynab_transactions = [
-                YnabTransaction(
-                    date=FinancialDate.from_string(tx["date"]),
-                    amount=Money.from_milliunits(tx["amount"]),
-                    payee_name=tx.get("payee_name"),
-                    memo=tx.get("memo"),
-                    account_id=tx.get("account_id"),
-                    is_transfer=tx.get("transfer_account_id") is not None,
-                    id=tx.get("id"),
+            # Convert to bank_accounts.matching.YnabTransaction format.
+            # Use FullYnabTransaction only to parse import_posted_date from import_id;
+            # fall back to direct dict access for required fields (id may be absent in
+            # test/minimal data, but from_dict requires it).
+            ynab_transactions = []
+            for tx in transactions_data:
+                import_id = tx.get("import_id")
+                import_posted_date = None
+                if import_id and import_id.startswith("YNAB:"):
+                    _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+                    for part in import_id.split(":")[1:]:
+                        if _DATE_RE.match(part):
+                            import_posted_date = FinancialDate.from_string(part)
+                            break
+                ynab_transactions.append(
+                    YnabTransaction(
+                        date=FinancialDate.from_string(tx["date"]),
+                        amount=Money.from_milliunits(tx["amount"]),
+                        payee_name=tx.get("payee_name"),
+                        memo=tx.get("memo"),
+                        account_id=tx.get("account_id"),
+                        is_transfer=tx.get("transfer_account_id") is not None,
+                        id=tx.get("id"),
+                        import_posted_date=import_posted_date,
+                    )
                 )
-                for tx in transactions_data
-            ]
 
             # Build raw YNAB lookup by ID for delete op construction
             raw_ynab_by_id = {tx["id"]: tx for tx in transactions_data if "id" in tx}

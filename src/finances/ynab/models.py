@@ -6,6 +6,7 @@ Type-safe models representing YNAB API data structures.
 These models are true to the YNAB API format and use Money/FinancialDate primitives.
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -300,6 +301,25 @@ class YnabTransaction:
     def is_transfer(self) -> bool:
         """Check if this is a transfer transaction."""
         return self.transfer_account_id is not None
+
+    @property
+    def import_posted_date(self) -> FinancialDate | None:
+        """Bank clearing date encoded in YNAB's import_id.
+
+        YNAB uses two import_id formats:
+          - Standard:  YNAB:<amount>:<date>:<seq>  e.g. YNAB:-112490:2024-12-02:1
+          - Pending:   YNAB:P:<amount>:<date>:<seq> e.g. YNAB:P:-5059500:2025-04-01:1
+
+        Scans all parts for the first YYYY-MM-DD value — position-independent.
+        Returns None for non-YNAB import_id formats or when import_id is absent.
+        """
+        if not self.import_id or not self.import_id.startswith("YNAB:"):
+            return None
+        _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+        for part in self.import_id.split(":")[1:]:
+            if _DATE_RE.match(part):
+                return FinancialDate.from_string(part)
+        return None
 
 
 @dataclass
