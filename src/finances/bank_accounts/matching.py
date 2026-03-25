@@ -291,14 +291,34 @@ def find_matches(
     Returns:
         MatchResult with match_type and associated data
     """
-    candidates = (
-        (_by_import_id(ynab_txs, expected_import_id) if expected_import_id else [])
-        or _by_ynab_date_offset(bank_tx, ynab_txs, ynab_date_offset_days)
-        or _by_posted_date(bank_tx, ynab_txs)
-        or _by_transaction_date(bank_tx, ynab_txs)
-        or _by_import_posted_date(bank_tx, ynab_txs)
-        or _by_transfer_window(bank_tx, ynab_txs)
-    )
+    # Step 0: import_id exact match (uses full pool — the entry we want is ours)
+    candidates = _by_import_id(ynab_txs, expected_import_id) if expected_import_id else []
+
+    if not candidates:
+        # For date-based fallback, exclude YNAB txs that belong to a different bank
+        # transaction.  A YNAB tx with a UUID-format import_id (our format: 36 chars in
+        # standard 8-4-4-4-12 layout, not "YNAB:" prefix) that doesn't match
+        # expected_import_id was created for a different seq of the same (date, amount,
+        # description) key.  Allowing it to be claimed here would steal the entry from
+        # the bank tx it actually belongs to, causing a duplicate-import-id rejection on
+        # the next apply.  Non-UUID import_ids (YNAB Direct Import "YNAB:…", None, or
+        # any other format) are always eligible for date+amount fallback.
+        def _is_uuid_format(s: str) -> bool:
+            return len(s) == 36 and s[8] == "-" and s[13] == "-" and s[18] == "-" and s[23] == "-"
+
+        date_eligible = [
+            tx
+            for tx in ynab_txs
+            if tx.import_id is None or not _is_uuid_format(tx.import_id) or tx.import_id == expected_import_id
+        ]
+        candidates = (
+            _by_ynab_date_offset(bank_tx, date_eligible, ynab_date_offset_days)
+            or _by_posted_date(bank_tx, date_eligible)
+            or _by_transaction_date(bank_tx, date_eligible)
+            or _by_import_posted_date(bank_tx, date_eligible)
+            or _by_transfer_window(bank_tx, date_eligible)
+        )
+
     if not candidates:
         return MatchResult(match_type="none")
     if len(candidates) == 1:

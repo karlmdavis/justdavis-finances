@@ -1140,3 +1140,62 @@ def test_two_identical_bank_txs_get_different_import_ids_via_seq():
     result_1 = find_matches(bank_1, pool, expected_import_id=id1)
     assert result_1.match_type == "exact"
     assert result_1.ynab_transaction == ynab_1
+
+
+def test_seq_gap_does_not_steal_higher_seq_ynab_tx():
+    """Regression: missing seq=1 YNAB tx must not steal seq=2's YNAB tx.
+
+    When N bank txs share the same (date, amount, description) they get seqs 0,1,2,…
+    If YNAB has the entry for seq=0 and seq=2 but NOT seq=1, the seq=1 bank tx used
+    to fall through to date+amount matching and claim seq=2's YNAB entry.  seq=2 would
+    then generate a "create" op that YNAB rejected as duplicate import ID.
+
+    With the fix, date+amount fallback excludes YNAB txs with a UUID5 import_id that
+    doesn't match the current expected_import_id, so seq=1 correctly returns "none" and
+    seq=2 correctly matches its own YNAB entry.
+    """
+    slug = "apple-savings"
+    posted_date = "2023-06-15"
+    amount = 300
+    description = "Daily Cash Deposit"
+
+    id0 = make_import_id(slug, posted_date, amount, description, seq=0)
+    id1 = make_import_id(slug, posted_date, amount, description, seq=1)
+    id2 = make_import_id(slug, posted_date, amount, description, seq=2)
+
+    # YNAB has seq=0 and seq=2 but NOT seq=1
+    ynab_0 = YnabTransaction(
+        date=FinancialDate.from_string(posted_date),
+        amount=Money.from_milliunits(amount),
+        payee_name="Daily Cash Deposit",
+        import_id=id0,
+    )
+    ynab_2 = YnabTransaction(
+        date=FinancialDate.from_string(posted_date),
+        amount=Money.from_milliunits(amount),
+        payee_name="Daily Cash Deposit",
+        import_id=id2,
+    )
+
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string(posted_date),
+        description=description,
+        amount=Money.from_milliunits(amount),
+    )
+
+    pool = [ynab_0, ynab_2]
+
+    # seq=0: claims ynab_0 via import_id match
+    result_0 = find_matches(bank_tx, pool, expected_import_id=id0)
+    assert result_0.match_type == "exact"
+    assert result_0.ynab_transaction == ynab_0
+    pool.remove(result_0.ynab_transaction)
+
+    # seq=1: import_id not in YNAB; must NOT steal ynab_2 via date+amount fallback
+    result_1 = find_matches(bank_tx, pool, expected_import_id=id1)
+    assert result_1.match_type == "none"
+
+    # seq=2: claims ynab_2 via import_id match (ynab_2 was NOT stolen by seq=1)
+    result_2 = find_matches(bank_tx, pool, expected_import_id=id2)
+    assert result_2.match_type == "exact"
+    assert result_2.ynab_transaction == ynab_2
