@@ -63,4 +63,25 @@ def deduplicate_transactions(parsed_files: list[tuple[Path, ParseResult, float]]
     # Sort by posted_date (chronological order)
     result.sort(key=lambda tx: tx.posted_date)
 
+    # Second pass: drop cross-format duplicates.
+    # OFX files record interest on the statement end-date (last day of month).
+    # CSV files record the same interest with transaction_date=last-day and
+    # posted_date=first-day-of-next-month. When both exist, prefer the CSV
+    # version (more accurate posted_date). Detection rule: if a transaction T
+    # has no transaction_date AND another transaction T' from a different file
+    # has transaction_date == T.posted_date with the same amount and description,
+    # then T is the OFX's statement-end representation of T' — drop T.
+    anchor_set: set[tuple[FinancialDate, int, str]] = {
+        (tx.transaction_date, tx.amount.to_milliunits(), tx.description)
+        for tx in result
+        if tx.transaction_date is not None
+    }
+
+    result = [
+        tx
+        for tx in result
+        if tx.transaction_date is not None
+        or (tx.posted_date, tx.amount.to_milliunits(), tx.description) not in anchor_set
+    ]
+
     return result

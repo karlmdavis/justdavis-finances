@@ -164,6 +164,63 @@ class TestDeduplicateTransactions:
         result = deduplicate_transactions([])
         assert result == []
 
+    def test_deduplicate_cross_format_interest_duplicate(self):
+        """
+        OFX records interest on the statement end-date (last day of month).
+        CSV records the same interest with transaction_date=last-day,
+        posted_date=first-day-of-next-month.  The OFX entry should be dropped.
+        """
+        ofx_file = Path("/tmp/aug_2023.ofx")  # noqa: S108
+        tx_ofx = BankTransaction(
+            posted_date=FinancialDate.from_string("2023-08-31"),
+            description="Interest Paid",
+            amount=Money.from_cents(14099),
+            # no transaction_date — OFX only has DTPOSTED
+        )
+        parse_ofx = ParseResult.create(transactions=[tx_ofx])
+
+        csv_file = Path("/tmp/aug_2023.csv")  # noqa: S108
+        tx_csv = BankTransaction(
+            posted_date=FinancialDate.from_string("2023-09-01"),
+            transaction_date=FinancialDate.from_string("2023-08-31"),
+            description="Interest Paid",
+            amount=Money.from_cents(14099),
+            type="Interest",
+        )
+        parse_csv = ParseResult.create(transactions=[tx_csv])
+
+        result = deduplicate_transactions([(ofx_file, parse_ofx, 1000.0), (csv_file, parse_csv, 2000.0)])
+
+        assert len(result) == 1
+        assert result[0].posted_date == FinancialDate.from_string("2023-09-01")
+        assert result[0].transaction_date == FinancialDate.from_string("2023-08-31")
+
+    def test_deduplicate_cross_format_different_descriptions_both_kept(self):
+        """
+        Cross-format dedup must not drop unrelated transactions that happen to
+        share an amount but have different descriptions.
+        """
+        ofx_file = Path("/tmp/aug_2023.ofx")  # noqa: S108
+        tx_ofx = BankTransaction(
+            posted_date=FinancialDate.from_string("2023-08-31"),
+            description="Wire Transfer",
+            amount=Money.from_cents(14099),
+        )
+        parse_ofx = ParseResult.create(transactions=[tx_ofx])
+
+        csv_file = Path("/tmp/aug_2023.csv")  # noqa: S108
+        tx_csv = BankTransaction(
+            posted_date=FinancialDate.from_string("2023-09-01"),
+            transaction_date=FinancialDate.from_string("2023-08-31"),
+            description="Interest Paid",  # different description
+            amount=Money.from_cents(14099),
+        )
+        parse_csv = ParseResult.create(transactions=[tx_csv])
+
+        result = deduplicate_transactions([(ofx_file, parse_ofx, 1000.0), (csv_file, parse_csv, 2000.0)])
+
+        assert len(result) == 2
+
     def test_deduplicate_multiple_files_same_date(self):
         """Test that when 3+ files have same date, file with latest mtime wins."""
         # File 1 (oldest, mtime=1000)
