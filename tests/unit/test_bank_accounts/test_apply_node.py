@@ -6,11 +6,11 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from finances.bank_accounts.matching import make_import_id as _make_import_id
 from finances.bank_accounts.models import BankAccountsConfig
 from finances.bank_accounts.nodes.apply import (
     _format_amount,
     _group_operations,
-    _make_import_id,
     apply_reconciliation_operations,
 )
 from finances.core.json_utils import write_json
@@ -217,7 +217,14 @@ def test_account_with_no_pending_ops_skipped_silently():
 
         # No prompt should have been issued
         mock_input.assert_not_called()
-        assert counts == {"applied": 0, "skipped": 0, "acknowledged": 0, "failed": 0, "deleted": 0}
+        assert counts == {
+            "applied": 0,
+            "skipped": 0,
+            "acknowledged": 0,
+            "failed": 0,
+            "deleted": 0,
+            "duplicate_skipped": 0,
+        }
         # Log should be empty
         assert not log_path.exists() or log_path.read_text().strip() == ""
 
@@ -289,6 +296,8 @@ def test_create_batch_applied_via_file():
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
             counts = apply_reconciliation_operations(ops_file, log_path, config)
 
         # Should call ynab with --file -
@@ -344,6 +353,8 @@ def test_memo_absent_regardless_of_merchant():
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
             apply_reconciliation_operations(ops_file, log_path, config)
 
         payload = json.loads(mock_run.call_args[1]["input"])
@@ -415,6 +426,8 @@ def test_create_batch_split_then_applied():
             patch("builtins.print") as mock_print,
         ):
             mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
             counts = apply_reconciliation_operations(ops_file, log_path, config)
 
         # Individual calls (not --file) for each applied item
@@ -465,6 +478,8 @@ def test_create_batch_failed_logs_failed():
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 1
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
             counts = apply_reconciliation_operations(ops_file, log_path, config)
 
         assert counts["failed"] == 2
@@ -610,6 +625,8 @@ def test_batches_interleaved_by_date():
             patch("builtins.input", side_effect=["y", "a", "n"]),
         ):
             mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
             apply_reconciliation_operations(ops_file, log_path, config)
 
         lines = log_path.read_text().strip().splitlines()
@@ -667,6 +684,8 @@ def test_delete_batch_applied():
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
             counts = apply_reconciliation_operations(ops_file, log_path, config)
 
         # Should call ynab delete transaction twice (once per op)
@@ -750,6 +769,8 @@ def test_delete_batch_split():
             patch("builtins.print"),
         ):
             mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
             counts = apply_reconciliation_operations(ops_file, log_path, config)
 
         assert mock_run.call_count == 1

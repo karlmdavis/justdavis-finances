@@ -408,6 +408,7 @@ class BankDataReconcileFlowNode(FlowNode):
                         is_transfer=tx.get("transfer_account_id") is not None,
                         id=tx.get("id"),
                         import_posted_date=import_posted_date,
+                        import_id=import_id,
                     )
                 )
 
@@ -616,7 +617,8 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                 items_processed=counts["applied"]
                 + counts["skipped"]
                 + counts["acknowledged"]
-                + counts["deleted"],
+                + counts["deleted"]
+                + counts["duplicate_skipped"],
                 new_items=counts["applied"],
                 outputs=[apply_log_path],
                 requires_review=False,
@@ -625,6 +627,7 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                     "skipped": counts["skipped"],
                     "acknowledged": counts["acknowledged"],
                     "deleted": counts["deleted"],
+                    "duplicate_skipped": counts["duplicate_skipped"],
                     "log_file": str(apply_log_path),
                 },
             )

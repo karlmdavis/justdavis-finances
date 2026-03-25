@@ -44,12 +44,40 @@ Performance:
 """
 
 import re
+import uuid
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Any
 
 from finances.bank_accounts.models import BankTransaction
 from finances.core import FinancialDate, Money
+
+# Namespace UUID for deterministic import ID generation (bank reconciliation)
+_IMPORT_ID_NS = uuid.UUID("86ac2fc2-b0ad-4834-9241-63c577a477b3")
+
+
+def make_import_id(
+    slug: str, posted_date: str, amount_milliunits: int, description: str, seq: int = 0
+) -> str:
+    """
+    Generate stable import ID for a bank transaction.
+
+    Format: UUID v5 derived from bank:{slug}:{posted_date}:{amount_milliunits}:{description}
+    For seq=0 the formula is identical to the historical _make_import_id in apply.py.
+    For seq>=1 a ":{seq}" suffix is appended, producing a distinct UUID for the Nth
+    occurrence of an otherwise-identical (date, amount, description) tuple — needed when
+    the same payee charges the same amount twice on the same day.
+
+    Always exactly 36 characters (YNAB API limit).
+    Stable per bank transaction → applying is fully idempotent.
+    The YNAB API rejects duplicate import-id values, preventing duplicate transactions.
+    """
+    if seq == 0:
+        name = f"bank:{slug}:{posted_date}:{amount_milliunits}:{description}"
+    else:
+        name = f"bank:{slug}:{posted_date}:{amount_milliunits}:{description}:{seq}"
+    return str(uuid.uuid5(_IMPORT_ID_NS, name))
+
 
 # Fuzzy matching configuration
 FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.75
@@ -81,6 +109,7 @@ class YnabTransaction:
     is_transfer: bool = False
     id: str | None = None
     import_posted_date: FinancialDate | None = None
+    import_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON output."""
@@ -123,6 +152,18 @@ def normalize_description(text: str) -> str:
     # Normalize spaces (multiple spaces to single space)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def _by_import_id(ynab_txs: list[YnabTransaction], expected_id: str) -> list[YnabTransaction]:
+    """Exact match by previously assigned import_id.
+
+    Handles transactions created by bank_data_reconcile_apply: they have a deterministic
+    UUID5 import_id stored in YNAB.  Matching by that ID is immune to date-offset
+    mismatches (e.g. apply.py writes date=posted_date while YNAB Direct Import uses
+    date=posted_date-1 for Apple Card/Savings).  Must run before any date-based strategy
+    so it cannot be pre-empted by an adjacent bank tx stealing the pool entry.
+    """
+    return [tx for tx in ynab_txs if tx.import_id == expected_id]
 
 
 def _by_posted_date(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> list[YnabTransaction]:
@@ -220,16 +261,21 @@ def _pick_best(bank_tx: BankTransaction, candidates: list[YnabTransaction]) -> M
 
 
 def find_matches(
-    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction], ynab_date_offset_days: int = 0
+    bank_tx: BankTransaction,
+    ynab_txs: list[YnabTransaction],
+    ynab_date_offset_days: int = 0,
+    expected_import_id: str | None = None,
 ) -> MatchResult:
     """
     Find YNAB transaction matching bank transaction.
 
     Waterfall of strategies (first non-empty result wins):
-    1. posted_date + amount (primary)
-    2. transaction_date + amount (Apple Card 1-day offset)
-    3. import_posted_date + amount (YNAB Direct Import re-match of manual entries)
-    4. posted_date + offset + amount (account-level date convention difference)
+    0. import_id exact match (transactions previously created by bank_data_reconcile_apply)
+    1. posted_date + offset + amount (account-configured date shift; e.g., Apple Card/Savings
+       use purchase date = posted_date - 1; no-op when offset=0 so Chase is unaffected)
+    2. posted_date + amount (bank clearing date; primary for Chase where YNAB uses posted_date)
+    3. transaction_date + amount (purchase date fallback for Apple Card without offset)
+    4. import_posted_date + amount (YNAB Direct Import re-match of manual entries)
     5. transfer ±5 day window (YNAB initiation vs bank clearing date)
 
     Args:
@@ -238,15 +284,19 @@ def find_matches(
         ynab_date_offset_days: Days to shift bank posted_date when searching YNAB.
             Used when YNAB uses a different date convention than the bank CSV
             (e.g., Apple Savings: YNAB uses earned date, bank uses deposited date).
+        expected_import_id: UUID5 import_id previously written by bank_data_reconcile_apply.
+            When provided, checked first so apply-created transactions are always found
+            regardless of which date they landed on in YNAB.
 
     Returns:
         MatchResult with match_type and associated data
     """
     candidates = (
-        _by_posted_date(bank_tx, ynab_txs)
+        (_by_import_id(ynab_txs, expected_import_id) if expected_import_id else [])
+        or _by_ynab_date_offset(bank_tx, ynab_txs, ynab_date_offset_days)
+        or _by_posted_date(bank_tx, ynab_txs)
         or _by_transaction_date(bank_tx, ynab_txs)
         or _by_import_posted_date(bank_tx, ynab_txs)
-        or _by_ynab_date_offset(bank_tx, ynab_txs, ynab_date_offset_days)
         or _by_transfer_window(bank_tx, ynab_txs)
     )
     if not candidates:

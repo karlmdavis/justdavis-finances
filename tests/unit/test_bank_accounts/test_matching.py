@@ -7,6 +7,7 @@ from finances.bank_accounts.matching import (
     MatchResult,
     YnabTransaction,
     find_matches,
+    make_import_id,
     normalize_description,
 )
 from finances.bank_accounts.models import BankTransaction
@@ -610,8 +611,13 @@ def test_ynab_date_offset_zero_not_triggered():
     assert result.match_type == "none"
 
 
-def test_ynab_date_offset_not_triggered_when_step1_succeeds():
-    """Test that offset fallback is not triggered when posted_date already found candidates."""
+def test_ynab_date_offset_takes_priority_over_posted_date_when_both_present():
+    """Test that offset strategy fires before posted_date when both have candidates.
+
+    For Apple Card/Savings (offset=-1), YNAB uses purchase date (posted_date - 1).
+    When YNAB has txs on both posted_date AND posted_date-1, the offset tx is
+    the correct match and should be claimed first.
+    """
     bank_tx = BankTransaction(
         posted_date=FinancialDate.from_string("2024-01-02"),
         description="Daily Cash Deposit",
@@ -620,12 +626,12 @@ def test_ynab_date_offset_not_triggered_when_step1_succeeds():
 
     ynab_txs = [
         YnabTransaction(
-            date=FinancialDate.from_string("2024-01-02"),  # exact posted_date match
+            date=FinancialDate.from_string("2024-01-02"),  # posted_date match
             amount=Money.from_cents(15),
             payee_name="Deposit",
         ),
         YnabTransaction(
-            date=FinancialDate.from_string("2024-01-01"),  # offset match — should NOT be used
+            date=FinancialDate.from_string("2024-01-01"),  # offset match (posted_date - 1)
             amount=Money.from_cents(15),
             payee_name="Deposit",
         ),
@@ -633,9 +639,9 @@ def test_ynab_date_offset_not_triggered_when_step1_succeeds():
 
     result = find_matches(bank_tx, ynab_txs, ynab_date_offset_days=-1)
 
-    # Step 1 found one candidate → exact match; offset step is never reached
+    # Offset strategy fires first → claims the Jan 1 tx (correct YNAB purchase date)
     assert result.match_type == "exact"
-    assert result.ynab_transaction == ynab_txs[0]
+    assert result.ynab_transaction == ynab_txs[1]
 
 
 def test_ynab_payee_expansion_unknown_payee_unchanged():
@@ -920,3 +926,217 @@ def test_childrens_urgent_care_threshold():
 
     assert result.match_type == "fuzzy", f"Expected fuzzy, got {result.match_type}"
     assert result.ynab_transaction == ynab_childrens_1
+
+
+def test_ynab_date_offset_takes_priority_over_posted_date():
+    """Test that offset strategy fires before posted_date, preventing greedy mis-match.
+
+    Apple Card scenario: two same-amount purchases on consecutive days.
+    YNAB Direct Import assigns purchase date (= bank posted_date - 1).
+
+    Without offset-first ordering, Bank-C's posted_date (Jul 10) would steal YNAB-D
+    (date=Jul 10), leaving YNAB-C (date=Jul 9) orphaned and Bank-D unmatched.
+    With offset-first, Bank-C correctly matches YNAB-C and Bank-D matches YNAB-D.
+    """
+    # Two bank txs: purchased Jul 9 (posted Jul 10) and Jul 10 (posted Jul 11)
+    bank_c = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-07-10"),
+        transaction_date=FinancialDate.from_string("2024-07-09"),
+        description="TST* JEANNIEBIRD BAKIN",
+        amount=Money.from_milliunits(-12600),
+        merchant="Jeanniebird Bakin",
+    )
+    bank_d = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-07-11"),
+        transaction_date=FinancialDate.from_string("2024-07-10"),
+        description="TST* JEANNIEBIRD BAKIN",
+        amount=Money.from_milliunits(-12600),
+        merchant="Jeanniebird Bakin",
+    )
+
+    # Two YNAB txs: YNAB Direct Import assigned the purchase dates (Jul 9 and Jul 10)
+    ynab_c = YnabTransaction(
+        date=FinancialDate.from_string("2024-07-09"),
+        amount=Money.from_milliunits(-12600),
+        payee_name="JeannieBird Baking Company",
+    )
+    ynab_d = YnabTransaction(
+        date=FinancialDate.from_string("2024-07-10"),
+        amount=Money.from_milliunits(-12600),
+        payee_name="JeannieBird Baking Company",
+    )
+
+    # Simulate greedy pool: Bank-C matches first, removing its YNAB tx from the pool
+    pool = [ynab_c, ynab_d]
+    result_c = find_matches(bank_c, pool, ynab_date_offset_days=-1)
+
+    assert result_c.match_type in ("exact", "fuzzy"), f"Bank-C should match, got {result_c.match_type}"
+    assert result_c.ynab_transaction == ynab_c, (
+        f"Bank-C (posted Jul 10) should match YNAB-C (Jul 9), " f"got {result_c.ynab_transaction}"
+    )
+
+    # Remove matched tx from pool, then match Bank-D
+    pool.remove(result_c.ynab_transaction)
+    result_d = find_matches(bank_d, pool, ynab_date_offset_days=-1)
+
+    assert result_d.match_type in ("exact", "fuzzy"), f"Bank-D should match, got {result_d.match_type}"
+    assert result_d.ynab_transaction == ynab_d, (
+        f"Bank-D (posted Jul 11) should match YNAB-D (Jul 10), " f"got {result_d.ynab_transaction}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# make_import_id tests
+# ---------------------------------------------------------------------------
+
+
+def test_make_import_id_seq0_stable():
+    """seq=0 produces the same UUID as the historical _make_import_id formula."""
+    slug = "apple-card"
+    posted_date = "2023-05-06"
+    amount = -2100
+    description = "Vending Machine"
+    # Manually compute expected UUID5 using the original formula
+    import uuid as _uuid
+
+    ns = _uuid.UUID("86ac2fc2-b0ad-4834-9241-63c577a477b3")
+    expected = str(_uuid.uuid5(ns, f"bank:{slug}:{posted_date}:{amount}:{description}"))
+    assert make_import_id(slug, posted_date, amount, description, seq=0) == expected
+
+
+def test_make_import_id_seq1_differs_from_seq0():
+    """seq=1 produces a different UUID than seq=0 for the same inputs."""
+    slug = "apple-card"
+    posted_date = "2024-01-22"
+    amount = -7410
+    description = "Apple Services"
+    id0 = make_import_id(slug, posted_date, amount, description, seq=0)
+    id1 = make_import_id(slug, posted_date, amount, description, seq=1)
+    assert id0 != id1
+
+
+def test_make_import_id_default_seq_is_zero():
+    """Calling without seq kwarg gives the same result as seq=0."""
+    slug = "chase-checking"
+    id_no_seq = make_import_id(slug, "2024-06-01", -5000, "TARGET")
+    id_seq0 = make_import_id(slug, "2024-06-01", -5000, "TARGET", seq=0)
+    assert id_no_seq == id_seq0
+
+
+# ---------------------------------------------------------------------------
+# _by_import_id / find_matches with expected_import_id tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_id_match_found_before_date_strategies():
+    """_by_import_id fires first: apply-created tx found even when at posted_date,
+    not the offset date.
+
+    Apple Card scenario (offset=-1): apply.py created a YNAB tx at posted_date.
+    Without _by_import_id, _by_ynab_date_offset looks at posted_date-1 and finds
+    nothing, then _by_posted_date finds it — but only if no other bank tx has
+    already stolen it.  With _by_import_id running first, the tx is always claimed
+    by the right bank tx regardless of adjacent-date collisions.
+    """
+    slug = "apple-card"
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2023-05-06"),
+        description="Vending Machine",
+        amount=Money.from_milliunits(-2100),
+    )
+    expected_id = make_import_id(slug, "2023-05-06", -2100, "Vending Machine", seq=0)
+
+    # YNAB tx was stored at posted_date (not posted_date-1) by apply.py
+    ynab_tx = YnabTransaction(
+        date=FinancialDate.from_string("2023-05-06"),
+        amount=Money.from_milliunits(-2100),
+        payee_name="Vending Machine",
+        import_id=expected_id,
+    )
+    # Add a decoy at offset date with same amount — should NOT be picked
+    decoy = YnabTransaction(
+        date=FinancialDate.from_string("2023-05-05"),
+        amount=Money.from_milliunits(-2100),
+        payee_name="Decoy",
+        import_id="decoy-id",
+    )
+
+    result = find_matches(bank_tx, [decoy, ynab_tx], ynab_date_offset_days=-1, expected_import_id=expected_id)
+
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_tx
+
+
+def test_import_id_no_match_falls_through_to_date_strategies():
+    """When _by_import_id finds nothing, date-based strategies still work."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-03-15"),
+        description="Safeway",
+        amount=Money.from_milliunits(-4500),
+    )
+    ynab_tx = YnabTransaction(
+        date=FinancialDate.from_string("2024-03-15"),
+        amount=Money.from_milliunits(-4500),
+        payee_name="Safeway",
+        import_id="some-other-id",
+    )
+
+    # Pass a non-matching expected_import_id — should fall through to _by_posted_date
+    result = find_matches(bank_tx, [ynab_tx], ynab_date_offset_days=0, expected_import_id="non-matching-id")
+
+    assert result.match_type == "exact"
+    assert result.ynab_transaction == ynab_tx
+
+
+def test_two_identical_bank_txs_get_different_import_ids_via_seq():
+    """Two identical bank transactions (same date/amount/description) can be distinguished
+    by assigning seq=0 to the first and seq=1 to the second.
+
+    This models the Apple Services x2 case: two $7.41 charges on 2024-01-22.
+    """
+    slug = "apple-card"
+    posted_date = "2024-01-22"
+    amount = -7410
+    description = "Apple Services"
+
+    id0 = make_import_id(slug, posted_date, amount, description, seq=0)
+    id1 = make_import_id(slug, posted_date, amount, description, seq=1)
+
+    # Two YNAB txs, one per charge, each with its own import_id
+    ynab_0 = YnabTransaction(
+        date=FinancialDate.from_string("2024-01-22"),
+        amount=Money.from_milliunits(-7410),
+        payee_name="Apple Services",
+        import_id=id0,
+    )
+    ynab_1 = YnabTransaction(
+        date=FinancialDate.from_string("2024-01-22"),
+        amount=Money.from_milliunits(-7410),
+        payee_name="Apple Services",
+        import_id=id1,
+    )
+
+    bank_0 = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-01-22"),
+        description="Apple Services",
+        amount=Money.from_milliunits(-7410),
+    )
+    bank_1 = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-01-22"),
+        description="Apple Services",
+        amount=Money.from_milliunits(-7410),
+    )
+
+    pool = [ynab_0, ynab_1]
+
+    # First bank tx (seq=0) should claim ynab_0
+    result_0 = find_matches(bank_0, pool, expected_import_id=id0)
+    assert result_0.match_type == "exact"
+    assert result_0.ynab_transaction == ynab_0
+
+    pool.remove(result_0.ynab_transaction)
+
+    # Second bank tx (seq=1) should claim ynab_1
+    result_1 = find_matches(bank_1, pool, expected_import_id=id1)
+    assert result_1.match_type == "exact"
+    assert result_1.ynab_transaction == ynab_1

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from finances.bank_accounts.balance_reconciliation import build_balance_reconciliation
-from finances.bank_accounts.matching import MatchResult, YnabTransaction, find_matches
+from finances.bank_accounts.matching import MatchResult, YnabTransaction, find_matches, make_import_id
 from finances.bank_accounts.models import (
     BalancePoint,
     BalanceReconciliation,
@@ -132,10 +132,27 @@ def reconcile_account_data(
 
         # 2. Match bank transactions with YNAB transactions (greedy one-to-one)
         # Each claimed YNAB tx is removed from the pool so two bank txs can't claim the same one.
+        # seq tracks how many bank txs share the same (date, amount, description) key so that
+        # each gets a distinct import_id (seq=0 → original formula, seq≥1 → ":N" suffix).
         bank_matches: dict[BankTransaction, MatchResult] = {}
+        bank_tx_seqs: dict[BankTransaction, int] = {}
         remaining_ynab = list(ynab_txs_for_account)
+        seen_keys: dict[tuple[str, int, str], int] = {}
         for bank_tx in bank_txs:
-            match_result = find_matches(bank_tx, remaining_ynab, account.ynab_date_offset_days)
+            key = (str(bank_tx.posted_date), bank_tx.amount.to_milliunits(), bank_tx.description)
+            seq = seen_keys.get(key, 0)
+            seen_keys[key] = seq + 1
+            bank_tx_seqs[bank_tx] = seq
+            expected_id = make_import_id(
+                account.slug,
+                str(bank_tx.posted_date),
+                bank_tx.amount.to_milliunits(),
+                bank_tx.description,
+                seq,
+            )
+            match_result = find_matches(
+                bank_tx, remaining_ynab, account.ynab_date_offset_days, expected_import_id=expected_id
+            )
             bank_matches[bank_tx] = match_result
             if match_result.match_type in ("exact", "fuzzy") and match_result.ynab_transaction:
                 remaining_ynab.remove(match_result.ynab_transaction)
@@ -155,6 +172,7 @@ def reconcile_account_data(
                         "source": "bank",
                         "transaction": bank_tx.to_dict(),
                         "account_id": account.ynab_account_id,
+                        "import_id_seq": bank_tx_seqs[bank_tx],
                     }
                 )
             elif match_result.match_type == "ambiguous":

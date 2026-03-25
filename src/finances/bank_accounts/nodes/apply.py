@@ -1,31 +1,34 @@
 """Interactive apply node for bank reconciliation operations."""
 
 import json
+import re
 import subprocess
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from finances.bank_accounts.matching import make_import_id
 from finances.bank_accounts.models import BankAccountsConfig
 from finances.core import Money
 from finances.core.json_utils import read_json
 
-_IMPORT_ID_NS = uuid.UUID("86ac2fc2-b0ad-4834-9241-63c577a477b3")
 
+def _parse_duplicate_ids(stdout: str) -> set[str]:
+    """Parse duplicate import IDs from ynab create transaction stdout.
 
-def _make_import_id(slug: str, posted_date: str, amount_milliunits: int, description: str) -> str:
+    YNAB prints a line like:
+        Warning: 2 duplicate import ID(s) skipped: ["id1", "id2"]
+    when it rejects transactions whose import_id already exists in the budget.
+    Returns the set of rejected IDs so callers can log them separately.
     """
-    Generate stable import ID for a bank transaction.
-
-    Format: UUID v5 derived from bank:{slug}:{posted_date}:{amount_milliunits}:{description}
-
-    Always exactly 36 characters (YNAB API limit).
-    Stable per bank transaction → applying is fully idempotent.
-    The YNAB API rejects duplicate import-id values, preventing duplicate transactions.
-    """
-    name = f"bank:{slug}:{posted_date}:{amount_milliunits}:{description}"
-    return str(uuid.uuid5(_IMPORT_ID_NS, name))
+    match = re.search(r"Warning: \d+ duplicate import ID\(s\) skipped: \[([^\]]*)\]", stdout)
+    if not match:
+        return set()
+    try:
+        ids: list[str] = json.loads(f"[{match.group(1)}]")
+        return set(ids)
+    except Exception:
+        return set()
 
 
 def _format_amount(amount_milliunits: int) -> str:
@@ -81,7 +84,8 @@ def _build_file_payload(ops: list[dict[str, Any]], account_id: str, slug: str) -
         amount_milliunits = bank_tx["amount_milliunits"]
         description = bank_tx["description"]
         payee_name = bank_tx.get("merchant") or description
-        import_id = _make_import_id(slug, posted_date, amount_milliunits, description)
+        seq = op.get("import_id_seq", 0)
+        import_id = make_import_id(slug, posted_date, amount_milliunits, description, seq)
         payload.append(
             {
                 "account_id": account_id,
@@ -122,7 +126,8 @@ def _display_individual_create(date: str, op: dict[str, Any], account_id: str, s
     amount_milliunits = bank_tx["amount_milliunits"]
     description = bank_tx["description"]
     payee_name = bank_tx.get("merchant") or description
-    import_id = _make_import_id(slug, date, amount_milliunits, description)
+    seq = op.get("import_id_seq", 0)
+    import_id = make_import_id(slug, date, amount_milliunits, description, seq)
     amount_display = _format_amount(amount_milliunits)
     print()
     print("  Create Transaction Individually?")
@@ -313,7 +318,14 @@ def apply_reconciliation_operations(
 
     grouped = _group_operations(accounts_data)
 
-    counts: dict[str, int] = {"applied": 0, "skipped": 0, "acknowledged": 0, "failed": 0, "deleted": 0}
+    counts: dict[str, int] = {
+        "applied": 0,
+        "skipped": 0,
+        "acknowledged": 0,
+        "failed": 0,
+        "deleted": 0,
+        "duplicate_skipped": 0,
+    }
 
     apply_log_path.parent.mkdir(parents=True, exist_ok=True)
     ynab_delete_log_path = apply_log_path.with_name(
@@ -424,11 +436,13 @@ def apply_reconciliation_operations(
                 for _date, ops in sorted(creates.items()):
                     for op in ops:
                         bank_tx = op["transaction"]
-                        import_id = _make_import_id(
+                        seq = op.get("import_id_seq", 0)
+                        import_id = make_import_id(
                             slug,
                             bank_tx["posted_date"],
                             bank_tx["amount_milliunits"],
                             bank_tx["description"],
+                            seq,
                         )
                         payee_name = bank_tx.get("merchant") or bank_tx["description"]
                         write_log(
@@ -580,17 +594,26 @@ def apply_reconciliation_operations(
                         ["ynab", "create", "transaction", "--file", "-"],
                         input=json.dumps(payload),
                         text=True,
+                        capture_output=True,
                     )
+                    # Print captured output so user sees creation confirmations and warnings
+                    if proc.stdout:
+                        print(proc.stdout, end="")
+                    if proc.stderr:
+                        print(proc.stderr, end="")
                     exit_code = proc.returncode
+                    duplicate_ids = _parse_duplicate_ids(proc.stdout or "")
                     if exit_code != 0:
                         print(f"  ERROR: ynab exited with code {exit_code}")
                         for op in batch_ops:
                             bank_tx = op["transaction"]
-                            import_id = _make_import_id(
+                            seq = op.get("import_id_seq", 0)
+                            import_id = make_import_id(
                                 slug,
                                 bank_tx["posted_date"],
                                 bank_tx["amount_milliunits"],
                                 bank_tx["description"],
+                                seq,
                             )
                             payee_name = bank_tx.get("merchant") or bank_tx["description"]
                             write_log(
@@ -610,27 +633,45 @@ def apply_reconciliation_operations(
                     else:
                         for op in batch_ops:
                             bank_tx = op["transaction"]
-                            import_id = _make_import_id(
+                            seq = op.get("import_id_seq", 0)
+                            import_id = make_import_id(
                                 slug,
                                 bank_tx["posted_date"],
                                 bank_tx["amount_milliunits"],
                                 bank_tx["description"],
+                                seq,
                             )
                             payee_name = bank_tx.get("merchant") or bank_tx["description"]
-                            write_log(
-                                {
-                                    "op_type": "create_transaction",
-                                    "action": "applied",
-                                    "account_slug": slug,
-                                    "posted_date": bank_tx["posted_date"],
-                                    "amount_milliunits": bank_tx["amount_milliunits"],
-                                    "payee_name": payee_name,
-                                    "import_id": import_id,
-                                    "ynab_exit_code": 0,
-                                    "included_in_batch": True,
-                                }
-                            )
-                            counts["applied"] += 1
+                            if import_id in duplicate_ids:
+                                write_log(
+                                    {
+                                        "op_type": "create_transaction",
+                                        "action": "duplicate_skipped",
+                                        "account_slug": slug,
+                                        "posted_date": bank_tx["posted_date"],
+                                        "amount_milliunits": bank_tx["amount_milliunits"],
+                                        "payee_name": payee_name,
+                                        "import_id": import_id,
+                                        "ynab_exit_code": 0,
+                                        "included_in_batch": True,
+                                    }
+                                )
+                                counts["duplicate_skipped"] += 1
+                            else:
+                                write_log(
+                                    {
+                                        "op_type": "create_transaction",
+                                        "action": "applied",
+                                        "account_slug": slug,
+                                        "posted_date": bank_tx["posted_date"],
+                                        "amount_milliunits": bank_tx["amount_milliunits"],
+                                        "payee_name": payee_name,
+                                        "import_id": import_id,
+                                        "ynab_exit_code": 0,
+                                        "included_in_batch": True,
+                                    }
+                                )
+                                counts["applied"] += 1
 
                 elif action == "s":
                     # Individual review
@@ -640,7 +681,8 @@ def apply_reconciliation_operations(
                         amount_milliunits = bank_tx["amount_milliunits"]
                         description = bank_tx["description"]
                         payee_name = bank_tx.get("merchant") or description
-                        import_id = _make_import_id(slug, posted_date, amount_milliunits, description)
+                        seq = op.get("import_id_seq", 0)
+                        import_id = make_import_id(slug, posted_date, amount_milliunits, description, seq)
 
                         _display_individual_create(posted_date, op, account_id, slug)
                         if _prompt_apply_individual():
@@ -696,11 +738,13 @@ def apply_reconciliation_operations(
                 else:  # n
                     for op in batch_ops:
                         bank_tx = op["transaction"]
-                        import_id = _make_import_id(
+                        seq = op.get("import_id_seq", 0)
+                        import_id = make_import_id(
                             slug,
                             bank_tx["posted_date"],
                             bank_tx["amount_milliunits"],
                             bank_tx["description"],
+                            seq,
                         )
                         payee_name = bank_tx.get("merchant") or bank_tx["description"]
                         write_log(
