@@ -479,3 +479,122 @@ TRNAMT:-20.00"""
         assert result.coverage_intervals == (
             (FinancialDate.from_string("2024-01-01"), FinancialDate.from_string("2024-01-31")),
         )
+
+    def test_deduplication_preserves_multiple_identical_transactions(self) -> None:
+        """Cross-format dedup must not over-drop when N identical txs exist.
+
+        Scenario mirrors real Apple Savings September 2023 data:
+        - OFX file (newer) has TWO $0.11 Daily Cash Deposits on 2023-09-27.
+        - CSV file (older) has ONE $0.11 Daily Cash Deposit with
+          transaction_date=2023-09-27 but posted_date=2023-09-28.
+
+        The cross-format dedup logic should drop exactly ONE OFX 09/27 entry
+        (the CSV counterpart) and keep the second OFX 09/27 plus the CSV 09/28,
+        yielding two $0.11 transactions total — not one.
+        """
+        import time
+
+        raw_dir = self.base_dir / "raw" / "test-savings"
+        raw_dir.mkdir(parents=True)
+
+        # Older CSV: one $0.11 tx with transaction_date=09/27, posted=09/28
+        csv_content = (
+            "posted_date,transaction_date,description,amount_cents\n"
+            "2023-09-28,2023-09-27,Daily Cash Deposit,11\n"
+        )
+        csv_file = raw_dir / "sep_2023.csv"
+        csv_file.write_text(csv_content)
+
+        # Newer OFX: two $0.11 txs both on 09/27 (no transaction_date)
+        time.sleep(0.01)  # ensure OFX mtime > CSV mtime
+        ofx_content = "2023-09-27,Daily Cash Deposit,11\n" "2023-09-27,Daily Cash Deposit,11\n"
+        ofx_file = raw_dir / "sep_2023.ofx"
+        ofx_file.write_text(ofx_content)
+
+        # Handlers: CSV produces txs with transaction_date; OFX produces txs without
+        class SavingsCsvHandler(BankExportFormatHandler):
+            @property
+            def format_name(self) -> str:
+                return "savings_csv"
+
+            @property
+            def supported_extensions(self) -> tuple[str, ...]:
+                return (".csv",)
+
+            def validate_file(self, file_path: Path) -> bool:
+                return file_path.suffix == ".csv"
+
+            def parse(self, file_path: Path) -> ParseResult:
+                txs = []
+                for line in file_path.read_text().strip().split("\n")[1:]:
+                    p = line.split(",")
+                    txs.append(
+                        BankTransaction(
+                            posted_date=FinancialDate.from_string(p[0]),
+                            transaction_date=FinancialDate.from_string(p[1]),
+                            description=p[2],
+                            amount=Money.from_cents(int(p[3])),
+                        )
+                    )
+                return ParseResult.create(transactions=txs)
+
+        class SavingsOfxHandler(BankExportFormatHandler):
+            @property
+            def format_name(self) -> str:
+                return "savings_ofx"
+
+            @property
+            def supported_extensions(self) -> tuple[str, ...]:
+                return (".ofx",)
+
+            def validate_file(self, file_path: Path) -> bool:
+                return file_path.suffix == ".ofx"
+
+            def parse(self, file_path: Path) -> ParseResult:
+                txs = []
+                for line in file_path.read_text().strip().split("\n"):
+                    p = line.split(",")
+                    txs.append(
+                        BankTransaction(
+                            posted_date=FinancialDate.from_string(p[0]),
+                            description=p[1].strip(),
+                            amount=Money.from_cents(int(p[2])),
+                        )
+                    )
+                return ParseResult.create(transactions=txs)
+
+        registry = FormatHandlerRegistry()
+        registry.register(SavingsCsvHandler)
+        registry.register(SavingsOfxHandler)
+
+        config = BankAccountsConfig(
+            accounts=(
+                AccountConfig(
+                    ynab_account_id="acct_savings",
+                    ynab_account_name="Test Savings",
+                    slug="test-savings",
+                    bank_name="Test Bank",
+                    account_type="savings",
+                    statement_frequency="monthly",
+                    source_directory="/tmp/source",  # noqa: S108
+                    download_instructions="",
+                    import_patterns=(
+                        ImportPattern(pattern="*.csv", format_handler="savings_csv"),
+                        ImportPattern(pattern="*.ofx", format_handler="savings_ofx"),
+                    ),
+                ),
+            )
+        )
+
+        results = parse_account_data(config, self.base_dir, registry)
+        result = results["test-savings"]
+
+        # Expect 2 transactions: OFX 09/27 (2nd copy kept) + CSV 09/28
+        # The dedup should drop only ONE OFX 09/27, not both.
+        daily_cash = [tx for tx in result.transactions if tx.description == "Daily Cash Deposit"]
+        assert len(daily_cash) == 2, f"Expected 2 Daily Cash Deposit txs but got {len(daily_cash)}: " + str(
+            [(str(tx.posted_date), tx.transaction_date) for tx in daily_cash]
+        )
+        dates = {str(tx.posted_date) for tx in daily_cash}
+        assert "2023-09-27" in dates, "Expected one tx on 2023-09-27 (from OFX)"
+        assert "2023-09-28" in dates, "Expected one tx on 2023-09-28 (from CSV)"

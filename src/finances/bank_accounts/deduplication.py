@@ -1,5 +1,6 @@
 """Transaction de-duplication logic for bank account reconciliation."""
 
+from collections import Counter
 from pathlib import Path
 
 from finances.bank_accounts.format_handlers.base import ParseResult
@@ -71,17 +72,28 @@ def deduplicate_transactions(parsed_files: list[tuple[Path, ParseResult, float]]
     # has no transaction_date AND another transaction T' from a different file
     # has transaction_date == T.posted_date with the same amount and description,
     # then T is the OFX's statement-end representation of T' — drop T.
-    anchor_set: set[tuple[FinancialDate, int, str]] = {
+    #
+    # Important: use a Counter (not a set) so that N CSV entries only cancel N
+    # OFX entries. When two truly-distinct transactions share the same
+    # (date, amount, description) — e.g., two $0.11 Daily Cash Deposits on the
+    # same day — only as many OFX copies as there are CSV counterparts are
+    # suppressed; any extras are preserved.
+    anchor_remaining: Counter[tuple[FinancialDate, int, str]] = Counter(
         (tx.transaction_date, tx.amount.to_milliunits(), tx.description)
         for tx in result
         if tx.transaction_date is not None
-    }
+    )
 
-    result = [
-        tx
-        for tx in result
-        if tx.transaction_date is not None
-        or (tx.posted_date, tx.amount.to_milliunits(), tx.description) not in anchor_set
-    ]
+    filtered: list[BankTransaction] = []
+    for tx in result:
+        if tx.transaction_date is not None:
+            filtered.append(tx)
+        else:
+            anchor_key = (tx.posted_date, tx.amount.to_milliunits(), tx.description)
+            if anchor_remaining[anchor_key] > 0:
+                anchor_remaining[anchor_key] -= 1  # consume one CSV anchor — drop this OFX duplicate
+            else:
+                filtered.append(tx)
+    result = filtered
 
     return result
