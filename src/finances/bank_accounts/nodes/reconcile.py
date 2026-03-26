@@ -16,6 +16,35 @@ from finances.core import FinancialDate, Money
 from finances.core.json_utils import read_json
 
 
+def _classify_mismatch_reason(
+    ynab_tx_date: FinancialDate,
+    coverage_intervals: list[tuple[FinancialDate, FinancialDate]],
+) -> str:
+    """Classify why a YNAB transaction has no matching bank transaction.
+
+    Returns one of:
+        "pre_coverage"       — date is before the first coverage interval
+        "coverage_gap"       — date falls between two coverage intervals
+        "post_coverage"      — date is after the last coverage interval
+        "within_coverage"    — date is inside coverage but no bank tx matched (true mismatch)
+    """
+    if not coverage_intervals:
+        return "pre_coverage"
+
+    sorted_ivs = sorted(coverage_intervals, key=lambda iv: iv[0])
+    first_start = sorted_ivs[0][0]
+    last_end = sorted_ivs[-1][1]
+
+    if ynab_tx_date < first_start:
+        return "pre_coverage"
+    if ynab_tx_date > last_end:
+        return "post_coverage"
+    for start, end in sorted_ivs:
+        if start <= ynab_tx_date <= end:
+            return "within_coverage"
+    return "coverage_gap"
+
+
 @dataclass(frozen=True)
 class ReconciliationResult:
     """Result of reconciling a single account."""
@@ -24,6 +53,8 @@ class ReconciliationResult:
     unmatched_bank_txs: tuple[BankTransaction, ...]
     unmatched_ynab_txs: tuple[YnabTransaction, ...]
     operations: tuple[dict[str, Any], ...]
+    # Each entry: {tx dict, "mismatch_reason": str}
+    categorized_unmatched_ynab: tuple[dict[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON output."""
@@ -31,6 +62,7 @@ class ReconciliationResult:
             "balance_reconciliation": self.reconciliation.to_dict(),
             "unmatched_bank_txs": [tx.to_dict() for tx in self.unmatched_bank_txs],
             "unmatched_ynab_txs": [tx.to_dict() for tx in self.unmatched_ynab_txs],
+            "categorized_unmatched_ynab": list(self.categorized_unmatched_ynab),
             "operations": list(self.operations),
         }
 
@@ -134,15 +166,16 @@ def reconcile_account_data(
         # Each claimed YNAB tx is removed from the pool so two bank txs can't claim the same one.
         # seq tracks how many bank txs share the same (date, amount, description) key so that
         # each gets a distinct import_id (seq=0 → original formula, seq≥1 → ":N" suffix).
-        bank_matches: dict[BankTransaction, MatchResult] = {}
-        bank_tx_seqs: dict[BankTransaction, int] = {}
+        # Use a list of (bank_tx, match_result, seq) tuples — NOT a dict keyed by bank_tx.
+        # BankTransaction is a frozen dataclass so duplicate txs (same date/amount/description)
+        # share the same hash, causing dict key collisions that silently drop match results.
+        bank_match_entries: list[tuple[BankTransaction, MatchResult, int]] = []
         remaining_ynab = list(ynab_txs_for_account)
         seen_keys: dict[tuple[str, int, str], int] = {}
         for bank_tx in bank_txs:
             key = (str(bank_tx.posted_date), bank_tx.amount.to_milliunits(), bank_tx.description)
             seq = seen_keys.get(key, 0)
             seen_keys[key] = seq + 1
-            bank_tx_seqs[bank_tx] = seq
             expected_id = make_import_id(
                 account.slug,
                 str(bank_tx.posted_date),
@@ -153,18 +186,18 @@ def reconcile_account_data(
             match_result = find_matches(
                 bank_tx, remaining_ynab, account.ynab_date_offset_days, expected_import_id=expected_id
             )
-            bank_matches[bank_tx] = match_result
+            bank_match_entries.append((bank_tx, match_result, seq))
             if match_result.match_type in ("exact", "fuzzy") and match_result.ynab_transaction:
                 remaining_ynab.remove(match_result.ynab_transaction)
 
         # Track unmatched transactions
-        unmatched_bank_txs = [tx for tx, result in bank_matches.items() if result.match_type == "none"]
+        unmatched_bank_txs = [tx for tx, result, _seq in bank_match_entries if result.match_type == "none"]
         unmatched_ynab_txs = remaining_ynab  # whatever wasn't claimed
 
         # 3. Generate operations
         operations: list[dict[str, Any]] = []
 
-        for bank_tx, match_result in bank_matches.items():
+        for bank_tx, match_result, seq in bank_match_entries:
             if match_result.match_type == "none":
                 operations.append(
                     {
@@ -172,7 +205,7 @@ def reconcile_account_data(
                         "source": "bank",
                         "transaction": bank_tx.to_dict(),
                         "account_id": account.ynab_account_id,
-                        "import_id_seq": bank_tx_seqs[bank_tx],
+                        "import_id_seq": seq,
                     }
                 )
             elif match_result.match_type == "ambiguous":
@@ -234,9 +267,25 @@ def reconcile_account_data(
                 }
             )
 
+        # 3c. Categorize each unmatched YNAB tx with a mismatch_reason
+        categorized: list[dict[str, Any]] = []
+        for ynab_tx in unmatched_ynab_txs:
+            reason = _classify_mismatch_reason(ynab_tx.date, list(coverage_intervals))
+            entry: dict[str, Any] = {
+                "date": str(ynab_tx.date),
+                "amount_milliunits": ynab_tx.amount.to_milliunits(),
+                "payee_name": ynab_tx.payee_name,
+                "memo": ynab_tx.memo,
+                "id": ynab_tx.id,
+                "is_transfer": ynab_tx.is_transfer,
+                "mismatch_reason": reason,
+            }
+            categorized.append(entry)
+
         # 4. Build balance reconciliation
         # Calculate YNAB running balances from transactions
-        ynab_balances = calculate_ynab_balances(ynab_txs_for_account, balance_points)
+        all_balance_points = balance_points + list(account.manual_balance_points)
+        ynab_balances = calculate_ynab_balances(ynab_txs_for_account, all_balance_points)
 
         balance_recon = build_balance_reconciliation(
             account_id=account.slug,
@@ -244,6 +293,7 @@ def reconcile_account_data(
             ynab_balances=ynab_balances,
             unmatched_bank_txs=unmatched_bank_txs,
             unmatched_ynab_txs=unmatched_ynab_txs,
+            manual_balance_points=list(account.manual_balance_points),
         )
 
         # Build reconciliation result for this account
@@ -252,7 +302,44 @@ def reconcile_account_data(
             unmatched_bank_txs=tuple(unmatched_bank_txs),
             unmatched_ynab_txs=tuple(unmatched_ynab_txs),
             operations=tuple(operations),
+            categorized_unmatched_ynab=tuple(categorized),
         )
         results[account.slug] = result
 
     return results
+
+
+def print_reconciliation_summary(results: dict[str, "ReconciliationResult"]) -> None:
+    """Print a human-readable reconciliation summary to stdout."""
+    print("\n=== Bank Reconciliation Summary ===\n")
+    for slug, result in results.items():
+        unmatched_bank = len(result.unmatched_bank_txs)
+        unmatched_ynab = len(result.unmatched_ynab_txs)
+        print(f"{slug}: {unmatched_bank} unmatched bank txs, {unmatched_ynab} unmatched YNAB txs")
+
+        # Count by mismatch reason
+        from collections import Counter
+
+        reason_counts: Counter[str] = Counter(e["mismatch_reason"] for e in result.categorized_unmatched_ynab)
+        for reason in ("pre_coverage", "coverage_gap", "post_coverage", "within_coverage"):
+            count = reason_counts.get(reason, 0)
+            if count == 0 and reason != "within_coverage":
+                continue
+            suffix = ""
+            if reason == "post_coverage" and count > 0:
+                suffix = "  → download newer bank statements"
+            elif reason == "coverage_gap" and count > 0:
+                suffix = "  → download missing bank statements to fill gap"
+            elif reason == "pre_coverage" and count > 0:
+                suffix = "  → pre-dates bank data coverage (cannot auto-resolve)"
+            elif reason == "within_coverage" and count > 0:
+                suffix = "  ⚠ true mismatch within coverage — needs investigation"
+            print(f"  {reason:<25}: {count:3d} txs{suffix}")
+
+        recon = result.reconciliation
+        if recon.last_reconciled_date:
+            print(f"  last reconciled: {recon.last_reconciled_date}")
+        elif recon.points:
+            closest = min(recon.points, key=lambda p: abs(p.difference.to_cents()))
+            print(f"  closest to reconciled: {closest.date} (diff {closest.difference})")
+        print()

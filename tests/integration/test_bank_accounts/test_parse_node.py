@@ -442,11 +442,11 @@ TRNAMT:-20.00"""
             (FinancialDate.from_string("2024-03-01"), FinancialDate.from_string("2024-03-31")),
         )
 
-    def test_coverage_intervals_overlapping_files_intersection(self) -> None:
-        """Two overlapping files (different boundaries) produce their intersection.
+    def test_coverage_intervals_overlapping_files_union(self) -> None:
+        """Two overlapping files (different boundaries) produce their union.
 
-        Simulates e.g. OFX Jan 1-5 + CSV Jan 3-31: the conservative intersection
-        is [Jan 3, Jan 5], preventing false orphan detections at statement boundaries.
+        Simulates e.g. OFX Jan 1-5 + CSV Jan 3-31: the union is [Jan 1, Jan 31],
+        covering the full range of both files.
         """
         raw_dir = self.base_dir / "raw" / "test-checking"
         raw_dir.mkdir(parents=True)
@@ -475,7 +475,7 @@ TRNAMT:-20.00"""
         )
         results = parse_account_data(config, self.base_dir, self.registry)
         result = results["test-checking"]
-        # Intersection of [Jan 1, Jan 5] and [Jan 3, Jan 31] → [Jan 3, Jan 5]
+        # Union of [Jan 1, Jan 5] and [Jan 3, Jan 31] → [Jan 1, Jan 31] (overlapping → merge)
         assert result.coverage_intervals == (
-            (FinancialDate.from_string("2024-01-03"), FinancialDate.from_string("2024-01-05")),
+            (FinancialDate.from_string("2024-01-01"), FinancialDate.from_string("2024-01-31")),
         )

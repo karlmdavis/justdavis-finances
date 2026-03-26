@@ -59,23 +59,36 @@ def build_balance_reconciliation(
     ynab_balances: dict[FinancialDate, Money],
     unmatched_bank_txs: list[BankTransaction],
     unmatched_ynab_txs: list[YnabTransaction],
+    manual_balance_points: list[BalancePoint] | None = None,
 ) -> BalanceReconciliation:
     """
     Build complete balance reconciliation history.
 
     Args:
         account_id: Account identifier (slug)
-        balance_points: List of bank balance points
+        balance_points: List of bank balance points from statement files
         ynab_balances: Dict mapping dates to YNAB balances
         unmatched_bank_txs: List of bank transactions not in YNAB
         unmatched_ynab_txs: List of YNAB transactions not in bank
+        manual_balance_points: Optional list of manually-verified balance checkpoints
+            (e.g. from iPhone Wallet). Merged with balance_points; manual points are
+            used when no file-derived point exists for the same date.
 
     Returns:
         BalanceReconciliation with full reconciliation history
     """
+    # Merge file-derived and manual balance points.
+    # File-derived points take precedence when both exist on the same date.
+    if manual_balance_points:
+        file_dates = {bp.date for bp in balance_points}
+        extra = [bp for bp in manual_balance_points if bp.date not in file_dates]
+        merged = sorted(list(balance_points) + extra, key=lambda bp: bp.date)
+    else:
+        merged = sorted(balance_points, key=lambda bp: bp.date)
+
     points = []
 
-    for balance_point in balance_points:
+    for balance_point in merged:
         date = balance_point.date
         ynab_balance = ynab_balances.get(date, Money.from_cents(0))
 

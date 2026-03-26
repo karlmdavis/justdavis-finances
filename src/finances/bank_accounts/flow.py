@@ -10,7 +10,7 @@ from finances.bank_accounts.datastore import (
 )
 from finances.bank_accounts.models import BankAccountsConfig
 from finances.bank_accounts.nodes.parse import parse_account_data
-from finances.bank_accounts.nodes.reconcile import reconcile_account_data
+from finances.bank_accounts.nodes.reconcile import print_reconciliation_summary, reconcile_account_data
 from finances.bank_accounts.nodes.retrieve import retrieve_account_data
 from finances.core.flow import (
     FlowContext,
@@ -419,6 +419,9 @@ class BankDataReconcileFlowNode(FlowNode):
             reconcile_results = reconcile_account_data(
                 self.config, self.data_dir / "bank_accounts", ynab_transactions, raw_ynab_by_id
             )
+
+            # Print human-readable summary to console
+            print_reconciliation_summary(reconcile_results)
 
             # Serialize to JSON
             data = {

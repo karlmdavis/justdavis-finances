@@ -1,5 +1,7 @@
 """Domain models for bank account reconciliation."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -21,7 +23,7 @@ class ImportPattern:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ImportPattern":
+    def from_dict(cls, data: dict[str, Any]) -> ImportPattern:
         """Deserialize from dict."""
         return cls(
             pattern=data["pattern"],
@@ -51,9 +53,15 @@ class AccountConfig:
     # Date offset configuration
     ynab_date_offset_days: int = 0  # Days to shift bank posted_date when searching YNAB
 
+    # Manually-verified balance checkpoints (e.g. from iPhone Wallet app).
+    # These supplement OFX balance points for accounts where OFX balances are unreliable.
+    # Each entry: {"date": "YYYY-MM-DD", "balance_milliunits": int}
+    # Sign convention matches YNAB: negative for credit card debt, positive for assets.
+    manual_balance_points: tuple[BalancePoint, ...] = ()
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON output."""
-        return {
+        result: dict[str, Any] = {
             "ynab_account_id": self.ynab_account_id,
             "ynab_account_name": self.ynab_account_name,
             "slug": self.slug,
@@ -65,9 +73,12 @@ class AccountConfig:
             "import_patterns": [p.to_dict() for p in self.import_patterns],
             "ynab_date_offset_days": self.ynab_date_offset_days,
         }
+        if self.manual_balance_points:
+            result["manual_balance_points"] = [p.to_dict() for p in self.manual_balance_points]
+        return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AccountConfig":
+    def from_dict(cls, data: dict[str, Any]) -> AccountConfig:
         """Deserialize from dict."""
         return cls(
             ynab_account_id=data["ynab_account_id"],
@@ -80,6 +91,9 @@ class AccountConfig:
             download_instructions=data["download_instructions"],
             import_patterns=tuple(ImportPattern.from_dict(p) for p in data["import_patterns"]),
             ynab_date_offset_days=data.get("ynab_date_offset_days", 0),
+            manual_balance_points=tuple(
+                BalancePoint.from_dict(bp) for bp in data.get("manual_balance_points", [])
+            ),
         )
 
 
@@ -96,19 +110,19 @@ class BankAccountsConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BankAccountsConfig":
+    def from_dict(cls, data: dict[str, Any]) -> BankAccountsConfig:
         """Deserialize from dict."""
         return cls(
             accounts=tuple(AccountConfig.from_dict(a) for a in data["accounts"]),
         )
 
     @classmethod
-    def empty(cls) -> "BankAccountsConfig":
+    def empty(cls) -> BankAccountsConfig:
         """Create an empty configuration."""
         return cls(accounts=())
 
     @classmethod
-    def load(cls, config_path: str | None = None) -> "BankAccountsConfig":
+    def load(cls, config_path: str | None = None) -> BankAccountsConfig:
         """
         Load bank accounts configuration from JSON file.
 
@@ -242,7 +256,7 @@ class BankTransaction:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BankTransaction":
+    def from_dict(cls, data: dict[str, Any]) -> BankTransaction:
         """Deserialize from normalized format dict."""
         return cls(
             posted_date=FinancialDate.from_string(data["posted_date"]),
@@ -287,7 +301,7 @@ class BalancePoint:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BalancePoint":
+    def from_dict(cls, data: dict[str, Any]) -> BalancePoint:
         """Deserialize from normalized format dict."""
         return cls(
             date=FinancialDate.from_string(data["date"]),
@@ -329,7 +343,7 @@ class BalanceReconciliationPoint:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BalanceReconciliationPoint":
+    def from_dict(cls, data: dict[str, Any]) -> BalanceReconciliationPoint:
         """Deserialize from dict."""
         return cls(
             date=FinancialDate.from_string(data["date"]),
@@ -363,7 +377,7 @@ class BalanceReconciliation:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BalanceReconciliation":
+    def from_dict(cls, data: dict[str, Any]) -> BalanceReconciliation:
         """Deserialize from dict."""
         return cls(
             account_id=data["account_id"],

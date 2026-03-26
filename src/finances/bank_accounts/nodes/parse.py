@@ -12,9 +12,9 @@ from finances.core import FinancialDate
 def _consolidate_intervals(
     intervals: list[tuple[FinancialDate, FinancialDate]],
 ) -> list[tuple[FinancialDate, FinancialDate]]:
-    """Merge overlapping intervals using intersection (conservative).
+    """Merge overlapping intervals using union.
 
-    When two intervals overlap, shrink to their common area.
+    When two intervals overlap, extend to their combined span.
     Non-overlapping intervals are kept as independent entries.
     Intervals are sorted by start date before processing.
     """
@@ -24,11 +24,8 @@ def _consolidate_intervals(
     result = []
     cur_start, cur_end = sorted_ivs[0]
     for start, end in sorted_ivs[1:]:
-        if start <= cur_end:  # intervals overlap: intersect
-            cur_start = max(cur_start, start)
-            cur_end = min(cur_end, end)
-            if cur_start > cur_end:  # intersection is empty (degenerate)
-                cur_start, cur_end = start, end
+        if start <= cur_end:  # intervals overlap: extend with union
+            cur_end = max(cur_end, end)
         else:  # no overlap: emit current, advance
             result.append((cur_start, cur_end))
             cur_start, cur_end = start, end
