@@ -74,20 +74,32 @@ class TestCashFlowAnalyzer:
                 {
                     "id": "account-1",
                     "name": "Chase Checking",
-                    "balance": 50000000,  # $50,000 in milliunits
                     "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 50000000,  # $50,000 in milliunits
+                    "cleared_balance": 50000000,
+                    "uncleared_balance": 0,
                 },
                 {
                     "id": "account-2",
                     "name": "Chase Credit Card",
-                    "balance": -5000000,  # -$5,000 in milliunits (debt)
                     "type": "creditCard",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": -5000000,  # -$5,000 in milliunits (debt)
+                    "cleared_balance": -5000000,
+                    "uncleared_balance": 0,
                 },
                 {
                     "id": "account-3",
                     "name": "Apple Card",
-                    "balance": -2000000,  # -$2,000 in milliunits (debt)
                     "type": "creditCard",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": -2000000,  # -$2,000 in milliunits (debt)
+                    "cleared_balance": -2000000,
+                    "uncleared_balance": 0,
                 },
             ],
             "server_knowledge": 123,
@@ -183,7 +195,7 @@ class TestCashFlowAnalyzer:
         """Test data loading with missing files."""
         missing_cache_dir = temp_dir / "missing"
 
-        with pytest.raises(FileNotFoundError, match="YNAB data not found"):
+        with pytest.raises(FileNotFoundError, match="YNAB accounts cache not found"):
             analyzer.load_data(missing_cache_dir)
 
     def test_moving_averages_calculation(self, analyzer, sample_ynab_data):
@@ -307,7 +319,18 @@ class TestCashFlowAnalyzer:
         ynab_cache_dir.mkdir(parents=True)
 
         accounts_data = {
-            "accounts": [{"id": "1", "name": "Chase Checking", "balance": 50000000, "type": "checking"}],
+            "accounts": [
+                {
+                    "id": "1",
+                    "name": "Chase Checking",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 50000000,
+                    "cleared_balance": 50000000,
+                    "uncleared_balance": 0,
+                }
+            ],
             "server_knowledge": 123,
         }
 
@@ -349,6 +372,138 @@ class TestCashFlowAnalyzer:
         # Should be approximately equal (allowing for small floating point differences)
         pd.testing.assert_series_equal(analyzer.df["Total"], calculated_total, check_exact=False, rtol=1e-10)
 
+    def test_deleted_transactions_excluded(self, temp_dir):
+        """Deleted transactions must not affect the backwards balance reconstruction.
+
+        Regression test: YNAB soft-deletes transactions (deleted: true) but keeps
+        them in the API response. Including them in the backwards reconstruction
+        inflates historical balances — a deleted expense of -$500 would add $500
+        to every prior date's total.
+        """
+        ynab_cache_dir = temp_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True)
+
+        accounts_data = {
+            "accounts": [
+                {
+                    "id": "1",
+                    "name": "Chase Checking",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 10000000,  # $10,000 current balance
+                    "cleared_balance": 10000000,
+                    "uncleared_balance": 0,
+                }
+            ],
+            "server_knowledge": 123,
+        }
+
+        transactions_data = [
+            {
+                "id": "normal-expense",
+                "date": "2024-08-15",
+                "amount": -5000,  # -$5 normal expense
+                "account_name": "Chase Checking",
+                "payee_name": "Coffee Shop",
+                "deleted": False,
+            },
+            {
+                "id": "deleted-expense",
+                "date": "2024-08-15",
+                "amount": -500000,  # -$500 deleted expense (duplicate import, etc.)
+                "account_name": "Chase Checking",
+                "payee_name": "Phantom Charge",
+                "deleted": True,
+            },
+        ]
+
+        with open(ynab_cache_dir / "accounts.json", "w") as f:
+            json.dump(accounts_data, f, indent=2)
+
+        with open(ynab_cache_dir / "transactions.json", "w") as f:
+            json.dump(transactions_data, f, indent=2)
+
+        config = CashFlowConfig(cash_accounts=["Chase Checking"], start_date="2024-08-01")
+        analyzer = CashFlowAnalyzer(config)
+        analyzer.load_data(ynab_cache_dir)
+
+        # Working backwards from $10,000 (current), undoing the -$5 normal expense:
+        # balance at start of Aug 15 = $10,000 + $5 = $10,005.
+        # If deleted transaction were included, it would be $10,000 + $5 + $500 = $10,505.
+        assert analyzer.df is not None
+        start_balance = float(analyzer.df["Total"].iloc[0])
+        assert (
+            abs(start_balance - 10005.0) < 0.01
+        ), f"Expected ~$10,005 (deleted transaction excluded), got ${start_balance:.2f}"
+
+    def test_closed_accounts_excluded(self, temp_dir):
+        """Closed accounts must not appear in cash flow calculations.
+
+        Regression test: accounts.json includes all accounts including closed ones.
+        A closed account in the cash_accounts config list should be silently excluded
+        so its stale balance doesn't distort the total.
+        """
+        ynab_cache_dir = temp_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True)
+
+        accounts_data = {
+            "accounts": [
+                {
+                    "id": "1",
+                    "name": "Active Checking",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 10000000,  # $10,000
+                    "cleared_balance": 10000000,
+                    "uncleared_balance": 0,
+                },
+                {
+                    "id": "2",
+                    "name": "Closed Old Account",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": True,  # Closed account
+                    "balance": 5000000,  # $5,000 residual balance (should be ignored)
+                    "cleared_balance": 5000000,
+                    "uncleared_balance": 0,
+                },
+            ],
+            "server_knowledge": 123,
+        }
+
+        transactions_data = [
+            {
+                "id": "txn-1",
+                "date": "2024-08-15",
+                "amount": -10000,  # -$10 expense
+                "account_name": "Active Checking",
+                "payee_name": "Store",
+                "deleted": False,
+            },
+        ]
+
+        with open(ynab_cache_dir / "accounts.json", "w") as f:
+            json.dump(accounts_data, f, indent=2)
+
+        with open(ynab_cache_dir / "transactions.json", "w") as f:
+            json.dump(transactions_data, f, indent=2)
+
+        config = CashFlowConfig(
+            cash_accounts=["Active Checking", "Closed Old Account"], start_date="2024-08-01"
+        )
+        analyzer = CashFlowAnalyzer(config)
+        analyzer.load_data(ynab_cache_dir)
+
+        assert analyzer.df is not None
+        # Total should only reflect Active Checking ($10,000 + $10 = $10,010 at start).
+        # If Closed Old Account were included, start balance would be ~$15,010.
+        start_balance = float(analyzer.df["Total"].iloc[0])
+        assert (
+            abs(start_balance - 10010.0) < 0.01
+        ), f"Expected ~$10,010 (closed account excluded), got ${start_balance:.2f}"
+
 
 class TestCashFlowEdgeCases:
     """Test edge cases and error conditions."""
@@ -360,7 +515,18 @@ class TestCashFlowEdgeCases:
 
         # Accounts data missing target accounts
         accounts_data = {
-            "accounts": [{"id": "1", "name": "Other Account", "balance": 1000000}],
+            "accounts": [
+                {
+                    "id": "1",
+                    "name": "Other Account",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 1000000,
+                    "cleared_balance": 1000000,
+                    "uncleared_balance": 0,
+                }
+            ],
             "server_knowledge": 123,
         }
 
@@ -419,7 +585,18 @@ class TestCashFlowEdgeCases:
 
         # Create large dataset (1 year of daily transactions)
         accounts_data = {
-            "accounts": [{"id": "1", "name": "Test Account", "balance": 50000000}],
+            "accounts": [
+                {
+                    "id": "1",
+                    "name": "Test Account",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 50000000,
+                    "cleared_balance": 50000000,
+                    "uncleared_balance": 0,
+                }
+            ],
             "server_knowledge": 123,
         }
 
@@ -470,8 +647,26 @@ def test_full_cash_flow_workflow(temp_dir):
 
     accounts_data = {
         "accounts": [
-            {"id": "1", "name": "Checking", "balance": 10000000},
-            {"id": "2", "name": "Credit Card", "balance": -3000000},
+            {
+                "id": "1",
+                "name": "Checking",
+                "type": "checking",
+                "on_budget": True,
+                "closed": False,
+                "balance": 10000000,
+                "cleared_balance": 10000000,
+                "uncleared_balance": 0,
+            },
+            {
+                "id": "2",
+                "name": "Credit Card",
+                "type": "creditCard",
+                "on_budget": True,
+                "closed": False,
+                "balance": -3000000,
+                "cleared_balance": -3000000,
+                "uncleared_balance": 0,
+            },
         ],
         "server_knowledge": 123,
     }

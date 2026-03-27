@@ -6,8 +6,6 @@ Professional cash flow analysis with trend detection, statistical modeling,
 and comprehensive dashboard generation.
 """
 
-import json
-
 import matplotlib
 import pandas as pd
 
@@ -23,6 +21,7 @@ import numpy as np
 from scipy import stats
 
 from ..core.config import get_config
+from ..ynab.loader import load_accounts, load_transactions
 
 
 @dataclass
@@ -79,53 +78,34 @@ class CashFlowAnalyzer:
 
     def load_data(self, ynab_cache_dir: Path | None = None) -> None:
         """Load YNAB data from cache directory."""
-        if ynab_cache_dir is None:
-            config = get_config()
-            ynab_cache_dir = config.data_dir / "ynab" / "cache"
+        # Load typed domain models via shared loaders
+        accounts = load_accounts(ynab_cache_dir)
+        transactions = load_transactions(ynab_cache_dir)
 
-        # Load account and transaction data
-        accounts_file = ynab_cache_dir / "accounts.json"
-        transactions_file = ynab_cache_dir / "transactions.json"
+        # Filter accounts: by configured name, excluding closed and off-budget accounts
+        cash_account_models = [
+            a for a in accounts if a.name in self.config.cash_accounts and not a.closed and a.on_budget
+        ]
 
-        if not accounts_file.exists() or not transactions_file.exists():
-            raise FileNotFoundError(
-                f"YNAB data not found in {ynab_cache_dir}. " "Run 'finances flow' to sync YNAB data first."
-            )
+        # Get current balances (convert milliunits → dollars at the pandas DataFrame boundary)
+        current_balances = {a.name: a.balance.to_milliunits() / 1000 for a in cash_account_models}
 
-        with open(accounts_file) as f:
-            accounts_data = json.load(f)
-
-        with open(transactions_file) as f:
-            transactions = json.load(f)
-
-        # Validate accounts structure (detect double-nesting bug from old YNAB sync)
-        accounts_list = accounts_data.get("accounts", [])
-        if isinstance(accounts_list, dict):
-            raise ValueError(
-                "Invalid accounts.json structure (double-nested). "
-                "Please re-run 'finances flow' and select 'y' for ynab_sync to regenerate the cache."
-            )
-
-        # Get current balances (convert from milliunits to dollars)
-        current_balances = {}
-        for account in accounts_list:
-            if account["name"] in self.config.cash_accounts:
-                current_balances[account["name"]] = account["balance"] / 1000
-
-        # Filter and sort transactions
+        # Filter transactions: by account name, start date, and exclude deleted
         cash_transactions = [
             t
             for t in transactions
-            if t.get("account_name") in self.config.cash_accounts and t["date"] >= self.config.start_date
+            if t.account_name in self.config.cash_accounts
+            and str(t.date) >= self.config.start_date
+            and not t.deleted
         ]
-        cash_transactions.sort(key=lambda x: x["date"])
+        cash_transactions.sort(key=lambda x: str(x.date))
 
         if not cash_transactions:
             raise ValueError(f"No transactions found for cash accounts after {self.config.start_date}")
 
         # Calculate daily balances by working backwards from current balances
         daily_balances: defaultdict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
-        end_date = max(t["date"] for t in cash_transactions)
+        end_date = max(str(t.date) for t in cash_transactions)
 
         # Start with current balances
         for account, balance in current_balances.items():
@@ -133,20 +113,22 @@ class CashFlowAnalyzer:
 
         # Work backwards through transactions
         for transaction in reversed(cash_transactions):
-            date = transaction["date"]
-            account = transaction["account_name"]
-            amount = transaction["amount"] / 1000  # Convert to dollars
+            tx_date = str(transaction.date)
+            tx_account = transaction.account_name
+            if tx_account is None:
+                continue  # Filtered above; guard for type checker
+            tx_amount = transaction.amount.to_milliunits() / 1000  # Convert to dollars at pandas boundary
 
             # Initialize this date with balances from future date if needed
-            if date not in daily_balances:
-                future_dates = [d for d in daily_balances if d > date]
+            if tx_date not in daily_balances:
+                future_dates = [d for d in daily_balances if d > tx_date]
                 if future_dates:
                     next_date = min(future_dates)
                     for acc in self.config.cash_accounts:
-                        daily_balances[date][acc] = daily_balances[next_date][acc]
+                        daily_balances[tx_date][acc] = daily_balances[next_date][acc]
 
             # Subtract transaction amount (working backwards)
-            daily_balances[date][account] -= amount
+            daily_balances[tx_date][tx_account] -= tx_amount
 
         # Create complete time series
         all_dates = sorted(daily_balances.keys())
@@ -157,16 +139,16 @@ class CashFlowAnalyzer:
 
         for date_str in date_range.strftime("%Y-%m-%d"):
             if date_str in daily_balances:
-                for account in self.config.cash_accounts:
-                    if account in daily_balances[date_str]:
-                        last_balances[account] = float(daily_balances[date_str][account])
+                for acct_name in self.config.cash_accounts:
+                    if acct_name in daily_balances[date_str]:
+                        last_balances[acct_name] = float(daily_balances[date_str][acct_name])
             complete_balances[date_str] = last_balances.copy()
 
         # Convert to DataFrame
         df_data = []
-        for date, accounts in sorted(complete_balances.items()):
-            total = sum(accounts.values())
-            df_data.append({"Date": pd.to_datetime(date), "Total": total, **accounts})
+        for date_key, acct_balances in sorted(complete_balances.items()):
+            total = sum(acct_balances.values())
+            df_data.append({"Date": pd.to_datetime(date_key), "Total": total, **acct_balances})
 
         self.df = pd.DataFrame(df_data)
         self.df.set_index("Date", inplace=True)

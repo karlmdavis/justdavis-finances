@@ -18,7 +18,19 @@ def test_cash_flow_performance_large_dataset(temp_dir):
 
     # 2 years of data, 5 accounts, ~10 transactions per day
     accounts_data = {
-        "accounts": [{"id": f"acc-{i}", "name": f"Account {i}", "balance": 10000000} for i in range(5)],
+        "accounts": [
+            {
+                "id": f"acc-{i}",
+                "name": f"Account {i}",
+                "type": "checking",
+                "on_budget": True,
+                "closed": False,
+                "balance": 10000000,
+                "cleared_balance": 10000000,
+                "uncleared_balance": 0,
+            }
+            for i in range(5)
+        ],
         "server_knowledge": 123,
     }
 

@@ -97,7 +97,7 @@ class TestYnabRetirementService:
                     "closed": False,
                     "balance": 1000000,  # $100 in milliunits
                     "cleared_balance": 1000000,
-                    "last_reconciled_at": "2024-01-01T00:00:00Z",
+                    "uncleared_balance": 0,
                 },
                 {
                     "id": "retirement-2",
@@ -107,7 +107,7 @@ class TestYnabRetirementService:
                     "closed": False,
                     "balance": 2000000,  # $200 in milliunits
                     "cleared_balance": 2000000,
-                    "last_reconciled_at": None,
+                    "uncleared_balance": 0,
                 },
                 {
                     "id": "checking-1",
@@ -117,7 +117,7 @@ class TestYnabRetirementService:
                     "closed": False,
                     "balance": 500000,
                     "cleared_balance": 500000,
-                    "last_reconciled_at": None,
+                    "uncleared_balance": 0,
                 },
             ]
         }
@@ -277,7 +277,7 @@ class TestConvenienceFunctions:
                     "closed": False,
                     "balance": 1000000,
                     "cleared_balance": 1000000,
-                    "last_reconciled_at": None,
+                    "uncleared_balance": 0,
                 }
             ]
         }
