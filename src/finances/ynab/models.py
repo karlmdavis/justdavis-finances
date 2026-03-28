@@ -47,7 +47,7 @@ class YnabAccount:
         """
         return cls(
             id=data["id"],
-            name=data["name"],
+            name=data["name"].replace("\xa0", " "),  # Normalize non-breaking spaces (Apple products)
             type=data["type"],
             on_budget=data["on_budget"],
             closed=data["closed"],
@@ -278,7 +278,7 @@ class YnabTransaction:
             cleared=data.get("cleared", "uncleared"),  # Default to uncleared if not present
             approved=data.get("approved", True),  # Default to approved if not present
             account_id=data.get("account_id", "unknown"),  # Default to unknown if not present
-            account_name=data.get("account_name"),
+            account_name=data.get("account_name", "").replace("\xa0", " ") or None,
             payee_id=data.get("payee_id"),
             payee_name=data.get("payee_name"),
             category_id=data.get("category_id"),

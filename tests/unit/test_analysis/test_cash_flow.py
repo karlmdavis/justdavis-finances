@@ -504,6 +504,72 @@ class TestCashFlowAnalyzer:
             abs(start_balance - 10010.0) < 0.01
         ), f"Expected ~$10,010 (closed account excluded), got ${start_balance:.2f}"
 
+    def test_off_budget_credit_cards_included(self, temp_dir):
+        """Off-budget accounts must be included in the net balance calculation.
+
+        Regression test: the on_budget filter was incorrectly excluding credit cards
+        that are tracked as off-budget in YNAB (e.g. Apple Card).
+        A credit card with on_budget=False still carries real debt and must reduce
+        the reported total — excluding it inflates the balance by the full debt amount.
+        """
+        ynab_cache_dir = temp_dir / "ynab" / "cache"
+        ynab_cache_dir.mkdir(parents=True)
+
+        accounts_data = {
+            "accounts": [
+                {
+                    "id": "1",
+                    "name": "Checking",
+                    "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 10000000,  # $10,000
+                    "cleared_balance": 10000000,
+                    "uncleared_balance": 0,
+                },
+                {
+                    "id": "2",
+                    "name": "Off Budget Card",
+                    "type": "creditCard",
+                    "on_budget": False,  # Tracked as off-budget in YNAB
+                    "closed": False,
+                    "balance": -5000000,  # -$5,000 debt
+                    "cleared_balance": -5000000,
+                    "uncleared_balance": 0,
+                },
+            ],
+            "server_knowledge": 123,
+        }
+
+        transactions_data = [
+            {
+                "id": "txn-1",
+                "date": "2024-08-15",
+                "amount": -10000,  # -$10 expense on checking
+                "account_name": "Checking",
+                "payee_name": "Store",
+                "deleted": False,
+            },
+        ]
+
+        with open(ynab_cache_dir / "accounts.json", "w") as f:
+            json.dump(accounts_data, f, indent=2)
+
+        with open(ynab_cache_dir / "transactions.json", "w") as f:
+            json.dump(transactions_data, f, indent=2)
+
+        config = CashFlowConfig(cash_accounts=["Checking", "Off Budget Card"], start_date="2024-08-01")
+        analyzer = CashFlowAnalyzer(config)
+        analyzer.load_data(ynab_cache_dir)
+
+        assert analyzer.df is not None
+        # Net should be $10,000 - $5,000 = $5,000 (plus $10 from backward reconstruction).
+        # If Off Budget Card were excluded, start balance would be ~$10,010.
+        start_balance = float(analyzer.df["Total"].iloc[0])
+        assert (
+            abs(start_balance - 5010.0) < 0.01
+        ), f"Expected ~$5,010 (off-budget card included), got ${start_balance:.2f}"
+
 
 class TestCashFlowEdgeCases:
     """Test edge cases and error conditions."""

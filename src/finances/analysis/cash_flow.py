@@ -82,10 +82,10 @@ class CashFlowAnalyzer:
         accounts = load_accounts(ynab_cache_dir)
         transactions = load_transactions(ynab_cache_dir)
 
-        # Filter accounts: by configured name, excluding closed and off-budget accounts
-        cash_account_models = [
-            a for a in accounts if a.name in self.config.cash_accounts and not a.closed and a.on_budget
-        ]
+        # Filter accounts: by configured name, excluding closed accounts.
+        # Note: on_budget is NOT filtered here — credit cards tracked as off-budget in YNAB
+        # still carry real debt and must be included in the net balance calculation.
+        cash_account_models = [a for a in accounts if a.name in self.config.cash_accounts and not a.closed]
 
         # Get current balances (convert milliunits → dollars at the pandas DataFrame boundary)
         current_balances = {a.name: a.balance.to_milliunits() / 1000 for a in cash_account_models}
