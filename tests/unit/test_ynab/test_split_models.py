@@ -128,6 +128,8 @@ class TestTransactionSplitEdit:
                 "date": "2024-10-15",
                 "amount": -15990,  # milliunits
                 "memo": None,
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
         splits = [
@@ -160,6 +162,8 @@ class TestTransactionSplitEdit:
                 "id": "tx1",
                 "date": "2024-10-15",
                 "amount": -15990,  # milliunits
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
         splits = [YnabSplit(amount=Money.from_dollars("-$15.99"), memo="Item")]
@@ -188,6 +192,8 @@ class TestSplitEditBatch:
                 "id": "tx1",
                 "date": "2024-10-15",
                 "amount": -10000,  # milliunits
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
         tx2 = YnabTransaction.from_dict(
@@ -195,6 +201,8 @@ class TestSplitEditBatch:
                 "id": "tx2",
                 "date": "2024-10-15",
                 "amount": -20000,  # milliunits
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 
@@ -233,6 +241,8 @@ class TestSplitEditBatch:
                 "id": "tx1",
                 "date": "2024-10-15",
                 "amount": -10000,  # milliunits
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
         tx2 = YnabTransaction.from_dict(
@@ -240,6 +250,8 @@ class TestSplitEditBatch:
                 "id": "tx2",
                 "date": "2024-10-15",
                 "amount": -20000,  # milliunits
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 

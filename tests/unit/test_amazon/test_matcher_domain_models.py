@@ -53,6 +53,8 @@ class TestSimplifiedMatcherDomainModels:
                 "date": "2024-10-15",
                 "amount": -45990,  # $45.99 expense
                 "payee_name": "AMZN Mktp US*TEST123",
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 
@@ -97,6 +99,8 @@ class TestSimplifiedMatcherDomainModels:
                 "date": "2024-10-15",
                 "amount": -45990,
                 "payee_name": "Starbucks",
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 

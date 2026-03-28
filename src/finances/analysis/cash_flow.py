@@ -116,8 +116,6 @@ class CashFlowAnalyzer:
         for transaction in reversed(cash_transactions):
             tx_date = str(transaction.date)
             tx_account = transaction.account_name
-            if tx_account is None:
-                continue  # Filtered above; guard for type checker
             tx_amount = transaction.amount.to_milliunits() / 1000  # Convert to dollars at pandas boundary
 
             # Initialize this date with balances from future date if needed

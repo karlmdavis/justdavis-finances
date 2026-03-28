@@ -120,6 +120,7 @@ class TestCashFlowAnalyzer:
                         "id": f"txn-{day}-1",
                         "date": date_str,
                         "amount": -5000,  # $5 expense
+                        "account_id": "chase-checking",
                         "account_name": "Chase Checking",
                         "payee_name": "Coffee Shop",
                         "category_name": "Dining Out",
@@ -128,6 +129,7 @@ class TestCashFlowAnalyzer:
                         "id": f"txn-{day}-2",
                         "date": date_str,
                         "amount": -10000,  # $10 expense
+                        "account_id": "chase-credit-card",
                         "account_name": "Chase Credit Card",
                         "payee_name": "Grocery Store",
                         "category_name": "Groceries",
@@ -142,6 +144,7 @@ class TestCashFlowAnalyzer:
                         "id": f"income-{day}",
                         "date": date_str,
                         "amount": 250000,  # $250 income
+                        "account_id": "chase-checking",
                         "account_name": "Chase Checking",
                         "payee_name": "Employer",
                         "category_name": "Salary",
@@ -404,6 +407,7 @@ class TestCashFlowAnalyzer:
                 "id": "normal-expense",
                 "date": "2024-08-15",
                 "amount": -5000,  # -$5 normal expense
+                "account_id": "chase-checking",
                 "account_name": "Chase Checking",
                 "payee_name": "Coffee Shop",
                 "deleted": False,
@@ -412,6 +416,7 @@ class TestCashFlowAnalyzer:
                 "id": "deleted-expense",
                 "date": "2024-08-15",
                 "amount": -500000,  # -$500 deleted expense (duplicate import, etc.)
+                "account_id": "chase-checking",
                 "account_name": "Chase Checking",
                 "payee_name": "Phantom Charge",
                 "deleted": True,
@@ -478,6 +483,7 @@ class TestCashFlowAnalyzer:
                 "id": "txn-1",
                 "date": "2024-08-15",
                 "amount": -10000,  # -$10 expense on active account
+                "account_id": "active-checking",
                 "account_name": "Active Checking",
                 "payee_name": "Store",
                 "deleted": False,
@@ -486,6 +492,7 @@ class TestCashFlowAnalyzer:
                 "id": "txn-closed",
                 "date": "2024-08-10",
                 "amount": -3000000,  # -$3,000 final transfer on closed account
+                "account_id": "closed-old-account",
                 "account_name": "Closed Old Account",
                 "payee_name": "Transfer",
                 "deleted": False,
@@ -555,6 +562,7 @@ class TestCashFlowAnalyzer:
                 "id": "txn-1",
                 "date": "2024-08-15",
                 "amount": -10000,  # -$10 expense on checking
+                "account_id": "checking",
                 "account_name": "Checking",
                 "payee_name": "Store",
                 "deleted": False,
@@ -610,6 +618,7 @@ class TestCashFlowEdgeCases:
                 "id": "txn-1",
                 "date": "2024-08-15",
                 "amount": -5000,
+                "account_id": "missing-account",
                 "account_name": "Missing Account",  # Not in accounts list
                 "payee_name": "Test",
                 "category_name": "Test",
@@ -687,6 +696,7 @@ class TestCashFlowEdgeCases:
                     "id": f"txn-{day}",
                     "date": date_str,
                     "amount": -1000,  # $1 expense
+                    "account_id": "test-account",
                     "account_name": "Test Account",
                     "payee_name": "Test Payee",
                     "category_name": "Test Category",
@@ -760,6 +770,7 @@ def test_full_cash_flow_workflow(temp_dir):
                     "id": f"expense-{day}",
                     "date": date_str,
                     "amount": -2000,  # $2 daily expense
+                    "account_id": "credit-card",
                     "account_name": "Credit Card",
                     "payee_name": "Daily Expense",
                     "category_name": "Shopping",
@@ -768,6 +779,7 @@ def test_full_cash_flow_workflow(temp_dir):
                     "id": f"income-{day}",
                     "date": date_str,
                     "amount": 5000 if day % 7 == 0 else 0,  # $5 weekly income
+                    "account_id": "checking",
                     "account_name": "Checking",
                     "payee_name": "Income Source",
                     "category_name": "Salary",

@@ -10,7 +10,6 @@ from finances.core.money import Money
 from finances.ynab import (
     SplitCalculationError,
     YnabSplit,
-    YnabTransaction,
     calculate_amazon_splits,
     calculate_apple_splits,
     calculate_generic_splits,
@@ -26,14 +25,7 @@ class TestAmazonSplitCalculationDomainModels:
     @pytest.mark.ynab
     def test_amazon_splits_with_domain_models(self):
         """Test calculate_amazon_splits accepts MatchedOrderItem list and returns YnabSplit list."""
-        # Create transaction
-        transaction = YnabTransaction.from_dict(
-            {
-                "id": "tx1",
-                "date": "2024-10-15",
-                "amount": -89900,  # $89.90 expense
-            }
-        )
+        tx_amount = Money.from_milliunits(-89900)  # $89.90 expense
 
         # Create MatchedOrderItem (match-layer domain models)
         items = [
@@ -60,8 +52,7 @@ class TestAmazonSplitCalculationDomainModels:
             ),
         ]
 
-        # Call with new signature
-        splits = calculate_amazon_splits(transaction, items)
+        splits = calculate_amazon_splits(tx_amount, items)
 
         # Should return list of YnabSplit
         assert isinstance(splits, list)
@@ -79,13 +70,7 @@ class TestAmazonSplitCalculationDomainModels:
     @pytest.mark.ynab
     def test_amazon_splits_domain_models_validation(self):
         """Test split validation with domain models."""
-        transaction = YnabTransaction.from_dict(
-            {
-                "id": "tx1",
-                "date": "2024-10-15",
-                "amount": -50000,  # $50.00
-            }
-        )
+        tx_amount = Money.from_milliunits(-50000)  # $50.00
 
         # Items that don't sum to transaction amount
         items = [
@@ -99,7 +84,7 @@ class TestAmazonSplitCalculationDomainModels:
         ]
 
         with pytest.raises(SplitCalculationError, match="doesn't match transaction"):
-            calculate_amazon_splits(transaction, items)
+            calculate_amazon_splits(tx_amount, items)
 
 
 class TestAppleSplitCalculationDomainModels:
@@ -108,14 +93,7 @@ class TestAppleSplitCalculationDomainModels:
     @pytest.mark.ynab
     def test_apple_splits_with_domain_models(self):
         """Test calculate_apple_splits accepts ParsedReceipt and returns YnabSplit list."""
-        # Create transaction
-        transaction = YnabTransaction.from_dict(
-            {
-                "id": "tx1",
-                "date": "2024-10-15",
-                "amount": -599960,  # $599.96 total in milliunits
-            }
-        )
+        tx_amount = Money.from_milliunits(-599960)  # $599.96 total
 
         # Create ParsedReceipt with multiple items
         receipt = ParsedReceipt(
@@ -160,8 +138,7 @@ class TestAppleSplitCalculationDomainModels:
             base_name="test_receipt",
         )
 
-        # Call with new signature
-        splits = calculate_apple_splits(transaction, receipt)
+        splits = calculate_apple_splits(tx_amount, receipt)
 
         # Should return list of YnabSplit
         assert isinstance(splits, list)
@@ -176,19 +153,12 @@ class TestAppleSplitCalculationDomainModels:
 
         # Verify total matches transaction
         total_milliunits = sum(s.amount.to_milliunits() for s in splits)
-        assert total_milliunits == transaction.amount.to_milliunits()
+        assert total_milliunits == tx_amount.to_milliunits()
 
     @pytest.mark.ynab
     def test_apple_splits_domain_models_with_tax(self):
         """Test Apple splits with tax allocation."""
-        # Create transaction
-        transaction = YnabTransaction.from_dict(
-            {
-                "id": "tx1",
-                "date": "2024-10-15",
-                "amount": -108000,  # $108.00 total with tax in milliunits
-            }
-        )
+        tx_amount = Money.from_milliunits(-108000)  # $108.00 total with tax
 
         # Receipt with subtotal and tax
         receipt = ParsedReceipt(
@@ -221,8 +191,7 @@ class TestAppleSplitCalculationDomainModels:
             base_name="test_receipt",
         )
 
-        # Call with new signature
-        splits = calculate_apple_splits(transaction, receipt)
+        splits = calculate_apple_splits(tx_amount, receipt)
 
         # Tax should be allocated proportionally
         assert len(splits) == 2
@@ -232,7 +201,7 @@ class TestAppleSplitCalculationDomainModels:
 
         # Verify total
         total_milliunits = sum(s.amount.to_milliunits() for s in splits)
-        assert total_milliunits == transaction.amount.to_milliunits()
+        assert total_milliunits == tx_amount.to_milliunits()
 
 
 class TestGenericSplitCalculation:
@@ -241,14 +210,7 @@ class TestGenericSplitCalculation:
     @pytest.mark.ynab
     def test_even_split(self):
         """Test even split across categories with domain models."""
-        # Create transaction
-        transaction = YnabTransaction.from_dict(
-            {
-                "id": "tx1",
-                "date": "2024-10-15",
-                "amount": -60000,  # $60.00 in milliunits
-            }
-        )
+        tx_amount = Money.from_milliunits(-60000)  # $60.00
 
         items = [
             {"name": "Groceries", "amount": Money.from_cents(2000)},  # $20.00
@@ -256,7 +218,7 @@ class TestGenericSplitCalculation:
             {"name": "Personal Care", "amount": Money.from_cents(2000)},  # $20.00
         ]
 
-        splits = calculate_generic_splits(transaction, items)
+        splits = calculate_generic_splits(tx_amount, items)
 
         # Should return list of YnabSplit
         assert isinstance(splits, list)
@@ -268,19 +230,12 @@ class TestGenericSplitCalculation:
             assert split.amount.to_milliunits() == -20000
 
         total = sum(s.amount.to_milliunits() for s in splits)
-        assert total == transaction.amount.to_milliunits()
+        assert total == tx_amount.to_milliunits()
 
     @pytest.mark.ynab
     def test_weighted_split(self):
         """Test weighted split with custom amounts and domain models."""
-        # Create transaction
-        transaction = YnabTransaction.from_dict(
-            {
-                "id": "tx1",
-                "date": "2024-10-15",
-                "amount": -100000,  # $100.00 in milliunits
-            }
-        )
+        tx_amount = Money.from_milliunits(-100000)  # $100.00
 
         items = [
             {"name": "Groceries", "amount": Money.from_cents(6000)},  # $60.00
@@ -288,7 +243,7 @@ class TestGenericSplitCalculation:
             {"name": "Personal Care", "amount": Money.from_cents(1500)},  # $15.00
         ]
 
-        splits = calculate_generic_splits(transaction, items)
+        splits = calculate_generic_splits(tx_amount, items)
 
         # Should return list of YnabSplit
         assert isinstance(splits, list)
@@ -300,18 +255,12 @@ class TestGenericSplitCalculation:
         assert splits[2].amount.to_milliunits() == -15000  # $15.00 in milliunits
 
         total = sum(s.amount.to_milliunits() for s in splits)
-        assert total == transaction.amount.to_milliunits()
+        assert total == tx_amount.to_milliunits()
 
     @pytest.mark.ynab
     def test_generic_splits_enforce_money_type(self):
         """Test that calculate_generic_splits enforces Money type for amounts."""
-        transaction = YnabTransaction.from_dict(
-            {
-                "id": "tx1",
-                "date": "2024-10-15",
-                "amount": -60000,
-            }
-        )
+        tx_amount = Money.from_milliunits(-60000)
 
         # Items with raw int instead of Money should raise TypeError
         items = [
@@ -319,7 +268,7 @@ class TestGenericSplitCalculation:
         ]
 
         with pytest.raises(TypeError, match="Item amount must be Money object"):
-            calculate_generic_splits(transaction, items)
+            calculate_generic_splits(tx_amount, items)
 
 
 class TestSplitValidation:

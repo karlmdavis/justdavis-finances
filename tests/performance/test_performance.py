@@ -44,6 +44,7 @@ def test_cash_flow_performance_large_dataset(temp_dir):
             "id": f"txn-{day}-{txn_num}",
             "date": (base_date + pd.Timedelta(days=day)).strftime("%Y-%m-%d"),
             "amount": -1000 * (txn_num + 1),
+            "account_id": f"account-{txn_num % 5}",
             "account_name": f"Account {txn_num % 5}",
             "payee_name": f"Payee {txn_num}",
             "category_name": f"Category {txn_num}",

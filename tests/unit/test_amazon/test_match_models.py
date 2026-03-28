@@ -84,6 +84,8 @@ class TestAmazonMatchResult:
                 "id": "tx1",
                 "date": "2024-10-15",
                 "amount": -29990,  # $29.99 expense
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 
@@ -126,6 +128,8 @@ class TestAmazonMatchResult:
                 "id": "tx1",
                 "date": "2024-10-15",
                 "amount": -29990,
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 
@@ -149,6 +153,8 @@ class TestAmazonMatchResult:
                 "id": "tx1",
                 "date": "2024-10-15",
                 "amount": -29990,
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 
@@ -208,6 +214,8 @@ class TestAmazonMatchResult:
                 "id": "tx1",
                 "date": "2024-10-15",
                 "amount": -29990,
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 

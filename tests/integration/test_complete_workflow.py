@@ -68,6 +68,7 @@ class TestCashFlowWorkflow:
                         "id": f"grocery-{day}",
                         "date": date_str,
                         "amount": -15000,  # $15 groceries
+                        "account_id": "chase-credit-card",
                         "account_name": "Chase Credit Card",
                         "payee_name": "Grocery Store",
                         "category_name": "Groceries",
@@ -76,6 +77,7 @@ class TestCashFlowWorkflow:
                         "id": f"gas-{day}",
                         "date": date_str,
                         "amount": -8000 if day % 3 == 0 else 0,  # $8 gas every 3 days
+                        "account_id": "chase-credit-card",
                         "account_name": "Chase Credit Card",
                         "payee_name": "Gas Station",
                         "category_name": "Transportation",
@@ -90,6 +92,7 @@ class TestCashFlowWorkflow:
                         "id": f"salary-{day}",
                         "date": date_str,
                         "amount": 150000,  # $1,500 bi-weekly salary
+                        "account_id": "chase-checking",
                         "account_name": "Chase Checking",
                         "payee_name": "Employer",
                         "category_name": "Salary",

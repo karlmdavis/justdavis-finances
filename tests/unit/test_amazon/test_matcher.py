@@ -23,6 +23,7 @@ def create_test_transaction(
             "date": date,
             "amount": amount,
             "payee_name": payee_name,
+            "account_id": "test-account",
             "account_name": account_name,
         }
     )

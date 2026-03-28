@@ -85,7 +85,7 @@ class AppleMatcher:
             date=transaction.date,
             amount=transaction.amount,
             description=transaction.payee_name or "",
-            account_name=transaction.account_name or "",
+            account_name=transaction.account_name,
             memo=transaction.memo or "",
             source="ynab",
         )

@@ -84,6 +84,7 @@ class TestAppleMatcher:
             "date": "2024-08-15",
             "amount": -32970,  # $32.97 expense in milliunits
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
             "account_name": "Chase Credit Card",
         }
 
@@ -108,6 +109,7 @@ class TestAppleMatcher:
             "date": "2024-08-14",
             "amount": -659620,  # $659.62 expense in milliunits
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
             "account_name": "Chase Credit Card",
         }
 
@@ -132,6 +134,7 @@ class TestAppleMatcher:
             "date": "2024-08-19",  # 3 days after receipt (2024-08-16)
             "amount": -10980,  # $10.98 expense in milliunits
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
             "account_name": "Chase Credit Card",
         }
 
@@ -160,6 +163,7 @@ class TestAppleMatcher:
             "date": "2024-08-20",  # 4 days after receipt (2024-08-16) - outside window
             "amount": -10980,  # $10.98 expense in milliunits
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
             "account_name": "Chase Credit Card",
         }
 
@@ -180,6 +184,7 @@ class TestAppleMatcher:
             "date": "2024-08-20",
             "amount": -99999,  # $999.99 - no matching receipt
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
             "account_name": "Chase Credit Card",
         }
 
@@ -201,6 +206,7 @@ class TestAppleMatcher:
             "date": "2024-08-16",
             "amount": -10980,  # $10.98 expense in milliunits
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
             "account_name": "Chase Credit Card",
         }
 
@@ -225,6 +231,7 @@ class TestAppleMatcher:
             "date": "2024-08-15",
             "amount": -32970,  # $32.97 expense in milliunits
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
             "account_name": "Chase Credit Card",
         }
 
@@ -251,6 +258,8 @@ class TestAppleMatcher:
                 "date": "2024-08-15",
                 "amount": -32970,
                 "payee_name": "Apple Store",
+                "account_id": "test-account-123",
+                "account_name": "Chase Credit Card",
             }
         )
 
@@ -260,6 +269,8 @@ class TestAppleMatcher:
                 "date": "2024-08-16",
                 "amount": -32970,
                 "payee_name": "Apple Store",
+                "account_id": "test-account-123",
+                "account_name": "Chase Credit Card",
             }
         )
 
@@ -269,6 +280,8 @@ class TestAppleMatcher:
                 "date": "2024-08-17",
                 "amount": -32970,
                 "payee_name": "Apple Store",
+                "account_id": "test-account-123",
+                "account_name": "Chase Credit Card",
             }
         )
 
@@ -293,6 +306,8 @@ class TestAppleMatcher:
             "date": "2024-08-15",
             "amount": -32970,
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
+            "account_name": "Chase Credit Card",
         }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
@@ -333,6 +348,8 @@ class TestAppleEdgeCases:
             "date": "2024-08-15",
             "amount": -32970,
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
+            "account_name": "Chase Credit Card",
         }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
@@ -350,6 +367,8 @@ class TestAppleEdgeCases:
             "date": "2024-08-15",
             "amount": -32970,
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
+            "account_name": "Chase Credit Card",
         }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
@@ -378,6 +397,8 @@ class TestAppleEdgeCases:
             "date": "2024-08-15",
             "amount": 0,  # Free app
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
+            "account_name": "Chase Credit Card",
         }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
@@ -407,6 +428,8 @@ class TestAppleEdgeCases:
             "date": "2024-08-15",
             "amount": -990,  # $0.99 in milliunits
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
+            "account_name": "Chase Credit Card",
         }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
@@ -436,6 +459,8 @@ class TestAppleEdgeCases:
             "date": "2024-08-15",
             "amount": -29990,
             "payee_name": "Apple Store",
+            "account_id": "test-account-123",
+            "account_name": "Chase Credit Card",
         }
 
         transaction = dict_to_ynab_transaction(transaction_dict)
@@ -495,6 +520,8 @@ def test_currency_unit_consistency_with_ynab():
         "date": "2024-08-15",
         "amount": -45990,  # $45.99 in milliunits (negative for expense)
         "payee_name": "Apple",
+        "account_id": "test-account-123",
+        "account_name": "Chase Credit Card",
     }
 
     transaction = dict_to_ynab_transaction(transaction_dict)
