@@ -477,9 +477,17 @@ class TestCashFlowAnalyzer:
             {
                 "id": "txn-1",
                 "date": "2024-08-15",
-                "amount": -10000,  # -$10 expense
+                "amount": -10000,  # -$10 expense on active account
                 "account_name": "Active Checking",
                 "payee_name": "Store",
+                "deleted": False,
+            },
+            {
+                "id": "txn-closed",
+                "date": "2024-08-10",
+                "amount": -3000000,  # -$3,000 final transfer on closed account
+                "account_name": "Closed Old Account",
+                "payee_name": "Transfer",
                 "deleted": False,
             },
         ]
@@ -497,8 +505,9 @@ class TestCashFlowAnalyzer:
         analyzer.load_data(ynab_cache_dir)
 
         assert analyzer.df is not None
-        # Total should only reflect Active Checking ($10,000 + $10 = $10,010 at start).
-        # If Closed Old Account were included, start balance would be ~$15,010.
+        # Total should only reflect Active Checking ($10,000 + $10 = $10,010 at start of Aug 15).
+        # If Closed Old Account's balance or transactions were included, start balance would
+        # be ~$18,010 (stale $5,000 balance + $3,000 reversed transfer + $10,010).
         start_balance = float(analyzer.df["Total"].iloc[0])
         assert (
             abs(start_balance - 10010.0) < 0.01

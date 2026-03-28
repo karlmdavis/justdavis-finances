@@ -90,13 +90,14 @@ class CashFlowAnalyzer:
         # Get current balances (convert milliunits → dollars at the pandas DataFrame boundary)
         current_balances = {a.name: a.balance.to_milliunits() / 1000 for a in cash_account_models}
 
-        # Filter transactions: by account name, start date, and exclude deleted
+        # Filter transactions: by included account name, start date, and exclude deleted.
+        # Use current_balances keys (not self.config.cash_accounts) so that closed accounts
+        # — already excluded from current_balances — don't have their historical transactions
+        # included in the backwards walk starting from a $0 anchor.
         cash_transactions = [
             t
             for t in transactions
-            if t.account_name in self.config.cash_accounts
-            and str(t.date) >= self.config.start_date
-            and not t.deleted
+            if t.account_name in current_balances and str(t.date) >= self.config.start_date and not t.deleted
         ]
         cash_transactions.sort(key=lambda x: str(x.date))
 

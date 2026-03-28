@@ -27,7 +27,6 @@ class RetirementAccount:
     name: str
     balance_milliunits: int
     cleared_balance_milliunits: int
-    last_reconciled_at: str | None
 
     @property
     def balance_cents(self) -> int:
@@ -113,7 +112,6 @@ class YnabRetirementService:
                     name=account.name,
                     balance_milliunits=account.balance.to_milliunits(),
                     cleared_balance_milliunits=account.cleared_balance.to_milliunits(),
-                    last_reconciled_at=None,
                 )
                 for account in accounts
                 if account.type == "otherAsset" and not account.on_budget and not account.closed
