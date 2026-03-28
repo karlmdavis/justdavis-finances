@@ -125,7 +125,7 @@ class CashFlowAnalyzer:
                 future_dates = [d for d in daily_balances if d > tx_date]
                 if future_dates:
                     next_date = min(future_dates)
-                    for acc in self.config.cash_accounts:
+                    for acc in current_balances:
                         daily_balances[tx_date][acc] = daily_balances[next_date][acc]
 
             # Subtract transaction amount (working backwards)
@@ -136,11 +136,11 @@ class CashFlowAnalyzer:
         date_range = pd.date_range(start=all_dates[0], end=all_dates[-1], freq="D")
 
         complete_balances = {}
-        last_balances: dict[str, float] = dict.fromkeys(self.config.cash_accounts, 0.0)
+        last_balances: dict[str, float] = dict.fromkeys(current_balances, 0.0)
 
         for date_str in date_range.strftime("%Y-%m-%d"):
             if date_str in daily_balances:
-                for acct_name in self.config.cash_accounts:
+                for acct_name in current_balances:
                     if acct_name in daily_balances[date_str]:
                         last_balances[acct_name] = float(daily_balances[date_str][acct_name])
             complete_balances[date_str] = last_balances.copy()
