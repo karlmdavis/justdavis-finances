@@ -155,13 +155,8 @@ def parse_account_data(
                 # No matching pattern, skip file
                 continue
 
-            # Get handler from registry
-            try:
-                handler = handler_registry.get(handler_name)
-            except KeyError:
-                # Handler not found, skip file
-                # This should not happen if config validation ran, but be defensive
-                continue
+            # Get handler from registry (raises KeyError if handler_name is unregistered)
+            handler = handler_registry.get(handler_name)
 
             # Parse file
             parse_result = handler.parse(file_path)

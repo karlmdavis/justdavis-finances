@@ -715,8 +715,17 @@ def apply_reconciliation_operations(
                                 "--import-id",
                                 import_id,
                             ]
-                            result = subprocess.run(individual_cmd)
-                            exit_code = result.returncode
+                            create_result = subprocess.run(
+                                individual_cmd,
+                                capture_output=True,
+                                text=True,
+                            )
+                            if create_result.stdout:
+                                print(create_result.stdout, end="")
+                            if create_result.stderr:
+                                print(create_result.stderr, end="")
+                            exit_code = create_result.returncode
+                            duplicate_ids = _parse_duplicate_ids(create_result.stdout or "")
                             if exit_code != 0:
                                 print(f"  ERROR: ynab exited with code {exit_code}")
                                 write_log(
@@ -733,6 +742,21 @@ def apply_reconciliation_operations(
                                     }
                                 )
                                 counts["failed"] += 1
+                            elif import_id in duplicate_ids:
+                                write_log(
+                                    {
+                                        "op_type": "create_transaction",
+                                        "action": "duplicate_skipped",
+                                        "account_slug": slug,
+                                        "posted_date": posted_date,
+                                        "amount_milliunits": amount_milliunits,
+                                        "payee_name": payee_name,
+                                        "import_id": import_id,
+                                        "ynab_exit_code": 0,
+                                        "included_in_batch": False,
+                                    }
+                                )
+                                counts["duplicate_skipped"] += 1
                             else:
                                 write_log(
                                     {

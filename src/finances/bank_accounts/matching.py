@@ -2,10 +2,20 @@
 Transaction matching algorithm for bank reconciliation.
 
 Architecture:
-    Three-tier matching strategy for pairing bank transactions with YNAB:
-    1. Exact matching: Date + amount match (highest confidence)
-    2. Fuzzy matching: SequenceMatcher on normalized descriptions
-    3. Ambiguous: Multiple similar matches (requires manual review)
+    Six-strategy waterfall for candidate selection, then a resolution tier:
+
+    Candidate selection (find_matches runs these in order; first non-empty result wins):
+        0. _by_import_id         — UUID5 import_id exact match (immune to date offsets)
+        1. _by_ynab_date_offset  — posted_date + account-level day offset + amount
+        2. _by_posted_date       — posted_date + amount (primary for most accounts)
+        3. _by_transaction_date  — transaction_date + amount (when it differs from posted)
+        4. _by_import_posted_date — YNAB import_id clearing date + amount (re-match)
+        5. _by_transfer_window   — ±5 day window for YNAB transfer entries
+
+    Resolution tier (_pick_best applied to candidate set):
+        Exact:     exactly one candidate
+        Fuzzy:     highest SequenceMatcher score above FUZZY_MATCH_CONFIDENCE_THRESHOLD
+        Ambiguous: multiple candidates with similar scores (requires manual review)
 
 Configuration:
     FUZZY_MATCH_CONFIDENCE_THRESHOLD: 0.75 (configurable)
@@ -105,7 +115,7 @@ YNAB_PAYEE_EXPANSIONS: dict[str, str] = {
 
 @dataclass(frozen=True)
 class YnabTransaction:
-    """Minimal YNAB transaction model for matching (temporary)."""
+    """Minimal YNAB transaction model for matching."""
 
     date: FinancialDate
     amount: Money
