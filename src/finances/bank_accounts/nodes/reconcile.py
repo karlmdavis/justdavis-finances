@@ -1,5 +1,6 @@
 """Reconcile bank data with YNAB transactions."""
 
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -260,10 +261,16 @@ def reconcile_account_data(
                     f"is an orphan within coverage but has no id — "
                     f"this indicates a programming error in the YNAB cache loader"
                 )
+            raw_tx = raw_ynab_by_id.get(ynab_tx.id)
+            if raw_tx is None:
+                raise ValueError(
+                    f"YNAB transaction id={ynab_tx.id} not found in raw cache — "
+                    f"the cache may be incomplete or out of sync"
+                )
             operations.append(
                 {
                     "type": "delete_ynab_transaction",
-                    "transaction": raw_ynab_by_id[ynab_tx.id],
+                    "transaction": raw_tx,
                 }
             )
 
@@ -318,8 +325,6 @@ def print_reconciliation_summary(results: dict[str, "ReconciliationResult"]) -> 
         print(f"{slug}: {unmatched_bank} unmatched bank txs, {unmatched_ynab} unmatched YNAB txs")
 
         # Count by mismatch reason
-        from collections import Counter
-
         reason_counts: Counter[str] = Counter(e["mismatch_reason"] for e in result.categorized_unmatched_ynab)
         for reason in ("pre_coverage", "coverage_gap", "post_coverage", "within_coverage"):
             count = reason_counts.get(reason, 0)
