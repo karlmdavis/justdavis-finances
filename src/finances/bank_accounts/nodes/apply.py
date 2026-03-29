@@ -548,16 +548,29 @@ def apply_reconciliation_operations(
                                 ],
                             )
                             exit_code = result.returncode
-                            write_log(
-                                {
-                                    "op_type": "delete_ynab_transaction",
-                                    "action": "applied",
-                                    "account_slug": slug,
-                                    "transaction": ynab_tx,
-                                    "ynab_exit_code": exit_code,
-                                }
-                            )
-                            counts["deleted"] += 1
+                            if exit_code != 0:
+                                print(f"  ERROR: ynab exited with code {exit_code}")
+                                write_log(
+                                    {
+                                        "op_type": "delete_ynab_transaction",
+                                        "action": "failed",
+                                        "account_slug": slug,
+                                        "transaction": ynab_tx,
+                                        "ynab_exit_code": exit_code,
+                                    }
+                                )
+                                counts["failed"] += 1
+                            else:
+                                write_log(
+                                    {
+                                        "op_type": "delete_ynab_transaction",
+                                        "action": "applied",
+                                        "account_slug": slug,
+                                        "transaction": ynab_tx,
+                                        "ynab_exit_code": exit_code,
+                                    }
+                                )
+                                counts["deleted"] += 1
                         else:
                             write_log(
                                 {
