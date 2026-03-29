@@ -89,12 +89,6 @@ from .flow import flow  # noqa: E402
 # Register flow command (the unified interface for all operations)
 main.add_command(flow)
 
-# Import bank accounts command
-from .bank_accounts import bank  # noqa: E402
-
-# Register bank accounts command
-main.add_command(bank)
-
 
 if __name__ == "__main__":
     main()

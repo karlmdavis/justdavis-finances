@@ -1,6 +1,13 @@
 """Central registry for bank export format handlers."""
 
+from .apple_card_csv import AppleCardCsvHandler
+from .apple_card_ofx import AppleCardOfxHandler
+from .apple_savings_csv import AppleSavingsCsvHandler
+from .apple_savings_ofx import AppleSavingsOfxHandler
 from .base import BankExportFormatHandler
+from .chase_checking_csv import ChaseCheckingCsvHandler
+from .chase_credit_csv import ChaseCreditCsvHandler
+from .chase_credit_qif import ChaseCreditQifHandler
 
 
 class FormatHandlerRegistry:
@@ -47,3 +54,16 @@ class FormatHandlerRegistry:
             List of registered format names
         """
         return list(self._handlers.keys())
+
+
+def create_format_handler_registry() -> "FormatHandlerRegistry":
+    """Create and populate format handler registry with all available handlers."""
+    registry = FormatHandlerRegistry()
+    registry.register(AppleCardCsvHandler)
+    registry.register(AppleCardOfxHandler)
+    registry.register(AppleSavingsCsvHandler)
+    registry.register(AppleSavingsOfxHandler)
+    registry.register(ChaseCheckingCsvHandler)
+    registry.register(ChaseCreditCsvHandler)
+    registry.register(ChaseCreditQifHandler)
+    return registry

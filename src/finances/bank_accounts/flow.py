@@ -229,7 +229,7 @@ class BankDataParseFlowNode(FlowNode):
         """Execute parse operation."""
         try:
             # Import and create handler registry
-            from finances.cli.bank_accounts import create_format_handler_registry
+            from finances.bank_accounts.format_handlers.registry import create_format_handler_registry
 
             handler_registry = create_format_handler_registry()
 
