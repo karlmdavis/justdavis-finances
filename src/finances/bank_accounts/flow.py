@@ -389,13 +389,13 @@ class BankDataReconcileFlowNode(FlowNode):
             # fall back to direct dict access for required fields (id may be absent in
             # test/minimal data, but from_dict requires it).
             ynab_transactions = []
+            import_id_date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
             for tx in transactions_data:
                 import_id = tx.get("import_id")
                 import_posted_date = None
                 if import_id and import_id.startswith("YNAB:"):
-                    _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
                     for part in import_id.split(":")[1:]:
-                        if _DATE_RE.match(part):
+                        if import_id_date_re.match(part):
                             import_posted_date = FinancialDate.from_string(part)
                             break
                 ynab_transactions.append(

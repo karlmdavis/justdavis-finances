@@ -8,7 +8,7 @@ Architecture:
     3. Ambiguous: Multiple similar matches (requires manual review)
 
 Configuration:
-    FUZZY_MATCH_CONFIDENCE_THRESHOLD: 0.8 (configurable)
+    FUZZY_MATCH_CONFIDENCE_THRESHOLD: 0.75 (configurable)
         - Scores above threshold → fuzzy match
         - Scores below threshold → ambiguous (manual review)
 
@@ -46,6 +46,7 @@ Performance:
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -206,8 +207,6 @@ def _by_ynab_date_offset(
     """
     if ynab_date_offset_days == 0:
         return []
-    from datetime import timedelta
-
     offset_date = FinancialDate(date=bank_tx.posted_date.date + timedelta(days=ynab_date_offset_days))
     return [tx for tx in ynab_txs if tx.date == offset_date and tx.amount == bank_tx.amount]
 
