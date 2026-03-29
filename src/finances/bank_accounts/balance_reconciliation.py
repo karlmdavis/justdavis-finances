@@ -112,6 +112,7 @@ def build_balance_reconciliation(
     for point in points:
         if point.is_reconciled:
             last_reconciled = point.date
+            first_diverged = None  # reset: this reconciliation supersedes any prior divergence
         elif first_diverged is None:
             first_diverged = point.date
 

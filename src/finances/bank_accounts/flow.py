@@ -21,8 +21,6 @@ from finances.core.flow import (
     OutputInfo,
 )
 
-_TIMESTAMP_FMT = "%Y-%m-%d_%H-%M-%S"
-
 
 class BankDataRetrieveOutputInfo(OutputInfo):
     """Validates that raw account data exists for configured accounts."""
@@ -609,7 +607,7 @@ class BankDataReconcileApplyFlowNode(FlowNode):
             )
 
         ops_file = ops_files[-1]
-        timestamp = datetime.now().strftime(_TIMESTAMP_FMT)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         apply_log_path = self.apply_dir / f"{timestamp}_apply_log.ndjson"
         ynab_delete_log_path = self.apply_dir / f"{timestamp}_ynab_delete_log.ndjson"
 

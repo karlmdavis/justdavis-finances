@@ -17,9 +17,11 @@ from finances.bank_accounts.flow import (
     BankDataRetrieveFlowNode,
 )
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
-from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
+from finances.bank_accounts.format_handlers.registry import (
+    FormatHandlerRegistry,
+    create_format_handler_registry,
+)
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, BankTransaction, ImportPattern
-from finances.cli.bank_accounts import create_format_handler_registry
 from finances.core import FinancialDate, Money
 from finances.core.flow import FlowContext
 from finances.core.json_utils import write_json
@@ -186,15 +188,17 @@ class TestBankDataParseFlowNode:
             registry.register(TestCsvHandler)
             return registry
 
-        import finances.cli.bank_accounts
+        import finances.bank_accounts.format_handlers.registry
 
-        finances.cli.bank_accounts.create_format_handler_registry = test_registry_creator
+        finances.bank_accounts.format_handlers.registry.create_format_handler_registry = test_registry_creator
 
     def teardown_method(self):
         """Restore original registry creator."""
-        import finances.cli.bank_accounts
+        import finances.bank_accounts.format_handlers.registry
 
-        finances.cli.bank_accounts.create_format_handler_registry = self.original_create_registry
+        finances.bank_accounts.format_handlers.registry.create_format_handler_registry = (
+            self.original_create_registry
+        )
 
     def test_execute_creates_timestamped_files(self, test_config, flow_context):
         """Node execute() should create timestamped normalized files."""
@@ -314,15 +318,17 @@ class TestBankDataReconcileFlowNode:
             registry.register(TestCsvHandler)
             return registry
 
-        import finances.cli.bank_accounts
+        import finances.bank_accounts.format_handlers.registry
 
-        finances.cli.bank_accounts.create_format_handler_registry = test_registry_creator
+        finances.bank_accounts.format_handlers.registry.create_format_handler_registry = test_registry_creator
 
     def teardown_method(self):
         """Restore original registry creator."""
-        import finances.cli.bank_accounts
+        import finances.bank_accounts.format_handlers.registry
 
-        finances.cli.bank_accounts.create_format_handler_registry = self.original_create_registry
+        finances.bank_accounts.format_handlers.registry.create_format_handler_registry = (
+            self.original_create_registry
+        )
 
     def test_execute_creates_timestamped_operations(self, test_config, flow_context):
         """Node execute() should create timestamped operations file."""

@@ -164,14 +164,9 @@ def parse_account_data(
                 continue
 
             # Parse file
-            try:
-                parse_result = handler.parse(file_path)
-                mtime = file_path.stat().st_mtime
-                parsed_files.append((file_path, parse_result, mtime))
-            except Exception:  # noqa: S112
-                # Parse failed, skip file
-                # In production, we might want to log this
-                continue
+            parse_result = handler.parse(file_path)
+            mtime = file_path.stat().st_mtime
+            parsed_files.append((file_path, parse_result, mtime))
 
         # De-duplicate transactions and balances
         transactions = deduplicate_transactions(parsed_files)

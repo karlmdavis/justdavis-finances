@@ -57,6 +57,11 @@ from finances.core import FinancialDate, Money
 _IMPORT_ID_NS = uuid.UUID("86ac2fc2-b0ad-4834-9241-63c577a477b3")
 
 
+def _is_uuid_format(s: str) -> bool:
+    """Return True if s looks like a UUID (36 chars, dashes at positions 8/13/18/23)."""
+    return len(s) == 36 and s[8] == "-" and s[13] == "-" and s[18] == "-" and s[23] == "-"
+
+
 def make_import_id(
     slug: str, posted_date: str, amount_milliunits: int, description: str, seq: int = 0
 ) -> str:
@@ -302,9 +307,6 @@ def find_matches(
         # the bank tx it actually belongs to, causing a duplicate-import-id rejection on
         # the next apply.  Non-UUID import_ids (YNAB Direct Import "YNAB:…", None, or
         # any other format) are always eligible for date+amount fallback.
-        def _is_uuid_format(s: str) -> bool:
-            return len(s) == 36 and s[8] == "-" and s[13] == "-" and s[18] == "-" and s[23] == "-"
-
         date_eligible = [
             tx
             for tx in ynab_txs
