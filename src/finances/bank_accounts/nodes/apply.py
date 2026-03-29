@@ -27,7 +27,7 @@ def _parse_duplicate_ids(stdout: str) -> set[str]:
     try:
         ids: list[str] = json.loads(f"[{match.group(1)}]")
         return set(ids)
-    except Exception:
+    except (json.JSONDecodeError, ValueError):
         return set()
 
 
@@ -289,6 +289,7 @@ def _prompt_delete_batch(has_multiple: bool) -> str:
 def apply_reconciliation_operations(
     ops_file: Path,
     apply_log_path: Path,
+    ynab_delete_log_path: Path,
     config: BankAccountsConfig,
 ) -> dict[str, int]:
     """
@@ -302,7 +303,8 @@ def apply_reconciliation_operations(
 
     Args:
         ops_file: Path to reconciliation operations JSON file
-        apply_log_path: Path for NDJSON log output
+        apply_log_path: Path for NDJSON apply log output
+        ynab_delete_log_path: Path for NDJSON delete log output (sibling of apply_log_path)
         config: Bank accounts configuration (for account ordering and slug lookups)
 
     Returns:
@@ -328,9 +330,6 @@ def apply_reconciliation_operations(
     }
 
     apply_log_path.parent.mkdir(parents=True, exist_ok=True)
-    ynab_delete_log_path = apply_log_path.with_name(
-        apply_log_path.name.replace("_apply_log.ndjson", "_ynab_delete_log.ndjson")
-    )
 
     print()
     print("  This node reconciles (i.e. corrects) the transaction data in YNAB,")
@@ -718,20 +717,37 @@ def apply_reconciliation_operations(
                             ]
                             result = subprocess.run(individual_cmd)
                             exit_code = result.returncode
-                            write_log(
-                                {
-                                    "op_type": "create_transaction",
-                                    "action": "applied",
-                                    "account_slug": slug,
-                                    "posted_date": posted_date,
-                                    "amount_milliunits": amount_milliunits,
-                                    "payee_name": payee_name,
-                                    "import_id": import_id,
-                                    "ynab_exit_code": exit_code,
-                                    "included_in_batch": False,
-                                }
-                            )
-                            counts["applied"] += 1
+                            if exit_code != 0:
+                                print(f"  ERROR: ynab exited with code {exit_code}")
+                                write_log(
+                                    {
+                                        "op_type": "create_transaction",
+                                        "action": "failed",
+                                        "account_slug": slug,
+                                        "posted_date": posted_date,
+                                        "amount_milliunits": amount_milliunits,
+                                        "payee_name": payee_name,
+                                        "import_id": import_id,
+                                        "ynab_exit_code": exit_code,
+                                        "included_in_batch": False,
+                                    }
+                                )
+                                counts["failed"] += 1
+                            else:
+                                write_log(
+                                    {
+                                        "op_type": "create_transaction",
+                                        "action": "applied",
+                                        "account_slug": slug,
+                                        "posted_date": posted_date,
+                                        "amount_milliunits": amount_milliunits,
+                                        "payee_name": payee_name,
+                                        "import_id": import_id,
+                                        "ynab_exit_code": exit_code,
+                                        "included_in_batch": False,
+                                    }
+                                )
+                                counts["applied"] += 1
                         else:
                             write_log(
                                 {

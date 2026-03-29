@@ -611,9 +611,12 @@ class BankDataReconcileApplyFlowNode(FlowNode):
         ops_file = ops_files[-1]
         timestamp = datetime.now().strftime(_TIMESTAMP_FMT)
         apply_log_path = self.apply_dir / f"{timestamp}_apply_log.ndjson"
+        ynab_delete_log_path = self.apply_dir / f"{timestamp}_ynab_delete_log.ndjson"
 
         try:
-            counts = apply_reconciliation_operations(ops_file, apply_log_path, self.config)
+            counts = apply_reconciliation_operations(
+                ops_file, apply_log_path, ynab_delete_log_path, self.config
+            )
 
             return FlowResult(
                 success=True,
