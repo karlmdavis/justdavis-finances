@@ -18,7 +18,19 @@ def test_cash_flow_performance_large_dataset(temp_dir):
 
     # 2 years of data, 5 accounts, ~10 transactions per day
     accounts_data = {
-        "accounts": [{"id": f"acc-{i}", "name": f"Account {i}", "balance": 10000000} for i in range(5)],
+        "accounts": [
+            {
+                "id": f"acc-{i}",
+                "name": f"Account {i}",
+                "type": "checking",
+                "on_budget": True,
+                "closed": False,
+                "balance": 10000000,
+                "cleared_balance": 10000000,
+                "uncleared_balance": 0,
+            }
+            for i in range(5)
+        ],
         "server_knowledge": 123,
     }
 
@@ -32,6 +44,7 @@ def test_cash_flow_performance_large_dataset(temp_dir):
             "id": f"txn-{day}-{txn_num}",
             "date": (base_date + pd.Timedelta(days=day)).strftime("%Y-%m-%d"),
             "amount": -1000 * (txn_num + 1),
+            "account_id": f"account-{txn_num % 5}",
             "account_name": f"Account {txn_num % 5}",
             "payee_name": f"Payee {txn_num}",
             "category_name": f"Category {txn_num}",

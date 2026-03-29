@@ -31,14 +31,22 @@ class TestCashFlowWorkflow:
                 {
                     "id": "checking-1",
                     "name": "Chase Checking",
-                    "balance": 25000000,  # $25,000
                     "type": "checking",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": 25000000,  # $25,000
+                    "cleared_balance": 25000000,
+                    "uncleared_balance": 0,
                 },
                 {
                     "id": "credit-1",
                     "name": "Chase Credit Card",
-                    "balance": -5000000,  # -$5,000 debt
                     "type": "creditCard",
+                    "on_budget": True,
+                    "closed": False,
+                    "balance": -5000000,  # -$5,000 debt
+                    "cleared_balance": -5000000,
+                    "uncleared_balance": 0,
                 },
             ],
             "server_knowledge": 123,
@@ -60,6 +68,7 @@ class TestCashFlowWorkflow:
                         "id": f"grocery-{day}",
                         "date": date_str,
                         "amount": -15000,  # $15 groceries
+                        "account_id": "chase-credit-card",
                         "account_name": "Chase Credit Card",
                         "payee_name": "Grocery Store",
                         "category_name": "Groceries",
@@ -68,6 +77,7 @@ class TestCashFlowWorkflow:
                         "id": f"gas-{day}",
                         "date": date_str,
                         "amount": -8000 if day % 3 == 0 else 0,  # $8 gas every 3 days
+                        "account_id": "chase-credit-card",
                         "account_name": "Chase Credit Card",
                         "payee_name": "Gas Station",
                         "category_name": "Transportation",
@@ -82,6 +92,7 @@ class TestCashFlowWorkflow:
                         "id": f"salary-{day}",
                         "date": date_str,
                         "amount": 150000,  # $1,500 bi-weekly salary
+                        "account_id": "chase-checking",
                         "account_name": "Chase Checking",
                         "payee_name": "Employer",
                         "category_name": "Salary",

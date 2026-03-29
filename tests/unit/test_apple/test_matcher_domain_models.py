@@ -36,6 +36,8 @@ class TestAppleMatcherDomainModels:
                 "date": "2024-10-15",
                 "amount": -45990,  # $45.99 expense (milliunits: 1 dollar = 1000 milliunits)
                 "payee_name": "Apple.com/bill",
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 
@@ -85,6 +87,8 @@ class TestAppleMatcherDomainModels:
                 "date": "2024-10-15",
                 "amount": -45990,  # $45.99 expense (milliunits)
                 "payee_name": "Apple.com/bill",
+                "account_id": "test-account",
+                "account_name": "Test Account",
             }
         )
 

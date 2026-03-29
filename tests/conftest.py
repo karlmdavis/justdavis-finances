@@ -29,6 +29,7 @@ def sample_ynab_transaction() -> dict[str, Any]:
         "date": "2024-08-15",
         "amount": -45990,  # -$45.99 in milliunits
         "payee_name": "AMZN Mktp US*TEST123",
+        "account_id": "test-account-123",
         "account_name": "Chase Credit Card",
         "category_name": "Shopping",
         "memo": "Test transaction",

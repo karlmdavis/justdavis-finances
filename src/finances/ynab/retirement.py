@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from ..core.currency import format_cents
-from ..core.json_utils import read_json, write_json
+from ..core.json_utils import write_json
+from .loader import load_accounts
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,6 @@ class RetirementAccount:
     name: str
     balance_milliunits: int
     cleared_balance_milliunits: int
-    last_reconciled_at: str | None
 
     @property
     def balance_cents(self) -> int:
@@ -102,31 +102,19 @@ class YnabRetirementService:
         Returns:
             List of discovered retirement accounts
         """
-        accounts_file = self.ynab_cache_dir / "accounts.json"
-
-        if not accounts_file.exists():
-            logger.error(f"YNAB accounts cache not found: {accounts_file}")
-            return []
-
         try:
-            data = read_json(accounts_file)
-            accounts = data.get("accounts", [])
+            accounts = load_accounts(self.ynab_cache_dir)
 
             # Filter for retirement accounts (off-budget assets)
             retirement_accounts = [
                 RetirementAccount(
-                    id=account["id"],
-                    name=account["name"],
-                    balance_milliunits=account.get("balance", 0),
-                    cleared_balance_milliunits=account.get("cleared_balance", 0),
-                    last_reconciled_at=account.get("last_reconciled_at"),
+                    id=account.id,
+                    name=account.name,
+                    balance_milliunits=account.balance.to_milliunits(),
+                    cleared_balance_milliunits=account.cleared_balance.to_milliunits(),
                 )
                 for account in accounts
-                if (
-                    account.get("type") == "otherAsset"
-                    and not account.get("on_budget", True)
-                    and not account.get("closed", False)
-                )
+                if account.type == "otherAsset" and not account.on_budget and not account.closed
             ]
 
             # Sort by name for consistent ordering

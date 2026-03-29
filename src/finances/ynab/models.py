@@ -47,7 +47,7 @@ class YnabAccount:
         """
         return cls(
             id=data["id"],
-            name=data["name"],
+            name=data["name"].replace("\xa0", " "),  # Normalize non-breaking spaces (Apple products)
             type=data["type"],
             on_budget=data["on_budget"],
             closed=data["closed"],
@@ -230,7 +230,7 @@ class YnabTransaction:
     cleared: str  # "cleared", "uncleared", "reconciled"
     approved: bool
     account_id: str
-    account_name: str | None
+    account_name: str
     payee_id: str | None
     payee_name: str | None
     category_id: str | None
@@ -251,14 +251,11 @@ class YnabTransaction:
         """
         Create YnabTransaction from API dict.
 
-        This method provides sensible defaults for optional fields to handle
-        minimal test data and partial API responses gracefully:
+        This method provides sensible defaults for a small number of optional fields:
         - cleared: Defaults to "uncleared" (safest assumption for new transactions)
         - approved: Defaults to True (most transactions are automatically approved)
-        - account_id: Defaults to "unknown" (allows parsing to succeed even with incomplete data)
 
-        These defaults are intentionally permissive to support testing and handle
-        edge cases where the API might not provide all fields.
+        account_id and account_name are required and will raise KeyError if absent.
 
         Args:
             data: Dictionary from YNAB API (transactions.json)
@@ -277,8 +274,8 @@ class YnabTransaction:
             memo=data.get("memo"),
             cleared=data.get("cleared", "uncleared"),  # Default to uncleared if not present
             approved=data.get("approved", True),  # Default to approved if not present
-            account_id=data.get("account_id", "unknown"),  # Default to unknown if not present
-            account_name=data.get("account_name"),
+            account_id=data["account_id"],
+            account_name=data["account_name"].replace("\xa0", " "),
             payee_id=data.get("payee_id"),
             payee_name=data.get("payee_name"),
             category_id=data.get("category_id"),

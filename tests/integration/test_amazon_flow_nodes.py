@@ -115,6 +115,7 @@ class TestAmazonMatchingFlowNode:
                     "date": "2024-08-15",
                     "amount": -29990,  # -$29.99 in milliunits
                     "payee_name": "Amazon.com",
+                    "account_id": "visa-1234",
                     "account_name": "Visa - 1234",
                 }
             ],

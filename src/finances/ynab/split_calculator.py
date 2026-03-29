@@ -23,7 +23,7 @@ from ..core.currency import (
     validate_sum_equals_total,
 )
 from ..core.money import Money
-from .models import YnabSplit, YnabTransaction
+from .models import YnabSplit
 
 
 class SplitCalculationError(Exception):
@@ -33,7 +33,7 @@ class SplitCalculationError(Exception):
 
 
 def calculate_amazon_splits(
-    transaction: YnabTransaction,
+    tx_amount: Money,
     amazon_items: list[MatchedOrderItem],
 ) -> list[YnabSplit]:
     """
@@ -43,7 +43,7 @@ def calculate_amazon_splits(
     No additional calculation needed.
 
     Args:
-        transaction: YNAB transaction domain model
+        tx_amount: Transaction amount as a Money value
         amazon_items: List of MatchedOrderItem from match results
 
     Returns:
@@ -52,7 +52,7 @@ def calculate_amazon_splits(
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
     """
-    tx_milliunits = transaction.amount.to_milliunits()
+    tx_milliunits = tx_amount.to_milliunits()
     splits: list[YnabSplit] = []
 
     for item in amazon_items:
@@ -81,7 +81,7 @@ def calculate_amazon_splits(
 
 
 def calculate_apple_splits(
-    transaction: YnabTransaction,
+    tx_amount: Money,
     receipt: ParsedReceipt,
 ) -> list[YnabSplit]:
     """
@@ -90,7 +90,7 @@ def calculate_apple_splits(
     Apple provides subtotal and tax separately, requiring proportional allocation.
 
     Args:
-        transaction: YNAB transaction domain model
+        tx_amount: Transaction amount as a Money value
         receipt: ParsedReceipt domain model with items, subtotal, and tax
 
     Returns:
@@ -99,7 +99,7 @@ def calculate_apple_splits(
     Raises:
         SplitCalculationError: If split amounts don't sum to transaction total
     """
-    tx_milliunits = transaction.amount.to_milliunits()
+    tx_milliunits = tx_amount.to_milliunits()
 
     if not receipt.items:
         raise SplitCalculationError("No Apple items provided for split calculation")
@@ -148,7 +148,7 @@ def calculate_apple_splits(
 
 
 def calculate_generic_splits(
-    transaction: YnabTransaction,
+    tx_amount: Money,
     items: list[dict[str, Any]],
     category_id: str | None = None,
 ) -> list[YnabSplit]:
@@ -159,7 +159,7 @@ def calculate_generic_splits(
     a simple split calculation when no vendor-specific logic is needed.
 
     Args:
-        transaction: YNAB transaction domain model
+        tx_amount: Transaction amount as a Money value
         items: List of items with 'name' (str) and 'amount' (Money)
         category_id: Optional category ID for all splits
 
@@ -170,7 +170,7 @@ def calculate_generic_splits(
         SplitCalculationError: If split amounts don't sum to transaction total
         TypeError: If item['amount'] is not a Money object
     """
-    tx_milliunits = transaction.amount.to_milliunits()
+    tx_milliunits = tx_amount.to_milliunits()
     splits: list[YnabSplit] = []
 
     for item in items:

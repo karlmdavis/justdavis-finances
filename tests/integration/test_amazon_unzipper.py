@@ -63,7 +63,9 @@ class TestAmazonUnzipperIntegration:
 
         # Verify directory naming convention (YYYY-MM-DD_accountname_amazon_data)
         assert "_karl_amazon_data" in output_dir.name
-        assert output_dir.name.startswith("2025-")  # Current year
+        import re
+
+        assert re.match(r"^\d{4}-", output_dir.name)  # Starts with YYYY-
 
         # Verify CSV files were extracted (includes nested path from ZIP)
         assert len(result["csv_files"]) == 1
