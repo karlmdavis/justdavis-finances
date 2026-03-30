@@ -36,24 +36,8 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".csv",)
 
-    def validate_file(self, file_path: Path) -> bool:
-        """Validate that file is a Chase Checking CSV."""
-        if file_path.suffix.lower() != ".csv":
-            return False
-
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                headers = reader.fieldnames
-                return headers == self.EXPECTED_HEADERS
-        except (OSError, UnicodeDecodeError):
-            return False
-
     def parse(self, file_path: Path) -> ParseResult:
         """Parse Chase Checking CSV file."""
-        if not self.validate_file(file_path):
-            raise ValueError(f"Invalid Chase Checking CSV file: {file_path}")
-
         transactions = []
         balance_points = []
 

@@ -70,22 +70,6 @@ def test_parse_no_balances(sample_csv):
     assert result.statement_date is None
 
 
-def test_validate_file_success(sample_csv):
-    """Test validating a correct Apple Savings CSV file."""
-    handler = AppleSavingsCsvHandler()
-
-    assert handler.validate_file(sample_csv) is True
-
-
-def test_validate_file_wrong_extension(tmp_path):
-    """Test validation fails for wrong file extension."""
-    handler = AppleSavingsCsvHandler()
-    txt_file = tmp_path / "test.txt"
-    txt_file.write_text("test")
-
-    assert handler.validate_file(txt_file) is False
-
-
 def test_parse_invalid_amount_fails(tmp_path):
     """Test parsing fails with invalid amount format."""
     csv_content = """Transaction Date,Posted Date,Activity Type,Transaction Type,Description,Currency Code,Amount

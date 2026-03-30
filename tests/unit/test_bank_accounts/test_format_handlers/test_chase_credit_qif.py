@@ -87,22 +87,6 @@ def test_parse_no_statement_date(sample_qif):
     assert result.statement_date is None
 
 
-def test_validate_file_success(sample_qif):
-    """Test validating a correct Chase Credit QIF file."""
-    handler = ChaseCreditQifHandler()
-
-    assert handler.validate_file(sample_qif) is True
-
-
-def test_validate_file_wrong_extension(tmp_path):
-    """Test validation fails for wrong file extension."""
-    handler = ChaseCreditQifHandler()
-    txt_file = tmp_path / "test.txt"
-    txt_file.write_text("test")
-
-    assert handler.validate_file(txt_file) is False
-
-
 def test_parse_invalid_amount_fails(tmp_path):
     """Test parsing fails with invalid amount format."""
     qif_content = """!Type:CCard
@@ -137,19 +121,3 @@ T-100.00
 
     assert len(result.transactions) == 1
     assert result.transactions[0].description == "Unknown"
-
-
-def test_validate_file_missing_header(tmp_path):
-    """Test validation fails for missing QIF header."""
-    qif_content = """D12/26/2024
-PTEST
-T-100.00
-^
-"""
-
-    qif_file = tmp_path / "no_header.qif"
-    qif_file.write_text(qif_content)
-
-    handler = ChaseCreditQifHandler()
-
-    assert handler.validate_file(qif_file) is False

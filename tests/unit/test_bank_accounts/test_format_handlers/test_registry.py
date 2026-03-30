@@ -19,9 +19,6 @@ class MockHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".csv",)
 
-    def validate_file(self, file_path: Path) -> bool:
-        return True
-
     def parse(self, file_path: Path) -> ParseResult:
         return ParseResult.create(transactions=[], balance_points=[])
 
@@ -68,9 +65,6 @@ def test_list_formats_multiple():
         @property
         def supported_extensions(self) -> tuple[str, ...]:
             return (".csv",)
-
-        def validate_file(self, file_path: Path) -> bool:
-            return True
 
         def parse(self, file_path: Path) -> ParseResult:
             return ParseResult.create(transactions=[], balance_points=[])

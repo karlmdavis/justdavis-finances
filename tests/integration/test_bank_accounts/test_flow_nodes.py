@@ -38,10 +38,6 @@ class TestCsvHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".csv",)
 
-    def validate_file(self, file_path: Path) -> bool:
-        """Validate CSV file format."""
-        return file_path.suffix == ".csv"
-
     def parse(self, file_path: Path) -> ParseResult:
         """Parse test CSV file."""
         # Simple parser: each line is "date,description,amount"

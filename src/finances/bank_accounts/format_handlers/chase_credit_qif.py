@@ -39,23 +39,8 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".qif",)
 
-    def validate_file(self, file_path: Path) -> bool:
-        """Validate that file is a QIF file with correct header."""
-        if file_path.suffix.lower() != ".qif":
-            return False
-
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                first_line = f.readline().strip()
-                return first_line in self.VALID_HEADERS
-        except (OSError, UnicodeDecodeError):
-            return False
-
     def parse(self, file_path: Path) -> ParseResult:
         """Parse Chase Credit QIF file."""
-        if not self.validate_file(file_path):
-            raise ValueError(f"Invalid Chase Credit QIF file: {file_path}")
-
         transactions = []
 
         with open(file_path, encoding="utf-8") as f:

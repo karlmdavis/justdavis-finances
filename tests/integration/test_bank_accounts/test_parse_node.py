@@ -22,10 +22,6 @@ class TestCsvHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".csv",)
 
-    def validate_file(self, file_path: Path) -> bool:
-        """Validate CSV file format."""
-        return file_path.suffix == ".csv"
-
     def parse(self, file_path: Path) -> ParseResult:
         """Parse test CSV file."""
         # Simple parser: each line is "date,description,amount"
@@ -55,10 +51,6 @@ class TestOfxHandler(BankExportFormatHandler):
     @property
     def supported_extensions(self) -> tuple[str, ...]:
         return (".ofx",)
-
-    def validate_file(self, file_path: Path) -> bool:
-        """Validate OFX file format."""
-        return file_path.suffix == ".ofx"
 
     def parse(self, file_path: Path) -> ParseResult:
         """Parse test OFX file."""
@@ -521,9 +513,6 @@ TRNAMT:-20.00"""
             def supported_extensions(self) -> tuple[str, ...]:
                 return (".csv",)
 
-            def validate_file(self, file_path: Path) -> bool:
-                return file_path.suffix == ".csv"
-
             def parse(self, file_path: Path) -> ParseResult:
                 txs = []
                 for line in file_path.read_text().strip().split("\n")[1:]:
@@ -546,9 +535,6 @@ TRNAMT:-20.00"""
             @property
             def supported_extensions(self) -> tuple[str, ...]:
                 return (".ofx",)
-
-            def validate_file(self, file_path: Path) -> bool:
-                return file_path.suffix == ".ofx"
 
             def parse(self, file_path: Path) -> ParseResult:
                 txs = []

@@ -24,22 +24,8 @@ class AppleCardOfxHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".ofx",)
 
-    def validate_file(self, file_path: Path) -> bool:
-        """Validate that file is an OFX file."""
-        if file_path.suffix.lower() != ".ofx":
-            return False
-
-        try:
-            content = file_path.read_text(encoding="utf-8")
-            return "<OFX>" in content and "<STMTTRN>" in content
-        except (OSError, UnicodeDecodeError):
-            return False
-
     def parse(self, file_path: Path) -> ParseResult:
         """Parse Apple Card OFX file."""
-        if not self.validate_file(file_path):
-            raise ValueError(f"Invalid Apple Card OFX file: {file_path}")
-
         content = file_path.read_text(encoding="utf-8")
 
         transactions = self._parse_transactions(content)

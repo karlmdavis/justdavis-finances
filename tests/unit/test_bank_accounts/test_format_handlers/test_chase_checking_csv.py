@@ -93,22 +93,6 @@ def test_parse_no_statement_date(sample_csv):
     assert result.statement_date is None
 
 
-def test_validate_file_success(sample_csv):
-    """Test validating a correct Chase Checking CSV file."""
-    handler = ChaseCheckingCsvHandler()
-
-    assert handler.validate_file(sample_csv) is True
-
-
-def test_validate_file_wrong_extension(tmp_path):
-    """Test validation fails for wrong file extension."""
-    handler = ChaseCheckingCsvHandler()
-    txt_file = tmp_path / "test.txt"
-    txt_file.write_text("test")
-
-    assert handler.validate_file(txt_file) is False
-
-
 def test_parse_invalid_amount_fails(tmp_path):
     """Test parsing fails with invalid amount format."""
     csv_content = """Details,Posting Date,Description,Amount,Type,Balance,Check or Slip #

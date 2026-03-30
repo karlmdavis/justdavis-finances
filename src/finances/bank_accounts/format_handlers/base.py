@@ -53,22 +53,6 @@ class BankExportFormatHandler(ABC):
         pass
 
     @abstractmethod
-    def validate_file(self, file_path: Path) -> bool:
-        """
-        Quick validation that file matches expected format.
-
-        Check:
-        - File extension
-        - Header structure (for CSV)
-        - Root elements (for XML/OFX)
-        - Required fields present
-
-        Returns:
-            True if file appears to match this handler's format, False otherwise.
-        """
-        pass
-
-    @abstractmethod
     def parse(self, file_path: Path) -> ParseResult:
         """
         Parse bank export file and return transactions and balance data.
