@@ -23,10 +23,9 @@ Configuration:
         - Scores below threshold → ambiguous (manual review)
 
 Normalization:
-    - Removes all digits and special characters
     - Converts to lowercase
     - Normalizes whitespace
-    - Example: "AMAZON.COM*XX1234" → "amazoncom"
+    - Example: "AMAZON.COM*XX1234" → "amazon.com*xx1234"
 
 YNAB Payee Expansion:
     YNAB Direct Import sometimes abbreviates payee names relative to the bank's
@@ -263,6 +262,7 @@ def _pick_best(bank_tx: BankTransaction, candidates: list[YnabTransaction]) -> M
     # description similarity can't distinguish between them — claim the first one.
     # The greedy pool in the caller ensures each YNAB tx is claimed by at most one bank tx,
     # so this is safe even when there are N identical YNAB entries for N identical bank txs.
+    # Note: confidence may be below FUZZY_MATCH_CONFIDENCE_THRESHOLD in this path.
     unique_payees = {normalize_description(tx.payee_name or "") for tx, _ in scores}
     if len(unique_payees) == 1:
         return MatchResult(match_type="fuzzy", ynab_transaction=best_match, confidence=best_score)
