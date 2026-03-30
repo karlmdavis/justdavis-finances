@@ -78,6 +78,16 @@ def deduplicate_transactions(parsed_files: list[tuple[Path, ParseResult, float]]
     # (date, amount, description) — e.g., two $0.11 Daily Cash Deposits on the
     # same day — only as many OFX copies as there are CSV counterparts are
     # suppressed; any extras are preserved.
+    # ASSUMPTION: transactions with transaction_date come from a CSV file while those
+    # without come from an OFX file, and cross-format duplicates only arise across
+    # different files (not within a single file).  If a single CSV file produced both a
+    # transaction with transaction_date=P and a transaction with posted_date=P, no
+    # transaction_date, and the same amount+description, the OFX-shaped entry would be
+    # incorrectly dropped even though there is no OFX counterpart to eliminate.  In
+    # practice this requires two coincidentally-identical transactions in the same file
+    # where one happens to lack a transaction_date — an unlikely but theoretically
+    # possible scenario (e.g. a recurring charge on the same day as an interest deposit
+    # of the same amount with an identical description).
     anchor_remaining: Counter[tuple[FinancialDate, int, str]] = Counter(
         (tx.transaction_date, tx.amount.to_milliunits(), tx.description)
         for tx in result

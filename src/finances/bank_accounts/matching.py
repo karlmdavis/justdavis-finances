@@ -24,8 +24,9 @@ Configuration:
 
 Normalization:
     - Converts to lowercase
+    - Removes digits
     - Normalizes whitespace
-    - Example: "AMAZON.COM*XX1234" → "amazon.com*xx1234"
+    - Example: "AMAZON.COM*XX1234" → "amazon.com*xx"
 
 YNAB Payee Expansion:
     YNAB Direct Import sometimes abbreviates payee names relative to the bank's
