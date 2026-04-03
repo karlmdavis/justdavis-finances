@@ -46,7 +46,12 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
         with open(file_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines()]
 
-        # Skip header line
+        # Validate and skip header line
+        if not lines or lines[0] not in self.VALID_HEADERS:
+            raise ValueError(
+                f"Invalid QIF header. Expected one of {self.VALID_HEADERS}, "
+                f"got: {repr(lines[0]) if lines else 'empty file'}"
+            )
         i = 1
         current_tx: dict[str, str] = {}
         line_num = 2  # Start at 2 (header is line 1)

@@ -591,7 +591,7 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     This test validates the new topological execution order with sequential prompting.
     Each node is prompted in deterministic topological order with alphabetical tie-breaking.
 
-    Expected execution sequence (14 nodes in topological order):
+    Expected execution sequence (topological order):
 
     Level 0 (no dependencies):
     1. amazon_order_history_request - Skip (no manual requests in test)
@@ -636,7 +636,7 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     try:
         # Use context manager to capture all output and log on failure
         with capture_and_log_on_failure(child) as output:
-            # Sequential prompting in topological order (14 nodes)
+            # Sequential prompting in topological order (15 nodes)
             # Level 0: amazon_order_history_request, apple_email_fetch, bank_data_retrieve, ynab_sync
             # Level 1: amazon_unzip, apple_receipt_parsing, bank_data_parse, cash_flow_analysis, retirement_update
             # Level 2: amazon_matching, apple_matching, bank_data_reconcile

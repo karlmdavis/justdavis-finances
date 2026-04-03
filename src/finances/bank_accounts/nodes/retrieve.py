@@ -47,25 +47,25 @@ def retrieve_account_data(config: BankAccountsConfig, base_dir: Path) -> dict[st
         files_copied = 0
         files_skipped = 0
 
-        # Process each import pattern
+        # Collect matching files across all patterns, deduplicating files matched by multiple patterns
+        matched_files: set[Path] = set()
         for pattern in account.import_patterns:
-            # Find matching files using glob
-            matching_files = list(source_dir.glob(pattern.pattern))
+            matched_files.update(source_dir.glob(pattern.pattern))
 
-            for source_file in matching_files:
-                # Skip directories (glob might match them)
-                if not source_file.is_file():
-                    continue
+        for source_file in sorted(matched_files):
+            # Skip directories (glob might match them)
+            if not source_file.is_file():
+                continue
 
-                dest_file = dest_dir / source_file.name
+            dest_file = dest_dir / source_file.name
 
-                # Check if file already exists with same size
-                if dest_file.exists() and dest_file.stat().st_size == source_file.stat().st_size:
-                    files_skipped += 1
-                else:
-                    # Copy file with metadata preservation
-                    shutil.copy2(source_file, dest_file)
-                    files_copied += 1
+            # Check if file already exists with same size
+            if dest_file.exists() and dest_file.stat().st_size == source_file.stat().st_size:
+                files_skipped += 1
+            else:
+                # Copy file with metadata preservation
+                shutil.copy2(source_file, dest_file)
+                files_copied += 1
 
         # Store summary for this account
         summary[account.slug] = {"copied": files_copied, "skipped": files_skipped}

@@ -92,7 +92,7 @@ def validate_config(
             )
 
         # Validate source_directory exists
-        source_path = Path(account.source_directory)
+        source_path = Path(account.source_directory).expanduser()
         if not source_path.exists():
             raise ConfigValidationError(
                 f"Account '{account.slug}': source_directory does not exist: " f"{account.source_directory}"

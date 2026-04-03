@@ -61,12 +61,19 @@ class BankDataRetrieveFlowNode(FlowNode):
     No dependencies - entry point for bank account flow.
     """
 
-    def __init__(self, data_dir: Path, config: BankAccountsConfig):
+    def __init__(self, data_dir: Path, config: BankAccountsConfig | None = None):
         super().__init__("bank_data_retrieve")
         self._dependencies = set()
         self.data_dir = data_dir
-        self.config = config
+        self._config = config
         self.raw_dir = data_dir / "bank_accounts" / "raw"
+
+    @property
+    def config(self) -> BankAccountsConfig:
+        """Lazily load config on first access to defer stub creation side effects."""
+        if self._config is None:
+            self._config = BankAccountsConfig.load()
+        return self._config
 
     def get_output_info(self) -> OutputInfo:
         """Return output validation info."""
@@ -186,13 +193,20 @@ class BankDataParseFlowNode(FlowNode):
     Depends on: bank_data_retrieve
     """
 
-    def __init__(self, data_dir: Path, config: BankAccountsConfig):
+    def __init__(self, data_dir: Path, config: BankAccountsConfig | None = None):
         super().__init__("bank_data_parse")
         self._dependencies = {"bank_data_retrieve"}
         self.data_dir = data_dir
-        self.config = config
+        self._config = config
         self.normalized_dir = data_dir / "bank_accounts" / "normalized"
         self.store = BankNormalizedDataStore(self.normalized_dir)
+
+    @property
+    def config(self) -> BankAccountsConfig:
+        """Lazily load config on first access to defer stub creation side effects."""
+        if self._config is None:
+            self._config = BankAccountsConfig.load()
+        return self._config
 
     def get_output_info(self) -> OutputInfo:
         """Return output validation info."""
@@ -323,13 +337,20 @@ class BankDataReconcileFlowNode(FlowNode):
     Depends on: bank_data_parse, ynab_sync
     """
 
-    def __init__(self, data_dir: Path, config: BankAccountsConfig):
+    def __init__(self, data_dir: Path, config: BankAccountsConfig | None = None):
         super().__init__("bank_data_reconcile")
         self._dependencies = {"bank_data_parse", "ynab_sync"}
         self.data_dir = data_dir
-        self.config = config
+        self._config = config
         self.reconciliation_dir = data_dir / "bank_accounts" / "reconciliation"
         self.store = BankReconciliationStore(self.reconciliation_dir)
+
+    @property
+    def config(self) -> BankAccountsConfig:
+        """Lazily load config on first access to defer stub creation side effects."""
+        if self._config is None:
+            self._config = BankAccountsConfig.load()
+        return self._config
 
     def get_output_info(self) -> OutputInfo:
         """Return output validation info."""
@@ -509,12 +530,19 @@ class BankDataReconcileApplyFlowNode(FlowNode):
     Depends on: bank_data_reconcile
     """
 
-    def __init__(self, data_dir: Path, config: BankAccountsConfig):
+    def __init__(self, data_dir: Path, config: BankAccountsConfig | None = None):
         super().__init__("bank_data_reconcile_apply")
         self._dependencies = {"bank_data_reconcile"}
         self.data_dir = data_dir
-        self.config = config
+        self._config = config
         self.apply_dir = data_dir / "bank_accounts" / "reconciliation_apply"
+
+    @property
+    def config(self) -> BankAccountsConfig:
+        """Lazily load config on first access to defer stub creation side effects."""
+        if self._config is None:
+            self._config = BankAccountsConfig.load()
+        return self._config
 
     def get_output_info(self) -> OutputInfo:
         """Return output validation info."""

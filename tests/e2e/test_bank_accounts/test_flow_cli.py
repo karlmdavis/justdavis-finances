@@ -269,5 +269,5 @@ def test_bank_accounts_config_validation():
         # Try to load config - should fail
         from finances.bank_accounts.models import BankAccountsConfig
 
-        with pytest.raises(KeyError):  # Missing required 'accounts' field
+        with pytest.raises(KeyError):  # Missing required per-account fields (e.g. bank_name)
             BankAccountsConfig.from_dict(invalid_config)
