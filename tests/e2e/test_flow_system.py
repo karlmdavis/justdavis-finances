@@ -640,7 +640,7 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
             # Level 0: amazon_order_history_request, apple_email_fetch, bank_data_retrieve, ynab_sync
             # Level 1: amazon_unzip, apple_receipt_parsing, bank_data_parse, cash_flow_analysis, retirement_update
             # Level 2: amazon_matching, apple_matching, bank_data_reconcile
-            # Level 3: split_generation
+            # Level 3: split_generation, bank_data_reconcile_apply
             # Level 4: ynab_apply
 
             # Level 0 - Step 1: amazon_order_history_request - Skip

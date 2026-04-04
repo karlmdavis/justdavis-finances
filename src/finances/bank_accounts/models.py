@@ -137,7 +137,11 @@ class BankAccountsConfig:
             Loaded configuration, or empty config if file doesn't exist
 
         Raises:
-            None - gracefully returns empty config if file cannot be created
+            json.JSONDecodeError: If the YNAB accounts cache or config file contains
+                invalid JSON
+            KeyError: If the YNAB accounts cache is missing required fields (id, name, type)
+            OSError: If the config directory cannot be created or the stub file cannot
+                be written
         """
         import os
         from pathlib import Path
