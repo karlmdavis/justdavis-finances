@@ -645,12 +645,13 @@ class BankDataReconcileApplyFlowNode(FlowNode):
             )
 
             return FlowResult(
-                success=True,
+                success=counts["failed"] == 0,
                 items_processed=counts["applied"]
                 + counts["skipped"]
                 + counts["acknowledged"]
                 + counts["deleted"]
-                + counts["duplicate_skipped"],
+                + counts["duplicate_skipped"]
+                + counts["failed"],
                 new_items=counts["applied"],
                 outputs=[apply_log_path],
                 requires_review=False,
@@ -660,6 +661,7 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                     "acknowledged": counts["acknowledged"],
                     "deleted": counts["deleted"],
                     "duplicate_skipped": counts["duplicate_skipped"],
+                    "failed": counts["failed"],
                     "log_file": str(apply_log_path),
                 },
             )

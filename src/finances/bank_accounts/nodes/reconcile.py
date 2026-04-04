@@ -125,6 +125,9 @@ def reconcile_account_data(
         config: Bank accounts configuration
         base_dir: Base directory for data (contains normalized/)
         ynab_transactions: List of YNAB transactions to match against
+        raw_ynab_by_id: Dict mapping YNAB transaction id → raw YNAB dict.
+            Required for constructing delete_ynab_transaction operations.
+            Defaults to {} (skips delete ops if not provided).
 
     Returns:
         Dictionary mapping account slug to ReconciliationResult
