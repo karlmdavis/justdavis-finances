@@ -299,6 +299,7 @@ def _make_ynab_tx(tx_id: str, date: str, amount_milliunits: int, import_id: str 
             "date": date,
             "amount": amount_milliunits,
             "account_id": "acc1",
+            "account_name": "Test Account",
             "import_id": import_id,
         }
     )

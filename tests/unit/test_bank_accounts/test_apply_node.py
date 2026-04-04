@@ -210,10 +210,11 @@ def test_account_with_no_pending_ops_skipped_silently():
         tmp_path = Path(tmp)
         ops_file = _build_ops_file(tmp_path, {"apple-card": {"account_id": "acct-a", "operations": []}})
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         with patch("builtins.input") as mock_input:
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         # No prompt should have been issued
         mock_input.assert_not_called()
@@ -246,13 +247,14 @@ def test_account_skipped_when_user_says_no():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         with (
             patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
             patch("builtins.input", return_value="n"),
         ):
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         mock_run.assert_not_called()
         assert counts["skipped"] == 2
@@ -288,6 +290,7 @@ def test_create_batch_applied_via_file():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         # First input() call is for account prompt, second for batch prompt
@@ -298,7 +301,7 @@ def test_create_batch_applied_via_file():
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = ""
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         # Should call ynab with --file -
         assert mock_run.call_count == 1
@@ -346,6 +349,7 @@ def test_memo_absent_regardless_of_merchant():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         with (
@@ -355,7 +359,7 @@ def test_memo_absent_regardless_of_merchant():
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = ""
-            apply_reconciliation_operations(ops_file, log_path, config)
+            apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         payload = json.loads(mock_run.call_args[1]["input"])
         assert payload[0]["payee_name"] == "Spotify"
@@ -380,13 +384,14 @@ def test_create_batch_skipped():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         with (
             patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "n"]),
         ):
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         mock_run.assert_not_called()
         assert counts["skipped"] == 1
@@ -417,6 +422,7 @@ def test_create_batch_split_then_applied():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         # Account prompt: y; batch prompt: s; item 1: y; item 2: n
@@ -428,7 +434,7 @@ def test_create_batch_split_then_applied():
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = ""
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         # Individual calls (not --file) for each applied item
         assert mock_run.call_count == 1
@@ -471,6 +477,7 @@ def test_create_batch_failed_logs_failed():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         with (
@@ -480,7 +487,7 @@ def test_create_batch_failed_logs_failed():
             mock_run.return_value.returncode = 1
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = ""
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         assert counts["failed"] == 2
         assert counts["applied"] == 0
@@ -513,11 +520,12 @@ def test_flag_batch_acknowledged():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         # Account prompt: y; flag batch prompt: A
         with patch("builtins.input", side_effect=["y", "a"]):
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         assert counts["acknowledged"] == 1
         assert counts["skipped"] == 0
@@ -544,11 +552,12 @@ def test_flag_batch_skipped():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         # Account prompt: y; flag batch prompt: n
         with patch("builtins.input", side_effect=["y", "n"]):
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         assert counts["skipped"] == 1
         assert counts["acknowledged"] == 0
@@ -579,6 +588,7 @@ def test_single_item_batch_no_split_option():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         captured_prompts: list[str] = []
@@ -592,7 +602,7 @@ def test_single_item_batch_no_split_option():
             patch("finances.bank_accounts.nodes.apply.subprocess.run"),
             patch("builtins.input", side_effect=capturing_input),
         ):
-            apply_reconciliation_operations(ops_file, log_path, config)
+            apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         # Single-item batch prompt: no 's' option, but 'j' option present
         batch_prompt = captured_prompts[1]
@@ -618,6 +628,7 @@ def test_batches_interleaved_by_date():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         with (
@@ -627,7 +638,7 @@ def test_batches_interleaved_by_date():
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = ""
-            apply_reconciliation_operations(ops_file, log_path, config)
+            apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         lines = log_path.read_text().strip().splitlines()
         entries = [json.loads(line) for line in lines]
@@ -676,6 +687,7 @@ def test_delete_batch_applied():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         # Account prompt: y; delete batch prompt: y
@@ -686,7 +698,7 @@ def test_delete_batch_applied():
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = ""
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         # Should call ynab delete transaction twice (once per op)
         assert mock_run.call_count == 2
@@ -723,6 +735,7 @@ def test_delete_batch_skipped():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         # Account prompt: y; delete batch prompt: n
@@ -730,7 +743,7 @@ def test_delete_batch_skipped():
             patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "n"]),
         ):
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         mock_run.assert_not_called()
         assert counts["deleted"] == 0
@@ -760,6 +773,7 @@ def test_delete_batch_split():
             },
         )
         log_path = tmp_path / "log.ndjson"
+        delete_log_path = tmp_path / "delete_log.ndjson"
         config = _make_config()
 
         # Account prompt: y; batch prompt: s; item 1: y; item 2: n
@@ -771,7 +785,7 @@ def test_delete_batch_split():
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = ""
-            counts = apply_reconciliation_operations(ops_file, log_path, config)
+            counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
 
         assert mock_run.call_count == 1
         assert counts["deleted"] == 1
