@@ -98,7 +98,12 @@ class AppleCardOfxHandler(BankExportFormatHandler):
         dtasof_el = ledgerbal.find("DTASOF")
 
         if balamt_el is None or not balamt_el.text or dtasof_el is None or not dtasof_el.text:
-            return []
+            missing = []
+            if balamt_el is None or not balamt_el.text:
+                missing.append("BALAMT")
+            if dtasof_el is None or not dtasof_el.text:
+                missing.append("DTASOF")
+            raise ValueError(f"LEDGERBAL tag found but missing required sub-elements: {', '.join(missing)}")
 
         ledger_money = Money.from_dollars(balamt_el.text)
         balance_date = self._parse_ofx_date(dtasof_el.text)

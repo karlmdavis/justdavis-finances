@@ -149,6 +149,7 @@ ignore = [
 "src/finances/ynab/flow.py" = ["S607"]  # allow partial executable path for ynab CLI tool
 "src/finances/bank_accounts/nodes/apply.py" = ["S603", "S607"]  # allow subprocess calls to ynab CLI tool
 "src/finances/bank_accounts/format_handlers/apple_card_ofx.py" = ["S314"]  # OFX files are trusted bank exports, not untrusted user input
+"src/finances/bank_accounts/format_handlers/apple_savings_ofx.py" = ["S314"]  # OFX files are trusted bank exports, not untrusted user input
 
 # MyPy configuration
 [tool.mypy]

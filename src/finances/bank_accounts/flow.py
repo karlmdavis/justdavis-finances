@@ -20,6 +20,7 @@ from finances.core.flow import (
     OutputFile,
     OutputInfo,
 )
+from finances.core.json_utils import read_json
 
 
 class BankDataRetrieveOutputInfo(OutputInfo):
@@ -171,8 +172,6 @@ class BankDataParseOutputInfo(OutputInfo):
 
         files = []
         for json_file in self.output_dir.glob("*.json"):
-            from finances.core.json_utils import read_json
-
             data = read_json(json_file)
             tx_count = len(data.get("transactions", []))
             files.append(OutputFile(path=json_file, record_count=tx_count))
@@ -310,8 +309,6 @@ class BankDataReconcileOutputInfo(OutputInfo):
 
         files = []
         for json_file in self.output_dir.glob("*.json"):
-            from finances.core.json_utils import read_json
-
             data = read_json(json_file)
             acct_count = len(data.get("accounts", {}))
             files.append(OutputFile(path=json_file, record_count=acct_count))
