@@ -2,7 +2,6 @@
 
 import csv
 from pathlib import Path
-from typing import ClassVar
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BankTransaction
@@ -17,16 +16,6 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
     Normalization: Credit → positive (deposit/inflow), Debit → negative (withdrawal/outflow)
     Balance Data: None (no balance column in this format)
     """
-
-    EXPECTED_HEADERS: ClassVar[list[str]] = [
-        "Transaction Date",
-        "Posted Date",
-        "Activity Type",
-        "Transaction Type",
-        "Description",
-        "Currency Code",
-        "Amount",
-    ]
 
     @property
     def format_name(self) -> str:

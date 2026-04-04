@@ -1,4 +1,4 @@
-import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import cast
 
@@ -26,16 +26,21 @@ class AppleCardOfxHandler(BankExportFormatHandler):
 
     def parse(self, file_path: Path) -> ParseResult:
         """Parse Apple Card OFX file."""
-        content = file_path.read_text(encoding="utf-8")
+        root = ET.parse(file_path).getroot()
 
-        transactions = self._parse_transactions(content)
-        balance_points = self._parse_balances(content)
+        transactions = self._parse_transactions(root)
+        balance_points = self._parse_balances(root)
 
-        dtstart = self._extract_tag(content, "DTSTART", parent="BANKTRANLIST")
-        dtend = self._extract_tag(content, "DTEND", parent="BANKTRANLIST")
-        statement_start_date = self._parse_ofx_date(dtstart) if dtstart else None
+        banktranlist = root.find(".//BANKTRANLIST")
+        dtstart_el = banktranlist.find("DTSTART") if banktranlist is not None else None
+        dtend_el = banktranlist.find("DTEND") if banktranlist is not None else None
+        statement_start_date = (
+            self._parse_ofx_date(dtstart_el.text) if dtstart_el is not None and dtstart_el.text else None
+        )
         statement_date = (
-            self._parse_ofx_date(dtend) if dtend else (balance_points[0].date if balance_points else None)
+            self._parse_ofx_date(dtend_el.text)
+            if dtend_el is not None and dtend_el.text
+            else (balance_points[0].date if balance_points else None)
         )
 
         return ParseResult.create(
@@ -45,90 +50,67 @@ class AppleCardOfxHandler(BankExportFormatHandler):
             statement_start_date=statement_start_date,
         )
 
-    def _parse_transactions(self, content: str) -> list[BankTransaction]:
-        """Extract transactions from OFX content."""
+    def _parse_transactions(self, root: ET.Element) -> list[BankTransaction]:
+        """Extract transactions from OFX element tree."""
         transactions = []
 
-        # Find all STMTTRN blocks
-        stmttrn_pattern = r"<STMTTRN>(.*?)</STMTTRN>"
-        for match in re.finditer(stmttrn_pattern, content, re.DOTALL):
-            trn_block = match.group(1)
+        for trn in root.findall(".//STMTTRN"):
+            posted_date_el = trn.find("DTPOSTED")
+            amount_el = trn.find("TRNAMT")
+            name_el = trn.find("NAME")
 
-            # Extract fields
-            posted_date = self._extract_tag(trn_block, "DTPOSTED")
-            amount = self._extract_tag(trn_block, "TRNAMT")
-            name = self._extract_tag(trn_block, "NAME")
+            missing_fields = []
+            if posted_date_el is None or not posted_date_el.text:
+                missing_fields.append("DTPOSTED")
+            if amount_el is None or not amount_el.text:
+                missing_fields.append("TRNAMT")
+            if name_el is None or not name_el.text:
+                missing_fields.append("NAME")
 
-            if not all([posted_date, amount, name]):
-                missing_fields = []
-                if not posted_date:
-                    missing_fields.append("DTPOSTED")
-                if not amount:
-                    missing_fields.append("TRNAMT")
-                if not name:
-                    missing_fields.append("NAME")
+            if missing_fields:
                 raise ValueError(
                     f"Missing required transaction fields in OFX: "
                     f"{', '.join(missing_fields)}. Expected DTPOSTED, TRNAMT, and NAME tags."
                 )
 
             # Type narrowing after runtime validation
-            posted_date = cast(str, posted_date)
-            amount = cast(str, amount)
-            name = cast(str, name)
-
-            # Parse amount (already accounting standard - use as-is)
-            amount_money = Money.from_dollars(amount)
+            posted_date_str = cast(str, posted_date_el.text)  # type: ignore[union-attr]
+            amount_str = cast(str, amount_el.text)  # type: ignore[union-attr]
+            name_str = cast(str, name_el.text)  # type: ignore[union-attr]
 
             tx = BankTransaction(
-                posted_date=self._parse_ofx_date(posted_date),
-                description=name,
-                amount=amount_money,
+                posted_date=self._parse_ofx_date(posted_date_str),
+                description=name_str,
+                amount=Money.from_dollars(amount_str),
             )
 
             transactions.append(tx)
 
         return transactions
 
-    def _parse_balances(self, content: str) -> list[BalancePoint]:
-        """Extract balance from OFX content."""
-        # Extract LEDGERBAL
-        ledger_bal = self._extract_tag(content, "BALAMT", parent="LEDGERBAL")
-        ledger_date = self._extract_tag(content, "DTASOF", parent="LEDGERBAL")
+    def _parse_balances(self, root: ET.Element) -> list[BalancePoint]:
+        """Extract balance from OFX element tree."""
+        ledgerbal = root.find(".//LEDGERBAL")
+        if ledgerbal is None:
+            return []
 
-        if not ledger_bal or not ledger_date:
-            return []  # No balance data
+        balamt_el = ledgerbal.find("BALAMT")
+        dtasof_el = ledgerbal.find("DTASOF")
 
-        # Extract AVAILBAL (optional)
-        avail_bal = self._extract_tag(content, "BALAMT", parent="AVAILBAL")
+        if balamt_el is None or not balamt_el.text or dtasof_el is None or not dtasof_el.text:
+            return []
 
-        # Parse amounts
-        ledger_money = Money.from_dollars(ledger_bal)
+        ledger_money = Money.from_dollars(balamt_el.text)
+        balance_date = self._parse_ofx_date(dtasof_el.text)
 
+        availbal = root.find(".//AVAILBAL")
         available = None
-        if avail_bal:
-            available = Money.from_dollars(avail_bal)
+        if availbal is not None:
+            avail_el = availbal.find("BALAMT")
+            if avail_el is not None and avail_el.text:
+                available = Money.from_dollars(avail_el.text)
 
-        balance = BalancePoint(
-            date=self._parse_ofx_date(ledger_date), amount=ledger_money, available=available
-        )
-
-        return [balance]
-
-    def _extract_tag(self, content: str, tag: str, parent: str | None = None) -> str | None:
-        """Extract value from OFX tag."""
-        if parent:
-            # Find parent block first
-            parent_pattern = f"<{parent}>(.*?)</{parent}>"
-            parent_match = re.search(parent_pattern, content, re.DOTALL)
-            if not parent_match:
-                return None
-            content = parent_match.group(1)
-
-        # Extract tag value
-        pattern = f"<{tag}>(.*?)<"
-        match = re.search(pattern, content)
-        return match.group(1).strip() if match else None
+        return [BalancePoint(date=balance_date, amount=ledger_money, available=available)]
 
     def _parse_ofx_date(self, date_str: str) -> FinancialDate:
         """Parse OFX date format (YYYYMMDD)."""

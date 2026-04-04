@@ -2,7 +2,6 @@
 
 import csv
 from pathlib import Path
-from typing import ClassVar
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BankTransaction
@@ -17,16 +16,6 @@ class ChaseCreditCsvHandler(BankExportFormatHandler):
     Normalization: Use as-is (already accounting standard)
     Balance Data: None (CSV doesn't include balance data)
     """
-
-    EXPECTED_HEADERS: ClassVar[list[str]] = [
-        "Transaction Date",
-        "Post Date",
-        "Description",
-        "Category",
-        "Type",
-        "Amount",
-        "Memo",
-    ]
 
     @property
     def format_name(self) -> str:

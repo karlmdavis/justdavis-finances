@@ -155,13 +155,11 @@ def reconcile_account_data(
             continue
 
         # Load most recent file for this account (by mtime)
-        most_recent_file = max(account_files, key=lambda f: f.stat().st_mtime)
+        most_recent_file = max(account_files, key=lambda f: f.name)
         normalized_data = read_json(most_recent_file)
 
         bank_txs = [BankTransaction.from_dict(tx) for tx in normalized_data["transactions"]]
-        # Handle both "balance_points" (flow node format) and "balances" (legacy test format)
-        balance_data = normalized_data.get("balance_points", normalized_data.get("balances", []))
-        balance_points = [BalancePoint.from_dict(bp) for bp in balance_data]
+        balance_points = [BalancePoint.from_dict(bp) for bp in normalized_data["balance_points"]]
 
         # Filter YNAB transactions for this account
         ynab_txs_for_account = [tx for tx in ynab_transactions if tx.account_id == account.ynab_account_id]

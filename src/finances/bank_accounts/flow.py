@@ -171,15 +171,11 @@ class BankDataParseOutputInfo(OutputInfo):
 
         files = []
         for json_file in self.output_dir.glob("*.json"):
-            # Try to count transactions in file
-            try:
-                from finances.core.json_utils import read_json
+            from finances.core.json_utils import read_json
 
-                data = read_json(json_file)
-                tx_count = len(data.get("transactions", []))
-                files.append(OutputFile(path=json_file, record_count=tx_count))
-            except Exception:
-                files.append(OutputFile(path=json_file, record_count=0))
+            data = read_json(json_file)
+            tx_count = len(data.get("transactions", []))
+            files.append(OutputFile(path=json_file, record_count=tx_count))
 
         return files
 
@@ -314,15 +310,11 @@ class BankDataReconcileOutputInfo(OutputInfo):
 
         files = []
         for json_file in self.output_dir.glob("*.json"):
-            # Try to count accounts in file
-            try:
-                from finances.core.json_utils import read_json
+            from finances.core.json_utils import read_json
 
-                data = read_json(json_file)
-                acct_count = len(data.get("accounts", {}))
-                files.append(OutputFile(path=json_file, record_count=acct_count))
-            except Exception:
-                files.append(OutputFile(path=json_file, record_count=0))
+            data = read_json(json_file)
+            acct_count = len(data.get("accounts", {}))
+            files.append(OutputFile(path=json_file, record_count=acct_count))
 
         return files
 
@@ -570,47 +562,35 @@ class BankDataReconcileApplyFlowNode(FlowNode):
             )
 
         latest = ops_files[-1]
-        try:
-            from finances.core.json_utils import read_json
+        from finances.core.json_utils import read_json
 
-            data = read_json(latest)
-            accounts_data = data.get("accounts", {})
-            creates = sum(
-                sum(1 for op in acct.get("operations", []) if op.get("type") == "create_transaction")
-                for acct in accounts_data.values()
-            )
-            flags = sum(
-                sum(1 for op in acct.get("operations", []) if op.get("type") == "flag_discrepancy")
-                for acct in accounts_data.values()
-            )
-            deletes = sum(
-                sum(1 for op in acct.get("operations", []) if op.get("type") == "delete_ynab_transaction")
-                for acct in accounts_data.values()
-            )
-            from finances.core import FinancialDate
+        data = read_json(latest)
+        accounts_data = data.get("accounts", {})
+        creates = sum(
+            sum(1 for op in acct.get("operations", []) if op.get("type") == "create_transaction")
+            for acct in accounts_data.values()
+        )
+        flags = sum(
+            sum(1 for op in acct.get("operations", []) if op.get("type") == "flag_discrepancy")
+            for acct in accounts_data.values()
+        )
+        deletes = sum(
+            sum(1 for op in acct.get("operations", []) if op.get("type") == "delete_ynab_transaction")
+            for acct in accounts_data.values()
+        )
+        from finances.core import FinancialDate
 
-            mtime = latest.stat().st_mtime
-            last_modified = datetime.fromtimestamp(mtime)
-            age = FinancialDate.today().age_days(
-                FinancialDate.from_string(last_modified.strftime("%Y-%m-%d"))
-            )
-            return NodeDataSummary(
-                exists=True,
-                last_updated=last_modified,
-                age_days=abs(age),
-                item_count=creates + flags + deletes,
-                size_bytes=latest.stat().st_size,
-                summary_text=f"{creates} creates, {flags} flags, {deletes} deletes pending",
-            )
-        except Exception:
-            return NodeDataSummary(
-                exists=True,
-                last_updated=None,
-                age_days=None,
-                item_count=0,
-                size_bytes=0,
-                summary_text="Could not read reconciliation data",
-            )
+        mtime = latest.stat().st_mtime
+        last_modified = datetime.fromtimestamp(mtime)
+        age = FinancialDate.today().age_days(FinancialDate.from_string(last_modified.strftime("%Y-%m-%d")))
+        return NodeDataSummary(
+            exists=True,
+            last_updated=last_modified,
+            age_days=abs(age),
+            item_count=creates + flags + deletes,
+            size_bytes=latest.stat().st_size,
+            summary_text=f"{creates} creates, {flags} flags, {deletes} deletes pending",
+        )
 
     @property
     def requires_review(self) -> bool:

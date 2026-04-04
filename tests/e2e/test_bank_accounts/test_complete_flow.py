@@ -172,7 +172,7 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
             "account_name": account.ynab_account_name,
             "account_type": account.account_type,
             "data_period": data_period,
-            "balances": [b.to_dict() for b in result.balance_points],
+            "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
         write_json(normalized_dir / f"{slug}.json", normalized_data)
@@ -305,7 +305,7 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
             "account_name": account.ynab_account_name,
             "account_type": account.account_type,
             "data_period": data_period,
-            "balances": [b.to_dict() for b in result.balance_points],
+            "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
         write_json(normalized_dir / f"{slug}.json", normalized_data)
@@ -418,7 +418,7 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
             "account_name": account.ynab_account_name,
             "account_type": account.account_type,
             "data_period": data_period,
-            "balances": [b.to_dict() for b in result.balance_points],
+            "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
         write_json(normalized_dir / f"{slug}.json", normalized_data)
@@ -530,7 +530,7 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
             "account_name": account.ynab_account_name,
             "account_type": account.account_type,
             "data_period": data_period,
-            "balances": [b.to_dict() for b in result.balance_points],
+            "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
         write_json(normalized_dir / f"{slug}.json", normalized_data)

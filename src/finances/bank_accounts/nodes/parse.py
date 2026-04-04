@@ -134,9 +134,8 @@ def parse_account_data(
         # Get raw directory
         raw_dir = base_dir / "raw" / account.slug
 
-        # If raw directory doesn't exist, create empty ParseResult
+        # If raw directory doesn't exist, return empty ParseResult
         if not raw_dir.exists():
-            raw_dir.mkdir(parents=True)
             results[account.slug] = ParseResult.create(transactions=[])
             continue
 

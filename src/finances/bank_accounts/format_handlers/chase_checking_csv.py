@@ -2,7 +2,6 @@
 
 import csv
 from pathlib import Path
-from typing import ClassVar
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BalancePoint, BankTransaction
@@ -17,16 +16,6 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
     Normalization: Use as-is (already accounting standard)
     Balance Data: Running balance for each transaction
     """
-
-    EXPECTED_HEADERS: ClassVar[list[str]] = [
-        "Details",
-        "Posting Date",
-        "Description",
-        "Amount",
-        "Type",
-        "Balance",
-        "Check or Slip #",
-    ]
 
     @property
     def format_name(self) -> str:
