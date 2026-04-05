@@ -109,7 +109,7 @@ def reconcile_account_data(
     config: BankAccountsConfig,
     base_dir: Path,
     ynab_transactions: list[YnabTransaction],
-    raw_ynab_by_id: dict[str, dict] | None = None,
+    raw_ynab_by_id: dict[str, Any] | None = None,
 ) -> dict[str, ReconciliationResult]:
     """
     Reconcile bank data with YNAB transactions.

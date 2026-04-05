@@ -143,7 +143,7 @@ def parse_account_data(
         parsed_files: list[tuple[Path, ParseResult, float]] = []
 
         # Process each file in raw directory
-        for file_path in raw_dir.iterdir():
+        for file_path in sorted(raw_dir.iterdir()):
             # Skip directories
             if not file_path.is_file():
                 continue
