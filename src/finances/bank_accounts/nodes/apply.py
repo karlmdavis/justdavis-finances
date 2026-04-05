@@ -305,7 +305,8 @@ def apply_reconciliation_operations(
         config: Bank accounts configuration (for account ordering and slug lookups)
 
     Returns:
-        Summary counts dict with "applied", "skipped", "acknowledged", "failed" keys
+        Summary counts dict with keys: "applied", "skipped", "acknowledged",
+        "deleted", "duplicate_skipped", "failed"
     """
     data = read_json(ops_file)
     accounts_data = data.get("accounts", {})
