@@ -161,6 +161,12 @@ def reconcile_account_data(
         bank_txs = [BankTransaction.from_dict(tx) for tx in normalized_data["transactions"]]
         balance_points = [BalancePoint.from_dict(bp) for bp in normalized_data["balance_points"]]
 
+        if not bank_txs and not balance_points:
+            print(
+                f"  WARNING: account '{account.slug}' has no transactions in {most_recent_file} — skipping reconciliation"
+            )
+            continue
+
         # Filter YNAB transactions for this account
         ynab_txs_for_account = [tx for tx in ynab_transactions if tx.account_id == account.ynab_account_id]
 

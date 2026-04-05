@@ -537,11 +537,5 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
 
     results = reconcile_account_data(config, base_dir, [])
 
-    # Verify results structure
-    assert "chase_credit_empty" in results
-    result = results["chase_credit_empty"]
-
-    # Verify no operations (no transactions to process)
-    assert len(result.operations) == 0
-    assert len(result.unmatched_bank_txs) == 0
-    assert len(result.unmatched_ynab_txs) == 0
+    # Accounts with no transactions and no balance points are skipped in reconciliation
+    assert "chase_credit_empty" not in results

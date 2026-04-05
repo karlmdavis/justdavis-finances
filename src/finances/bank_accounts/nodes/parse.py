@@ -134,9 +134,9 @@ def parse_account_data(
         # Get raw directory
         raw_dir = base_dir / "raw" / account.slug
 
-        # If raw directory doesn't exist, return empty ParseResult
+        # Skip accounts with no raw data directory
         if not raw_dir.exists():
-            results[account.slug] = ParseResult.create(transactions=[])
+            print(f"  WARNING: raw directory not found for account '{account.slug}': {raw_dir}")
             continue
 
         # Collect parsed files: (file_path, ParseResult, mtime)

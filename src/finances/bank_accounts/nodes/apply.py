@@ -44,7 +44,6 @@ def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]
 
     Returns:
         {slug: {
-            "account_id": str,
             "creates": {date: [op, ...]},
             "flags": {date: [op, ...]},
             "deletes": {date: [op, ...]},
@@ -52,7 +51,6 @@ def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]
     """
     result: dict[str, dict[str, Any]] = {}
     for slug, account_data in accounts_data.items():
-        account_id = account_data.get("account_id", "")
         creates: dict[str, list[dict[str, Any]]] = {}
         flags: dict[str, list[dict[str, Any]]] = {}
         deletes: dict[str, list[dict[str, Any]]] = {}
@@ -67,7 +65,6 @@ def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]
                 date = op["transaction"].get("date", "")
                 deletes.setdefault(date, []).append(op)
         result[slug] = {
-            "account_id": account_id,
             "creates": creates,
             "flags": flags,
             "deletes": deletes,
@@ -358,7 +355,7 @@ def apply_reconciliation_operations(
             if slug not in grouped:
                 continue
             group = grouped[slug]
-            account_id = group["account_id"] or slug_to_account_id.get(slug, "")
+            account_id = slug_to_account_id.get(slug, "")
             creates = group["creates"]  # {date: [op, ...]}
             flags = group["flags"]  # {date: [op, ...]}
             deletes = group["deletes"]  # {date: [op, ...]}

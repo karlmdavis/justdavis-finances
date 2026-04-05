@@ -13,6 +13,7 @@ from finances.bank_accounts.models import BankAccountsConfig
 from finances.bank_accounts.nodes.parse import parse_account_data
 from finances.bank_accounts.nodes.reconcile import print_reconciliation_summary, reconcile_account_data
 from finances.bank_accounts.nodes.retrieve import retrieve_account_data
+from finances.core import FinancialDate
 from finances.core.flow import (
     FlowContext,
     FlowNode,
@@ -580,8 +581,6 @@ class BankDataReconcileApplyFlowNode(FlowNode):
             sum(1 for op in acct.get("operations", []) if op.get("type") == "delete_ynab_transaction")
             for acct in accounts_data.values()
         )
-        from finances.core import FinancialDate
-
         mtime = latest.stat().st_mtime
         last_modified = datetime.fromtimestamp(mtime)
         age = FinancialDate.today().age_days(FinancialDate.from_string(last_modified.strftime("%Y-%m-%d")))
