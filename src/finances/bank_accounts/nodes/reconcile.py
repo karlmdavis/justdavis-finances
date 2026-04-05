@@ -154,7 +154,7 @@ def reconcile_account_data(
             # Skip account if no normalized data exists
             continue
 
-        # Load most recent file for this account (by mtime)
+        # Load most recent file for this account (by filename — ISO-prefixed names sort chronologically)
         most_recent_file = max(account_files, key=lambda f: f.name)
         normalized_data = read_json(most_recent_file)
 

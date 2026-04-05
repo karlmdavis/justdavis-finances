@@ -1,6 +1,7 @@
 """Flow node implementations for bank accounts domain."""
 
 import re
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -146,6 +147,7 @@ class BankDataRetrieveFlowNode(FlowNode):
             )
 
         except Exception as e:
+            traceback.print_exc()
             return FlowResult(
                 success=False,
                 error_message=f"Retrieve failed: {e}",
@@ -278,10 +280,14 @@ class BankDataParseFlowNode(FlowNode):
             )
 
         except Exception as e:
-            # Protect existing files even on error
-            output_info = self.get_output_info()
-            output_files = output_info.get_output_files()
-            all_paths = [f.path for f in output_files]
+            traceback.print_exc()
+            # Protect existing files even on error; guard against secondary failures
+            try:
+                output_info = self.get_output_info()
+                output_files = output_info.get_output_files()
+                all_paths = [f.path for f in output_files]
+            except Exception:
+                all_paths = []
 
             return FlowResult(
                 success=False,
@@ -479,10 +485,14 @@ class BankDataReconcileFlowNode(FlowNode):
             )
 
         except Exception as e:
-            # Protect existing files even on error
-            output_info = self.get_output_info()
-            output_files = output_info.get_output_files()
-            all_paths = [f.path for f in output_files]
+            traceback.print_exc()
+            # Protect existing files even on error; guard against secondary failures
+            try:
+                output_info = self.get_output_info()
+                output_files = output_info.get_output_files()
+                all_paths = [f.path for f in output_files]
+            except Exception:
+                all_paths = []
 
             return FlowResult(
                 success=False,
@@ -643,6 +653,7 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                 },
             )
         except Exception as e:
+            traceback.print_exc()
             return FlowResult(
                 success=False,
                 error_message=f"Apply failed: {e}",

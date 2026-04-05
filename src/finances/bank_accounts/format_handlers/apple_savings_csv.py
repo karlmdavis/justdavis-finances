@@ -5,7 +5,7 @@ from pathlib import Path
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BankTransaction
-from finances.core import FinancialDate, Money
+from finances.core import Money
 
 
 class AppleSavingsCsvHandler(BankExportFormatHandler):
@@ -25,12 +25,25 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".csv",)
 
+    EXPECTED_COLUMNS = (
+        "Transaction Date",
+        "Posted Date",
+        "Description",
+        "Activity Type",
+        "Transaction Type",
+        "Amount",
+    )
+
     def parse(self, file_path: Path) -> ParseResult:
         """Parse Apple Savings CSV file."""
         transactions = []
 
         with open(file_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
+            actual = set(reader.fieldnames or [])
+            missing = set(self.EXPECTED_COLUMNS) - actual
+            if missing:
+                raise ValueError(f"CSV file missing expected columns: {sorted(missing)}")
 
             for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
                 try:
@@ -59,9 +72,3 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
 
         # No balance points - balance column is unreliable
         return ParseResult.create(transactions=transactions)
-
-    def _parse_date(self, date_str: str) -> FinancialDate:
-        """Parse MM/DD/YYYY format date."""
-        # Apple Savings CSV uses MM/DD/YYYY format
-        month, day, year = date_str.split("/")
-        return FinancialDate.from_string(f"{year}-{month.zfill(2)}-{day.zfill(2)}")

@@ -52,6 +52,16 @@ class BankExportFormatHandler(ABC):
         """File extensions this handler can process (e.g., ('.csv',))."""
         pass
 
+    def _parse_date(self, date_str: str) -> FinancialDate:
+        """Parse MM/DD/YYYY format date (used by CSV and QIF handlers)."""
+        month, day, year = date_str.split("/")
+        return FinancialDate.from_string(f"{year}-{month.zfill(2)}-{day.zfill(2)}")
+
+    def _parse_ofx_date(self, date_str: str) -> FinancialDate:
+        """Parse OFX YYYYMMDD format date (may have timestamp suffix)."""
+        date_part = date_str[:8]
+        return FinancialDate.from_string(f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}")
+
     @abstractmethod
     def parse(self, file_path: Path) -> ParseResult:
         """

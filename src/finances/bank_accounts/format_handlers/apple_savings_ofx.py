@@ -4,7 +4,7 @@ from typing import cast
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BalancePoint, BankTransaction
-from finances.core import FinancialDate, Money
+from finances.core import Money
 
 
 class AppleSavingsOfxHandler(BankExportFormatHandler):
@@ -113,12 +113,3 @@ class AppleSavingsOfxHandler(BankExportFormatHandler):
                 available=None,
             )
         ]
-
-    def _parse_ofx_date(self, date_str: str) -> FinancialDate:
-        """Parse OFX date format (YYYYMMDD)."""
-        # OFX date format: YYYYMMDD (may have timestamp suffix)
-        date_part = date_str[:8]  # Take first 8 characters
-        year = date_part[:4]
-        month = date_part[4:6]
-        day = date_part[6:8]
-        return FinancialDate.from_string(f"{year}-{month}-{day}")

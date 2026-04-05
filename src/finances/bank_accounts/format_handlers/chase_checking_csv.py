@@ -5,7 +5,7 @@ from pathlib import Path
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BalancePoint, BankTransaction
-from finances.core import FinancialDate, Money
+from finances.core import Money
 
 
 class ChaseCheckingCsvHandler(BankExportFormatHandler):
@@ -25,6 +25,15 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
     def supported_extensions(self) -> tuple[str, ...]:
         return (".csv",)
 
+    EXPECTED_COLUMNS = (
+        "Posting Date",
+        "Description",
+        "Amount",
+        "Type",
+        "Balance",
+        "Check or Slip #",
+    )
+
     def parse(self, file_path: Path) -> ParseResult:
         """Parse Chase Checking CSV file."""
         transactions = []
@@ -32,6 +41,10 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
 
         with open(file_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
+            actual = set(reader.fieldnames or [])
+            missing = set(self.EXPECTED_COLUMNS) - actual
+            if missing:
+                raise ValueError(f"CSV file missing expected columns: {sorted(missing)}")
 
             for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
                 try:
@@ -79,9 +92,3 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
                     raise ValueError(f"Parse error at line {row_num}: {e}") from e
 
         return ParseResult.create(transactions=transactions, balance_points=balance_points)
-
-    def _parse_date(self, date_str: str) -> FinancialDate:
-        """Parse MM/DD/YYYY format date."""
-        # Chase CSV uses MM/DD/YYYY format
-        month, day, year = date_str.split("/")
-        return FinancialDate.from_string(f"{year}-{month.zfill(2)}-{day.zfill(2)}")

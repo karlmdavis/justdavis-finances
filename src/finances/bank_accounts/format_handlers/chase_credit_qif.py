@@ -5,7 +5,7 @@ from typing import ClassVar
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BankTransaction
-from finances.core import FinancialDate, Money
+from finances.core import Money
 
 
 class ChaseCreditQifHandler(BankExportFormatHandler):
@@ -131,9 +131,3 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
             cleared_status=cleared_status,
             check_number=check_number,
         )
-
-    def _parse_date(self, date_str: str) -> FinancialDate:
-        """Parse MM/DD/YYYY format date."""
-        # QIF uses MM/DD/YYYY format
-        month, day, year = date_str.split("/")
-        return FinancialDate.from_string(f"{year}-{month.zfill(2)}-{day.zfill(2)}")
