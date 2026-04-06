@@ -148,7 +148,7 @@ def reconcile_account_data(
             # Skip account if no normalized data exists
             continue
 
-        most_recent_file = max(account_files, key=lambda f: f.stat().st_mtime)
+        most_recent_file = max(account_files, key=lambda f: f.name)
         normalized_data = read_json(most_recent_file)
 
         bank_txs = [BankTransaction.from_dict(tx) for tx in normalized_data["transactions"]]
