@@ -89,23 +89,29 @@ def build_balance_reconciliation(
     else:
         merged = sorted(balance_points, key=lambda bp: bp.date)
 
+    # Pre-sort unmatched transactions for single-pass O(n+m) cumulative summing.
+    sorted_bank = sorted(unmatched_bank_txs, key=lambda tx: tx.posted_date)
+    sorted_ynab = sorted(unmatched_ynab_txs, key=lambda tx: tx.date)
+
+    bank_ptr = 0
+    ynab_ptr = 0
+    bank_running = Money.from_cents(0)
+    ynab_running = Money.from_cents(0)
     points = []
 
     for balance_point in merged:
         date = balance_point.date
         ynab_balance = ynab_balances.get(date, Money.from_cents(0))
 
-        # Sum unmatched transactions up to this date
-        bank_sum = sum(
-            (tx.amount for tx in unmatched_bank_txs if tx.posted_date <= date),
-            Money.from_cents(0),
-        )
-        ynab_sum = sum(
-            (tx.amount for tx in unmatched_ynab_txs if tx.date <= date),
-            Money.from_cents(0),
-        )
+        while bank_ptr < len(sorted_bank) and sorted_bank[bank_ptr].posted_date <= date:
+            bank_running = bank_running + sorted_bank[bank_ptr].amount
+            bank_ptr += 1
 
-        point = reconcile_balance_point(date, balance_point.amount, ynab_balance, bank_sum, ynab_sum)
+        while ynab_ptr < len(sorted_ynab) and sorted_ynab[ynab_ptr].date <= date:
+            ynab_running = ynab_running + sorted_ynab[ynab_ptr].amount
+            ynab_ptr += 1
+
+        point = reconcile_balance_point(date, balance_point.amount, ynab_balance, bank_running, ynab_running)
         points.append(point)
 
     # Find last reconciled and first diverged
