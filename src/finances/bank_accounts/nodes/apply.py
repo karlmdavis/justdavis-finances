@@ -358,7 +358,15 @@ def apply_reconciliation_operations(
             if slug not in grouped:
                 continue
             group = grouped[slug]
-            account_id = slug_to_account_id.get(slug, "")
+            # Config takes precedence; fall back to the account_id stored in the ops file.
+            account_id = slug_to_account_id.get(slug) or str(
+                accounts_data.get(slug, {}).get("account_id", "")
+            )
+            if not account_id:
+                raise ValueError(
+                    f"Account '{slug}' has no account_id: not found in config and the ops "
+                    f"file entry has no account_id field. Re-run bank_data_reconcile."
+                )
             creates = group["creates"]  # {date: [op, ...]}
             flags = group["flags"]  # {date: [op, ...]}
             deletes = group["deletes"]  # {date: [op, ...]}
