@@ -17,7 +17,7 @@ from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, Imp
 from finances.bank_accounts.nodes.parse import parse_account_data
 from finances.bank_accounts.nodes.reconcile import reconcile_account_data
 from finances.bank_accounts.nodes.retrieve import retrieve_account_data
-from finances.bank_accounts.operations import CreateOp, FlagOp
+from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp
 from finances.core import FinancialDate, Money
 
 
@@ -172,6 +172,9 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
+            "coverage_intervals": [
+                {"start_date": str(start), "end_date": str(end)} for start, end in result.coverage_intervals
+            ],
         }
         write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
@@ -298,6 +301,9 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
+            "coverage_intervals": [
+                {"start_date": str(start), "end_date": str(end)} for start, end in result.coverage_intervals
+            ],
         }
         write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
@@ -362,6 +368,7 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
             payee_name="Safeway",
             memo="Store A",
             account_id="test-account-789",
+            id="ynab-tx-safeway",
         ),
         MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-15"),
@@ -369,6 +376,7 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
             payee_name="Trader Joes",
             memo="Store B",
             account_id="test-account-789",
+            id="ynab-tx-traderjoes",
         ),
         MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-15"),
@@ -376,8 +384,33 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
             payee_name="Whole Foods",
             memo="Store C",
             account_id="test-account-789",
+            id="ynab-tx-wholefoods",
         ),
     ]
+    # Raw YNAB dicts needed by reconcile for delete op construction
+    raw_ynab_by_id = {
+        "ynab-tx-safeway": {
+            "id": "ynab-tx-safeway",
+            "date": "2024-01-15",
+            "amount": -50000,
+            "payee_name": "Safeway",
+            "account_id": "test-account-789",
+        },
+        "ynab-tx-traderjoes": {
+            "id": "ynab-tx-traderjoes",
+            "date": "2024-01-15",
+            "amount": -50000,
+            "payee_name": "Trader Joes",
+            "account_id": "test-account-789",
+        },
+        "ynab-tx-wholefoods": {
+            "id": "ynab-tx-wholefoods",
+            "date": "2024-01-15",
+            "amount": -50000,
+            "payee_name": "Whole Foods",
+            "account_id": "test-account-789",
+        },
+    }
 
     base_dir = tmp_data_dir / "bank_accounts_ambiguous"
 
@@ -408,19 +441,25 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
+            "coverage_intervals": [
+                {"start_date": str(start), "end_date": str(end)} for start, end in result.coverage_intervals
+            ],
         }
         write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
-    results = reconcile_account_data(config, base_dir, ynab_txs)
+    results = reconcile_account_data(config, base_dir, ynab_txs, raw_ynab_by_id)
 
     # Verify results structure
     assert "chase_credit_ambiguous" in results
     result = results["chase_credit_ambiguous"]
 
     # Should have ONE flag_discrepancy operation (ambiguous match)
+    # + THREE delete ops for the unmatched YNAB txs within coverage
     operations = list(result.operations)
     flag_ops = [op for op in operations if isinstance(op, FlagOp)]
     assert len(flag_ops) == 1
+    delete_ops = [op for op in operations if isinstance(op, DeleteOp)]
+    assert len(delete_ops) == 3
 
     # Verify flag_discrepancy structure
     flag_op = flag_ops[0]
@@ -517,6 +556,9 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
+            "coverage_intervals": [
+                {"start_date": str(start), "end_date": str(end)} for start, end in result.coverage_intervals
+            ],
         }
         write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
