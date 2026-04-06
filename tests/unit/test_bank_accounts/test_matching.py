@@ -133,6 +133,19 @@ def test_fuzzy_match_ambiguous():
     assert all(score <= FUZZY_MATCH_CONFIDENCE_THRESHOLD for score in result.similarity_scores)
 
 
+def test_no_match_empty_ynab_list():
+    """Test when YNAB transaction list is empty."""
+    bank_tx = BankTransaction(
+        posted_date=FinancialDate.from_string("2024-12-15"),
+        description="SAFEWAY 1616",
+        amount=Money.from_cents(-1363),
+    )
+
+    result = find_matches(bank_tx, [])
+
+    assert result.match_type == "none"
+
+
 def test_no_match():
     """Test when no YNAB transaction matches."""
     # Bank transaction
