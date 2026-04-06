@@ -58,7 +58,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 from difflib import SequenceMatcher
-from typing import Any
+from typing import Any, Literal
 
 from finances.bank_accounts.models import BankTransaction
 from finances.core import FinancialDate, Money
@@ -147,11 +147,14 @@ class MatchingYnabTransaction:
         return result
 
 
+MatchType = Literal["exact", "fuzzy", "ambiguous", "none"]
+
+
 @dataclass(frozen=True)
 class MatchResult:
     """Result of matching a transaction."""
 
-    match_type: str  # "exact", "fuzzy", "ambiguous", "none"
+    match_type: MatchType
     ynab_transaction: MatchingYnabTransaction | None = None
     confidence: float | None = None  # 0.0-1.0
     candidates: tuple[MatchingYnabTransaction, ...] | None = None
