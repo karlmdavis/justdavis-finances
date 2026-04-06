@@ -440,10 +440,18 @@ class BankDataReconcileFlowNode(FlowNode):
             # Print human-readable summary to console
             print_reconciliation_summary(reconcile_results)
 
-            # Serialize to JSON
+            # Serialize to JSON. Include account_id at the account level so the apply node
+            # can look up the YNAB account ID from the ops file without requiring the config
+            # to be present at apply time.
+            slug_to_ynab_id = {acct.slug: acct.ynab_account_id for acct in self.config.accounts}
+            accounts_serialized = {}
+            for slug, result in reconcile_results.items():
+                account_dict = result.to_dict()
+                account_dict["account_id"] = slug_to_ynab_id.get(slug, "")
+                accounts_serialized[slug] = account_dict
             data = {
                 "reconciled_at": datetime.now().isoformat(),
-                "accounts": {slug: result.to_dict() for slug, result in reconcile_results.items()},
+                "accounts": accounts_serialized,
             }
 
             # Use DataStore to create timestamped file
