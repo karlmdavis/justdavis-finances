@@ -140,6 +140,20 @@ class Money:
         """Greater than or equal comparison."""
         return self.cents >= other.cents
 
+    def format_signed(self) -> str:
+        """
+        Format as a signed dollar string.
+
+        Positive amounts get an explicit `+` prefix; negative amounts use `-`.
+
+        Examples:
+            >>> Money.from_cents(1234).format_signed()
+            '+$12.34'
+            >>> Money.from_cents(-500).format_signed()
+            '-$5.00'
+        """
+        return ("+" if self.cents >= 0 else "") + str(self)
+
     def __str__(self) -> str:
         """Format as dollar string (negative sign before $)."""
         dollars_str = cents_to_dollars_str(self.cents)
