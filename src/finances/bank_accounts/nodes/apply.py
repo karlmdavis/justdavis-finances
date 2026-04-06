@@ -502,7 +502,13 @@ def apply_reconciliation_operations(
                                 "--delete-log",
                                 str(ynab_delete_log_path),
                             ],
+                            capture_output=True,
+                            text=True,
                         )
+                        if del_proc.stdout:
+                            print(del_proc.stdout, end="")
+                        if del_proc.stderr:
+                            print(del_proc.stderr, end="")
                         exit_code = del_proc.returncode
                         if exit_code != 0:
                             print(f"  ERROR: ynab exited with code {exit_code}")
@@ -550,7 +556,13 @@ def apply_reconciliation_operations(
                                     "--delete-log",
                                     str(ynab_delete_log_path),
                                 ],
+                                capture_output=True,
+                                text=True,
                             )
+                            if result.stdout:
+                                print(result.stdout, end="")
+                            if result.stderr:
+                                print(result.stderr, end="")
                             exit_code = result.returncode
                             if exit_code != 0:
                                 print(f"  ERROR: ynab exited with code {exit_code}")
