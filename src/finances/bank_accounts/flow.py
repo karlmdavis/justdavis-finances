@@ -404,6 +404,8 @@ class BankDataReconcileFlowNode(FlowNode):
             ynab_transactions = []
             import_id_date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
             for tx in transactions_data:
+                if tx.get("deleted", False):
+                    continue
                 import_id = tx.get("import_id")
                 import_posted_date = None
                 if import_id and import_id.startswith("YNAB:"):
@@ -425,8 +427,10 @@ class BankDataReconcileFlowNode(FlowNode):
                     )
                 )
 
-            # Build raw YNAB lookup by ID for delete op construction
-            raw_ynab_by_id = {tx["id"]: tx for tx in transactions_data if "id" in tx}
+            # Build raw YNAB lookup by ID for delete op construction (exclude soft-deleted)
+            raw_ynab_by_id = {
+                tx["id"]: tx for tx in transactions_data if "id" in tx and not tx.get("deleted", False)
+            }
 
             # Call reconcile function (now returns ReconciliationResult objects)
             reconcile_results = reconcile_account_data(
