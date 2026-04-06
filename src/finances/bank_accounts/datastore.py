@@ -37,10 +37,10 @@ class BankNormalizedDataStore(DataStoreMixin):
             FileNotFoundError: If no normalized files exist
         """
         files = self._get_files_cached(self.normalized_dir, "*.json")
-        if not files:
+        most_recent = self._get_latest_file(files)
+        if most_recent is None:
             raise FileNotFoundError(f"No normalized data found in {self.normalized_dir}")
 
-        most_recent = max(files, key=lambda f: f.stat().st_mtime)
         return cast(dict[str, Any], read_json(most_recent))
 
     def save(self, account_slug: str, data: dict[str, Any]) -> Path:
@@ -67,10 +67,9 @@ class BankNormalizedDataStore(DataStoreMixin):
     def last_modified(self) -> datetime | None:
         """Return most recent file modification time."""
         files = self._get_files_cached(self.normalized_dir, "*.json")
-        if not files:
+        most_recent = self._get_latest_file(files)
+        if most_recent is None:
             return None
-
-        most_recent = max(files, key=lambda f: f.stat().st_mtime)
         return datetime.fromtimestamp(most_recent.stat().st_mtime)
 
     def item_count(self) -> int | None:
@@ -82,7 +81,7 @@ class BankNormalizedDataStore(DataStoreMixin):
         files = self._get_files_cached(self.normalized_dir, "*.json")
         if not files:
             return None
-        return sum(f.stat().st_size for f in files)
+        return self._get_total_size(files)
 
     def summary_text(self) -> str:
         """Provide human-readable summary."""
@@ -124,10 +123,10 @@ class BankReconciliationStore(DataStoreMixin):
             FileNotFoundError: If no reconciliation files exist
         """
         files = self._get_files_cached(self.reconciliation_dir, "*.json")
-        if not files:
+        most_recent = self._get_latest_file(files)
+        if most_recent is None:
             raise FileNotFoundError(f"No reconciliation data found in {self.reconciliation_dir}")
 
-        most_recent = max(files, key=lambda f: f.stat().st_mtime)
         return cast(dict[str, Any], read_json(most_recent))
 
     def save(self, data: dict[str, Any]) -> Path:
@@ -153,10 +152,9 @@ class BankReconciliationStore(DataStoreMixin):
     def last_modified(self) -> datetime | None:
         """Return most recent file modification time."""
         files = self._get_files_cached(self.reconciliation_dir, "*.json")
-        if not files:
+        most_recent = self._get_latest_file(files)
+        if most_recent is None:
             return None
-
-        most_recent = max(files, key=lambda f: f.stat().st_mtime)
         return datetime.fromtimestamp(most_recent.stat().st_mtime)
 
     def item_count(self) -> int | None:
@@ -168,7 +166,7 @@ class BankReconciliationStore(DataStoreMixin):
         files = self._get_files_cached(self.reconciliation_dir, "*.json")
         if not files:
             return None
-        return sum(f.stat().st_size for f in files)
+        return self._get_total_size(files)
 
     def summary_text(self) -> str:
         """Provide human-readable summary."""
