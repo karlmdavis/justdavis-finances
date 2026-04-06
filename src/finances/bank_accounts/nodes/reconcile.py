@@ -346,6 +346,13 @@ def print_reconciliation_summary(results: dict[str, "ReconciliationResult"]) -> 
                 suffix = "  ⚠ true mismatch within coverage — needs investigation"
             print(f"  {reason:<25}: {count:3d} txs{suffix}")
 
+        if result.unmatched_bank_txs:
+            print("  unmatched bank txs (→ create operations):")
+            for tx in sorted(result.unmatched_bank_txs, key=lambda t: t.posted_date):
+                amount_sign = "+" if tx.amount.to_milliunits() >= 0 else ""
+                payee = tx.merchant or tx.description
+                print(f"    {tx.posted_date}  {amount_sign}{tx.amount}  {payee}")
+
         recon = result.reconciliation
         if recon.last_reconciled_date:
             print(f"  last reconciled: {recon.last_reconciled_date}")
