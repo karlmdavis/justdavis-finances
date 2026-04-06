@@ -765,7 +765,7 @@ def apply_reconciliation_operations(
                                         "amount_milliunits": amount_milliunits,
                                         "payee_name": payee_name,
                                         "import_id": import_id,
-                                        "ynab_exit_code": exit_code,
+                                        "ynab_exit_code": 0,
                                         "included_in_batch": False,
                                     }
                                 )

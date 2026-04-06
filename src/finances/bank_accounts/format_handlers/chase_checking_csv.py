@@ -5,7 +5,7 @@ from pathlib import Path
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BalancePoint, BankTransaction
-from finances.core import Money
+from finances.core import FinancialDate, Money
 
 
 class ChaseCheckingCsvHandler(BankExportFormatHandler):
@@ -41,7 +41,7 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
         # row seen for a date is the last transaction of that day — its running balance
         # is the end-of-day balance. Use setdefault so subsequent (earlier) transactions
         # on the same date don't overwrite the end-of-day value.
-        balance_by_date: dict = {}
+        balance_by_date: dict[FinancialDate, Money] = {}
 
         with open(file_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)

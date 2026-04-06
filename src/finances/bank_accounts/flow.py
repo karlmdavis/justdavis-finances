@@ -288,6 +288,7 @@ class BankDataParseFlowNode(FlowNode):
                 output_files = output_info.get_output_files()
                 all_paths = [f.path for f in output_files]
             except Exception:
+                traceback.print_exc()
                 all_paths = []
 
             return FlowResult(
@@ -490,6 +491,7 @@ class BankDataReconcileFlowNode(FlowNode):
                 output_files = output_info.get_output_files()
                 all_paths = [f.path for f in output_files]
             except Exception:
+                traceback.print_exc()
                 all_paths = []
 
             return FlowResult(
