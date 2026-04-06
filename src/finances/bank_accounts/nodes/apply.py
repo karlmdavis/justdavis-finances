@@ -12,7 +12,7 @@ from finances.bank_accounts.matching import make_import_id
 from finances.bank_accounts.models import BankAccountsConfig
 from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp, op_from_dict
 from finances.core import Money
-from finances.core.json_utils import read_json
+from finances.core.json_utils import format_json, read_json
 
 
 def _parse_duplicate_ids(stdout: str) -> set[str]:
@@ -201,7 +201,7 @@ def _prompt_create_batch(has_multiple: bool, payload: list[dict[str, Any]]) -> s
     while True:
         response = _read_input(prompt, default="n")
         if response == "j":
-            print(json.dumps(payload, indent=2))
+            print(format_json(payload))
             continue
         if response == "y":
             return "y"
@@ -350,6 +350,8 @@ def apply_reconciliation_operations(
 
         def write_log(entry: dict[str, Any]) -> None:
             entry["timestamp"] = datetime.now().isoformat()
+            # NDJSON format: one compact JSON object per line — intentionally bypasses
+            # format_json (which adds indent=2) to keep each log entry on a single line.
             log_file.write(json.dumps(entry) + "\n")
             log_file.flush()
 
