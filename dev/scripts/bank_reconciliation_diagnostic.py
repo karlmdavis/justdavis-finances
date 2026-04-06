@@ -128,14 +128,13 @@ def bank_balance_at_eom(
     For credit/savings: use cumulative sum of bank TXs from zero, anchored by the
     nearest manual balance point at or before the target date.
     """
-    if account.account_type == "checking":
-        candidates = [
-            (tx.posted_date, tx.running_balance)
-            for tx in bank_txs
-            if tx.posted_date <= date and tx.running_balance is not None
-        ]
-        if not candidates:
-            return None
+    # Accounts with running_balance in statements (e.g. checking): use the running balance directly.
+    candidates = [
+        (tx.posted_date, tx.running_balance)
+        for tx in bank_txs
+        if tx.posted_date <= date and tx.running_balance is not None
+    ]
+    if candidates:
         return max(candidates, key=lambda x: x[0])[1]
 
     # credit / savings: cumulative TX sum from zero (account opens at $0, or known starting amount)
@@ -290,7 +289,7 @@ def section_monthly_balance(
         lines.append("")
         return lines
 
-    has_bank_balance = account.account_type == "checking" or bool(manual_bps) or bool(bank_txs)
+    has_bank_balance = bool(manual_bps) or bool(bank_txs)
 
     lines.append(
         "| Month | Cvg? | Bank TXs | YNAB TXs | "
@@ -559,7 +558,6 @@ def generate_report(
         unmatched_bank_count = len(acct_ops.get("unmatched_bank_txs", []))
         lines.append(f"## {account.ynab_account_name} (`{slug}`)")
         lines.append("")
-        lines.append(f"**Account type:** {account.account_type}")
         lines.append(f"**Unmatched:** {unmatched_bank_count} bank txs, " f"{len(categorized)} YNAB txs")
         if bank_txs:
             first_tx = min(tx.posted_date for tx in bank_txs)

@@ -55,8 +55,6 @@ class TestAccountConfig:
             ynab_account_name="Chase Checking",
             slug="chase-checking",
             bank_name="Chase",
-            account_type="checking",
-            statement_frequency="monthly",
             source_directory="data/bank_statements/chase_checking",
             download_instructions="Download from chase.com > Accounts > Checking > Activity",
             import_patterns=(
@@ -75,8 +73,6 @@ class TestAccountConfig:
         assert config.ynab_account_name == "Chase Checking"
         assert config.slug == "chase-checking"
         assert config.bank_name == "Chase"
-        assert config.account_type == "checking"
-        assert config.statement_frequency == "monthly"
         assert config.source_directory == "data/bank_statements/chase_checking"
         assert config.download_instructions == "Download from chase.com > Accounts > Checking > Activity"
         assert len(config.import_patterns) == 2
@@ -90,8 +86,6 @@ class TestAccountConfig:
             ynab_account_name="Chase Freedom",
             slug="chase-freedom",
             bank_name="Chase",
-            account_type="credit",
-            statement_frequency="monthly",
             source_directory="data/bank_statements/chase_freedom",
             download_instructions="Download from chase.com",
             import_patterns=(
@@ -109,8 +103,6 @@ class TestAccountConfig:
             "ynab_account_name": "Chase Freedom",
             "slug": "chase-freedom",
             "bank_name": "Chase",
-            "account_type": "credit",
-            "statement_frequency": "monthly",
             "source_directory": "data/bank_statements/chase_freedom",
             "download_instructions": "Download from chase.com",
             "import_patterns": [
@@ -129,8 +121,6 @@ class TestAccountConfig:
             "ynab_account_name": "USAA Checking",
             "slug": "usaa-checking",
             "bank_name": "USAA",
-            "account_type": "checking",
-            "statement_frequency": "monthly",
             "source_directory": "data/bank_statements/usaa",
             "download_instructions": "Download from usaa.com",
             "import_patterns": [
@@ -151,8 +141,6 @@ class TestAccountConfig:
         assert config.ynab_account_name == "USAA Checking"
         assert config.slug == "usaa-checking"
         assert config.bank_name == "USAA"
-        assert config.account_type == "checking"
-        assert config.statement_frequency == "monthly"
         assert config.source_directory == "data/bank_statements/usaa"
         assert config.download_instructions == "Download from usaa.com"
         assert len(config.import_patterns) == 2
@@ -171,8 +159,6 @@ class TestBankAccountsConfig:
             ynab_account_name="Account 1",
             slug="account-1",
             bank_name="Bank A",
-            account_type="checking",
-            statement_frequency="monthly",
             source_directory="data/account1",
             download_instructions="Instructions 1",
             import_patterns=(ImportPattern(pattern="*.csv", format_handler="handler1"),),
@@ -182,8 +168,6 @@ class TestBankAccountsConfig:
             ynab_account_name="Account 2",
             slug="account-2",
             bank_name="Bank B",
-            account_type="credit",
-            statement_frequency="monthly",
             source_directory="data/account2",
             download_instructions="Instructions 2",
             import_patterns=(ImportPattern(pattern="*.csv", format_handler="handler2"),),
@@ -202,8 +186,6 @@ class TestBankAccountsConfig:
             ynab_account_name="Test Account",
             slug="test",
             bank_name="Test Bank",
-            account_type="checking",
-            statement_frequency="monthly",
             source_directory="data/test",
             download_instructions="Test instructions",
             import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_handler"),),
@@ -219,8 +201,6 @@ class TestBankAccountsConfig:
                     "ynab_account_name": "Test Account",
                     "slug": "test",
                     "bank_name": "Test Bank",
-                    "account_type": "checking",
-                    "statement_frequency": "monthly",
                     "source_directory": "data/test",
                     "download_instructions": "Test instructions",
                     "import_patterns": [
@@ -243,8 +223,6 @@ class TestBankAccountsConfig:
                     "ynab_account_name": "Account 1",
                     "slug": "account-1",
                     "bank_name": "Bank A",
-                    "account_type": "checking",
-                    "statement_frequency": "monthly",
                     "source_directory": "data/account1",
                     "download_instructions": "Instructions 1",
                     "import_patterns": [{"pattern": "*.csv", "format_handler": "handler1"}],
@@ -254,8 +232,6 @@ class TestBankAccountsConfig:
                     "ynab_account_name": "Account 2",
                     "slug": "account-2",
                     "bank_name": "Bank B",
-                    "account_type": "credit",
-                    "statement_frequency": "monthly",
                     "source_directory": "data/account2",
                     "download_instructions": "Instructions 2",
                     "import_patterns": [{"pattern": "*.csv", "format_handler": "handler2"}],
@@ -354,7 +330,6 @@ class TestBankAccountsConfig:
         acct1 = stub_data["accounts"][0]
         assert acct1["ynab_account_id"] == "acc-123"
         assert acct1["ynab_account_name"] == "Chase Checking"
-        assert acct1["account_type"] == "checking"
         assert acct1["slug"] == "TODO_REQUIRED"
         assert acct1["bank_name"] == "TODO_REQUIRED"
         assert acct1["source_directory"] == "TODO_REQUIRED"
@@ -364,7 +339,6 @@ class TestBankAccountsConfig:
         acct2 = stub_data["accounts"][1]
         assert acct2["ynab_account_id"] == "acc-456"
         assert acct2["ynab_account_name"] == "Apple Card"
-        assert acct2["account_type"] == "credit"
 
         # Verify helpful message was printed
         captured = capsys.readouterr()
@@ -389,8 +363,6 @@ class TestBankAccountsConfig:
                     "ynab_account_name": "Existing Account",
                     "slug": "existing-account",
                     "bank_name": "Existing Bank",
-                    "account_type": "checking",
-                    "statement_frequency": "monthly",
                     "source_directory": str(tmp_path / "downloads"),
                     "download_instructions": "Download from bank.com",
                     "import_patterns": [{"pattern": "*.csv", "format_handler": "test_csv"}],

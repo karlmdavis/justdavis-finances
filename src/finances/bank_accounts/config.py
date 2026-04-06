@@ -99,7 +99,6 @@ def generate_config_stub(ynab_accounts: dict[str, dict[str, Any]]) -> BankAccoun
     """Generate stub configuration from YNAB accounts.
 
     Creates a configuration with TODO_REQUIRED placeholders for user to fill in.
-    Infers account_type from YNAB account type where possible.
 
     Args:
         ynab_accounts: Dict mapping YNAB account IDs to account info
@@ -108,27 +107,14 @@ def generate_config_stub(ynab_accounts: dict[str, dict[str, Any]]) -> BankAccoun
     Returns:
         Stub configuration with TODO_REQUIRED placeholders
     """
-    # Map YNAB types to our account types
-    type_mapping = {
-        "creditCard": "credit",
-        "checking": "checking",
-        "savings": "savings",
-    }
-
     accounts: list[AccountConfig] = []
 
     for account_id, account_info in ynab_accounts.items():
-        # Infer account_type from YNAB type
-        ynab_type = account_info.get("type", "")
-        account_type = type_mapping.get(ynab_type, "TODO_REQUIRED")
-
         account = AccountConfig(
             ynab_account_id=account_id,
             ynab_account_name=account_info["name"],
             slug="TODO_REQUIRED",
             bank_name="TODO_REQUIRED",
-            account_type=account_type,
-            statement_frequency="monthly",  # Default to monthly
             source_directory="TODO_REQUIRED",
             download_instructions="TODO_REQUIRED",
             import_patterns=(),  # Empty tuple - user must add patterns

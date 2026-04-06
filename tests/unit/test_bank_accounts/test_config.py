@@ -28,8 +28,6 @@ class TestLoadConfig:
                     "ynab_account_name": "Chase Checking",
                     "slug": "chase-checking",
                     "bank_name": "Chase",
-                    "account_type": "checking",
-                    "statement_frequency": "monthly",
                     "source_directory": str(tmp_path),
                     "download_instructions": "Download from Chase website",
                     "import_patterns": [
@@ -53,7 +51,6 @@ class TestLoadConfig:
         assert len(config.accounts) == 1
         assert config.accounts[0].slug == "chase-checking"
         assert config.accounts[0].ynab_account_id == "acc-123"
-        assert config.accounts[0].account_type == "checking"
         assert len(config.accounts[0].import_patterns) == 1
 
     def test_load_config_missing_file(self, tmp_path: Path) -> None:
@@ -90,8 +87,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking",
                     slug="chase-checking",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Chase",
                     import_patterns=(
@@ -116,8 +111,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking",
                     slug="TODO_REQUIRED",  # Invalid
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Chase",
                     import_patterns=(
@@ -142,8 +135,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking",
                     slug="chase",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Chase",
                     import_patterns=(
@@ -158,8 +149,6 @@ class TestValidateConfig:
                     ynab_account_name="Amex Credit",
                     slug="chase",  # Duplicate
                     bank_name="Amex",
-                    account_type="credit",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Amex",
                     import_patterns=(
@@ -184,8 +173,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking",
                     slug="chase-checking",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Chase",
                     import_patterns=(
@@ -200,8 +187,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking Duplicate",
                     slug="chase-checking-2",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Chase",
                     import_patterns=(
@@ -226,8 +211,6 @@ class TestValidateConfig:
                     ynab_account_name="Unknown Account",
                     slug="unknown",
                     bank_name="Unknown",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download",
                     import_patterns=(
@@ -254,8 +237,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking",
                     slug="chase-checking",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/nonexistent/path",  # Doesn't exist
                     download_instructions="Download from Chase",
                     import_patterns=(
@@ -280,8 +261,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking",
                     slug="chase-checking",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Chase",
                     import_patterns=(),  # Empty
@@ -301,8 +280,6 @@ class TestValidateConfig:
                     ynab_account_name="Chase Checking",
                     slug="chase-checking",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory=str(self.tmp_path),
                     download_instructions="Download from Chase",
                     import_patterns=(
@@ -344,7 +321,6 @@ class TestGenerateConfigStub:
         checking = config.accounts[0]
         assert checking.ynab_account_id == "acc-123"
         assert checking.ynab_account_name == "Chase Checking"
-        assert checking.account_type == "checking"
         assert checking.slug == "TODO_REQUIRED"
         assert checking.bank_name == "TODO_REQUIRED"
         assert checking.source_directory == "TODO_REQUIRED"
@@ -355,19 +331,16 @@ class TestGenerateConfigStub:
         credit = config.accounts[1]
         assert credit.ynab_account_id == "acc-456"
         assert credit.ynab_account_name == "Amex Credit"
-        assert credit.account_type == "credit"
 
         # Verify savings account
         savings = config.accounts[2]
         assert savings.ynab_account_id == "acc-789"
         assert savings.ynab_account_name == "Ally Savings"
-        assert savings.account_type == "savings"
 
         # Verify unknown type
         unknown = config.accounts[3]
         assert unknown.ynab_account_id == "acc-000"
         assert unknown.ynab_account_name == "Investment Account"
-        assert unknown.account_type == "TODO_REQUIRED"
 
     def test_generate_config_stub_empty_ynab_accounts(self) -> None:
         """Test generating stub config with no YNAB accounts."""

@@ -117,8 +117,6 @@ class TestParseNode:
                     ynab_account_name="Test Checking",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108 - Not used in parse
                     download_instructions="Test instructions",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -177,8 +175,6 @@ class TestParseNode:
                     ynab_account_name="Test Checking",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="Test instructions",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -218,8 +214,6 @@ class TestParseNode:
                     ynab_account_name="Test Checking",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="Test instructions",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -263,8 +257,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Test Checking",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="Test instructions",
                     import_patterns=(
@@ -299,8 +291,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Test Checking",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="Test instructions",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -337,8 +327,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Chase Checking",
                     slug="chase-checking",
                     bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source1",  # noqa: S108
                     download_instructions="Test instructions",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -348,8 +336,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Chase Credit",
                     slug="chase-credit",
                     bank_name="Chase",
-                    account_type="credit",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source2",  # noqa: S108
                     download_instructions="Test instructions",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -385,8 +371,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Test",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -418,8 +402,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Test",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -457,8 +439,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Test",
                     slug="test-checking",
                     bank_name="Test Bank",
-                    account_type="checking",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="",
                     import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
@@ -560,8 +540,6 @@ TRNAMT:-20.00"""
                     ynab_account_name="Test Savings",
                     slug="test-savings",
                     bank_name="Test Bank",
-                    account_type="savings",
-                    statement_frequency="monthly",
                     source_directory="/tmp/source",  # noqa: S108
                     download_instructions="",
                     import_patterns=(

@@ -87,8 +87,6 @@ def test_config(temp_dir: Path):
                 ynab_account_name="Test Checking",
                 slug="test-checking",
                 bank_name="Test Bank",
-                account_type="checking",
-                statement_frequency="monthly",
                 source_directory=str(source_dir),
                 download_instructions="Test download instructions",
                 import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),

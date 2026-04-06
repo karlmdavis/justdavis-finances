@@ -25,8 +25,6 @@ def create_test_config_file(config_dir: Path, source_dir: Path) -> Path:
                 ynab_account_name="Chase Credit Test",
                 slug="chase_credit",
                 bank_name="Chase",
-                account_type="credit",
-                statement_frequency="monthly",
                 source_directory=str(source_dir),
                 import_patterns=(
                     ImportPattern(

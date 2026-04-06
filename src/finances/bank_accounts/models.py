@@ -42,8 +42,6 @@ class AccountConfig:
     # User-provided fields
     slug: str  # URL-safe identifier (e.g., "chase-checking")
     bank_name: str  # Display name (e.g., "Chase")
-    account_type: str  # "checking", "credit", "savings", etc.
-    statement_frequency: str  # "monthly", "weekly", etc.
     source_directory: str  # Where to find statement files
     download_instructions: str  # User instructions for downloading
 
@@ -66,8 +64,6 @@ class AccountConfig:
             "ynab_account_name": self.ynab_account_name,
             "slug": self.slug,
             "bank_name": self.bank_name,
-            "account_type": self.account_type,
-            "statement_frequency": self.statement_frequency,
             "source_directory": self.source_directory,
             "download_instructions": self.download_instructions,
             "import_patterns": [p.to_dict() for p in self.import_patterns],
@@ -85,8 +81,6 @@ class AccountConfig:
             ynab_account_name=data["ynab_account_name"],
             slug=data["slug"],
             bank_name=data["bank_name"],
-            account_type=data["account_type"],
-            statement_frequency=data["statement_frequency"],
             source_directory=data["source_directory"],
             download_instructions=data["download_instructions"],
             import_patterns=tuple(ImportPattern.from_dict(p) for p in data["import_patterns"]),
