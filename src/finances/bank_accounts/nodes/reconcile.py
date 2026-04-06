@@ -13,7 +13,7 @@ from finances.bank_accounts.models import (
     BankAccountsConfig,
     BankTransaction,
 )
-from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp, Op
+from finances.bank_accounts.operations import CandidateMatch, CreateOp, DeleteOp, FlagOp, Op
 from finances.core import FinancialDate, Money
 from finances.core.json_utils import read_json
 
@@ -216,7 +216,7 @@ def reconcile_account_data(
                     )
                 )
             elif match_result.match_type == "ambiguous":
-                candidates_dicts: list[dict[str, Any]] = (
+                candidates_dicts: list[CandidateMatch] = (
                     [
                         {
                             "date": str(candidate.date),
@@ -342,9 +342,8 @@ def print_reconciliation_summary(results: dict[str, "ReconciliationResult"]) -> 
         if result.unmatched_bank_txs:
             print("  unmatched bank txs (→ create operations):")
             for tx in sorted(result.unmatched_bank_txs, key=lambda t: t.posted_date):
-                amount_sign = "+" if tx.amount.to_milliunits() >= 0 else ""
                 payee = tx.merchant or tx.description
-                print(f"    {tx.posted_date}  {amount_sign}{tx.amount}  {payee}")
+                print(f"    {tx.posted_date}  {tx.amount.format_signed()}  {payee}")
 
         recon = result.reconciliation
         if recon.last_reconciled_date:

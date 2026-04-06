@@ -1,9 +1,19 @@
 """Typed operation models for the bank reconciliation apply pipeline."""
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict
 
 from finances.bank_accounts.models import BankTransaction
+
+
+class CandidateMatch(TypedDict):
+    """A YNAB candidate transaction that may match a bank transaction."""
+
+    date: str
+    amount_milliunits: int
+    payee_name: str | None
+    memo: str | None
+    account_id: str | None
 
 
 @dataclass(frozen=True)
@@ -39,7 +49,7 @@ class FlagOp:
     """Flag a bank transaction as ambiguous (multiple YNAB candidates)."""
 
     transaction: BankTransaction
-    candidates: tuple[dict[str, Any], ...]
+    candidates: tuple[CandidateMatch, ...]
     message: str
     source: str = "bank"
 
