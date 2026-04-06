@@ -75,22 +75,6 @@ def validate_config(
                 f"not found in YNAB accounts"
             )
 
-        # Validate account_type
-        valid_account_types = {"credit", "checking", "savings"}
-        if account.account_type not in valid_account_types:
-            raise ConfigValidationError(
-                f"Account '{account.slug}': account_type must be one of: "
-                f"{', '.join(sorted(valid_account_types))}"
-            )
-
-        # Validate statement_frequency
-        valid_frequencies = {"monthly", "daily"}
-        if account.statement_frequency not in valid_frequencies:
-            raise ConfigValidationError(
-                f"Account '{account.slug}': statement_frequency must be one of: "
-                f"{', '.join(sorted(valid_frequencies))}"
-            )
-
         # Validate source_directory exists
         source_path = Path(account.source_directory).expanduser()
         if not source_path.exists():

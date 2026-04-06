@@ -245,64 +245,6 @@ class TestValidateConfig:
         ):
             validate_config(config, self.ynab_accounts, self.available_handlers)
 
-    def test_validate_config_invalid_account_type(self) -> None:
-        """Test validation fails for invalid account_type."""
-        config = BankAccountsConfig(
-            accounts=(
-                AccountConfig(
-                    ynab_account_id="acc-123",
-                    ynab_account_name="Chase Checking",
-                    slug="chase-checking",
-                    bank_name="Chase",
-                    account_type="invalid_type",  # Invalid
-                    statement_frequency="monthly",
-                    source_directory=str(self.tmp_path),
-                    download_instructions="Download from Chase",
-                    import_patterns=(
-                        ImportPattern(
-                            pattern="*_transactions.csv",
-                            format_handler="chase_checking_csv",
-                        ),
-                    ),
-                ),
-            )
-        )
-
-        with pytest.raises(
-            ConfigValidationError,
-            match="account_type must be one of: checking, credit, savings",
-        ):
-            validate_config(config, self.ynab_accounts, self.available_handlers)
-
-    def test_validate_config_invalid_statement_frequency(self) -> None:
-        """Test validation fails for invalid statement_frequency."""
-        config = BankAccountsConfig(
-            accounts=(
-                AccountConfig(
-                    ynab_account_id="acc-123",
-                    ynab_account_name="Chase Checking",
-                    slug="chase-checking",
-                    bank_name="Chase",
-                    account_type="checking",
-                    statement_frequency="yearly",  # Invalid
-                    source_directory=str(self.tmp_path),
-                    download_instructions="Download from Chase",
-                    import_patterns=(
-                        ImportPattern(
-                            pattern="*_transactions.csv",
-                            format_handler="chase_checking_csv",
-                        ),
-                    ),
-                ),
-            )
-        )
-
-        with pytest.raises(
-            ConfigValidationError,
-            match="statement_frequency must be one of: daily, monthly",
-        ):
-            validate_config(config, self.ynab_accounts, self.available_handlers)
-
     def test_validate_config_source_directory_not_exists(self) -> None:
         """Test validation fails if source_directory doesn't exist."""
         config = BankAccountsConfig(
