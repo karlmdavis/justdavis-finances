@@ -25,10 +25,10 @@ def load_config(config_path: Path) -> BankAccountsConfig:
     Raises:
         FileNotFoundError: If config file doesn't exist
     """
-    if not config_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-    data = read_json(config_path)
+    try:
+        data = read_json(config_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Configuration file not found: {config_path}") from None
     return BankAccountsConfig.from_dict(data)
 
 
