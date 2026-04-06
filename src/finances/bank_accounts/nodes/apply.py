@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -278,6 +279,15 @@ def _prompt_delete_batch(has_multiple: bool) -> str:
     return "n"
 
 
+def _process_operations_by_date(
+    ops_by_date: dict[str, list[Any]],
+    handle_batch: Callable[[str, list[Any]], None],
+) -> None:
+    """Iterate date-sorted operation batches, calling handle_batch for each."""
+    for date in sorted(ops_by_date.keys()):
+        handle_batch(date, ops_by_date[date])
+
+
 def apply_reconciliation_operations(
     ops_file: Path,
     apply_log_path: Path,
@@ -442,7 +452,7 @@ def apply_reconciliation_operations(
                 continue
 
             # Process in order: flags, deletes, creates
-            for date, batch_ops in sorted(flags.items()):
+            def _handle_flag_batch(date: str, batch_ops: list[Any], *, slug: str = slug) -> None:
                 _display_flag_batch(date, batch_ops)
                 action = _prompt_acknowledge_batch()
                 log_action = "acknowledged" if action == "a" else "skipped"
@@ -463,7 +473,7 @@ def apply_reconciliation_operations(
                     else:
                         counts["skipped"] += 1
 
-            for date, batch_ops in sorted(deletes.items()):
+            def _handle_delete_batch(date: str, batch_ops: list[Any], *, slug: str = slug) -> None:
                 _display_delete_batch(date, batch_ops, ynab_delete_log_path)
                 has_multiple = len(batch_ops) > 1
                 action = _prompt_delete_batch(has_multiple)
@@ -574,7 +584,9 @@ def apply_reconciliation_operations(
                         )
                         counts["skipped"] += 1
 
-            for date, batch_ops in sorted(creates.items()):
+            def _handle_create_batch(
+                date: str, batch_ops: list[Any], *, slug: str = slug, account_id: str = account_id
+            ) -> None:
                 _display_create_batch(date, batch_ops, slug)
                 has_multiple = len(batch_ops) > 1
                 payload = _build_file_payload(batch_ops, account_id, slug)
@@ -765,5 +777,9 @@ def apply_reconciliation_operations(
                             }
                         )
                         counts["skipped"] += 1
+
+            _process_operations_by_date(flags, _handle_flag_batch)
+            _process_operations_by_date(deletes, _handle_delete_batch)
+            _process_operations_by_date(creates, _handle_create_batch)
 
     return counts
