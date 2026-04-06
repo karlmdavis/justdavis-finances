@@ -63,8 +63,6 @@ def bank_config(synthetic_bank_csv):
                 ynab_account_name="Chase Credit",
                 slug="chase_credit",
                 bank_name="Chase",
-                account_type="credit",
-                statement_frequency="monthly",
                 source_directory=str(synthetic_bank_csv),
                 import_patterns=(
                     ImportPattern(
@@ -171,7 +169,6 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
         normalized_data = {
             "account_id": slug,
             "account_name": account.ynab_account_name,
-            "account_type": account.account_type,
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
@@ -238,8 +235,6 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
                 ynab_account_name="Chase Credit",
                 slug="chase_credit_all_matched",
                 bank_name="Chase",
-                account_type="credit",
-                statement_frequency="monthly",
                 source_directory=str(synthetic_bank_csv),
                 import_patterns=(
                     ImportPattern(
@@ -300,7 +295,6 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
         normalized_data = {
             "account_id": slug,
             "account_name": account.ynab_account_name,
-            "account_type": account.account_type,
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
@@ -347,8 +341,6 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
                 ynab_account_name="Chase Credit",
                 slug="chase_credit_ambiguous",
                 bank_name="Chase",
-                account_type="credit",
-                statement_frequency="monthly",
                 source_directory=str(source_dir),
                 import_patterns=(
                     ImportPattern(
@@ -413,7 +405,6 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
         normalized_data = {
             "account_id": slug,
             "account_name": account.ynab_account_name,
-            "account_type": account.account_type,
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
@@ -480,8 +471,6 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
                 ynab_account_name="Chase Credit",
                 slug="chase_credit_empty",
                 bank_name="Chase",
-                account_type="credit",
-                statement_frequency="monthly",
                 source_directory=str(source_dir),
                 import_patterns=(
                     ImportPattern(
@@ -525,7 +514,6 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
         normalized_data = {
             "account_id": slug,
             "account_name": account.ynab_account_name,
-            "account_type": account.account_type,
             "data_period": data_period,
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
@@ -554,7 +542,7 @@ def test_reconcile_to_apply_round_trip(tmp_data_dir):
     from finances.bank_accounts.nodes.apply import apply_reconciliation_operations
     from finances.core.json_utils import write_json
 
-    # --- synthetic operations file (two accounts, mixed operation types) ---
+    # --- synthetic operations file (two accounts, all three operation types) ---
     ops = {
         "reconciled_at": "2024-03-01T12:00:00",
         "accounts": {
@@ -579,6 +567,16 @@ def test_reconcile_to_apply_round_trip(tmp_data_dir):
                             "amount_milliunits": -6500,
                             "description": "STARBUCKS UTAH AVE WA USA",
                             "merchant": "Starbucks",
+                        },
+                    },
+                    {
+                        "type": "delete_ynab_transaction",
+                        "transaction": {
+                            "id": "ynab-orphan-tx-abc123",
+                            "date": "2024-03-03",
+                            "amount": -9990,
+                            "payee_name": "Netflix",
+                            "memo": None,
                         },
                     },
                 ],
@@ -625,15 +623,17 @@ def test_reconcile_to_apply_round_trip(tmp_data_dir):
     # No account entries needed in config: apply falls back to dict order for unknown slugs
     config = BankAccountsConfig(accounts=())
 
+    # Operations within each account are processed: flags → deletes → creates.
     # Input sequence:
     #   1. "y" — process chase-checking account
-    #   2. "y" — apply 2024-03-01 create batch (Spotify)
-    #   3. "y" — apply 2024-03-02 create batch (Starbucks)
-    #   4. "y" — process apple-card account
-    #   5. "a" — acknowledge 2024-03-05 flag batch
+    #   2. "y" — delete 2024-03-03 orphaned YNAB tx (Netflix)
+    #   3. "y" — apply 2024-03-01 create batch (Spotify)
+    #   4. "y" — apply 2024-03-02 create batch (Starbucks)
+    #   5. "y" — process apple-card account
+    #   6. "a" — acknowledge 2024-03-05 flag batch
     with (
         patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
-        patch("builtins.input", side_effect=["y", "y", "y", "y", "a"]),
+        patch("builtins.input", side_effect=["y", "y", "y", "y", "y", "a"]),
     ):
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = ""
@@ -643,21 +643,32 @@ def test_reconcile_to_apply_round_trip(tmp_data_dir):
     # --- verify counts ---
     assert counts["applied"] == 2  # two create_transactions applied
     assert counts["acknowledged"] == 1  # one flag_discrepancy acknowledged
+    assert counts["deleted"] == 1  # one delete_ynab_transaction applied
     assert counts["skipped"] == 0
     assert counts["failed"] == 0
 
     # --- verify apply log entries ---
     log_entries = [json.loads(line) for line in apply_log.read_text().strip().splitlines()]
-    assert len(log_entries) == 3
+    assert len(log_entries) == 4
 
-    applied_entries = [e for e in log_entries if e["action"] == "applied"]
+    applied_entries = [
+        e for e in log_entries if e["action"] == "applied" and e["op_type"] == "create_transaction"
+    ]
+    deleted_entries = [e for e in log_entries if e["op_type"] == "delete_ynab_transaction"]
     ack_entries = [e for e in log_entries if e["action"] == "acknowledged"]
     assert len(applied_entries) == 2
+    assert len(deleted_entries) == 1
     assert len(ack_entries) == 1
 
     # Creates logged in chronological order across both accounts
     posted_dates = [e["posted_date"] for e in applied_entries]
     assert sorted(posted_dates) == posted_dates
+
+    # Delete entry has expected YNAB transaction ID and account
+    deleted = deleted_entries[0]
+    assert deleted["transaction"]["id"] == "ynab-orphan-tx-abc123"
+    assert deleted["account_slug"] == "chase-checking"
+    assert deleted["action"] == "applied"
 
     # Flag entry has expected candidate names
     ack = ack_entries[0]
