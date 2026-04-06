@@ -178,7 +178,8 @@ def reconcile_account_data(
         # BankTransaction is a frozen dataclass so duplicate txs (same date/amount/description)
         # share the same hash, causing dict key collisions that silently drop match results.
         bank_match_entries: list[tuple[BankTransaction, MatchResult, int]] = []
-        remaining_ynab = list(ynab_txs_for_account)
+        # Key by Python object identity so removal is O(1) rather than O(n) list.remove().
+        remaining_ynab: dict[int, MatchingYnabTransaction] = {id(tx): tx for tx in ynab_txs_for_account}
         seen_keys: dict[tuple[str, int, str], int] = {}
         for bank_tx in bank_txs:
             key = (str(bank_tx.posted_date), bank_tx.amount.to_milliunits(), bank_tx.description)
@@ -192,11 +193,14 @@ def reconcile_account_data(
                 seq,
             )
             match_result = find_matches(
-                bank_tx, remaining_ynab, account.ynab_date_offset_days, expected_import_id=expected_id
+                bank_tx,
+                list(remaining_ynab.values()),
+                account.ynab_date_offset_days,
+                expected_import_id=expected_id,
             )
             bank_match_entries.append((bank_tx, match_result, seq))
             if match_result.match_type in ("exact", "fuzzy") and match_result.ynab_transaction:
-                remaining_ynab.remove(match_result.ynab_transaction)
+                del remaining_ynab[id(match_result.ynab_transaction)]  # O(1)
 
         # Track unmatched transactions.
         # Ambiguous bank txs are included here: they generate a FlagOp but the bank still
@@ -204,7 +208,7 @@ def reconcile_account_data(
         unmatched_bank_txs = [
             tx for tx, result, _seq in bank_match_entries if result.match_type in ("none", "ambiguous")
         ]
-        unmatched_ynab_txs = remaining_ynab  # whatever wasn't claimed
+        unmatched_ynab_txs = list(remaining_ynab.values())  # whatever wasn't claimed
 
         # 3. Generate operations
         operations: list[Op] = []

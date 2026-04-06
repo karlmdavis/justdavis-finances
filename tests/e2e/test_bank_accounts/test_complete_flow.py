@@ -456,8 +456,9 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
     assert "Trader Joes" in payee_names
     assert "Whole Foods" in payee_names
 
-    # Verify unmatched transactions (all YNAB txs are candidates, so none are unmatched)
-    assert len(result.unmatched_bank_txs) == 0  # Bank tx has ambiguous match
+    # Ambiguous bank txs count as unmatched for balance adjustment (they generated a FlagOp
+    # but the bank recorded the transaction, so it must be reflected in the balance).
+    assert len(result.unmatched_bank_txs) == 1
     assert len(result.unmatched_ynab_txs) == 3  # All candidates remain unmatched
 
 
