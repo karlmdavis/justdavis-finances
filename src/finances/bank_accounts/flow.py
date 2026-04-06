@@ -634,7 +634,7 @@ class BankDataReconcileApplyFlowNode(FlowNode):
                 + counts["duplicate_skipped"]
                 + counts["failed"],
                 new_items=counts["applied"],
-                outputs=[apply_log_path],
+                outputs=[apply_log_path, ynab_delete_log_path],
                 requires_review=False,
                 metadata={
                     "applied": counts["applied"],

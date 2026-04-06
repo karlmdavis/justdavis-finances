@@ -37,7 +37,11 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
     def parse(self, file_path: Path) -> ParseResult:
         """Parse Chase Checking CSV file."""
         transactions = []
-        balance_points = []
+        # Chase CSVs are newest-first. For dates with multiple transactions, the first
+        # row seen for a date is the last transaction of that day — its running balance
+        # is the end-of-day balance. Use setdefault so subsequent (earlier) transactions
+        # on the same date don't overwrite the end-of-day value.
+        balance_by_date: dict = {}
 
         with open(file_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -79,16 +83,15 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
 
                     transactions.append(tx)
 
-                    # Create balance point for this transaction
-                    balance_point = BalancePoint(
-                        date=posted_date,
-                        amount=balance_money,
-                        available=None,  # Checking accounts don't track available balance separately
-                    )
-
-                    balance_points.append(balance_point)
+                    # Keep only end-of-day balance (first occurrence per date in newest-first file).
+                    balance_by_date.setdefault(posted_date, balance_money)
 
                 except (ValueError, KeyError) as e:
                     raise ValueError(f"Parse error at line {row_num}: {e}") from e
+
+        balance_points = [
+            BalancePoint(date=date, amount=balance, available=None)
+            for date, balance in balance_by_date.items()
+        ]
 
         return ParseResult.create(transactions=transactions, balance_points=balance_points)

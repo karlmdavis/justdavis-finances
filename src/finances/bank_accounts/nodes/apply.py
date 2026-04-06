@@ -807,7 +807,7 @@ def apply_reconciliation_operations(
                                 "amount_milliunits": bank_tx["amount_milliunits"],
                                 "payee_name": payee_name,
                                 "import_id": import_id,
-                                "included_in_batch": True,
+                                "included_in_batch": False,
                             }
                         )
                         counts["skipped"] += 1

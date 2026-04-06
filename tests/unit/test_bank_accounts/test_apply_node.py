@@ -401,7 +401,7 @@ def test_create_batch_skipped():
         assert len(lines) == 1
         entry = json.loads(lines[0])
         assert entry["action"] == "skipped"
-        assert entry["included_in_batch"] is True
+        assert entry["included_in_batch"] is False
         assert "ynab_exit_code" not in entry
 
 
