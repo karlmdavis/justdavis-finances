@@ -6,7 +6,7 @@ import subprocess
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from finances.bank_accounts.matching import make_import_id
 from finances.bank_accounts.models import BankAccountsConfig
@@ -103,7 +103,7 @@ def _get_import_id(op: CreateOp, slug: str) -> str:
 def _display_create_batch(date: str, ops: list[CreateOp], slug: str) -> None:
     """Display a CREATE batch header with line items."""
     total = sum(op.transaction.amount.to_milliunits() for op in ops)
-    total_display = ("+" if total >= 0 else "") + str(Money.from_milliunits(total))
+    total_display = Money.from_milliunits(total).format_signed()
     n = len(ops)
     noun = f"{n} Transaction{'s' if n != 1 else ''}"
     print(f"\n  Create {noun} in Batch Operation?")
@@ -111,10 +111,7 @@ def _display_create_batch(date: str, ops: list[CreateOp], slug: str) -> None:
     print(f"    Total: {total_display}")
     print()
     for i, op in enumerate(ops, 1):
-        amount_milliunits = op.transaction.amount.to_milliunits()
-        amount_display = ("+" if amount_milliunits >= 0 else "") + str(
-            Money.from_milliunits(amount_milliunits)
-        )
+        amount_display = op.transaction.amount.format_signed()
         payee_name = op.transaction.merchant or op.transaction.description
         print(f"    {i}. Amount: {amount_display}")
         print(f"       Payee:  {payee_name}")
@@ -128,7 +125,7 @@ def _display_individual_create(date: str, op: CreateOp, account_id: str, slug: s
     amount_milliunits = op.transaction.amount.to_milliunits()
     payee_name = op.transaction.merchant or op.transaction.description
     import_id = _get_import_id(op, slug)
-    amount_display = ("+" if amount_milliunits >= 0 else "") + str(Money.from_milliunits(amount_milliunits))
+    amount_display = op.transaction.amount.format_signed()
     print()
     print("  Create Transaction Individually?")
     print(f"    Date:   {date}")
@@ -153,10 +150,7 @@ def _display_flag_batch(date: str, ops: list[FlagOp]) -> None:
     print("    These bank transactions matched multiple YNAB entries — resolve manually in YNAB.")
     print()
     for i, op in enumerate(ops, 1):
-        amount_milliunits = op.transaction.amount.to_milliunits()
-        amount_display = ("+" if amount_milliunits >= 0 else "") + str(
-            Money.from_milliunits(amount_milliunits)
-        )
+        amount_display = op.transaction.amount.format_signed()
         merchant = op.transaction.merchant or op.transaction.description
         candidates = list(op.candidates)
         print(f"    {i}. Amount: {amount_display}")
@@ -167,7 +161,7 @@ def _display_flag_batch(date: str, ops: list[FlagOp]) -> None:
             payee = candidate.get("payee_name", "(unknown)")
             cdate = candidate.get("date", "")
             camt = candidate.get("amount_milliunits", 0)
-            camt_display = ("+" if camt >= 0 else "") + str(Money.from_milliunits(camt))
+            camt_display = Money.from_milliunits(camt).format_signed()
             print(f"         {label}. Payee:  {payee}")
             print(f"            Date:   {cdate}")
             print(f"            Amount: {camt_display}")
@@ -231,9 +225,7 @@ def _display_delete_batch(date: str, ops: list[DeleteOp], ynab_delete_log_path: 
     print()
     for i, op in enumerate(ops, 1):
         ynab_tx = op.transaction
-        amount_display = ("+" if ynab_tx["amount"] >= 0 else "") + str(
-            Money.from_milliunits(ynab_tx["amount"])
-        )
+        amount_display = Money.from_milliunits(ynab_tx["amount"]).format_signed()
         payee = ynab_tx.get("payee_name", "(unknown)")
         ynab_id = ynab_tx.get("id", "")
         memo = ynab_tx.get("memo")
@@ -251,7 +243,7 @@ def _display_delete_batch(date: str, ops: list[DeleteOp], ynab_delete_log_path: 
 def _display_individual_delete(date: str, op: DeleteOp, ynab_delete_log_path: Path) -> None:
     """Display a single DELETE item for individual review."""
     ynab_tx = op.transaction
-    amount_display = ("+" if ynab_tx["amount"] >= 0 else "") + str(Money.from_milliunits(ynab_tx["amount"]))
+    amount_display = Money.from_milliunits(ynab_tx["amount"]).format_signed()
     payee = ynab_tx.get("payee_name", "(unknown)")
     ynab_id = ynab_tx.get("id", "")
     print()
@@ -279,9 +271,12 @@ def _prompt_delete_batch(has_multiple: bool) -> str:
     return "n"
 
 
+_OpT = TypeVar("_OpT", CreateOp, FlagOp, DeleteOp)
+
+
 def _process_operations_by_date(
-    ops_by_date: dict[str, list[Any]],
-    handle_batch: Callable[[str, list[Any]], None],
+    ops_by_date: dict[str, list[_OpT]],
+    handle_batch: Callable[[str, list[_OpT]], None],
 ) -> None:
     """Iterate date-sorted operation batches, calling handle_batch for each."""
     for date in sorted(ops_by_date.keys()):
