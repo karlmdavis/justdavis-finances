@@ -255,6 +255,8 @@ def _by_transfer_window(
 
 def _pick_best(bank_tx: BankTransaction, candidates: list[MatchingYnabTransaction]) -> MatchResult:
     """Resolve multiple candidates via fuzzy description matching."""
+    if not candidates:
+        return MatchResult(match_type="none")
     scores: list[tuple[MatchingYnabTransaction, int]] = []
     for ynab_tx in candidates:
         # Prefer merchant field (clean, matches YNAB payee names) over verbose description
