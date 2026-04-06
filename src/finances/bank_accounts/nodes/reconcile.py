@@ -13,6 +13,7 @@ from finances.bank_accounts.models import (
     BankAccountsConfig,
     BankTransaction,
 )
+from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp, Op
 from finances.core import FinancialDate, Money
 from finances.core.json_utils import read_json
 
@@ -53,7 +54,7 @@ class ReconciliationResult:
     reconciliation: BalanceReconciliation
     unmatched_bank_txs: tuple[BankTransaction, ...]
     unmatched_ynab_txs: tuple[MatchingYnabTransaction, ...]
-    operations: tuple[dict[str, Any], ...]
+    operations: tuple[Op, ...]
     # Each entry: {tx dict, "mismatch_reason": str}
     categorized_unmatched_ynab: tuple[dict[str, Any], ...] = ()
 
@@ -64,7 +65,7 @@ class ReconciliationResult:
             "unmatched_bank_txs": [tx.to_dict() for tx in self.unmatched_bank_txs],
             "unmatched_ynab_txs": [tx.to_dict() for tx in self.unmatched_ynab_txs],
             "categorized_unmatched_ynab": list(self.categorized_unmatched_ynab),
-            "operations": list(self.operations),
+            "operations": [op.to_dict() for op in self.operations],
         }
 
 
@@ -203,21 +204,18 @@ def reconcile_account_data(
         unmatched_ynab_txs = remaining_ynab  # whatever wasn't claimed
 
         # 3. Generate operations
-        operations: list[dict[str, Any]] = []
+        operations: list[Op] = []
 
         for bank_tx, match_result, seq in bank_match_entries:
             if match_result.match_type == "none":
                 operations.append(
-                    {
-                        "type": "create_transaction",
-                        "source": "bank",
-                        "transaction": bank_tx.to_dict(),
-                        "account_id": account.ynab_account_id,
-                        "import_id_seq": seq,
-                    }
+                    CreateOp(
+                        account_id=account.ynab_account_id,
+                        transaction=bank_tx,
+                        import_id_seq=seq,
+                    )
                 )
             elif match_result.match_type == "ambiguous":
-                # Serialize candidates to dicts
                 candidates_dicts: list[dict[str, Any]] = (
                     [
                         {
@@ -234,13 +232,11 @@ def reconcile_account_data(
                 )
 
                 operations.append(
-                    {
-                        "type": "flag_discrepancy",
-                        "source": "bank",
-                        "transaction": bank_tx.to_dict(),
-                        "candidates": candidates_dicts,
-                        "message": "Multiple possible matches - manual review required",
-                    }
+                    FlagOp(
+                        transaction=bank_tx,
+                        candidates=tuple(candidates_dicts),
+                        message="Multiple possible matches - manual review required",
+                    )
                 )
 
         # 3b. Generate delete operations for orphaned YNAB transactions
@@ -274,12 +270,7 @@ def reconcile_account_data(
                     f"YNAB transaction id={ynab_tx.id} not found in raw cache — "
                     f"the cache may be incomplete or out of sync"
                 )
-            operations.append(
-                {
-                    "type": "delete_ynab_transaction",
-                    "transaction": raw_tx,
-                }
-            )
+            operations.append(DeleteOp(transaction=raw_tx))
 
         # 3c. Categorize each unmatched YNAB tx with a mismatch_reason
         categorized: list[dict[str, Any]] = []

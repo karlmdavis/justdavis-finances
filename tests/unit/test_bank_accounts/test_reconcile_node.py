@@ -11,6 +11,7 @@ from finances.bank_accounts.models import (
     ImportPattern,
 )
 from finances.bank_accounts.nodes.reconcile import reconcile_account_data
+from finances.bank_accounts.operations import CreateOp
 from finances.core import FinancialDate, Money
 
 
@@ -78,7 +79,7 @@ def test_greedy_two_identical_bank_txs_claim_separate_ynab_txs():
 
     result = results[account.slug]
     # Both bank txs matched → no creates
-    creates = [op for op in result.operations if op["type"] == "create_transaction"]
+    creates = [op for op in result.operations if isinstance(op, CreateOp)]
     assert len(creates) == 0, f"Expected 0 creates, got {len(creates)}"
     # Both YNAB txs claimed → nothing left unmatched
     assert len(result.unmatched_ynab_txs) == 0
@@ -121,7 +122,7 @@ def test_greedy_pool_exhausted_third_bank_tx_becomes_create():
 
     result = results[account.slug]
     # First two bank txs matched, third becomes a create
-    creates = [op for op in result.operations if op["type"] == "create_transaction"]
+    creates = [op for op in result.operations if isinstance(op, CreateOp)]
     assert len(creates) == 1, f"Expected 1 create, got {len(creates)}"
     # Both YNAB txs were claimed
     assert len(result.unmatched_ynab_txs) == 0

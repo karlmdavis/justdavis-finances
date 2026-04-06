@@ -13,6 +13,7 @@ from finances.bank_accounts.models import (
     ImportPattern,
 )
 from finances.bank_accounts.nodes import reconcile_account_data
+from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp
 from finances.core import FinancialDate, Money
 from finances.core.json_utils import write_json
 
@@ -109,13 +110,13 @@ class TestReconcileNode:
         # Verify operations
         operations = list(result.operations)
         # Should have 2 create_transaction operations (unmatched bank txs)
-        create_ops = [op for op in operations if op["type"] == "create_transaction"]
+        create_ops = [op for op in operations if isinstance(op, CreateOp)]
         assert len(create_ops) == 2
 
         # Verify operation structure
-        assert create_ops[0]["source"] == "bank"
-        assert create_ops[0]["account_id"] == "acct_123"
-        assert "transaction" in create_ops[0]
+        assert create_ops[0].source == "bank"
+        assert create_ops[0].account_id == "acct_123"
+        assert create_ops[0].transaction is not None
 
         # Verify unmatched transactions
         assert len(result.unmatched_bank_txs) == 2
@@ -206,7 +207,7 @@ class TestReconcileNode:
         operations = list(result.operations)
 
         # Should have NO create_transaction operations (all matched)
-        create_ops = [op for op in operations if op["type"] == "create_transaction"]
+        create_ops = [op for op in operations if isinstance(op, CreateOp)]
         assert len(create_ops) == 0
 
         # Verify unmatched transactions
@@ -294,16 +295,16 @@ class TestReconcileNode:
         operations = list(result.operations)
 
         # Should have 1 flag_discrepancy operation (ambiguous match)
-        flag_ops = [op for op in operations if op["type"] == "flag_discrepancy"]
+        flag_ops = [op for op in operations if isinstance(op, FlagOp)]
         assert len(flag_ops) == 1
 
         # Verify operation structure
-        assert flag_ops[0]["source"] == "bank"
-        assert "transaction" in flag_ops[0]
-        assert "candidates" in flag_ops[0]
-        assert len(flag_ops[0]["candidates"]) == 2
-        assert "message" in flag_ops[0]
-        assert "manual review" in flag_ops[0]["message"].lower()
+        assert flag_ops[0].source == "bank"
+        assert flag_ops[0].transaction is not None
+        assert flag_ops[0].candidates is not None
+        assert len(flag_ops[0].candidates) == 2
+        assert flag_ops[0].message is not None
+        assert "manual review" in flag_ops[0].message.lower()
 
     def test_reconcile_generates_delete_for_orphaned_ynab_tx(self) -> None:
         """Orphaned YNAB txs inside coverage generate delete ops; those outside do not."""
@@ -395,6 +396,6 @@ class TestReconcileNode:
         assert "test-checking" in results
         result = results["test-checking"]
 
-        delete_ops = [op for op in result.operations if op["type"] == "delete_ynab_transaction"]
+        delete_ops = [op for op in result.operations if isinstance(op, DeleteOp)]
         assert len(delete_ops) == 1, f"Expected 1 delete op, got {len(delete_ops)}: {delete_ops}"
-        assert delete_ops[0]["transaction"]["id"] == "ynab-mar-id"
+        assert delete_ops[0].transaction["id"] == "ynab-mar-id"

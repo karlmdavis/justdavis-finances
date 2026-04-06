@@ -17,6 +17,7 @@ from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, Imp
 from finances.bank_accounts.nodes.parse import parse_account_data
 from finances.bank_accounts.nodes.reconcile import reconcile_account_data
 from finances.bank_accounts.nodes.retrieve import retrieve_account_data
+from finances.bank_accounts.operations import CreateOp, FlagOp
 from finances.core import FinancialDate, Money
 
 
@@ -188,32 +189,28 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
     operations = list(result.operations)
 
     # Should have 2 create_transaction operations (AMAZON and PAYMENT don't match)
-    create_ops = [op for op in operations if op["type"] == "create_transaction"]
+    create_ops = [op for op in operations if isinstance(op, CreateOp)]
     assert len(create_ops) == 2
 
     # Verify create_transaction operations have correct structure
     for create_op in create_ops:
-        assert create_op["source"] == "bank"
-        assert "transaction" in create_op
-        assert "account_id" in create_op
-        assert create_op["account_id"] == "test-account-123"
+        assert create_op.source == "bank"
+        assert create_op.transaction is not None
+        assert create_op.account_id == "test-account-123"
 
         # Verify transaction has required fields
-        tx = create_op["transaction"]
-        assert "transaction_date" in tx
-        assert "posted_date" in tx
-        assert "description" in tx
-        assert "amount_milliunits" in tx
-        assert "type" in tx
-        assert "category" in tx
+        tx = create_op.transaction
+        assert tx.transaction_date is not None or tx.posted_date is not None
+        assert tx.description is not None
+        assert tx.amount is not None
 
     # Verify the specific unmatched transactions
-    descriptions = [op["transaction"]["description"] for op in create_ops]
+    descriptions = [op.transaction.description for op in create_ops]
     assert "AMAZON MKTPL" in descriptions
     assert "PAYMENT RECEIVED" in descriptions
 
     # Verify amounts (in milliunits)
-    amounts = [op["transaction"]["amount_milliunits"] for op in create_ops]
+    amounts = [op.transaction.amount.to_milliunits() for op in create_ops]
     assert -123450 in amounts  # AMAZON: -$123.45 in milliunits
     assert 500000 in amounts  # PAYMENT: +$500.00 in milliunits
 
@@ -318,7 +315,7 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
 
     # Should have ZERO create_transaction operations (all matched)
     operations = list(result.operations)
-    create_ops = [op for op in operations if op["type"] == "create_transaction"]
+    create_ops = [op for op in operations if isinstance(op, CreateOp)]
     assert len(create_ops) == 0
 
     # Verify no unmatched transactions
@@ -431,19 +428,18 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
 
     # Should have ONE flag_discrepancy operation (ambiguous match)
     operations = list(result.operations)
-    flag_ops = [op for op in operations if op["type"] == "flag_discrepancy"]
+    flag_ops = [op for op in operations if isinstance(op, FlagOp)]
     assert len(flag_ops) == 1
 
     # Verify flag_discrepancy structure
     flag_op = flag_ops[0]
-    assert flag_op["source"] == "bank"
-    assert "transaction" in flag_op
-    assert "candidates" in flag_op
-    assert "message" in flag_op
-    assert flag_op["message"] == "Multiple possible matches - manual review required"
+    assert flag_op.source == "bank"
+    assert flag_op.transaction is not None
+    assert flag_op.candidates is not None
+    assert flag_op.message == "Multiple possible matches - manual review required"
 
     # Verify candidates list contains all 3 YNAB transactions
-    candidates = flag_op["candidates"]
+    candidates = flag_op.candidates
     assert len(candidates) == 3
 
     # Verify candidate structure

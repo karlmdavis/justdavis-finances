@@ -9,6 +9,7 @@ from typing import Any
 
 from finances.bank_accounts.matching import make_import_id
 from finances.bank_accounts.models import BankAccountsConfig
+from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp, op_from_dict
 from finances.core import Money
 from finances.core.json_utils import read_json
 
@@ -37,25 +38,26 @@ def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]
 
     Returns:
         {slug: {
-            "creates": {date: [op, ...]},
-            "flags": {date: [op, ...]},
-            "deletes": {date: [op, ...]},
+            "creates": {date: [CreateOp, ...]},
+            "flags": {date: [FlagOp, ...]},
+            "deletes": {date: [DeleteOp, ...]},
         }}
     """
     result: dict[str, dict[str, Any]] = {}
     for slug, account_data in accounts_data.items():
-        creates: dict[str, list[dict[str, Any]]] = {}
-        flags: dict[str, list[dict[str, Any]]] = {}
-        deletes: dict[str, list[dict[str, Any]]] = {}
-        for op in account_data.get("operations", []):
-            if op.get("type") == "create_transaction":
-                date = op["transaction"].get("posted_date", "")
+        creates: dict[str, list[CreateOp]] = {}
+        flags: dict[str, list[FlagOp]] = {}
+        deletes: dict[str, list[DeleteOp]] = {}
+        for raw_op in account_data.get("operations", []):
+            op = op_from_dict(raw_op)
+            if isinstance(op, CreateOp):
+                date = str(op.transaction.posted_date)
                 creates.setdefault(date, []).append(op)
-            elif op.get("type") == "flag_discrepancy":
-                date = op["transaction"].get("posted_date", "")
+            elif isinstance(op, FlagOp):
+                date = str(op.transaction.posted_date)
                 flags.setdefault(date, []).append(op)
-            elif op.get("type") == "delete_ynab_transaction":
-                date = op["transaction"].get("date", "")
+            elif isinstance(op, DeleteOp):
+                date = op.transaction.get("date", "")
                 deletes.setdefault(date, []).append(op)
         result[slug] = {
             "creates": creates,
@@ -65,14 +67,13 @@ def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]
     return result
 
 
-def _build_file_payload(ops: list[dict[str, Any]], account_id: str, slug: str) -> list[dict[str, Any]]:
+def _build_file_payload(ops: list[CreateOp], account_id: str, slug: str) -> list[dict[str, Any]]:
     """Build list of transaction dicts for ynab create transaction --file -."""
     payload = []
     for op in ops:
-        bank_tx = op["transaction"]
-        posted_date = bank_tx["posted_date"]
-        amount_milliunits = bank_tx["amount_milliunits"]
-        payee_name = bank_tx.get("merchant") or bank_tx["description"]
+        posted_date = str(op.transaction.posted_date)
+        amount_milliunits = op.transaction.amount.to_milliunits()
+        payee_name = op.transaction.merchant or op.transaction.description
         import_id = _get_import_id(op, slug)
         payload.append(
             {
@@ -87,21 +88,20 @@ def _build_file_payload(ops: list[dict[str, Any]], account_id: str, slug: str) -
     return payload
 
 
-def _get_import_id(op: dict[str, Any], slug: str) -> str:
+def _get_import_id(op: CreateOp, slug: str) -> str:
     """Compute the stable import ID for a create_transaction operation."""
-    bank_tx = op["transaction"]
     return make_import_id(
         slug,
-        bank_tx["posted_date"],
-        bank_tx["amount_milliunits"],
-        bank_tx["description"],
-        op.get("import_id_seq", 0),
+        str(op.transaction.posted_date),
+        op.transaction.amount.to_milliunits(),
+        op.transaction.description,
+        op.import_id_seq,
     )
 
 
-def _display_create_batch(date: str, ops: list[dict[str, Any]], slug: str) -> None:
+def _display_create_batch(date: str, ops: list[CreateOp], slug: str) -> None:
     """Display a CREATE batch header with line items."""
-    total = sum(op["transaction"]["amount_milliunits"] for op in ops)
+    total = sum(op.transaction.amount.to_milliunits() for op in ops)
     total_display = ("+" if total >= 0 else "") + str(Money.from_milliunits(total))
     n = len(ops)
     noun = f"{n} Transaction{'s' if n != 1 else ''}"
@@ -110,11 +110,11 @@ def _display_create_batch(date: str, ops: list[dict[str, Any]], slug: str) -> No
     print(f"    Total: {total_display}")
     print()
     for i, op in enumerate(ops, 1):
-        bank_tx = op["transaction"]
-        amount_display = ("+" if bank_tx["amount_milliunits"] >= 0 else "") + str(
-            Money.from_milliunits(bank_tx["amount_milliunits"])
+        amount_milliunits = op.transaction.amount.to_milliunits()
+        amount_display = ("+" if amount_milliunits >= 0 else "") + str(
+            Money.from_milliunits(amount_milliunits)
         )
-        payee_name = bank_tx.get("merchant") or bank_tx["description"]
+        payee_name = op.transaction.merchant or op.transaction.description
         print(f"    {i}. Amount: {amount_display}")
         print(f"       Payee:  {payee_name}")
     print()
@@ -122,11 +122,10 @@ def _display_create_batch(date: str, ops: list[dict[str, Any]], slug: str) -> No
     print(f"                       ({n} transaction{'s' if n != 1 else ''} specified as JSON via STDIN)")
 
 
-def _display_individual_create(date: str, op: dict[str, Any], account_id: str, slug: str) -> None:
+def _display_individual_create(date: str, op: CreateOp, account_id: str, slug: str) -> None:
     """Display a single CREATE item for individual review."""
-    bank_tx = op["transaction"]
-    amount_milliunits = bank_tx["amount_milliunits"]
-    payee_name = bank_tx.get("merchant") or bank_tx["description"]
+    amount_milliunits = op.transaction.amount.to_milliunits()
+    payee_name = op.transaction.merchant or op.transaction.description
     import_id = _get_import_id(op, slug)
     amount_display = ("+" if amount_milliunits >= 0 else "") + str(Money.from_milliunits(amount_milliunits))
     print()
@@ -144,7 +143,7 @@ def _display_individual_create(date: str, op: dict[str, Any], account_id: str, s
     print(f'                       --import-id "{import_id}"')
 
 
-def _display_flag_batch(date: str, ops: list[dict[str, Any]]) -> None:
+def _display_flag_batch(date: str, ops: list[FlagOp]) -> None:
     """Display a FLAG batch header with candidate listings."""
     n = len(ops)
     noun = f"{n} Transaction{'s' if n != 1 else ''}"
@@ -153,12 +152,12 @@ def _display_flag_batch(date: str, ops: list[dict[str, Any]]) -> None:
     print("    These bank transactions matched multiple YNAB entries — resolve manually in YNAB.")
     print()
     for i, op in enumerate(ops, 1):
-        bank_tx = op["transaction"]
-        amount_display = ("+" if bank_tx["amount_milliunits"] >= 0 else "") + str(
-            Money.from_milliunits(bank_tx["amount_milliunits"])
+        amount_milliunits = op.transaction.amount.to_milliunits()
+        amount_display = ("+" if amount_milliunits >= 0 else "") + str(
+            Money.from_milliunits(amount_milliunits)
         )
-        merchant = bank_tx.get("merchant") or bank_tx["description"]
-        candidates = op.get("candidates", [])
+        merchant = op.transaction.merchant or op.transaction.description
+        candidates = list(op.candidates)
         print(f"    {i}. Amount: {amount_display}")
         print(f"       Payee:  {merchant}")
         print("       Candidate Matching Transactions in YNAB:")
@@ -221,7 +220,7 @@ def _prompt_acknowledge_batch() -> str:
     return "n" if response == "n" else "a"
 
 
-def _display_delete_batch(date: str, ops: list[dict[str, Any]], ynab_delete_log_path: Path) -> None:
+def _display_delete_batch(date: str, ops: list[DeleteOp], ynab_delete_log_path: Path) -> None:
     """Display a DELETE batch header with line items."""
     n = len(ops)
     noun = f"{n} Transaction{'s' if n != 1 else ''}"
@@ -230,7 +229,7 @@ def _display_delete_batch(date: str, ops: list[dict[str, Any]], ynab_delete_log_
     print("    These YNAB entries have no corresponding bank transaction.")
     print()
     for i, op in enumerate(ops, 1):
-        ynab_tx = op["transaction"]
+        ynab_tx = op.transaction
         amount_display = ("+" if ynab_tx["amount"] >= 0 else "") + str(
             Money.from_milliunits(ynab_tx["amount"])
         )
@@ -248,9 +247,9 @@ def _display_delete_batch(date: str, ops: list[dict[str, Any]], ynab_delete_log_
     print(f"                       --delete-log {ynab_delete_log_path}")
 
 
-def _display_individual_delete(date: str, op: dict[str, Any], ynab_delete_log_path: Path) -> None:
+def _display_individual_delete(date: str, op: DeleteOp, ynab_delete_log_path: Path) -> None:
     """Display a single DELETE item for individual review."""
-    ynab_tx = op["transaction"]
+    ynab_tx = op.transaction
     amount_display = ("+" if ynab_tx["amount"] >= 0 else "") + str(Money.from_milliunits(ynab_tx["amount"]))
     payee = ynab_tx.get("payee_name", "(unknown)")
     ynab_id = ynab_tx.get("id", "")
@@ -400,44 +399,40 @@ def apply_reconciliation_operations(
                 # Log all ops as skipped
                 for _date, ops in sorted(flags.items()):
                     for op in ops:
-                        bank_tx = op["transaction"]
-                        candidates = op.get("candidates", [])
-                        candidate_names = [c.get("payee_name", "(unknown)") for c in candidates]
+                        candidate_names = [c.get("payee_name", "(unknown)") for c in op.candidates]
                         write_log(
                             {
                                 "op_type": "flag_discrepancy",
                                 "action": "skipped",
                                 "account_slug": slug,
-                                "posted_date": bank_tx["posted_date"],
-                                "amount_milliunits": bank_tx["amount_milliunits"],
+                                "posted_date": str(op.transaction.posted_date),
+                                "amount_milliunits": op.transaction.amount.to_milliunits(),
                                 "candidates": candidate_names,
                             }
                         )
                         counts["skipped"] += 1
                 for _date, ops in sorted(deletes.items()):
                     for op in ops:
-                        ynab_tx = op["transaction"]
                         write_log(
                             {
                                 "op_type": "delete_ynab_transaction",
                                 "action": "skipped",
                                 "account_slug": slug,
-                                "transaction": ynab_tx,
+                                "transaction": op.transaction,
                             }
                         )
                         counts["skipped"] += 1
                 for _date, ops in sorted(creates.items()):
                     for op in ops:
-                        bank_tx = op["transaction"]
                         import_id = _get_import_id(op, slug)
-                        payee_name = bank_tx.get("merchant") or bank_tx["description"]
+                        payee_name = op.transaction.merchant or op.transaction.description
                         write_log(
                             {
                                 "op_type": "create_transaction",
                                 "action": "skipped",
                                 "account_slug": slug,
-                                "posted_date": bank_tx["posted_date"],
-                                "amount_milliunits": bank_tx["amount_milliunits"],
+                                "posted_date": str(op.transaction.posted_date),
+                                "amount_milliunits": op.transaction.amount.to_milliunits(),
                                 "payee_name": payee_name,
                                 "import_id": import_id,
                                 "included_in_batch": True,
@@ -452,16 +447,14 @@ def apply_reconciliation_operations(
                 action = _prompt_acknowledge_batch()
                 log_action = "acknowledged" if action == "a" else "skipped"
                 for op in batch_ops:
-                    bank_tx = op["transaction"]
-                    candidates = op.get("candidates", [])
-                    candidate_names = [c.get("payee_name", "(unknown)") for c in candidates]
+                    candidate_names = [c.get("payee_name", "(unknown)") for c in op.candidates]
                     write_log(
                         {
                             "op_type": "flag_discrepancy",
                             "action": log_action,
                             "account_slug": slug,
-                            "posted_date": bank_tx["posted_date"],
-                            "amount_milliunits": bank_tx["amount_milliunits"],
+                            "posted_date": str(op.transaction.posted_date),
+                            "amount_milliunits": op.transaction.amount.to_milliunits(),
                             "candidates": candidate_names,
                         }
                     )
@@ -477,7 +470,7 @@ def apply_reconciliation_operations(
 
                 if action == "y":
                     for op in batch_ops:
-                        ynab_tx = op["transaction"]
+                        ynab_tx = op.transaction
                         ynab_id = ynab_tx.get("id", "")
                         del_proc = subprocess.run(
                             [
@@ -518,7 +511,7 @@ def apply_reconciliation_operations(
                 elif action == "s":
                     # Individual review
                     for op in batch_ops:
-                        ynab_tx = op["transaction"]
+                        ynab_tx = op.transaction
                         ynab_id = ynab_tx.get("id", "")
                         _display_individual_delete(date, op, ynab_delete_log_path)
                         if _prompt_apply_individual():
@@ -571,13 +564,12 @@ def apply_reconciliation_operations(
 
                 else:  # n
                     for op in batch_ops:
-                        ynab_tx = op["transaction"]
                         write_log(
                             {
                                 "op_type": "delete_ynab_transaction",
                                 "action": "skipped",
                                 "account_slug": slug,
-                                "transaction": ynab_tx,
+                                "transaction": op.transaction,
                             }
                         )
                         counts["skipped"] += 1
@@ -605,16 +597,15 @@ def apply_reconciliation_operations(
                     if exit_code != 0:
                         print(f"  ERROR: ynab exited with code {exit_code}")
                         for op in batch_ops:
-                            bank_tx = op["transaction"]
                             import_id = _get_import_id(op, slug)
-                            payee_name = bank_tx.get("merchant") or bank_tx["description"]
+                            payee_name = op.transaction.merchant or op.transaction.description
                             write_log(
                                 {
                                     "op_type": "create_transaction",
                                     "action": "failed",
                                     "account_slug": slug,
-                                    "posted_date": bank_tx["posted_date"],
-                                    "amount_milliunits": bank_tx["amount_milliunits"],
+                                    "posted_date": str(op.transaction.posted_date),
+                                    "amount_milliunits": op.transaction.amount.to_milliunits(),
                                     "payee_name": payee_name,
                                     "import_id": import_id,
                                     "ynab_exit_code": exit_code,
@@ -624,17 +615,16 @@ def apply_reconciliation_operations(
                             counts["failed"] += 1
                     else:
                         for op in batch_ops:
-                            bank_tx = op["transaction"]
                             import_id = _get_import_id(op, slug)
-                            payee_name = bank_tx.get("merchant") or bank_tx["description"]
+                            payee_name = op.transaction.merchant or op.transaction.description
                             if import_id in duplicate_ids:
                                 write_log(
                                     {
                                         "op_type": "create_transaction",
                                         "action": "duplicate_skipped",
                                         "account_slug": slug,
-                                        "posted_date": bank_tx["posted_date"],
-                                        "amount_milliunits": bank_tx["amount_milliunits"],
+                                        "posted_date": str(op.transaction.posted_date),
+                                        "amount_milliunits": op.transaction.amount.to_milliunits(),
                                         "payee_name": payee_name,
                                         "import_id": import_id,
                                         "ynab_exit_code": 0,
@@ -648,8 +638,8 @@ def apply_reconciliation_operations(
                                         "op_type": "create_transaction",
                                         "action": "applied",
                                         "account_slug": slug,
-                                        "posted_date": bank_tx["posted_date"],
-                                        "amount_milliunits": bank_tx["amount_milliunits"],
+                                        "posted_date": str(op.transaction.posted_date),
+                                        "amount_milliunits": op.transaction.amount.to_milliunits(),
                                         "payee_name": payee_name,
                                         "import_id": import_id,
                                         "ynab_exit_code": 0,
@@ -661,10 +651,9 @@ def apply_reconciliation_operations(
                 elif action == "s":
                     # Individual review
                     for op in batch_ops:
-                        bank_tx = op["transaction"]
-                        posted_date = bank_tx["posted_date"]
-                        amount_milliunits = bank_tx["amount_milliunits"]
-                        payee_name = bank_tx.get("merchant") or bank_tx["description"]
+                        posted_date = str(op.transaction.posted_date)
+                        amount_milliunits = op.transaction.amount.to_milliunits()
+                        payee_name = op.transaction.merchant or op.transaction.description
                         import_id = _get_import_id(op, slug)
 
                         _display_individual_create(posted_date, op, account_id, slug)
@@ -761,16 +750,15 @@ def apply_reconciliation_operations(
 
                 else:  # n
                     for op in batch_ops:
-                        bank_tx = op["transaction"]
                         import_id = _get_import_id(op, slug)
-                        payee_name = bank_tx.get("merchant") or bank_tx["description"]
+                        payee_name = op.transaction.merchant or op.transaction.description
                         write_log(
                             {
                                 "op_type": "create_transaction",
                                 "action": "skipped",
                                 "account_slug": slug,
-                                "posted_date": bank_tx["posted_date"],
-                                "amount_milliunits": bank_tx["amount_milliunits"],
+                                "posted_date": str(op.transaction.posted_date),
+                                "amount_milliunits": op.transaction.amount.to_milliunits(),
                                 "payee_name": payee_name,
                                 "import_id": import_id,
                                 "included_in_batch": False,
