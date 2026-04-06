@@ -17,6 +17,11 @@ from finances.bank_accounts.operations import CandidateMatch, CreateOp, DeleteOp
 from finances.core import FinancialDate, Money
 from finances.core.json_utils import read_json
 
+# YNAB's internal payee name for the initial balance entry on every account.
+# Kept as a module-level constant so the delete-op guard is testable without magic strings.
+# Source: YNAB API documentation / observed YNAB export behavior.
+YNAB_STARTING_BALANCE_PAYEE = "Starting Balance"
+
 
 def _classify_mismatch_reason(
     ynab_tx_date: FinancialDate,
@@ -256,7 +261,7 @@ def reconcile_account_data(
                 continue
             if ynab_tx.is_transfer:
                 continue
-            if ynab_tx.payee_name == "Starting Balance":
+            if ynab_tx.payee_name == YNAB_STARTING_BALANCE_PAYEE:
                 continue
             if ynab_tx.id is None:
                 raise ValueError(

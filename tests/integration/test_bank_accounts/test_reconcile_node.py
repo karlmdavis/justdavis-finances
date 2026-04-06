@@ -13,6 +13,7 @@ from finances.bank_accounts.models import (
     ImportPattern,
 )
 from finances.bank_accounts.nodes import reconcile_account_data
+from finances.bank_accounts.nodes.reconcile import YNAB_STARTING_BALANCE_PAYEE
 from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp
 from finances.core import FinancialDate, Money
 from finances.core.json_utils import write_json
@@ -391,3 +392,64 @@ class TestReconcileNode:
         delete_ops = [op for op in result.operations if isinstance(op, DeleteOp)]
         assert len(delete_ops) == 1, f"Expected 1 delete op, got {len(delete_ops)}: {delete_ops}"
         assert delete_ops[0].transaction["id"] == "ynab-mar-id"
+
+    def test_starting_balance_within_coverage_is_not_deleted(self) -> None:
+        """A 'Starting Balance' YNAB entry inside coverage does not produce a DeleteOp.
+
+        YNAB creates a Starting Balance entry for every account.
+        Deleting it would corrupt the account balance, so the reconcile node
+        explicitly guards against it using YNAB_STARTING_BALANCE_PAYEE.
+        """
+        config = BankAccountsConfig(
+            accounts=(
+                AccountConfig(
+                    ynab_account_id="acct_sb",
+                    ynab_account_name="Test Checking",
+                    slug="test-checking",
+                    bank_name="Test Bank",
+                    source_directory="/tmp/source",  # noqa: S108
+                    download_instructions="N/A",
+                    import_patterns=(ImportPattern(pattern="*.csv", format_handler="test_csv"),),
+                ),
+            )
+        )
+
+        normalized_dir = self.base_dir / "normalized"
+        normalized_dir.mkdir(exist_ok=True)
+
+        # One bank tx is required so the account is not skipped during reconcile
+        dummy_bank_tx = BankTransaction(
+            posted_date=FinancialDate.from_string("2024-01-15"),
+            description="Coffee Shop",
+            amount=Money.from_cents(-500),
+        )
+        normalized_data = {
+            "transactions": [dummy_bank_tx.to_dict()],
+            "balance_points": [],
+            "coverage_intervals": [{"start_date": "2024-01-01", "end_date": "2024-01-31"}],
+        }
+        write_json(normalized_dir / "2024-01-01_00-00-00_test-checking.json", normalized_data)
+
+        # Starting Balance entry inside the coverage window
+        starting_balance_tx = MatchingYnabTransaction(
+            date=FinancialDate.from_string("2024-01-01"),
+            amount=Money.from_cents(100000),
+            payee_name=YNAB_STARTING_BALANCE_PAYEE,
+            account_id="acct_sb",
+            id="ynab-starting-balance-id",
+        )
+
+        raw_ynab_by_id = {
+            "ynab-starting-balance-id": {
+                "id": "ynab-starting-balance-id",
+                "date": "2024-01-01",
+                "amount": 1000000,
+                "payee_name": YNAB_STARTING_BALANCE_PAYEE,
+            }
+        }
+
+        results = reconcile_account_data(config, self.base_dir, [starting_balance_tx], raw_ynab_by_id)
+
+        result = results["test-checking"]
+        delete_ops = [op for op in result.operations if isinstance(op, DeleteOp)]
+        assert len(delete_ops) == 0, "Starting Balance entry must not generate a DeleteOp"
