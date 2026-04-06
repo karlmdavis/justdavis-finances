@@ -198,8 +198,12 @@ def reconcile_account_data(
             if match_result.match_type in ("exact", "fuzzy") and match_result.ynab_transaction:
                 remaining_ynab.remove(match_result.ynab_transaction)
 
-        # Track unmatched transactions
-        unmatched_bank_txs = [tx for tx, result, _seq in bank_match_entries if result.match_type == "none"]
+        # Track unmatched transactions.
+        # Ambiguous bank txs are included here: they generate a FlagOp but the bank still
+        # recorded these transactions, so they must count toward balance adjustment.
+        unmatched_bank_txs = [
+            tx for tx, result, _seq in bank_match_entries if result.match_type in ("none", "ambiguous")
+        ]
         unmatched_ynab_txs = remaining_ynab  # whatever wasn't claimed
 
         # 3. Generate operations
