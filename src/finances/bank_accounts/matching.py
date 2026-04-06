@@ -18,7 +18,7 @@ Architecture:
         Ambiguous: multiple candidates with similar scores (requires manual review)
 
 Configuration:
-    FUZZY_MATCH_CONFIDENCE_THRESHOLD: 0.75 (configurable)
+    FUZZY_MATCH_CONFIDENCE_THRESHOLD: 7500 basis points (= 0.75; integer 0-10000)
         - Scores above threshold → fuzzy match
         - Scores below threshold → ambiguous (manual review)
 
@@ -95,8 +95,8 @@ def make_import_id(
     return str(uuid.uuid5(_IMPORT_ID_NS, name))
 
 
-# Fuzzy matching configuration
-FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.75
+# Fuzzy matching configuration (basis points: 0-10000; 7500 = 0.75)
+FUZZY_MATCH_CONFIDENCE_THRESHOLD = 7500
 
 # Maximum days between bank clearing date and YNAB initiation date for transfer matching
 _TRANSFER_DATE_WINDOW_DAYS = 5
@@ -156,9 +156,9 @@ class MatchResult:
 
     match_type: MatchType
     ynab_transaction: MatchingYnabTransaction | None = None
-    confidence: float | None = None  # 0.0-1.0
+    confidence: int | None = None  # basis points 0-10000
     candidates: tuple[MatchingYnabTransaction, ...] | None = None
-    similarity_scores: tuple[float, ...] | None = None
+    similarity_scores: tuple[int, ...] | None = None
 
 
 def normalize_description(text: str) -> str:
@@ -255,7 +255,7 @@ def _by_transfer_window(
 
 def _pick_best(bank_tx: BankTransaction, candidates: list[MatchingYnabTransaction]) -> MatchResult:
     """Resolve multiple candidates via fuzzy description matching."""
-    scores: list[tuple[MatchingYnabTransaction, float]] = []
+    scores: list[tuple[MatchingYnabTransaction, int]] = []
     for ynab_tx in candidates:
         # Prefer merchant field (clean, matches YNAB payee names) over verbose description
         bank_desc = normalize_description(bank_tx.merchant if bank_tx.merchant else bank_tx.description)
@@ -265,7 +265,7 @@ def _pick_best(bank_tx: BankTransaction, candidates: list[MatchingYnabTransactio
         ynab_desc = normalize_description(ynab_tx.payee_name or "")
         ynab_desc = YNAB_PAYEE_EXPANSIONS.get(ynab_desc, ynab_desc)  # expand if known abbreviation
 
-        score = SequenceMatcher(None, bank_desc, ynab_desc).ratio()
+        score = int(SequenceMatcher(None, bank_desc, ynab_desc).ratio() * 10000)
         scores.append((ynab_tx, score))
 
     best_match, best_score = max(scores, key=lambda x: x[1])
@@ -353,5 +353,5 @@ def find_matches(
     if not candidates:
         return MatchResult(match_type="none")
     if len(candidates) == 1:
-        return MatchResult(match_type="exact", ynab_transaction=candidates[0], confidence=1.0)
+        return MatchResult(match_type="exact", ynab_transaction=candidates[0], confidence=10000)
     return _pick_best(bank_tx, candidates)

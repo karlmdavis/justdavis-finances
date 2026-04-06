@@ -45,7 +45,7 @@ def test_exact_match_single():
 
     assert result.match_type == "exact"
     assert result.ynab_transaction == ynab_txs[0]
-    assert result.confidence == 1.0
+    assert result.confidence == 10000
     assert result.candidates is None
     assert result.similarity_scores is None
 
@@ -292,7 +292,7 @@ def test_transaction_date_fallback_when_posted_date_misses():
 
     assert result.match_type == "exact"
     assert result.ynab_transaction == ynab_txs[0]
-    assert result.confidence == 1.0
+    assert result.confidence == 10000
 
 
 def test_posted_date_preferred_over_transaction_date():
@@ -376,7 +376,7 @@ def test_transfer_date_window_matches_payment():
 
     assert result.match_type == "exact"
     assert result.ynab_transaction == ynab_txs[0]
-    assert result.confidence == 1.0
+    assert result.confidence == 10000
 
 
 def test_transfer_date_window_not_used_for_non_transfers():
@@ -541,7 +541,7 @@ def test_ynab_date_offset_matches_when_posted_date_misses():
 
     assert result.match_type == "exact"
     assert result.ynab_transaction == ynab_txs[0]
-    assert result.confidence == 1.0
+    assert result.confidence == 10000
 
 
 def test_ynab_date_offset_zero_not_triggered():
@@ -761,7 +761,7 @@ def test_same_date_same_amount_different_payee_with_user_memos():
     result2 = find_matches(bank2, remaining)
     assert result2.match_type == "exact", f"Expected exact, got {result2.match_type}"
     assert result2.ynab_transaction == ynab2
-    assert result2.confidence == 1.0
+    assert result2.confidence == 10000
 
     # Both YNAB transactions are claimed — nothing left unmatched
     remaining = [tx for tx in remaining if tx is not result2.ynab_transaction]
@@ -803,7 +803,7 @@ def test_import_posted_date_fallback_matches_manually_entered_ynab_tx():
 
     assert result.match_type == "exact"
     assert result.ynab_transaction == ynab_tx
-    assert result.confidence == 1.0
+    assert result.confidence == 10000
 
 
 def test_expresscare_brand_name_expansion():
