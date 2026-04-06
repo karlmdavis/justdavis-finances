@@ -190,7 +190,7 @@ class BankAccountsConfig:
                 # Save stub to file
                 write_json(config_path_obj, stub_config.to_dict())
 
-                print(f"\n✓ Created stub configuration at {config_path_obj}")
+                print(f"\n[OK] Created stub configuration at {config_path_obj}")
                 print("  Please edit this file and replace all TODO_REQUIRED values.")
                 print("  See docs/bank-accounts-reconciliation.md for details.\n")
 
