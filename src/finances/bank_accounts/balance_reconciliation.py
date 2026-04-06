@@ -36,11 +36,13 @@ def reconcile_balance_point(
     Returns:
         BalanceReconciliationPoint with adjusted balances and reconciliation status
     """
+    # Add each side's unmatched transactions to its own balance.
+    # Both sums are negative for net-expense unmatched sets, so this lowers the adjusted
+    # balance on the side that has extra transactions, normalizing both to the same
+    # agreed-upon settled set.  When the two adjusted balances are equal the account
+    # is reconciled: every remaining difference is explained by a known unmatched item.
     adjusted_bank = bank_balance + bank_txs_not_in_ynab
-    # bank_txs_not_in_ynab is negative for expenses → effectively removes those
-    # txs from the bank balance so both sides represent the same agreed-upon set
     adjusted_ynab = ynab_balance + ynab_txs_not_in_bank
-    # ynab_txs_not_in_bank is negative for expenses → same reasoning as above
     difference = adjusted_bank - adjusted_ynab
 
     return BalanceReconciliationPoint(
