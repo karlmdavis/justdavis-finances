@@ -157,14 +157,14 @@ def test_balance_reconciliation_point_serialization():
 
     data = point.to_dict()
     assert data["date"] == "2024-12-31"
-    assert data["bank_balance"] == -18283090
-    assert data["ynab_balance"] == -18146060
-    assert data["bank_txs_not_in_ynab"] == -137030
-    assert data["ynab_txs_not_in_bank"] == 0
-    assert data["adjusted_bank_balance"] == -18146060
-    assert data["adjusted_ynab_balance"] == -18146060
+    assert data["bank_balance_milliunits"] == -18283090
+    assert data["ynab_balance_milliunits"] == -18146060
+    assert data["bank_txs_not_in_ynab_milliunits"] == -137030
+    assert data["ynab_txs_not_in_bank_milliunits"] == 0
+    assert data["adjusted_bank_balance_milliunits"] == -18146060
+    assert data["adjusted_ynab_balance_milliunits"] == -18146060
     assert data["is_reconciled"] is True
-    assert data["difference"] == 0
+    assert data["difference_milliunits"] == 0
 
     restored = BalanceReconciliationPoint.from_dict(data)
     assert restored == point

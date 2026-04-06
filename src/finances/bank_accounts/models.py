@@ -325,17 +325,17 @@ class BalanceReconciliationPoint:
     difference: Money  # adjusted_bank - adjusted_ynab
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize for output."""
+        """Serialize for output. All monetary fields are in milliunits."""
         return {
             "date": str(self.date),
-            "bank_balance": self.bank_balance.to_milliunits(),
-            "ynab_balance": self.ynab_balance.to_milliunits(),
-            "bank_txs_not_in_ynab": self.bank_txs_not_in_ynab.to_milliunits(),
-            "ynab_txs_not_in_bank": self.ynab_txs_not_in_bank.to_milliunits(),
-            "adjusted_bank_balance": self.adjusted_bank_balance.to_milliunits(),
-            "adjusted_ynab_balance": self.adjusted_ynab_balance.to_milliunits(),
+            "bank_balance_milliunits": self.bank_balance.to_milliunits(),
+            "ynab_balance_milliunits": self.ynab_balance.to_milliunits(),
+            "bank_txs_not_in_ynab_milliunits": self.bank_txs_not_in_ynab.to_milliunits(),
+            "ynab_txs_not_in_bank_milliunits": self.ynab_txs_not_in_bank.to_milliunits(),
+            "adjusted_bank_balance_milliunits": self.adjusted_bank_balance.to_milliunits(),
+            "adjusted_ynab_balance_milliunits": self.adjusted_ynab_balance.to_milliunits(),
             "is_reconciled": self.is_reconciled,
-            "difference": self.difference.to_milliunits(),
+            "difference_milliunits": self.difference.to_milliunits(),
         }
 
     @classmethod
@@ -343,14 +343,14 @@ class BalanceReconciliationPoint:
         """Deserialize from dict."""
         return cls(
             date=FinancialDate.from_string(data["date"]),
-            bank_balance=Money.from_milliunits(data["bank_balance"]),
-            ynab_balance=Money.from_milliunits(data["ynab_balance"]),
-            bank_txs_not_in_ynab=Money.from_milliunits(data["bank_txs_not_in_ynab"]),
-            ynab_txs_not_in_bank=Money.from_milliunits(data["ynab_txs_not_in_bank"]),
-            adjusted_bank_balance=Money.from_milliunits(data["adjusted_bank_balance"]),
-            adjusted_ynab_balance=Money.from_milliunits(data["adjusted_ynab_balance"]),
+            bank_balance=Money.from_milliunits(data["bank_balance_milliunits"]),
+            ynab_balance=Money.from_milliunits(data["ynab_balance_milliunits"]),
+            bank_txs_not_in_ynab=Money.from_milliunits(data["bank_txs_not_in_ynab_milliunits"]),
+            ynab_txs_not_in_bank=Money.from_milliunits(data["ynab_txs_not_in_bank_milliunits"]),
+            adjusted_bank_balance=Money.from_milliunits(data["adjusted_bank_balance_milliunits"]),
+            adjusted_ynab_balance=Money.from_milliunits(data["adjusted_ynab_balance_milliunits"]),
             is_reconciled=data["is_reconciled"],
-            difference=Money.from_milliunits(data["difference"]),
+            difference=Money.from_milliunits(data["difference_milliunits"]),
         )
 
 
