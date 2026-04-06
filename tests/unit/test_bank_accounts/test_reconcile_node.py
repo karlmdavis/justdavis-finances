@@ -29,14 +29,24 @@ def _make_account(slug: str = "test-account", ynab_account_id: str = "acct-001")
 
 
 def _write_normalized(
-    base_dir: Path, slug: str, transactions: list[dict], balances: list[dict] | None = None
+    base_dir: Path,
+    slug: str,
+    transactions: list[dict],
+    balances: list[dict] | None = None,
+    coverage_intervals: list[dict] | None = None,
 ) -> None:
-    """Write a normalized JSON file for the given account slug."""
+    """Write a normalized JSON file for the given account slug.
+
+    coverage_intervals defaults to [] (empty), which causes the reconcile node to skip
+    delete-op generation for unmatched YNAB transactions. Pass a non-empty list to test
+    delete-op logic.
+    """
     normalized_dir = base_dir / "normalized"
     normalized_dir.mkdir(parents=True, exist_ok=True)
     data = {
         "transactions": transactions,
         "balance_points": balances or [],
+        "coverage_intervals": coverage_intervals or [],
     }
     (normalized_dir / f"2024-01-01_00-00-00_{slug}.json").write_text(json.dumps(data))
 
