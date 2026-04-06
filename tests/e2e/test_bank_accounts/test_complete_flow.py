@@ -176,7 +176,7 @@ def test_complete_bank_reconciliation_flow(tmp_data_dir, bank_config, ynab_trans
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
-        write_json(normalized_dir / f"{slug}.json", normalized_data)
+        write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
     # Step 3: Reconcile
     results = reconcile_account_data(bank_config, base_dir, ynab_transactions)
@@ -305,7 +305,7 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
-        write_json(normalized_dir / f"{slug}.json", normalized_data)
+        write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
     results = reconcile_account_data(config, base_dir, ynab_txs)
 
@@ -418,7 +418,7 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
-        write_json(normalized_dir / f"{slug}.json", normalized_data)
+        write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
     results = reconcile_account_data(config, base_dir, ynab_txs)
 
@@ -530,7 +530,7 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
             "balance_points": [b.to_dict() for b in result.balance_points],
             "transactions": [tx.to_dict() for tx in result.transactions],
         }
-        write_json(normalized_dir / f"{slug}.json", normalized_data)
+        write_json(normalized_dir / f"2024-01-01_00-00-00_{slug}.json", normalized_data)
 
     results = reconcile_account_data(config, base_dir, [])
 

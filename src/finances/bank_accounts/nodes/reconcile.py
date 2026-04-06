@@ -142,20 +142,13 @@ def reconcile_account_data(
         # 1. Load normalized bank data using timestamped files (Pattern C)
         normalized_dir = base_dir / "normalized"
 
-        # Find all files for this account (timestamped or non-timestamped)
-        timestamped_files = list(normalized_dir.glob(f"*_{account.slug}.json"))
-        non_timestamped_file = normalized_dir / f"{account.slug}.json"
-
-        account_files = timestamped_files
-        if non_timestamped_file.exists():
-            account_files.append(non_timestamped_file)
+        account_files = list(normalized_dir.glob(f"*_{account.slug}.json"))
 
         if not account_files:
             # Skip account if no normalized data exists
             continue
 
-        # Load most recent file for this account (by filename — ISO-prefixed names sort chronologically)
-        most_recent_file = max(account_files, key=lambda f: f.name)
+        most_recent_file = max(account_files, key=lambda f: f.stat().st_mtime)
         normalized_data = read_json(most_recent_file)
 
         bank_txs = [BankTransaction.from_dict(tx) for tx in normalized_data["transactions"]]

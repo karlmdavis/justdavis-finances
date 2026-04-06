@@ -40,7 +40,7 @@ def _write_normalized(
         "transactions": transactions,
         "balance_points": balances or [],
     }
-    (normalized_dir / f"{slug}.json").write_text(json.dumps(data))
+    (normalized_dir / f"2024-01-01_00-00-00_{slug}.json").write_text(json.dumps(data))
 
 
 def test_greedy_two_identical_bank_txs_claim_separate_ynab_txs():
