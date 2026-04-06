@@ -31,13 +31,6 @@ def _parse_duplicate_ids(stdout: str) -> set[str]:
         return set()
 
 
-def _format_amount(amount_milliunits: int) -> str:
-    """Format milliunits as display string e.g. -$12.99 or +$5.00."""
-    money = Money.from_milliunits(amount_milliunits)
-    prefix = "" if amount_milliunits < 0 else "+"
-    return f"{prefix}{money}"
-
-
 def _group_operations(accounts_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """
     Group operations by account slug, then by type and date.
@@ -109,7 +102,7 @@ def _get_import_id(op: dict[str, Any], slug: str) -> str:
 def _display_create_batch(date: str, ops: list[dict[str, Any]], slug: str) -> None:
     """Display a CREATE batch header with line items."""
     total = sum(op["transaction"]["amount_milliunits"] for op in ops)
-    total_display = _format_amount(total)
+    total_display = ("+" if total >= 0 else "") + str(Money.from_milliunits(total))
     n = len(ops)
     noun = f"{n} Transaction{'s' if n != 1 else ''}"
     print(f"\n  Create {noun} in Batch Operation?")
@@ -118,7 +111,9 @@ def _display_create_batch(date: str, ops: list[dict[str, Any]], slug: str) -> No
     print()
     for i, op in enumerate(ops, 1):
         bank_tx = op["transaction"]
-        amount_display = _format_amount(bank_tx["amount_milliunits"])
+        amount_display = ("+" if bank_tx["amount_milliunits"] >= 0 else "") + str(
+            Money.from_milliunits(bank_tx["amount_milliunits"])
+        )
         payee_name = bank_tx.get("merchant") or bank_tx["description"]
         print(f"    {i}. Amount: {amount_display}")
         print(f"       Payee:  {payee_name}")
@@ -133,7 +128,7 @@ def _display_individual_create(date: str, op: dict[str, Any], account_id: str, s
     amount_milliunits = bank_tx["amount_milliunits"]
     payee_name = bank_tx.get("merchant") or bank_tx["description"]
     import_id = _get_import_id(op, slug)
-    amount_display = _format_amount(amount_milliunits)
+    amount_display = ("+" if amount_milliunits >= 0 else "") + str(Money.from_milliunits(amount_milliunits))
     print()
     print("  Create Transaction Individually?")
     print(f"    Date:   {date}")
@@ -159,7 +154,9 @@ def _display_flag_batch(date: str, ops: list[dict[str, Any]]) -> None:
     print()
     for i, op in enumerate(ops, 1):
         bank_tx = op["transaction"]
-        amount_display = _format_amount(bank_tx["amount_milliunits"])
+        amount_display = ("+" if bank_tx["amount_milliunits"] >= 0 else "") + str(
+            Money.from_milliunits(bank_tx["amount_milliunits"])
+        )
         merchant = bank_tx.get("merchant") or bank_tx["description"]
         candidates = op.get("candidates", [])
         print(f"    {i}. Amount: {amount_display}")
@@ -170,7 +167,7 @@ def _display_flag_batch(date: str, ops: list[dict[str, Any]]) -> None:
             payee = candidate.get("payee_name", "(unknown)")
             cdate = candidate.get("date", "")
             camt = candidate.get("amount_milliunits", 0)
-            camt_display = _format_amount(camt)
+            camt_display = ("+" if camt >= 0 else "") + str(Money.from_milliunits(camt))
             print(f"         {label}. Payee:  {payee}")
             print(f"            Date:   {cdate}")
             print(f"            Amount: {camt_display}")
@@ -234,7 +231,9 @@ def _display_delete_batch(date: str, ops: list[dict[str, Any]], ynab_delete_log_
     print()
     for i, op in enumerate(ops, 1):
         ynab_tx = op["transaction"]
-        amount_display = _format_amount(ynab_tx["amount"])
+        amount_display = ("+" if ynab_tx["amount"] >= 0 else "") + str(
+            Money.from_milliunits(ynab_tx["amount"])
+        )
         payee = ynab_tx.get("payee_name", "(unknown)")
         ynab_id = ynab_tx.get("id", "")
         memo = ynab_tx.get("memo")
@@ -252,7 +251,7 @@ def _display_delete_batch(date: str, ops: list[dict[str, Any]], ynab_delete_log_
 def _display_individual_delete(date: str, op: dict[str, Any], ynab_delete_log_path: Path) -> None:
     """Display a single DELETE item for individual review."""
     ynab_tx = op["transaction"]
-    amount_display = _format_amount(ynab_tx["amount"])
+    amount_display = ("+" if ynab_tx["amount"] >= 0 else "") + str(Money.from_milliunits(ynab_tx["amount"]))
     payee = ynab_tx.get("payee_name", "(unknown)")
     ynab_id = ynab_tx.get("id", "")
     print()

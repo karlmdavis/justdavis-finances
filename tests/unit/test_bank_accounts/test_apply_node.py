@@ -9,7 +9,6 @@ from unittest.mock import patch
 from finances.bank_accounts.matching import make_import_id as _make_import_id
 from finances.bank_accounts.models import BankAccountsConfig
 from finances.bank_accounts.nodes.apply import (
-    _format_amount,
     apply_reconciliation_operations,
 )
 from finances.core.json_utils import write_json
@@ -84,21 +83,6 @@ def _make_flag_op(
         },
         "candidates": candidates,
     }
-
-
-# ---------------------------------------------------------------------------
-# _format_amount tests
-# ---------------------------------------------------------------------------
-
-
-def test_format_amount_expense():
-    """Negative milliunits display as -$X.XX."""
-    assert _format_amount(-12990) == "-$12.99"
-
-
-def test_format_amount_income():
-    """Positive milliunits display as +$X.XX."""
-    assert _format_amount(12990) == "+$12.99"
 
 
 # ---------------------------------------------------------------------------
