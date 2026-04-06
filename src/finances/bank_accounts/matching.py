@@ -117,7 +117,7 @@ YNAB_PAYEE_EXPANSIONS: dict[str, str] = {
 
 
 @dataclass(frozen=True)
-class YnabTransaction:
+class MatchingYnabTransaction:
     """Minimal YNAB transaction model for matching."""
 
     date: FinancialDate
@@ -152,9 +152,9 @@ class MatchResult:
     """Result of matching a transaction."""
 
     match_type: str  # "exact", "fuzzy", "ambiguous", "none"
-    ynab_transaction: YnabTransaction | None = None
+    ynab_transaction: MatchingYnabTransaction | None = None
     confidence: float | None = None  # 0.0-1.0
-    candidates: tuple[YnabTransaction, ...] | None = None
+    candidates: tuple[MatchingYnabTransaction, ...] | None = None
     similarity_scores: tuple[float, ...] | None = None
 
 
@@ -173,7 +173,7 @@ def normalize_description(text: str) -> str:
     return text.strip()
 
 
-def _by_import_id(ynab_txs: list[YnabTransaction], expected_id: str) -> list[YnabTransaction]:
+def _by_import_id(ynab_txs: list[MatchingYnabTransaction], expected_id: str) -> list[MatchingYnabTransaction]:
     """Exact match by previously assigned import_id.
 
     Handles transactions created by bank_data_reconcile_apply: they have a deterministic
@@ -185,12 +185,16 @@ def _by_import_id(ynab_txs: list[YnabTransaction], expected_id: str) -> list[Yna
     return [tx for tx in ynab_txs if tx.import_id == expected_id]
 
 
-def _by_posted_date(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> list[YnabTransaction]:
+def _by_posted_date(
+    bank_tx: BankTransaction, ynab_txs: list[MatchingYnabTransaction]
+) -> list[MatchingYnabTransaction]:
     """Filter YNAB txs matching bank posted_date + amount (primary strategy)."""
     return [tx for tx in ynab_txs if tx.date == bank_tx.posted_date and tx.amount == bank_tx.amount]
 
 
-def _by_transaction_date(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> list[YnabTransaction]:
+def _by_transaction_date(
+    bank_tx: BankTransaction, ynab_txs: list[MatchingYnabTransaction]
+) -> list[MatchingYnabTransaction]:
     """Fallback: try transaction_date when it differs from posted_date.
 
     Handles Apple Card 1-day offset where YNAB stores purchase date but bank CSV
@@ -202,8 +206,8 @@ def _by_transaction_date(bank_tx: BankTransaction, ynab_txs: list[YnabTransactio
 
 
 def _by_import_posted_date(
-    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]
-) -> list[YnabTransaction]:
+    bank_tx: BankTransaction, ynab_txs: list[MatchingYnabTransaction]
+) -> list[MatchingYnabTransaction]:
     """Fallback: match via YNAB import_id's encoded clearing date.
 
     Handles manually-entered YNAB transactions later matched by Direct Import:
@@ -216,8 +220,8 @@ def _by_import_posted_date(
 
 
 def _by_ynab_date_offset(
-    bank_tx: BankTransaction, ynab_txs: list[YnabTransaction], ynab_date_offset_days: int
-) -> list[YnabTransaction]:
+    bank_tx: BankTransaction, ynab_txs: list[MatchingYnabTransaction], ynab_date_offset_days: int
+) -> list[MatchingYnabTransaction]:
     """Fallback: try posted_date adjusted by account-level YNAB date offset.
 
     Handles cases where YNAB uses a different date convention than the bank CSV
@@ -229,7 +233,9 @@ def _by_ynab_date_offset(
     return [tx for tx in ynab_txs if tx.date == offset_date and tx.amount == bank_tx.amount]
 
 
-def _by_transfer_window(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction]) -> list[YnabTransaction]:
+def _by_transfer_window(
+    bank_tx: BankTransaction, ynab_txs: list[MatchingYnabTransaction]
+) -> list[MatchingYnabTransaction]:
     """Fallback: ±5 day window for YNAB transfer entries.
 
     Handles YNAB initiation date vs bank clearing date offset (observed max: 4 days).
@@ -244,9 +250,9 @@ def _by_transfer_window(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction
     ]
 
 
-def _pick_best(bank_tx: BankTransaction, candidates: list[YnabTransaction]) -> MatchResult:
+def _pick_best(bank_tx: BankTransaction, candidates: list[MatchingYnabTransaction]) -> MatchResult:
     """Resolve multiple candidates via fuzzy description matching."""
-    scores: list[tuple[YnabTransaction, float]] = []
+    scores: list[tuple[MatchingYnabTransaction, float]] = []
     for ynab_tx in candidates:
         # Prefer merchant field (clean, matches YNAB payee names) over verbose description
         bank_desc = normalize_description(bank_tx.merchant if bank_tx.merchant else bank_tx.description)
@@ -287,7 +293,7 @@ def _pick_best(bank_tx: BankTransaction, candidates: list[YnabTransaction]) -> M
 
 def find_matches(
     bank_tx: BankTransaction,
-    ynab_txs: list[YnabTransaction],
+    ynab_txs: list[MatchingYnabTransaction],
     ynab_date_offset_days: int = 0,
     expected_import_id: str | None = None,
 ) -> MatchResult:

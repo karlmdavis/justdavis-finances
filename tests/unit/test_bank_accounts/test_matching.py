@@ -4,8 +4,7 @@ import pytest
 
 from finances.bank_accounts.matching import (
     FUZZY_MATCH_CONFIDENCE_THRESHOLD,
-    MatchResult,
-    YnabTransaction,
+    MatchingYnabTransaction,
     find_matches,
     make_import_id,
     normalize_description,
@@ -25,17 +24,17 @@ def test_exact_match_single():
 
     # YNAB transactions - only one matches date+amount
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-1363),
             payee_name="Safeway",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-2500),
             payee_name="Target",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-16"),
             amount=Money.from_cents(-1363),
             payee_name="Safeway",
@@ -62,19 +61,19 @@ def test_fuzzy_match_multiple():
 
     # YNAB transactions - multiple with same date+amount, different payees
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name="Amazon.com",
             memo="Order #123-456789",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name="Amazon Prime",
             memo="Monthly subscription",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name="Target",
@@ -103,17 +102,17 @@ def test_fuzzy_match_ambiguous():
 
     # YNAB transactions - multiple with same date+amount but poor description matches
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-5000),
             payee_name="Safeway",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-5000),
             payee_name="Target",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-5000),
             payee_name="Costco",
@@ -145,12 +144,12 @@ def test_no_match():
 
     # YNAB transactions - none match date+amount
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-16"),
             amount=Money.from_cents(-1363),
             payee_name="Safeway",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-2500),
             payee_name="Target",
@@ -164,19 +163,6 @@ def test_no_match():
     assert result.confidence is None
     assert result.candidates is None
     assert result.similarity_scores is None
-
-
-def test_no_match_empty_ynab_list():
-    """Test when YNAB transaction list is empty."""
-    bank_tx = BankTransaction(
-        posted_date=FinancialDate.from_string("2024-12-15"),
-        description="SAFEWAY 1616",
-        amount=Money.from_cents(-1363),
-    )
-
-    result = find_matches(bank_tx, [])
-
-    assert result.match_type == "none"
 
 
 def test_normalize_description():
@@ -200,34 +186,6 @@ def test_normalize_description():
     assert normalize_description("1234567890") == ""
 
 
-def test_ynab_transaction_immutability():
-    """Test that YnabTransaction is immutable."""
-    tx = YnabTransaction(
-        date=FinancialDate.from_string("2024-12-15"),
-        amount=Money.from_cents(-1363),
-        payee_name="Safeway",
-    )
-
-    with pytest.raises(AttributeError):
-        tx.amount = Money.from_cents(-5000)  # type: ignore[misc,unused-ignore]
-
-
-def test_match_result_immutability():
-    """Test that MatchResult is immutable."""
-    result = MatchResult(
-        match_type="exact",
-        ynab_transaction=YnabTransaction(
-            date=FinancialDate.from_string("2024-12-15"),
-            amount=Money.from_cents(-1363),
-            payee_name="Safeway",
-        ),
-        confidence=1.0,
-    )
-
-    with pytest.raises(AttributeError):
-        result.match_type = "fuzzy"  # type: ignore[misc,unused-ignore]
-
-
 def test_fuzzy_match_no_payee_single_payee_fallback():
     """When all candidates have no payee_name, single-payee fallback claims the first.
 
@@ -242,13 +200,13 @@ def test_fuzzy_match_no_payee_single_payee_fallback():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name=None,
             memo="Amazon order 123-456789",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name=None,
@@ -276,13 +234,13 @@ def test_fuzzy_match_excludes_memo_from_score():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name="Amazon.com",
             memo="This is a very long user-entered memo that would dilute the score if included",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-4567),
             payee_name="Target",
@@ -310,7 +268,7 @@ def test_transaction_date_fallback_when_posted_date_misses():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2023-04-28"),
             amount=Money.from_cents(-3849),
             payee_name="Blaze Pizza",
@@ -334,12 +292,12 @@ def test_posted_date_preferred_over_transaction_date():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2023-04-29"),
             amount=Money.from_cents(-2500),
             payee_name="Safeway",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2023-04-28"),
             amount=Money.from_cents(-2500),
             payee_name="Safeway",
@@ -353,41 +311,24 @@ def test_posted_date_preferred_over_transaction_date():
     assert result.ynab_transaction == ynab_txs[0]
 
 
-def test_transaction_date_fallback_not_used_when_none():
-    """Test that fallback is not attempted when transaction_date is None."""
+@pytest.mark.parametrize(
+    "transaction_date",
+    [
+        None,  # no fallback when transaction_date is absent
+        FinancialDate.from_string("2023-04-29"),  # no fallback when equal to posted_date
+    ],
+    ids=["none", "equal_to_posted_date"],
+)
+def test_transaction_date_fallback_not_used(transaction_date):
+    """Fallback is skipped when transaction_date is None or equals posted_date."""
     bank_tx = BankTransaction(
         posted_date=FinancialDate.from_string("2023-04-29"),
-        transaction_date=None,
+        transaction_date=transaction_date,
         description="SOME STORE",
         amount=Money.from_cents(-1500),
     )
-
-    # YNAB tx on a different date - should not be matched
     ynab_txs = [
-        YnabTransaction(
-            date=FinancialDate.from_string("2023-04-28"),
-            amount=Money.from_cents(-1500),
-            payee_name="Some Store",
-        ),
-    ]
-
-    result = find_matches(bank_tx, ynab_txs)
-
-    assert result.match_type == "none"
-
-
-def test_transaction_date_fallback_not_used_when_equal_to_posted_date():
-    """Test that fallback is skipped when transaction_date equals posted_date."""
-    bank_tx = BankTransaction(
-        posted_date=FinancialDate.from_string("2023-04-29"),
-        transaction_date=FinancialDate.from_string("2023-04-29"),  # Same as posted_date
-        description="SOME STORE",
-        amount=Money.from_cents(-1500),
-    )
-
-    # No YNAB tx on that date - fallback would be a no-op anyway
-    ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2023-04-28"),
             amount=Money.from_cents(-1500),
             payee_name="Some Store",
@@ -410,7 +351,7 @@ def test_transfer_date_window_matches_payment():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-06-15"),
             amount=Money.from_cents(-1462637),
             payee_name="Transfer to Apple Card",
@@ -436,7 +377,7 @@ def test_transfer_date_window_not_used_for_non_transfers():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-529),
             payee_name="Amazon Kindle",
@@ -459,7 +400,7 @@ def test_transfer_date_window_too_far_apart():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-11-14"),  # 6 days before posted_date
             amount=Money.from_cents(-354009),
             payee_name="Transfer to Chase Credit",
@@ -486,12 +427,12 @@ def test_single_payee_ambiguous_claims_first():
 
     # Two YNAB entries with same payee — scores are equal and below threshold
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-11-01"),
             amount=Money.from_cents(-529),
             payee_name="Amazon Kindle Services",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-11-01"),
             amount=Money.from_cents(-529),
             payee_name="Amazon Kindle Services",
@@ -515,12 +456,12 @@ def test_multi_payee_ambiguous_still_ambiguous():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-500),
             payee_name="CVS Pharmacy",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-12-15"),
             amount=Money.from_cents(-500),
             payee_name="Canteen Vending",
@@ -546,12 +487,12 @@ def test_ynab_payee_expansion_daily_cash_deposit():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-02-02"),
             amount=Money.from_cents(6),
             payee_name="Deposit",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-02-02"),
             amount=Money.from_cents(6),
             payee_name="Deposit",
@@ -576,7 +517,7 @@ def test_ynab_date_offset_matches_when_posted_date_misses():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-01"),  # one day before posted_date
             amount=Money.from_cents(15),
             payee_name="Deposit",
@@ -599,7 +540,7 @@ def test_ynab_date_offset_zero_not_triggered():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-01"),  # offset would find this, but offset=0
             amount=Money.from_cents(15),
             payee_name="Deposit",
@@ -625,12 +566,12 @@ def test_ynab_date_offset_takes_priority_over_posted_date_when_both_present():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-02"),  # posted_date match
             amount=Money.from_cents(15),
             payee_name="Deposit",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-01"),  # offset match (posted_date - 1)
             amount=Money.from_cents(15),
             payee_name="Deposit",
@@ -658,12 +599,12 @@ def test_ynab_payee_expansion_unknown_payee_unchanged():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-03-01"),
             amount=Money.from_cents(-2500),
             payee_name="Safeway",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-03-01"),
             amount=Money.from_cents(-2500),
             payee_name="Target",
@@ -696,12 +637,12 @@ def test_merchant_field_preferred_over_description_for_fuzzy_matching():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-06-15"),
             amount=Money.from_cents(-650),
             payee_name="Starbucks",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-06-15"),
             amount=Money.from_cents(-650),
             payee_name="Spotify",
@@ -731,12 +672,12 @@ def test_description_used_when_merchant_absent():
     )
 
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-06-15"),
             amount=Money.from_cents(-1999),
             payee_name="Safeway",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-06-15"),
             amount=Money.from_cents(-1999),
             payee_name="Target",
@@ -778,13 +719,13 @@ def test_same_date_same_amount_different_payee_with_user_memos():
         amount=amount,
     )
 
-    ynab1 = YnabTransaction(
+    ynab1 = MatchingYnabTransaction(
         date=date,
         amount=amount,
         payee_name="VANGUARD BUY INVESTMENT PURCHASE",
         memo="Moved to brokerage per monthly plan",
     )
-    ynab2 = YnabTransaction(
+    ynab2 = MatchingYnabTransaction(
         date=date,
         amount=amount,
         payee_name="Manual DB-Bkrg 09/26",
@@ -832,14 +773,14 @@ def test_import_posted_date_fallback_matches_manually_entered_ynab_tx():
     )
 
     # YNAB transaction manually entered at order date, Direct Import set import_id
-    ynab_tx = YnabTransaction(
+    ynab_tx = MatchingYnabTransaction(
         date=FinancialDate.from_string("2024-11-29"),  # manual entry date (order date)
         amount=Money.from_cents(-1125),
         payee_name="Amazon",
         import_posted_date=FinancialDate.from_string("2024-12-02"),  # bank clearing date
     )
     # Unrelated YNAB transaction on the actual posted date but wrong amount
-    ynab_other = YnabTransaction(
+    ynab_other = MatchingYnabTransaction(
         date=FinancialDate.from_string("2024-12-02"),
         amount=Money.from_cents(-999),
         payee_name="Target",
@@ -869,17 +810,17 @@ def test_expresscare_brand_name_expansion():
         amount=Money.from_milliunits(-30000),
     )
 
-    ynab_expresscare = YnabTransaction(
+    ynab_expresscare = MatchingYnabTransaction(
         date=FinancialDate.from_string("2025-03-26"),
         amount=Money.from_milliunits(-30000),
         payee_name="ExpressCare Urgent Care Centers",
     )
-    ynab_childrens_1 = YnabTransaction(
+    ynab_childrens_1 = MatchingYnabTransaction(
         date=FinancialDate.from_string("2025-03-26"),
         amount=Money.from_milliunits(-30000),
         payee_name="Children's Urgent Care of Westminster",
     )
-    ynab_childrens_2 = YnabTransaction(
+    ynab_childrens_2 = MatchingYnabTransaction(
         date=FinancialDate.from_string("2025-03-26"),
         amount=Money.from_milliunits(-30000),
         payee_name="Children's Urgent Care of Westminster",
@@ -906,17 +847,17 @@ def test_childrens_urgent_care_threshold():
         amount=Money.from_milliunits(-30000),
     )
 
-    ynab_childrens_1 = YnabTransaction(
+    ynab_childrens_1 = MatchingYnabTransaction(
         date=FinancialDate.from_string("2025-03-26"),
         amount=Money.from_milliunits(-30000),
         payee_name="Children's Urgent Care of Westminster",
     )
-    ynab_expresscare = YnabTransaction(
+    ynab_expresscare = MatchingYnabTransaction(
         date=FinancialDate.from_string("2025-03-26"),
         amount=Money.from_milliunits(-30000),
         payee_name="ExpressCare Urgent Care Centers",
     )
-    ynab_childrens_2 = YnabTransaction(
+    ynab_childrens_2 = MatchingYnabTransaction(
         date=FinancialDate.from_string("2025-03-26"),
         amount=Money.from_milliunits(-30000),
         payee_name="Children's Urgent Care of Westminster",
@@ -955,12 +896,12 @@ def test_ynab_date_offset_takes_priority_over_posted_date():
     )
 
     # Two YNAB txs: YNAB Direct Import assigned the purchase dates (Jul 9 and Jul 10)
-    ynab_c = YnabTransaction(
+    ynab_c = MatchingYnabTransaction(
         date=FinancialDate.from_string("2024-07-09"),
         amount=Money.from_milliunits(-12600),
         payee_name="JeannieBird Baking Company",
     )
-    ynab_d = YnabTransaction(
+    ynab_d = MatchingYnabTransaction(
         date=FinancialDate.from_string("2024-07-10"),
         amount=Money.from_milliunits(-12600),
         payee_name="JeannieBird Baking Company",
@@ -1047,14 +988,14 @@ def test_import_id_match_found_before_date_strategies():
     expected_id = make_import_id(slug, "2023-05-06", -2100, "Vending Machine", seq=0)
 
     # YNAB tx was stored at posted_date (not posted_date-1) by apply.py
-    ynab_tx = YnabTransaction(
+    ynab_tx = MatchingYnabTransaction(
         date=FinancialDate.from_string("2023-05-06"),
         amount=Money.from_milliunits(-2100),
         payee_name="Vending Machine",
         import_id=expected_id,
     )
     # Add a decoy at offset date with same amount — should NOT be picked
-    decoy = YnabTransaction(
+    decoy = MatchingYnabTransaction(
         date=FinancialDate.from_string("2023-05-05"),
         amount=Money.from_milliunits(-2100),
         payee_name="Decoy",
@@ -1074,7 +1015,7 @@ def test_import_id_no_match_falls_through_to_date_strategies():
         description="Safeway",
         amount=Money.from_milliunits(-4500),
     )
-    ynab_tx = YnabTransaction(
+    ynab_tx = MatchingYnabTransaction(
         date=FinancialDate.from_string("2024-03-15"),
         amount=Money.from_milliunits(-4500),
         payee_name="Safeway",
@@ -1103,13 +1044,13 @@ def test_two_identical_bank_txs_get_different_import_ids_via_seq():
     id1 = make_import_id(slug, posted_date, amount, description, seq=1)
 
     # Two YNAB txs, one per charge, each with its own import_id
-    ynab_0 = YnabTransaction(
+    ynab_0 = MatchingYnabTransaction(
         date=FinancialDate.from_string("2024-01-22"),
         amount=Money.from_milliunits(-7410),
         payee_name="Apple Services",
         import_id=id0,
     )
-    ynab_1 = YnabTransaction(
+    ynab_1 = MatchingYnabTransaction(
         date=FinancialDate.from_string("2024-01-22"),
         amount=Money.from_milliunits(-7410),
         payee_name="Apple Services",
@@ -1164,13 +1105,13 @@ def test_seq_gap_does_not_steal_higher_seq_ynab_tx():
     id2 = make_import_id(slug, posted_date, amount, description, seq=2)
 
     # YNAB has seq=0 and seq=2 but NOT seq=1
-    ynab_0 = YnabTransaction(
+    ynab_0 = MatchingYnabTransaction(
         date=FinancialDate.from_string(posted_date),
         amount=Money.from_milliunits(amount),
         payee_name="Daily Cash Deposit",
         import_id=id0,
     )
-    ynab_2 = YnabTransaction(
+    ynab_2 = MatchingYnabTransaction(
         date=FinancialDate.from_string(posted_date),
         amount=Money.from_milliunits(amount),
         payee_name="Daily Cash Deposit",

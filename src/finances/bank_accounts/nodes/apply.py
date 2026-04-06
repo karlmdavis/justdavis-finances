@@ -79,10 +79,8 @@ def _build_file_payload(ops: list[dict[str, Any]], account_id: str, slug: str) -
         bank_tx = op["transaction"]
         posted_date = bank_tx["posted_date"]
         amount_milliunits = bank_tx["amount_milliunits"]
-        description = bank_tx["description"]
-        payee_name = bank_tx.get("merchant") or description
-        seq = op.get("import_id_seq", 0)
-        import_id = make_import_id(slug, posted_date, amount_milliunits, description, seq)
+        payee_name = bank_tx.get("merchant") or bank_tx["description"]
+        import_id = _get_import_id(op, slug)
         payload.append(
             {
                 "account_id": account_id,
@@ -94,6 +92,18 @@ def _build_file_payload(ops: list[dict[str, Any]], account_id: str, slug: str) -
             }
         )
     return payload
+
+
+def _get_import_id(op: dict[str, Any], slug: str) -> str:
+    """Compute the stable import ID for a create_transaction operation."""
+    bank_tx = op["transaction"]
+    return make_import_id(
+        slug,
+        bank_tx["posted_date"],
+        bank_tx["amount_milliunits"],
+        bank_tx["description"],
+        op.get("import_id_seq", 0),
+    )
 
 
 def _display_create_batch(date: str, ops: list[dict[str, Any]], slug: str) -> None:
@@ -121,10 +131,8 @@ def _display_individual_create(date: str, op: dict[str, Any], account_id: str, s
     """Display a single CREATE item for individual review."""
     bank_tx = op["transaction"]
     amount_milliunits = bank_tx["amount_milliunits"]
-    description = bank_tx["description"]
-    payee_name = bank_tx.get("merchant") or description
-    seq = op.get("import_id_seq", 0)
-    import_id = make_import_id(slug, date, amount_milliunits, description, seq)
+    payee_name = bank_tx.get("merchant") or bank_tx["description"]
+    import_id = _get_import_id(op, slug)
     amount_display = _format_amount(amount_milliunits)
     print()
     print("  Create Transaction Individually?")
@@ -168,14 +176,19 @@ def _display_flag_batch(date: str, ops: list[dict[str, Any]]) -> None:
             print(f"            Amount: {camt_display}")
 
 
-def _prompt_account(slug: str) -> str:
-    """Prompt 'Process this account? [Y/n]'. Returns 'y' or 'n'."""
+def _read_input(prompt: str, default: str) -> str:
+    """Read one line of user input; return default on EOF."""
     try:
-        response = input("Process this account? [Y/n] ").strip().lower()
-        return "n" if response == "n" else "y"
+        return input(prompt).strip().lower()
     except EOFError:
         print()
-        return "n"
+        return default
+
+
+def _prompt_account(slug: str) -> str:
+    """Prompt 'Process this account? [Y/n]'. Returns 'y' or 'n'."""
+    response = _read_input("Process this account? [Y/n] ", default="n")
+    return "n" if response == "n" else "y"
 
 
 def _prompt_create_batch(has_multiple: bool, payload: list[dict[str, Any]]) -> str:
@@ -183,44 +196,32 @@ def _prompt_create_batch(has_multiple: bool, payload: list[dict[str, Any]]) -> s
 
     When 'j' is entered, pretty-prints the JSON payload and re-prompts.
     """
-    if has_multiple:
-        prompt = "  Apply batch, Split batch, see Json? [y/N/s/j] "
-    else:
-        prompt = "  Apply batch, see Json? [y/N/j] "
+    prompt = (
+        "  Apply batch, Split batch, see Json? [y/N/s/j] "
+        if has_multiple
+        else "  Apply batch, see Json? [y/N/j] "
+    )
     while True:
-        try:
-            response = input(prompt).strip().lower()
-            if response == "j":
-                print(json.dumps(payload, indent=2))
-                continue
-            if response == "y":
-                return "y"
-            if response == "s" and has_multiple:
-                return "s"
-            return "n"
-        except EOFError:
-            print()
-            return "n"
+        response = _read_input(prompt, default="n")
+        if response == "j":
+            print(json.dumps(payload, indent=2))
+            continue
+        if response == "y":
+            return "y"
+        if response == "s" and has_multiple:
+            return "s"
+        return "n"
 
 
 def _prompt_apply_individual() -> bool:
     """Prompt for individual apply. Returns True for 'y'."""
-    try:
-        response = input("    Apply transaction? [y/N] ").strip().lower()
-        return response == "y"
-    except EOFError:
-        print()
-        return False
+    return _read_input("    Apply transaction? [y/N] ", default="n") == "y"
 
 
 def _prompt_acknowledge_batch() -> str:
     """Prompt 'Acknowledge all, Skip all? [A/n]'. Returns 'a' or 'n'."""
-    try:
-        response = input("  Acknowledge all, Skip all? [A/n] ").strip().lower()
-        return "n" if response == "n" else "a"
-    except EOFError:
-        print()
-        return "n"
+    response = _read_input("  Acknowledge all, Skip all? [A/n] ", default="n")
+    return "n" if response == "n" else "a"
 
 
 def _display_delete_batch(date: str, ops: list[dict[str, Any]], ynab_delete_log_path: Path) -> None:
@@ -271,16 +272,12 @@ def _display_individual_delete(date: str, op: dict[str, Any], ynab_delete_log_pa
 def _prompt_delete_batch(has_multiple: bool) -> str:
     """Prompt for delete batch action. Returns 'y', 'n', or 's' (if multiple items)."""
     prompt = "  Delete all, Split batch, Skip all? [y/N/s] " if has_multiple else "  Delete, Skip? [y/N] "
-    try:
-        response = input(prompt).strip().lower()
-        if response == "y":
-            return "y"
-        if response == "s" and has_multiple:
-            return "s"
-        return "n"
-    except EOFError:
-        print()
-        return "n"
+    response = _read_input(prompt, default="n")
+    if response == "y":
+        return "y"
+    if response == "s" and has_multiple:
+        return "s"
+    return "n"
 
 
 def apply_reconciliation_operations(
@@ -433,14 +430,7 @@ def apply_reconciliation_operations(
                 for _date, ops in sorted(creates.items()):
                     for op in ops:
                         bank_tx = op["transaction"]
-                        seq = op.get("import_id_seq", 0)
-                        import_id = make_import_id(
-                            slug,
-                            bank_tx["posted_date"],
-                            bank_tx["amount_milliunits"],
-                            bank_tx["description"],
-                            seq,
-                        )
+                        import_id = _get_import_id(op, slug)
                         payee_name = bank_tx.get("merchant") or bank_tx["description"]
                         write_log(
                             {
@@ -617,14 +607,7 @@ def apply_reconciliation_operations(
                         print(f"  ERROR: ynab exited with code {exit_code}")
                         for op in batch_ops:
                             bank_tx = op["transaction"]
-                            seq = op.get("import_id_seq", 0)
-                            import_id = make_import_id(
-                                slug,
-                                bank_tx["posted_date"],
-                                bank_tx["amount_milliunits"],
-                                bank_tx["description"],
-                                seq,
-                            )
+                            import_id = _get_import_id(op, slug)
                             payee_name = bank_tx.get("merchant") or bank_tx["description"]
                             write_log(
                                 {
@@ -643,14 +626,7 @@ def apply_reconciliation_operations(
                     else:
                         for op in batch_ops:
                             bank_tx = op["transaction"]
-                            seq = op.get("import_id_seq", 0)
-                            import_id = make_import_id(
-                                slug,
-                                bank_tx["posted_date"],
-                                bank_tx["amount_milliunits"],
-                                bank_tx["description"],
-                                seq,
-                            )
+                            import_id = _get_import_id(op, slug)
                             payee_name = bank_tx.get("merchant") or bank_tx["description"]
                             if import_id in duplicate_ids:
                                 write_log(
@@ -689,10 +665,8 @@ def apply_reconciliation_operations(
                         bank_tx = op["transaction"]
                         posted_date = bank_tx["posted_date"]
                         amount_milliunits = bank_tx["amount_milliunits"]
-                        description = bank_tx["description"]
-                        payee_name = bank_tx.get("merchant") or description
-                        seq = op.get("import_id_seq", 0)
-                        import_id = make_import_id(slug, posted_date, amount_milliunits, description, seq)
+                        payee_name = bank_tx.get("merchant") or bank_tx["description"]
+                        import_id = _get_import_id(op, slug)
 
                         _display_individual_create(posted_date, op, account_id, slug)
                         if _prompt_apply_individual():
@@ -789,14 +763,7 @@ def apply_reconciliation_operations(
                 else:  # n
                     for op in batch_ops:
                         bank_tx = op["transaction"]
-                        seq = op.get("import_id_seq", 0)
-                        import_id = make_import_id(
-                            slug,
-                            bank_tx["posted_date"],
-                            bank_tx["amount_milliunits"],
-                            bank_tx["description"],
-                            seq,
-                        )
+                        import_id = _get_import_id(op, slug)
                         payee_name = bank_tx.get("merchant") or bank_tx["description"]
                         write_log(
                             {

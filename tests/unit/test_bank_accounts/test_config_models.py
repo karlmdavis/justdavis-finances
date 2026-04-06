@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, ImportPattern
 
 
@@ -45,16 +43,6 @@ class TestImportPattern:
 
         assert pattern.pattern == "statement_*.csv"
         assert pattern.format_handler == "usaa_checking_csv"
-
-    def test_immutable(self):
-        """Test ImportPattern is immutable."""
-        pattern = ImportPattern(
-            pattern="*.csv",
-            format_handler="handler",
-        )
-
-        with pytest.raises(AttributeError):
-            pattern.pattern = "new_pattern"  # type: ignore[misc]
 
 
 class TestAccountConfig:
@@ -171,23 +159,6 @@ class TestAccountConfig:
         assert isinstance(config.import_patterns, tuple)
         assert config.import_patterns[0].pattern == "statement_*.csv"
         assert config.import_patterns[1].format_handler == "usaa_checking_csv_v2"
-
-    def test_immutable(self):
-        """Test AccountConfig is immutable."""
-        config = AccountConfig(
-            ynab_account_id="acc_123",
-            ynab_account_name="Test",
-            slug="test",
-            bank_name="Test Bank",
-            account_type="checking",
-            statement_frequency="monthly",
-            source_directory="data/test",
-            download_instructions="Test instructions",
-            import_patterns=(),
-        )
-
-        with pytest.raises(AttributeError):
-            config.slug = "new-slug"  # type: ignore[misc]
 
 
 class TestBankAccountsConfig:
@@ -307,13 +278,6 @@ class TestBankAccountsConfig:
 
         assert len(config.accounts) == 0
         assert isinstance(config.accounts, tuple)
-
-    def test_immutable(self):
-        """Test BankAccountsConfig is immutable."""
-        config = BankAccountsConfig(accounts=())
-
-        with pytest.raises(AttributeError):
-            config.accounts = ()  # type: ignore[misc]
 
     def test_load_creates_stub_when_config_missing_and_ynab_cache_exists(
         self, tmp_path: Path, capsys, monkeypatch

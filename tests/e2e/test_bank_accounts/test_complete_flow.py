@@ -12,7 +12,7 @@ import pytest
 
 from finances.bank_accounts.format_handlers.chase_credit_csv import ChaseCreditCsvHandler
 from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
-from finances.bank_accounts.matching import YnabTransaction
+from finances.bank_accounts.matching import MatchingYnabTransaction
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, ImportPattern
 from finances.bank_accounts.nodes.parse import parse_account_data
 from finances.bank_accounts.nodes.reconcile import reconcile_account_data
@@ -85,14 +85,14 @@ def ynab_transactions():
     Only one transaction matches the bank data (SAFEWAY).
     """
     return [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-15"),
             amount=Money.from_cents(-4567),  # Matches SAFEWAY -$45.67
             payee_name="Safeway",
             memo="Grocery shopping",
             account_id="test-account-123",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-10"),
             amount=Money.from_cents(-2099),  # Different date - no match
             payee_name="Target",
@@ -257,19 +257,19 @@ def test_complete_flow_with_all_matched_transactions(tmp_data_dir, synthetic_ban
 
     # Create YNAB transactions that match ALL bank transactions
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-15"),
             amount=Money.from_cents(-4567),  # SAFEWAY
             payee_name="Safeway",
             account_id="test-account-456",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-20"),
             amount=Money.from_cents(-12345),  # AMAZON
             payee_name="Amazon",
             account_id="test-account-456",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-25"),
             amount=Money.from_cents(50000),  # PAYMENT
             payee_name="Payment Received",
@@ -367,21 +367,21 @@ def test_complete_flow_with_ambiguous_matches(tmp_data_dir):
     # Create MULTIPLE YNAB transactions with SAME date and amount
     # but different descriptions (ambiguous match scenario)
     ynab_txs = [
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-15"),
             amount=Money.from_cents(-5000),
             payee_name="Safeway",
             memo="Store A",
             account_id="test-account-789",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-15"),
             amount=Money.from_cents(-5000),
             payee_name="Trader Joes",
             memo="Store B",
             account_id="test-account-789",
         ),
-        YnabTransaction(
+        MatchingYnabTransaction(
             date=FinancialDate.from_string("2024-01-15"),
             amount=Money.from_cents(-5000),
             payee_name="Whole Foods",
@@ -539,3 +539,130 @@ def test_complete_flow_empty_source_directory(tmp_data_dir):
 
     # Accounts with no transactions and no balance points are skipped in reconciliation
     assert "chase_credit_empty" not in results
+
+
+def test_reconcile_to_apply_round_trip(tmp_data_dir):
+    """
+    E2E round-trip: reconcile ops file → apply → verify apply log entries.
+
+    Validates that an operations JSON file (as produced by the reconcile node) is
+    correctly consumed by apply_reconciliation_operations, producing the expected
+    NDJSON log entries for a two-account scenario.
+
+    Uses synthetic data only; subprocess.run is mocked so no real YNAB calls occur.
+    """
+    import json
+    from unittest.mock import patch
+
+    from finances.bank_accounts.nodes.apply import apply_reconciliation_operations
+    from finances.core.json_utils import write_json
+
+    # --- synthetic operations file (two accounts, mixed operation types) ---
+    ops = {
+        "reconciled_at": "2024-03-01T12:00:00",
+        "accounts": {
+            "chase-checking": {
+                "account_id": "acct-chase-checking",
+                "operations": [
+                    {
+                        "type": "create_transaction",
+                        "account_id": "acct-chase-checking",
+                        "transaction": {
+                            "posted_date": "2024-03-01",
+                            "amount_milliunits": -12990,
+                            "description": "SPOTIFY USA 8888812345 NY USA",
+                            "merchant": "Spotify",
+                        },
+                    },
+                    {
+                        "type": "create_transaction",
+                        "account_id": "acct-chase-checking",
+                        "transaction": {
+                            "posted_date": "2024-03-02",
+                            "amount_milliunits": -6500,
+                            "description": "STARBUCKS UTAH AVE WA USA",
+                            "merchant": "Starbucks",
+                        },
+                    },
+                ],
+            },
+            "apple-card": {
+                "account_id": "acct-apple-card",
+                "operations": [
+                    {
+                        "type": "flag_discrepancy",
+                        "account_id": "acct-apple-card",
+                        "transaction": {
+                            "posted_date": "2024-03-05",
+                            "amount_milliunits": -25000,
+                            "description": "GROCERY STORE #1234",
+                            "merchant": "Safeway",
+                        },
+                        "candidates": [
+                            {
+                                "payee_name": "Safeway",
+                                "date": "2024-03-05",
+                                "amount_milliunits": -25000,
+                            },
+                            {
+                                "payee_name": "Target",
+                                "date": "2024-03-05",
+                                "amount_milliunits": -25000,
+                            },
+                        ],
+                        "message": "Multiple possible matches - manual review required",
+                    },
+                ],
+            },
+        },
+    }
+
+    ops_file = tmp_data_dir / "ops.json"
+    write_json(ops_file, ops)
+
+    apply_log = tmp_data_dir / "apply_log.ndjson"
+    delete_log = tmp_data_dir / "delete_log.ndjson"
+
+    from finances.bank_accounts.models import BankAccountsConfig
+
+    # No account entries needed in config: apply falls back to dict order for unknown slugs
+    config = BankAccountsConfig(accounts=())
+
+    # Input sequence:
+    #   1. "y" — process chase-checking account
+    #   2. "y" — apply 2024-03-01 create batch (Spotify)
+    #   3. "y" — apply 2024-03-02 create batch (Starbucks)
+    #   4. "y" — process apple-card account
+    #   5. "a" — acknowledge 2024-03-05 flag batch
+    with (
+        patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+        patch("builtins.input", side_effect=["y", "y", "y", "y", "a"]),
+    ):
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.stderr = ""
+        counts = apply_reconciliation_operations(ops_file, apply_log, delete_log, config)
+
+    # --- verify counts ---
+    assert counts["applied"] == 2  # two create_transactions applied
+    assert counts["acknowledged"] == 1  # one flag_discrepancy acknowledged
+    assert counts["skipped"] == 0
+    assert counts["failed"] == 0
+
+    # --- verify apply log entries ---
+    log_entries = [json.loads(line) for line in apply_log.read_text().strip().splitlines()]
+    assert len(log_entries) == 3
+
+    applied_entries = [e for e in log_entries if e["action"] == "applied"]
+    ack_entries = [e for e in log_entries if e["action"] == "acknowledged"]
+    assert len(applied_entries) == 2
+    assert len(ack_entries) == 1
+
+    # Creates logged in chronological order across both accounts
+    posted_dates = [e["posted_date"] for e in applied_entries]
+    assert sorted(posted_dates) == posted_dates
+
+    # Flag entry has expected candidate names
+    ack = ack_entries[0]
+    assert set(ack["candidates"]) == {"Safeway", "Target"}
+    assert ack["account_slug"] == "apple-card"

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from finances.bank_accounts.balance_reconciliation import build_balance_reconciliation
-from finances.bank_accounts.matching import MatchResult, YnabTransaction, find_matches, make_import_id
+from finances.bank_accounts.matching import MatchingYnabTransaction, MatchResult, find_matches, make_import_id
 from finances.bank_accounts.models import (
     BalancePoint,
     BalanceReconciliation,
@@ -52,7 +52,7 @@ class ReconciliationResult:
 
     reconciliation: BalanceReconciliation
     unmatched_bank_txs: tuple[BankTransaction, ...]
-    unmatched_ynab_txs: tuple[YnabTransaction, ...]
+    unmatched_ynab_txs: tuple[MatchingYnabTransaction, ...]
     operations: tuple[dict[str, Any], ...]
     # Each entry: {tx dict, "mismatch_reason": str}
     categorized_unmatched_ynab: tuple[dict[str, Any], ...] = ()
@@ -69,7 +69,7 @@ class ReconciliationResult:
 
 
 def calculate_ynab_balances(
-    ynab_txs: list[YnabTransaction],
+    ynab_txs: list[MatchingYnabTransaction],
     balance_points: list[BalancePoint],
 ) -> dict[FinancialDate, Money]:
     """
@@ -108,7 +108,7 @@ def calculate_ynab_balances(
 def reconcile_account_data(
     config: BankAccountsConfig,
     base_dir: Path,
-    ynab_transactions: list[YnabTransaction],
+    ynab_transactions: list[MatchingYnabTransaction],
     raw_ynab_by_id: dict[str, Any] | None = None,
 ) -> dict[str, ReconciliationResult]:
     """

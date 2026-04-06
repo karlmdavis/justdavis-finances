@@ -382,7 +382,7 @@ class BankDataReconcileFlowNode(FlowNode):
         """Execute reconcile operation."""
         try:
             # Load YNAB transactions from cache
-            from finances.bank_accounts.matching import YnabTransaction
+            from finances.bank_accounts.matching import MatchingYnabTransaction
             from finances.core import FinancialDate, Money
 
             ynab_cache_dir = self.data_dir / "ynab" / "cache"
@@ -397,8 +397,8 @@ class BankDataReconcileFlowNode(FlowNode):
 
             transactions_data = read_json(transactions_file)
 
-            # Convert to bank_accounts.matching.YnabTransaction format.
-            # Use FullYnabTransaction only to parse import_posted_date from import_id;
+            # Convert to bank_accounts.matching.MatchingYnabTransaction format.
+            # Use FullMatchingYnabTransaction only to parse import_posted_date from import_id;
             # fall back to direct dict access for required fields (id may be absent in
             # test/minimal data, but from_dict requires it).
             ynab_transactions = []
@@ -412,7 +412,7 @@ class BankDataReconcileFlowNode(FlowNode):
                             import_posted_date = FinancialDate.from_string(part)
                             break
                 ynab_transactions.append(
-                    YnabTransaction(
+                    MatchingYnabTransaction(
                         date=FinancialDate.from_string(tx["date"]),
                         amount=Money.from_milliunits(tx["amount"]),
                         payee_name=tx.get("payee_name"),

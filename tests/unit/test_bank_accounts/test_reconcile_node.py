@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from finances.bank_accounts.matching import YnabTransaction
+from finances.bank_accounts.matching import MatchingYnabTransaction
 from finances.bank_accounts.models import (
     AccountConfig,
     BankAccountsConfig,
@@ -60,13 +60,13 @@ def test_greedy_two_identical_bank_txs_claim_separate_ynab_txs():
 
         # Two matching YNAB transactions
         ynab_txs = [
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-12-08"),
                 amount=Money.from_milliunits(-1999000),
                 payee_name="Amazon.com",
                 account_id=account.ynab_account_id,
             ),
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-12-08"),
                 amount=Money.from_milliunits(-1999000),
                 payee_name="Amazon.com",
@@ -103,13 +103,13 @@ def test_greedy_pool_exhausted_third_bank_tx_becomes_create():
 
         # Only two YNAB transactions
         ynab_txs = [
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-12-08"),
                 amount=Money.from_milliunits(-500000),
                 payee_name="Safeway",
                 account_id=account.ynab_account_id,
             ),
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-12-08"),
                 amount=Money.from_milliunits(-500000),
                 payee_name="Safeway",

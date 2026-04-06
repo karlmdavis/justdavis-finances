@@ -4,7 +4,7 @@ from finances.bank_accounts.balance_reconciliation import (
     build_balance_reconciliation,
     reconcile_balance_point,
 )
-from finances.bank_accounts.matching import YnabTransaction
+from finances.bank_accounts.matching import MatchingYnabTransaction
 from finances.bank_accounts.models import BalancePoint, BankTransaction
 from finances.core import FinancialDate, Money
 
@@ -192,7 +192,7 @@ def test_build_balance_reconciliation_with_unmatched_transactions():
     ]
 
     # YNAB transaction not in bank (shouldn't affect this example)
-    unmatched_ynab_txs: list[YnabTransaction] = []
+    unmatched_ynab_txs: list[MatchingYnabTransaction] = []
 
     reconciliation = build_balance_reconciliation(
         account_id, balance_points, ynab_balances, unmatched_bank_txs, unmatched_ynab_txs

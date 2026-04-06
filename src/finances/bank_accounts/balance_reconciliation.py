@@ -1,6 +1,6 @@
 """Balance reconciliation logic for bank accounts."""
 
-from finances.bank_accounts.matching import YnabTransaction
+from finances.bank_accounts.matching import MatchingYnabTransaction
 from finances.bank_accounts.models import (
     BalancePoint,
     BalanceReconciliation,
@@ -61,7 +61,7 @@ def build_balance_reconciliation(
     balance_points: list[BalancePoint],
     ynab_balances: dict[FinancialDate, Money],
     unmatched_bank_txs: list[BankTransaction],
-    unmatched_ynab_txs: list[YnabTransaction],
+    unmatched_ynab_txs: list[MatchingYnabTransaction],
     manual_balance_points: list[BalancePoint] | None = None,
 ) -> BalanceReconciliation:
     """

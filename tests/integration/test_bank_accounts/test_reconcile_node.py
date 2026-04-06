@@ -4,7 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from finances.bank_accounts.matching import YnabTransaction
+from finances.bank_accounts.matching import MatchingYnabTransaction
 from finances.bank_accounts.models import (
     AccountConfig,
     BalancePoint,
@@ -90,7 +90,7 @@ class TestReconcileNode:
 
         # Create synthetic YNAB transactions (only matches one bank tx)
         ynab_txs = [
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-01-01"),
                 amount=Money.from_cents(-500),
                 payee_name="Coffee Shop",
@@ -179,14 +179,14 @@ class TestReconcileNode:
 
         # Create synthetic YNAB transactions that exactly match bank txs
         ynab_txs = [
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-01-01"),
                 amount=Money.from_cents(-500),
                 payee_name="Coffee Shop",
                 memo=None,
                 account_id="acct_123",
             ),
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-01-02"),
                 amount=Money.from_cents(-2500),
                 payee_name="Grocery Store",
@@ -267,14 +267,14 @@ class TestReconcileNode:
 
         # Create YNAB transactions with same date/amount but different descriptions
         ynab_txs = [
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-01-01"),
                 amount=Money.from_cents(-5000),
                 payee_name="Chase ATM 123",
                 memo="Cash withdrawal",
                 account_id="acct_123",
             ),
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-01-01"),
                 amount=Money.from_cents(-5000),
                 payee_name="ATM 456",
@@ -353,28 +353,28 @@ class TestReconcileNode:
         #   - tx_mar: Mar 20, inside Mar interval, unmatched — SHOULD be flagged for delete
         #   - tx_dec: Dec 2023, before window — NOT flagged
         ynab_txs = [
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-01-15"),
                 amount=Money.from_cents(-500),
                 payee_name="Matched Jan",
                 account_id="acct_123",
                 id="ynab-jan-id",
             ),
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-02-10"),
                 amount=Money.from_cents(-999),
                 payee_name="Feb Orphan (in gap)",
                 account_id="acct_123",
                 id="ynab-feb-id",
             ),
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2024-03-20"),
                 amount=Money.from_cents(-1234),
                 payee_name="Mar Orphan",
                 account_id="acct_123",
                 id="ynab-mar-id",
             ),
-            YnabTransaction(
+            MatchingYnabTransaction(
                 date=FinancialDate.from_string("2023-12-01"),
                 amount=Money.from_cents(-777),
                 payee_name="Dec 2023 (before window)",

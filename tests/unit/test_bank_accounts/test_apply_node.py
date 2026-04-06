@@ -10,7 +10,6 @@ from finances.bank_accounts.matching import make_import_id as _make_import_id
 from finances.bank_accounts.models import BankAccountsConfig
 from finances.bank_accounts.nodes.apply import (
     _format_amount,
-    _group_operations,
     apply_reconciliation_operations,
 )
 from finances.core.json_utils import write_json
@@ -146,57 +145,6 @@ def test_import_id_within_ynab_limit():
 # ---------------------------------------------------------------------------
 # Grouping tests
 # ---------------------------------------------------------------------------
-
-
-def test_operations_sorted_chronologically():
-    """Operations from multiple accounts are grouped by account then date."""
-    accounts_data = {
-        "chase-checking": {
-            "account_id": "acct-1",
-            "operations": [
-                {
-                    "type": "create_transaction",
-                    "account_id": "acct-1",
-                    "transaction": {
-                        "posted_date": "2024-06-10",
-                        "amount_milliunits": -1000,
-                        "description": "A",
-                    },
-                },
-                {
-                    "type": "create_transaction",
-                    "account_id": "acct-1",
-                    "transaction": {
-                        "posted_date": "2024-06-20",
-                        "amount_milliunits": -2000,
-                        "description": "C",
-                    },
-                },
-            ],
-        },
-        "apple-card": {
-            "account_id": "acct-2",
-            "operations": [
-                {
-                    "type": "create_transaction",
-                    "account_id": "acct-2",
-                    "transaction": {
-                        "posted_date": "2024-06-15",
-                        "amount_milliunits": -1500,
-                        "description": "B",
-                    },
-                },
-            ],
-        },
-    }
-
-    grouped = _group_operations(accounts_data)
-
-    # chase-checking has 2 creates
-    assert "2024-06-10" in grouped["chase-checking"]["creates"]
-    assert "2024-06-20" in grouped["chase-checking"]["creates"]
-    # apple-card has 1 create
-    assert "2024-06-15" in grouped["apple-card"]["creates"]
 
 
 # ---------------------------------------------------------------------------
