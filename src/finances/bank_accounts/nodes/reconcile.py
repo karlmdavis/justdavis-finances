@@ -85,25 +85,24 @@ def calculate_ynab_balances(
     Returns:
         Dictionary mapping balance point dates to calculated YNAB balances
     """
-    ynab_balances: dict[FinancialDate, Money] = {}
-
     if not balance_points or not ynab_txs:
-        return ynab_balances
+        return {}
 
-    # Sort YNAB transactions by date for efficient calculation
     sorted_ynab_txs = sorted(ynab_txs, key=lambda tx: tx.date)
+    sorted_dates = sorted({bp.date for bp in balance_points})
 
-    # Calculate running balance for each balance point date
-    for balance_point in balance_points:
-        balance_date = balance_point.date
-        # Sum all YNAB transactions up to and including this date
-        running_balance = sum(
-            (tx.amount for tx in sorted_ynab_txs if tx.date <= balance_date),
-            Money.from_cents(0),
-        )
-        ynab_balances[balance_date] = running_balance
+    # Single-pass O(n+m): advance through sorted txs once, recording cumulative
+    # balance at each balance point date instead of re-summing from the start.
+    running_total = Money.from_cents(0)
+    cumulative: dict[FinancialDate, Money] = {}
+    tx_idx = 0
+    for date in sorted_dates:
+        while tx_idx < len(sorted_ynab_txs) and sorted_ynab_txs[tx_idx].date <= date:
+            running_total += sorted_ynab_txs[tx_idx].amount
+            tx_idx += 1
+        cumulative[date] = running_total
 
-    return ynab_balances
+    return {bp.date: cumulative[bp.date] for bp in balance_points}
 
 
 def reconcile_account_data(
