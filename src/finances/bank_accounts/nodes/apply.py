@@ -481,7 +481,12 @@ def apply_reconciliation_operations(
                 if action == "y":
                     for op in batch_ops:
                         ynab_tx = op.transaction
-                        ynab_id = ynab_tx.get("id", "")
+                        ynab_id = ynab_tx.get("id")
+                        if not ynab_id:
+                            raise ValueError(
+                                f"Delete operation is missing 'id' field — "
+                                f"this indicates a programming error in the reconcile node: {ynab_tx}"
+                            )
                         del_proc = subprocess.run(
                             [
                                 "ynab",
@@ -522,7 +527,12 @@ def apply_reconciliation_operations(
                     # Individual review
                     for op in batch_ops:
                         ynab_tx = op.transaction
-                        ynab_id = ynab_tx.get("id", "")
+                        ynab_id = ynab_tx.get("id")
+                        if not ynab_id:
+                            raise ValueError(
+                                f"Delete operation is missing 'id' field — "
+                                f"this indicates a programming error in the reconcile node: {ynab_tx}"
+                            )
                         _display_individual_delete(date, op, ynab_delete_log_path)
                         if _prompt_apply_individual():
                             result = subprocess.run(
