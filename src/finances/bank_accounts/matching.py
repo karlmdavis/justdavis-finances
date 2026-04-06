@@ -98,6 +98,9 @@ def make_import_id(
 # Fuzzy matching configuration
 FUZZY_MATCH_CONFIDENCE_THRESHOLD = 0.75
 
+# Maximum days between bank clearing date and YNAB initiation date for transfer matching
+_TRANSFER_DATE_WINDOW_DAYS = 5
+
 # Known mismatches between YNAB payee names and bank merchant names.
 # Maps normalized YNAB payee → string that scores well against the bank's merchant field.
 # Covers two directions: YNAB shorter than bank (Direct Import abbreviates), and
@@ -235,7 +238,9 @@ def _by_transfer_window(bank_tx: BankTransaction, ynab_txs: list[YnabTransaction
     return [
         tx
         for tx in ynab_txs
-        if tx.is_transfer and tx.amount == bank_tx.amount and abs(bank_tx.posted_date.age_days(tx.date)) <= 5
+        if tx.is_transfer
+        and tx.amount == bank_tx.amount
+        and abs(bank_tx.posted_date.age_days(tx.date)) <= _TRANSFER_DATE_WINDOW_DAYS
     ]
 
 
