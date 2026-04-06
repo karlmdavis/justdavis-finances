@@ -59,7 +59,10 @@ def retrieve_account_data(config: BankAccountsConfig, base_dir: Path) -> dict[st
 
             dest_file = dest_dir / source_file.name
 
-            # Check if file already exists with same size
+            # Check if file already exists with same size.
+            # Known limitation: deduplication is by file size only, not content. A corrected
+            # re-export from the bank with the same filename and size will be silently skipped.
+            # To force a re-import, delete the file from the raw/ directory manually.
             if dest_file.exists() and dest_file.stat().st_size == source_file.stat().st_size:
                 files_skipped += 1
             else:
