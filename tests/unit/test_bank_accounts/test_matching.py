@@ -83,11 +83,11 @@ def test_fuzzy_match_multiple():
 
     result = find_matches(bank_tx, ynab_txs)
 
-    # payee-only: "amazon.com" vs "amazon.com" = 1.0 → fuzzy match (best score > 0.8)
+    # payee-only: "amazon.com" vs "amazon.com" = 1.0 → fuzzy match (score > threshold)
     assert result.match_type == "fuzzy"
     assert result.ynab_transaction == ynab_txs[0]  # Best match by description similarity
     assert result.confidence is not None
-    assert result.confidence > 0.8
+    assert result.confidence > FUZZY_MATCH_CONFIDENCE_THRESHOLD
     assert result.candidates is None
 
 
@@ -121,7 +121,7 @@ def test_fuzzy_match_ambiguous():
 
     result = find_matches(bank_tx, ynab_txs)
 
-    # Should be ambiguous (no score > 0.8)
+    # Should be ambiguous (no score > threshold)
     assert result.match_type == "ambiguous"
     assert result.ynab_transaction is None
     assert result.confidence is None
@@ -130,7 +130,7 @@ def test_fuzzy_match_ambiguous():
     assert result.similarity_scores is not None
     assert len(result.similarity_scores) == 3
     # All scores should be below threshold
-    assert all(score <= 0.8 for score in result.similarity_scores)
+    assert all(score <= FUZZY_MATCH_CONFIDENCE_THRESHOLD for score in result.similarity_scores)
 
 
 def test_no_match():
@@ -254,7 +254,7 @@ def test_fuzzy_match_excludes_memo_from_score():
     assert result.match_type == "fuzzy"
     assert result.ynab_transaction == ynab_txs[0]
     assert result.confidence is not None
-    assert result.confidence > 0.8
+    assert result.confidence > FUZZY_MATCH_CONFIDENCE_THRESHOLD
 
 
 def test_transaction_date_fallback_when_posted_date_misses():
@@ -504,7 +504,7 @@ def test_ynab_payee_expansion_daily_cash_deposit():
     # Expansion makes ynab_desc "daily cash deposit" == bank_desc → score 1.0 → fuzzy match
     assert result.match_type == "fuzzy"
     assert result.confidence is not None
-    assert result.confidence >= 0.8
+    assert result.confidence > FUZZY_MATCH_CONFIDENCE_THRESHOLD
 
 
 def test_ynab_date_offset_matches_when_posted_date_misses():
@@ -696,8 +696,8 @@ def test_same_date_same_amount_different_payee_with_user_memos():
 
     Before the fix, including the user-entered YNAB memo in the description string
     inflated the denominator of SequenceMatcher.ratio(), driving all four scores below
-    the 0.8 threshold even when payee names were identical.  Both bank transactions
-    ended up flagged as ambiguous and both YNAB transactions remained unmatched.
+    FUZZY_MATCH_CONFIDENCE_THRESHOLD even when payee names were identical.  Both bank
+    transactions ended up flagged as ambiguous and both YNAB transactions remained unmatched.
 
     After the fix (payee_name only), each bank transaction fuzzy-matches its correct
     YNAB counterpart and no transactions are left unmatched.
