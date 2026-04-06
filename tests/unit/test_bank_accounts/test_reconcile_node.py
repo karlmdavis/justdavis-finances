@@ -10,7 +10,7 @@ from finances.bank_accounts.models import (
     BankAccountsConfig,
     ImportPattern,
 )
-from finances.bank_accounts.nodes.reconcile import reconcile_account_data
+from finances.bank_accounts.nodes.reconcile import _classify_mismatch_reason, reconcile_account_data
 from finances.bank_accounts.operations import CreateOp
 from finances.core import FinancialDate, Money
 
@@ -124,3 +124,51 @@ def test_greedy_pool_exhausted_third_bank_tx_becomes_create():
     assert len(creates) == 1, f"Expected 1 create, got {len(creates)}"
     # Both YNAB txs were claimed
     assert len(result.unmatched_ynab_txs) == 0
+
+
+# ---------------------------------------------------------------------------
+# _classify_mismatch_reason unit tests
+# ---------------------------------------------------------------------------
+
+
+def _d(date_str: str) -> FinancialDate:
+    return FinancialDate.from_string(date_str)
+
+
+def test_classify_empty_intervals_is_pre_coverage():
+    """No coverage intervals → always pre_coverage."""
+    assert _classify_mismatch_reason(_d("2024-01-15"), []) == "pre_coverage"
+
+
+def test_classify_before_first_interval_is_pre_coverage():
+    """Date before the first coverage interval → pre_coverage."""
+    intervals = [(_d("2024-02-01"), _d("2024-02-28"))]
+    assert _classify_mismatch_reason(_d("2024-01-15"), intervals) == "pre_coverage"
+
+
+def test_classify_after_last_interval_is_post_coverage():
+    """Date after the last coverage interval → post_coverage."""
+    intervals = [(_d("2024-01-01"), _d("2024-01-31"))]
+    assert _classify_mismatch_reason(_d("2024-03-01"), intervals) == "post_coverage"
+
+
+def test_classify_within_single_interval_is_within_coverage():
+    """Date inside the only coverage interval → within_coverage (true mismatch)."""
+    intervals = [(_d("2024-01-01"), _d("2024-01-31"))]
+    assert _classify_mismatch_reason(_d("2024-01-15"), intervals) == "within_coverage"
+
+
+def test_classify_between_two_intervals_is_coverage_gap():
+    """Date between two non-adjacent intervals → coverage_gap."""
+    intervals = [
+        (_d("2024-01-01"), _d("2024-01-15")),
+        (_d("2024-02-01"), _d("2024-02-28")),
+    ]
+    assert _classify_mismatch_reason(_d("2024-01-20"), intervals) == "coverage_gap"
+
+
+def test_classify_interval_boundaries_inclusive():
+    """Dates exactly on interval boundaries count as within_coverage."""
+    intervals = [(_d("2024-01-01"), _d("2024-01-31"))]
+    assert _classify_mismatch_reason(_d("2024-01-01"), intervals) == "within_coverage"
+    assert _classify_mismatch_reason(_d("2024-01-31"), intervals) == "within_coverage"
