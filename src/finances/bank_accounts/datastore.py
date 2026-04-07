@@ -2,10 +2,10 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from finances.core.datastore_mixin import DataStoreMixin
-from finances.core.json_utils import read_json, write_json
+from finances.core.json_utils import write_json
 
 
 class BankNormalizedDataStore(DataStoreMixin):
@@ -25,23 +25,6 @@ class BankNormalizedDataStore(DataStoreMixin):
     def exists(self) -> bool:
         """Check if any normalized files exist."""
         return self.normalized_dir.exists() and len(self._get_files_cached(self.normalized_dir, "*.json")) > 0
-
-    def load(self) -> dict[str, Any]:
-        """
-        Load most recent normalized data (by mtime).
-
-        Returns:
-            Dict containing account_slug, parsed_at, transactions, balance_points
-
-        Raises:
-            FileNotFoundError: If no normalized files exist
-        """
-        files = self._get_files_cached(self.normalized_dir, "*.json")
-        most_recent = self._get_latest_file(files)
-        if most_recent is None:
-            raise FileNotFoundError(f"No normalized data found in {self.normalized_dir}")
-
-        return cast(dict[str, Any], read_json(most_recent))
 
     def save(self, account_slug: str, data: dict[str, Any]) -> Path:
         """
@@ -111,23 +94,6 @@ class BankReconciliationStore(DataStoreMixin):
             self.reconciliation_dir.exists()
             and len(self._get_files_cached(self.reconciliation_dir, "*.json")) > 0
         )
-
-    def load(self) -> dict[str, Any]:
-        """
-        Load most recent reconciliation (by mtime).
-
-        Returns:
-            Dict containing reconciled_at and per-account reconciliation data
-
-        Raises:
-            FileNotFoundError: If no reconciliation files exist
-        """
-        files = self._get_files_cached(self.reconciliation_dir, "*.json")
-        most_recent = self._get_latest_file(files)
-        if most_recent is None:
-            raise FileNotFoundError(f"No reconciliation data found in {self.reconciliation_dir}")
-
-        return cast(dict[str, Any], read_json(most_recent))
 
     def save(self, data: dict[str, Any]) -> Path:
         """

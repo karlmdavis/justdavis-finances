@@ -3,8 +3,6 @@
 from pathlib import Path
 from time import sleep
 
-import pytest
-
 from finances.bank_accounts.datastore import (
     BankNormalizedDataStore,
     BankReconciliationStore,
@@ -38,24 +36,6 @@ class TestBankNormalizedDataStore:
         assert output_file.exists()
         assert "apple-card" in output_file.name
         assert output_file.suffix == ".json"
-
-    def test_load_returns_most_recent(self, tmp_path):
-        """Load should return most recent file by mtime."""
-        store = BankNormalizedDataStore(tmp_path)
-
-        store.save("apple-card", {"version": 1})
-        sleep(1.1)  # Ensure different timestamp (second precision)
-        store.save("apple-savings", {"version": 2})
-
-        result = store.load()
-        assert result["version"] == 2
-
-    def test_load_raises_when_empty(self, tmp_path):
-        """Load should raise FileNotFoundError when no files."""
-        store = BankNormalizedDataStore(tmp_path)
-
-        with pytest.raises(FileNotFoundError, match="No normalized data found"):
-            store.load()
 
     def test_item_count(self, tmp_path):
         """Item count should return number of files."""
@@ -127,24 +107,6 @@ class TestBankReconciliationStore:
         assert output_file.exists()
         assert "operations" in output_file.name
         assert output_file.suffix == ".json"
-
-    def test_load_returns_most_recent(self, tmp_path):
-        """Load should return most recent file by mtime."""
-        store = BankReconciliationStore(tmp_path)
-
-        store.save({"version": 1})
-        sleep(1.1)  # Ensure different timestamp (second precision)
-        store.save({"version": 2})
-
-        result = store.load()
-        assert result["version"] == 2
-
-    def test_load_raises_when_empty(self, tmp_path):
-        """Load should raise FileNotFoundError when no files."""
-        store = BankReconciliationStore(tmp_path)
-
-        with pytest.raises(FileNotFoundError, match="No reconciliation data found"):
-            store.load()
 
     def test_item_count(self, tmp_path):
         """Item count should return number of files."""
