@@ -115,7 +115,7 @@ def parse_account_data(
     - Matches files against import_patterns to find format handlers
     - Parses files using registered handlers
     - De-duplicates transactions and balances across overlapping files
-    - Returns ParseResult with transactions, balance_points, and statement_date
+    - Returns ParseResult with transactions, balance_points, and coverage_intervals
 
     Note: This function does NOT write files. The caller is responsible for
     serialization and timestamping using DataStore.save() for Pattern C accumulation.
