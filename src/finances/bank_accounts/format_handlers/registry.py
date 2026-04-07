@@ -23,9 +23,7 @@ class FormatHandlerRegistry:
         Args:
             handler_class: Handler class to register (not instance)
         """
-        # Instantiate to get format_name
-        instance = handler_class()
-        self._handlers[instance.format_name] = handler_class
+        self._handlers[handler_class.FORMAT_NAME] = handler_class
 
     def get(self, format_name: str) -> BankExportFormatHandler:
         """

@@ -1,6 +1,7 @@
 """Tests for format handler registry."""
 
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -11,9 +12,11 @@ from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistr
 class MockHandler(BankExportFormatHandler):
     """Mock handler for testing."""
 
+    FORMAT_NAME: ClassVar[str] = "mock_csv"
+
     @property
     def format_name(self) -> str:
-        return "mock_csv"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:
@@ -58,9 +61,11 @@ def test_list_formats_multiple():
     """Test listing multiple registered formats."""
 
     class AnotherMockHandler(BankExportFormatHandler):
+        FORMAT_NAME: ClassVar[str] = "another_csv"
+
         @property
         def format_name(self) -> str:
-            return "another_csv"
+            return self.FORMAT_NAME
 
         @property
         def supported_extensions(self) -> tuple[str, ...]:

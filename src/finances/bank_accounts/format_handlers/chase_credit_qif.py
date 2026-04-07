@@ -29,11 +29,12 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
       - ^ = End of transaction marker
     """
 
+    FORMAT_NAME: ClassVar[str] = "chase_credit_qif"
     VALID_HEADERS: ClassVar[list[str]] = ["!Type:CCard", "!Type:Bank"]
 
     @property
     def format_name(self) -> str:
-        return "chase_credit_qif"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:

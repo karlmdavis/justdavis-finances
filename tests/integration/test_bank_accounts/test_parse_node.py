@@ -3,6 +3,7 @@
 import shutil
 import tempfile
 from pathlib import Path
+from typing import ClassVar
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
@@ -14,9 +15,11 @@ from finances.core import FinancialDate, Money
 class TestCsvHandler(BankExportFormatHandler):
     """Test CSV format handler."""
 
+    FORMAT_NAME: ClassVar[str] = "test_csv"
+
     @property
     def format_name(self) -> str:
-        return "test_csv"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:
@@ -44,9 +47,11 @@ class TestCsvHandler(BankExportFormatHandler):
 class TestOfxHandler(BankExportFormatHandler):
     """Test OFX format handler."""
 
+    FORMAT_NAME: ClassVar[str] = "test_ofx"
+
     @property
     def format_name(self) -> str:
-        return "test_ofx"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:
@@ -485,9 +490,11 @@ TRNAMT:-20.00"""
 
         # Handlers: CSV produces txs with transaction_date; OFX produces txs without
         class SavingsCsvHandler(BankExportFormatHandler):
+            FORMAT_NAME: ClassVar[str] = "savings_csv"
+
             @property
             def format_name(self) -> str:
-                return "savings_csv"
+                return self.FORMAT_NAME
 
             @property
             def supported_extensions(self) -> tuple[str, ...]:
@@ -508,9 +515,11 @@ TRNAMT:-20.00"""
                 return ParseResult.create(transactions=txs)
 
         class SavingsOfxHandler(BankExportFormatHandler):
+            FORMAT_NAME: ClassVar[str] = "savings_ofx"
+
             @property
             def format_name(self) -> str:
-                return "savings_ofx"
+                return self.FORMAT_NAME
 
             @property
             def supported_extensions(self) -> tuple[str, ...]:

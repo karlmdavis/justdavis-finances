@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 from finances.bank_accounts.models import BalancePoint, BankTransaction
 from finances.core import FinancialDate
@@ -39,6 +40,10 @@ class ParseResult:
 
 class BankExportFormatHandler(ABC):
     """Base class for all bank export format parsers."""
+
+    # Class-level constant so the registry can read it without instantiating the handler.
+    # Subclasses must define FORMAT_NAME = "..." and override format_name to return it.
+    FORMAT_NAME: ClassVar[str]
 
     @property
     @abstractmethod

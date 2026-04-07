@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import cast
+from typing import ClassVar, cast
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BalancePoint, BankTransaction
@@ -16,9 +16,11 @@ class AppleCardOfxHandler(BankExportFormatHandler):
     Balance Data: Statement balance from LEDGERBAL tag
     """
 
+    FORMAT_NAME: ClassVar[str] = "apple_card_ofx"
+
     @property
     def format_name(self) -> str:
-        return "apple_card_ofx"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:

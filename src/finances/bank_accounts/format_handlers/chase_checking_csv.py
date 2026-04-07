@@ -2,6 +2,7 @@
 
 import csv
 from pathlib import Path
+from typing import ClassVar
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BalancePoint, BankTransaction
@@ -17,9 +18,11 @@ class ChaseCheckingCsvHandler(BankExportFormatHandler):
     Balance Data: Running balance for each transaction
     """
 
+    FORMAT_NAME: ClassVar[str] = "chase_checking_csv"
+
     @property
     def format_name(self) -> str:
-        return "chase_checking_csv"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:

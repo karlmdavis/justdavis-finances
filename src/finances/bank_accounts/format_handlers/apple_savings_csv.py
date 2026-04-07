@@ -2,6 +2,7 @@
 
 import csv
 from pathlib import Path
+from typing import ClassVar
 
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BankTransaction
@@ -17,9 +18,11 @@ class AppleSavingsCsvHandler(BankExportFormatHandler):
     Balance Data: None (no balance column in this format)
     """
 
+    FORMAT_NAME: ClassVar[str] = "apple_savings_csv"
+
     @property
     def format_name(self) -> str:
-        return "apple_savings_csv"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:

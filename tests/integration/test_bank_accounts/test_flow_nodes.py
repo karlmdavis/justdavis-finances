@@ -8,6 +8,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -30,9 +31,11 @@ from finances.core.json_utils import write_json
 class TestCsvHandler(BankExportFormatHandler):
     """Test CSV format handler for integration tests."""
 
+    FORMAT_NAME: ClassVar[str] = "test_csv"
+
     @property
     def format_name(self) -> str:
-        return "test_csv"
+        return self.FORMAT_NAME
 
     @property
     def supported_extensions(self) -> tuple[str, ...]:
