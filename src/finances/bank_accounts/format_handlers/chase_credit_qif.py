@@ -47,6 +47,10 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
         with open(file_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines()]
 
+        # Skip leading blank lines (some Chase downloads include a leading newline)
+        while lines and not lines[0]:
+            lines.pop(0)
+
         # Validate and skip header line
         if not lines or lines[0] not in self.VALID_HEADERS:
             raise ValueError(
