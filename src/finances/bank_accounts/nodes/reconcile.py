@@ -280,7 +280,7 @@ def reconcile_account_data(
         # 3c. Categorize each unmatched YNAB tx with a mismatch_reason
         categorized: list[dict[str, Any]] = []
         for ynab_tx in unmatched_ynab_txs:
-            reason = _classify_mismatch_reason(ynab_tx.date, list(coverage_intervals))
+            reason = _classify_mismatch_reason(ynab_tx.date, coverage_intervals)
             entry: dict[str, Any] = {
                 "date": str(ynab_tx.date),
                 "amount_milliunits": ynab_tx.amount.to_milliunits(),
