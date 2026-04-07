@@ -377,9 +377,9 @@ def test_create_batch_split_then_applied():
         assert counts["applied"] == 1
         assert counts["skipped"] == 1
 
-        # Verify [Returning to batch view] was printed
+        # Verify [Individual review complete] was printed
         printed_args = [str(c) for c in mock_print.call_args_list]
-        assert any("[Returning to batch view]" in s for s in printed_args)
+        assert any("[Individual review complete]" in s for s in printed_args)
 
         lines = log_path.read_text().strip().splitlines()
         assert len(lines) == 2

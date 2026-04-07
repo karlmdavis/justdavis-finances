@@ -597,7 +597,7 @@ def apply_reconciliation_operations(
                                 }
                             )
                             counts["skipped"] += 1
-                    print("  [Returning to batch view]")
+                    print("  [Individual review complete]")
 
                 else:  # n
                     for op in batch_ops:
@@ -785,7 +785,7 @@ def apply_reconciliation_operations(
                                 }
                             )
                             counts["skipped"] += 1
-                    print("  [Returning to batch view]")
+                    print("  [Individual review complete]")
 
                 else:  # n
                     for op in batch_ops:
