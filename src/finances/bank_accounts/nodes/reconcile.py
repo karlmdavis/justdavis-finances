@@ -153,7 +153,9 @@ def reconcile_account_data(
             # Skip account if no normalized data exists
             continue
 
-        most_recent_file = max(account_files, key=lambda f: f.name)
+        most_recent_file = max(
+            account_files, key=lambda f: f.name
+        )  # ISO timestamp prefix → lex order = chron order
         normalized_data = read_json(most_recent_file)
 
         bank_txs = [BankTransaction.from_dict(tx) for tx in normalized_data["transactions"]]
