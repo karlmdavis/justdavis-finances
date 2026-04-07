@@ -255,9 +255,7 @@ def reconcile_account_data(
         ]
 
         for ynab_tx in unmatched_ynab_txs:
-            if not coverage_intervals:
-                continue  # No authoritative window known — skip silently
-            if not any(start <= ynab_tx.date <= end for start, end in coverage_intervals):
+            if _classify_mismatch_reason(ynab_tx.date, coverage_intervals) != "within_coverage":
                 continue
             if ynab_tx.is_transfer:
                 continue
