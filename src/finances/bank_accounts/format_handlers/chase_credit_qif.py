@@ -64,7 +64,16 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
         while i < len(lines):
             line = lines[i]
 
-            if not line:  # Skip empty lines
+            if not line or line == "^":
+                # Blank lines and ^ both act as end-of-transaction markers.
+                # Chase QIF files use blank-line separation; ^ is the standard QIF sentinel.
+                if current_tx:
+                    try:
+                        tx = self._parse_transaction(current_tx, line_num)
+                        transactions.append(tx)
+                    except (ValueError, KeyError) as e:
+                        raise ValueError(f"Parse error near line {line_num}: {e}") from e
+                    current_tx = {}
                 i += 1
                 line_num += 1
                 continue
@@ -82,19 +91,17 @@ class ChaseCreditQifHandler(BankExportFormatHandler):
                 current_tx["cleared"] = line[1:]
             elif line.startswith("N"):
                 current_tx["check_number"] = line[1:]
-            elif line == "^":
-                # End of transaction - parse and create BankTransaction
-                try:
-                    tx = self._parse_transaction(current_tx, line_num)
-                    transactions.append(tx)
-                except (ValueError, KeyError) as e:
-                    raise ValueError(f"Parse error near line {line_num}: {e}") from e
-
-                # Reset for next transaction
-                current_tx = {}
 
             i += 1
             line_num += 1
+
+        # Flush any final transaction not followed by a blank line or ^
+        if current_tx:
+            try:
+                tx = self._parse_transaction(current_tx, line_num)
+                transactions.append(tx)
+            except (ValueError, KeyError) as e:
+                raise ValueError(f"Parse error near line {line_num}: {e}") from e
 
         # NO balance_points for QIF (doesn't include balance data)
         return ParseResult.create(transactions=transactions, balance_points=[])
