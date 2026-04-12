@@ -34,6 +34,8 @@ class AppleCardOfxHandler(BankExportFormatHandler):
         with open(file_path, "rb") as f:
             parser.parse(f)
         root = parser.getroot()
+        if root is None:
+            raise ValueError(f"OFX parser returned no root element from {file_path}")
 
         transactions = self._parse_transactions(root)
         balance_points = self._parse_balances(root)
