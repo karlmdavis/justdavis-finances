@@ -33,6 +33,7 @@ dependencies = [
     "PyYAML>=6.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",
+    "ofxtools>=0.9",
 ]
 
 [project.optional-dependencies]
@@ -177,6 +178,7 @@ module = [
     "pandas.*",
     "matplotlib.*",
     "scipy.*",
+    "ofxtools.*",
 ]
 ignore_missing_imports = true
 

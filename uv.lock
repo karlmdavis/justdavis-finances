@@ -308,6 +308,7 @@ dependencies = [
     { name = "click" },
     { name = "lxml" },
     { name = "matplotlib" },
+    { name = "ofxtools" },
     { name = "pandas" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
@@ -362,6 +363,7 @@ requires-dist = [
     { name = "mkdocs-click", marker = "extra == 'docs'", specifier = ">=0.8.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5.0" },
+    { name = "ofxtools", specifier = ">=0.9" },
     { name = "pandas", specifier = ">=2.0.0" },
     { name = "pandas-stubs", marker = "extra == 'dev'", specifier = ">=2.0.0" },
     { name = "pexpect", marker = "extra == 'dev'", specifier = ">=4.8.0" },
@@ -972,6 +974,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/47/c7/b0f6b5b67f6788a0725f744496badbb604d226bf233ba716683ebb47b570/numpy-2.3.3-cp314-cp314t-win_amd64.whl", hash = "sha256:b37a0b2e5935409daebe82c1e42274d30d9dd355852529eab91dab8dcca7419f", size = 13112576, upload-time = "2025-09-09T15:58:37.927Z" },
     { url = "https://files.pythonhosted.org/packages/06/b9/33bba5ff6fb679aa0b1f8a07e853f002a6b04b9394db3069a1270a7784ca/numpy-2.3.3-cp314-cp314t-win_arm64.whl", hash = "sha256:78c9f6560dc7e6b3990e32df7ea1a50bbd0e2a111e05209963f5ddcab7073b0b", size = 10545953, upload-time = "2025-09-09T15:58:40.576Z" },
 ]
+
+[[package]]
+name = "ofxtools"
+version = "0.9.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/37/d224428cbb44b8d36b9458c2c9b11eb54ece95bc455ef6f7ada583809b13/ofxtools-0.9.5.tar.gz", hash = "sha256:682a516bfa5ccad0f9551c17cc2cf155422f9f5f85a341cfb4911b324de46045", size = 114090, upload-time = "2022-01-13T14:18:16.584Z" }
 
 [[package]]
 name = "packaging"

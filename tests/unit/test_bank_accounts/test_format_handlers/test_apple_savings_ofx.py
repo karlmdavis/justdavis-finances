@@ -6,38 +6,34 @@ from finances.core import FinancialDate, Money
 
 @pytest.fixture
 def sample_ofx(tmp_path):
-    """Create a temporary Apple Savings OFX file."""
-    ofx_content = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<OFX>
-<BANKMSGSRSV1>
-<STMTTRNRS>
-<STMTRS>
-<CURDEF>USD</CURDEF>
-<BANKTRANLIST>
-<STMTTRN>
-<TRNTYPE>INT</TRNTYPE>
-<DTPOSTED>20241231</DTPOSTED>
-<TRNAMT>1.25</TRNAMT>
-<FITID>20241231-1</FITID>
-<NAME>Interest Earned</NAME>
-</STMTTRN>
-<STMTTRN>
-<TRNTYPE>DEBIT</TRNTYPE>
-<DTPOSTED>20241230</DTPOSTED>
-<TRNAMT>-500.00</TRNAMT>
-<FITID>20241230-1</FITID>
-<NAME>Withdrawal to Apple Card</NAME>
-</STMTTRN>
-</BANKTRANLIST>
-<LEDGERBAL>
-<BALAMT>42053.56</BALAMT>
-<DTASOF>20241231</DTASOF>
-</LEDGERBAL>
-</STMTRS>
-</STMTTRNRS>
-</BANKMSGSRSV1>
-</OFX>
-"""
+    """Create a temporary Apple Savings OFX file in OFX 1.x SGML format (matches real Apple exports)."""
+    ofx_content = (
+        "OFXHEADER:100\n"
+        "DATA:OFXSGML\n"
+        "VERSION:102\n"
+        "SECURITY:NONE\n"
+        "ENCODING:USASCII\n"
+        "CHARSET:1252\n"
+        "COMPRESSION:NONE\n"
+        "OLDFILEUID:NONE\n"
+        "NEWFILEUID:NONE\n"
+        "\n"
+        "<OFX>"
+        "<SIGNONMSGSRSV1><SONRS><STATUS><CODE>0<SEVERITY>INFO</STATUS>"
+        "<DTSERVER>20241231120000[0:GMT]<LANGUAGE>ENG</SONRS></SIGNONMSGSRSV1>"
+        "<BANKMSGSRSV1><STMTTRNRS><TRNUID>0"
+        "<STATUS><CODE>0<SEVERITY>INFO</STATUS>"
+        "<STMTRS><CURDEF>USD"
+        "<BANKACCTFROM><ACCTID>1234567890<ACCTTYPE>SAVINGS</BANKACCTFROM>"
+        "<BANKTRANLIST>"
+        "<STMTTRN><TRNTYPE>INT<DTPOSTED>20241231120000[0:GMT]"
+        "<TRNAMT>1.25<FITID>20241231-1<NAME>Interest Earned</STMTTRN>"
+        "<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20241230120000[0:GMT]"
+        "<TRNAMT>-500.00<FITID>20241230-1<NAME>Withdrawal to Apple Card</STMTTRN>"
+        "</BANKTRANLIST>"
+        "<LEDGERBAL><BALAMT>42053.56<DTASOF>20241231120000[0:GMT]</LEDGERBAL>"
+        "</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>\n"
+    )
 
     ofx_file = tmp_path / "apple_savings_sample.ofx"
     ofx_file.write_text(ofx_content)

@@ -2,6 +2,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import ClassVar, cast
 
+from ofxtools.Parser import OFXTree
+
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.models import BalancePoint, BankTransaction
 from finances.core import Money
@@ -27,8 +29,11 @@ class AppleCardOfxHandler(BankExportFormatHandler):
         return (".ofx",)
 
     def parse(self, file_path: Path) -> ParseResult:
-        """Parse Apple Card OFX file."""
-        root = ET.parse(file_path).getroot()
+        """Parse Apple Card OFX file (handles OFX 1.x SGML and OFX 2.x XML formats)."""
+        parser = OFXTree()
+        with open(file_path, "rb") as f:
+            parser.parse(f)
+        root = parser.getroot()
 
         transactions = self._parse_transactions(root)
         balance_points = self._parse_balances(root)
