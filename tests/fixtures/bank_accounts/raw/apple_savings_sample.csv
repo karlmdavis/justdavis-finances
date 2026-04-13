@@ -1,0 +1,4 @@
+Transaction Date,Posted Date,Activity Type,Transaction Type,Description,Currency Code,Amount
+12/30/2024,12/31/2024,"Interest","Credit","Interest Paid","USD","1.25"
+12/29/2024,12/30/2024,"ACH","Debit","ACH Online transfer to JPMORGAN CHASE BANK, NA","USD","500.00"
+12/28/2024,12/29/2024,"ACH","Credit","ACH Online transfer from JPMORGAN CHASE BANK, NA","USD","1000.00"

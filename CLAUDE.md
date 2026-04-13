@@ -620,7 +620,16 @@ This repository maintains strict integer-only arithmetic for all financial calcu
     - File reading: Use `read_json(filepath)` instead of `json.load()`.
     - String formatting: Use `format_json(data)` instead of `json.dumps()`.
     - **Never use** direct `json.dump()` or `json.dumps()` calls without `indent=2`.
-13. **Markdown formatting**: All markdown files follow standardized formatting rules.
+13. **Fail loudly on errors**: Never silently swallow exceptions in file parsing or I/O operations.
+    Always let exceptions propagate (or re-raise with context).
+    Silently continuing past errors produces incorrect results and makes failures impossible to diagnose.
+    This applies equally to parse errors, missing files, and unexpected data formats.
+14. **Define code at the lowest layer that uses it**: Constants, helpers, and inner functions should
+    be defined at the narrowest scope that uses them — function-local if used in one function, module
+    level only if used in multiple places in the module.
+    Do not hoist definitions to module level for consistency alone; co-location with the usage site
+    aids readability.
+15. **Markdown formatting**: All markdown files follow standardized formatting rules.
     See [Markdown Formatting Guidelines](CONTRIBUTING.md#markdown-formatting-guidelines) for
       complete details:
     - One sentence per line for better version control

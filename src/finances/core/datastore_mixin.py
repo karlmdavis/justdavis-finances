@@ -6,6 +6,7 @@ Provides shared implementation of metadata methods and file caching
 to reduce redundant file system operations.
 """
 
+import re
 from abc import abstractmethod
 from datetime import datetime
 from pathlib import Path
@@ -77,9 +78,16 @@ class DataStoreMixin:
         self._cache_timestamp = datetime.now().timestamp()
         return self._file_cache
 
+    _TIMESTAMP_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_")
+
     def _get_latest_file(self, files: list[Path]) -> Path | None:
         """
-        Get most recently modified file from list.
+        Get the most recent file from a list.
+
+        When all filenames begin with a `YYYY-MM-DD_HH-MM-SS_` timestamp prefix,
+        uses lexicographic filename sort (which equals chronological order for this
+        format).
+        Falls back to filesystem mtime for files without the timestamp prefix.
 
         Args:
             files: List of file paths
@@ -89,6 +97,8 @@ class DataStoreMixin:
         """
         if not files:
             return None
+        if all(self._TIMESTAMP_PREFIX_RE.match(p.name) for p in files):
+            return max(files, key=lambda p: p.name)
         return max(files, key=lambda p: p.stat().st_mtime)
 
     def _get_total_size(self, files: list[Path]) -> int:

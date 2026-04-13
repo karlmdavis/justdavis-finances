@@ -591,31 +591,35 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     This test validates the new topological execution order with sequential prompting.
     Each node is prompted in deterministic topological order with alphabetical tie-breaking.
 
-    Expected execution sequence (11 nodes in topological order):
+    Expected execution sequence (topological order):
 
     Level 0 (no dependencies):
     1. amazon_order_history_request - Skip (no manual requests in test)
     2. apple_email_fetch - Skip (requires IMAP credentials)
-    3. ynab_sync - Skip (cache already exists)
+    3. bank_data_retrieve - Skip (no raw bank data in test)
+    4. ynab_sync - Skip (cache already exists)
 
     Level 1 (depends on level 0):
-    4. amazon_unzip - Execute (ZIP file present from fixture)
-    5. apple_receipt_parsing - Execute (.html files present from fixture)
-    6. cash_flow_analysis - Skip (no historical data)
-    7. retirement_update - Skip (no retirement accounts)
+    5. amazon_unzip - Execute (ZIP file present from fixture)
+    6. apple_receipt_parsing - Execute (.html files present from fixture)
+    7. bank_data_parse - Skip (depends on bank_data_retrieve)
+    8. cash_flow_analysis - Skip (no historical data)
+    9. retirement_update - Skip (no retirement accounts)
 
     Level 2 (depends on level 1):
-    8. amazon_matching - Execute (depends on ynab_sync + amazon_unzip)
-    9. apple_matching - Execute (depends on ynab_sync + apple_receipt_parsing)
+    10. amazon_matching - Execute (depends on ynab_sync + amazon_unzip)
+    11. apple_matching - Execute (depends on ynab_sync + apple_receipt_parsing)
+    12. bank_data_reconcile - Skip (depends on bank_data_parse + ynab_sync)
 
     Level 3 (depends on level 2):
-    10. split_generation - Execute (depends on amazon_matching + apple_matching)
+    13. split_generation - Execute (depends on amazon_matching + apple_matching)
+    14. bank_data_reconcile_apply - Skip (depends on bank_data_reconcile)
 
     Level 4 (depends on level 3):
-    11. ynab_apply - Skip (would modify real YNAB data)
+    15. ynab_apply - Skip (would modify real YNAB data)
 
     Nodes executed: amazon_unzip, apple_receipt_parsing, amazon_matching, apple_matching, split_generation
-    Nodes skipped: amazon_order_history_request, apple_email_fetch, ynab_sync, cash_flow_analysis, retirement_update, ynab_apply
+    Nodes skipped: amazon_order_history_request, apple_email_fetch, bank_data_retrieve, ynab_sync, bank_data_parse, cash_flow_analysis, retirement_update, bank_data_reconcile, bank_data_reconcile_apply, ynab_apply
     """
     import os
 
@@ -632,11 +636,11 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
     try:
         # Use context manager to capture all output and log on failure
         with capture_and_log_on_failure(child) as output:
-            # Sequential prompting in topological order (11 nodes)
-            # Level 0: amazon_order_history_request, apple_email_fetch, ynab_sync
-            # Level 1: amazon_unzip, apple_receipt_parsing, cash_flow_analysis, retirement_update
-            # Level 2: amazon_matching, apple_matching
-            # Level 3: split_generation
+            # Sequential prompting in topological order (15 nodes)
+            # Level 0: amazon_order_history_request, apple_email_fetch, bank_data_retrieve, ynab_sync
+            # Level 1: amazon_unzip, apple_receipt_parsing, bank_data_parse, cash_flow_analysis, retirement_update
+            # Level 2: amazon_matching, apple_matching, bank_data_reconcile
+            # Level 3: split_generation, bank_data_reconcile_apply
             # Level 4: ynab_apply
 
             # Level 0 - Step 1: amazon_order_history_request - Skip
@@ -647,45 +651,61 @@ def test_flow_interactive_execution_with_matching(flow_test_env_coordinated):
             wait_for_node_prompt(child, "apple_email_fetch")
             send_node_decision(child, execute=False)
 
-            # Level 0 - Step 3: ynab_sync - Skip
+            # Level 0 - Step 3: bank_data_retrieve - Skip
+            wait_for_node_prompt(child, "bank_data_retrieve")
+            send_node_decision(child, execute=False)
+
+            # Level 0 - Step 4: ynab_sync - Skip
             wait_for_node_prompt(child, "ynab_sync")
             send_node_decision(child, execute=False)
 
-            # Level 1 - Step 4: amazon_unzip - Execute
+            # Level 1 - Step 5: amazon_unzip - Execute
             wait_for_node_prompt(child, "amazon_unzip")
             send_node_decision(child, execute=True)
 
-            # Level 1 - Step 5: apple_receipt_parsing - Execute
+            # Level 1 - Step 6: apple_receipt_parsing - Execute
             wait_for_node_prompt(child, "apple_receipt_parsing")
             assert_node_executed(output.getvalue(), "amazon_unzip", "completed")
             send_node_decision(child, execute=True)
 
-            # Level 1 - Step 6: cash_flow_analysis - Skip
-            wait_for_node_prompt(child, "cash_flow_analysis")
+            # Level 1 - Step 7: bank_data_parse - Skip
+            wait_for_node_prompt(child, "bank_data_parse")
             assert_node_executed(output.getvalue(), "apple_receipt_parsing", "completed")
             send_node_decision(child, execute=False)
 
-            # Level 1 - Step 7: retirement_update - Skip
+            # Level 1 - Step 8: cash_flow_analysis - Skip
+            wait_for_node_prompt(child, "cash_flow_analysis")
+            send_node_decision(child, execute=False)
+
+            # Level 1 - Step 9: retirement_update - Skip
             wait_for_node_prompt(child, "retirement_update")
             send_node_decision(child, execute=False)
 
-            # Level 2 - Step 8: amazon_matching - Execute
+            # Level 2 - Step 10: amazon_matching - Execute
             wait_for_node_prompt(child, "amazon_matching")
             send_node_decision(child, execute=True)
 
-            # Level 2 - Step 9: apple_matching - Execute
+            # Level 2 - Step 11: apple_matching - Execute
             wait_for_node_prompt(child, "apple_matching")
             assert_node_executed(output.getvalue(), "amazon_matching", "completed")
             send_node_decision(child, execute=True)
 
-            # Level 3 - Step 10: split_generation - Execute
-            wait_for_node_prompt(child, "split_generation")
+            # Level 2 - Step 12: bank_data_reconcile - Skip
+            wait_for_node_prompt(child, "bank_data_reconcile")
             assert_node_executed(output.getvalue(), "apple_matching", "completed")
+            send_node_decision(child, execute=False)
+
+            # Level 3 - Step 13: split_generation - Execute
+            wait_for_node_prompt(child, "split_generation")
             send_node_decision(child, execute=True)
 
-            # Level 4 - Step 11: ynab_apply - Skip
-            wait_for_node_prompt(child, "ynab_apply")
+            # Level 3 - Step 14: bank_data_reconcile_apply - Skip (depends on bank_data_reconcile)
+            wait_for_node_prompt(child, "bank_data_reconcile_apply")
             assert_node_executed(output.getvalue(), "split_generation", "completed")
+            send_node_decision(child, execute=False)
+
+            # Level 4 - Step 15: ynab_apply - Skip
+            wait_for_node_prompt(child, "ynab_apply")
             send_node_decision(child, execute=False)
 
             # Wait for execution summary
@@ -779,13 +799,13 @@ def test_flow_preview_and_cancel(flow_test_env_coordinated):
         with capture_and_log_on_failure(child) as output:
             # Skip all nodes (preview without execution)
             # In the new model, users preview each node and can skip all of them
-            for _ in range(11):  # 11 nodes in the flow
+            for _ in range(15):  # 15 nodes in the flow
                 child.sendline("n")
 
             # Wait for execution summary showing all skipped
             child.expect("EXECUTION SUMMARY", timeout=10)
             child.expect("Executed: 0 nodes", timeout=5)
-            child.expect("Skipped:  11 nodes", timeout=5)
+            child.expect("Skipped:  15 nodes", timeout=5)
 
             # Wait for process to complete
             child.expect(pexpect.EOF, timeout=5)

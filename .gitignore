@@ -1,5 +1,6 @@
-# Sensitive financial data - unified data directory
+# Sensitive financial data & configuration.
 data/
+config/
 
 # Python environment
 .venv/

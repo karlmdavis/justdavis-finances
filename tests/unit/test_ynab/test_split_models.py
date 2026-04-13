@@ -289,3 +289,53 @@ class TestSplitEditBatch:
         assert len(batch_dict["edits"]) == 2
         assert batch_dict["edits"][0]["transaction_id"] == "tx1"
         assert batch_dict["edits"][1]["transaction_id"] == "tx2"
+
+
+def _make_ynab_tx(tx_id: str, date: str, amount_milliunits: int, import_id: str | None) -> YnabTransaction:
+    """Build a minimal YnabTransaction via from_dict for import_posted_date tests."""
+    return YnabTransaction.from_dict(
+        {
+            "id": tx_id,
+            "date": date,
+            "amount": amount_milliunits,
+            "account_id": "acc1",
+            "account_name": "Test Account",
+            "import_id": import_id,
+        }
+    )
+
+
+class TestYnabTransactionImportPostedDate:
+    """Test YnabTransaction.import_posted_date property."""
+
+    @pytest.mark.ynab
+    def test_ynab_import_id_returns_clearing_date(self):
+        """YNAB:<amount>:<date>:<seq> format returns the encoded clearing date."""
+        tx = _make_ynab_tx("tx1", "2024-11-29", -112490, "YNAB:-112490:2024-12-02:1")
+        assert tx.import_posted_date == FinancialDate.from_string("2024-12-02")
+
+    @pytest.mark.ynab
+    def test_non_ynab_import_id_returns_none(self):
+        """A UUID-style import_id (not YNAB: prefix) returns None."""
+        tx = _make_ynab_tx("tx2", "2024-12-02", -112490, "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        assert tx.import_posted_date is None
+
+    @pytest.mark.ynab
+    def test_no_import_id_returns_none(self):
+        """import_id=None returns None."""
+        tx = _make_ynab_tx("tx3", "2024-12-02", -112490, None)
+        assert tx.import_posted_date is None
+
+    @pytest.mark.ynab
+    def test_date_differs_from_import_posted_date(self):
+        """Simulates real scenario: manual entry date differs from bank clearing date."""
+        tx = _make_ynab_tx("tx4", "2024-11-29", -112490, "YNAB:-112490:2024-12-02:1")
+        assert tx.date == FinancialDate.from_string("2024-11-29")
+        assert tx.import_posted_date == FinancialDate.from_string("2024-12-02")
+        assert tx.date != tx.import_posted_date
+
+    @pytest.mark.ynab
+    def test_pending_import_id_returns_clearing_date(self):
+        """YNAB:P:<amount>:<date>:<seq> (pending) format also returns the encoded date."""
+        tx = _make_ynab_tx("tx5", "2025-03-15", -5059500, "YNAB:P:-5059500:2025-04-01:1")
+        assert tx.import_posted_date == FinancialDate.from_string("2025-04-01")

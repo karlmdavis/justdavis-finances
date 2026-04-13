@@ -33,6 +33,7 @@ dependencies = [
     "PyYAML>=6.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",
+    "ofxtools>=0.9",
 ]
 
 [project.optional-dependencies]
@@ -147,6 +148,7 @@ ignore = [
 "tests/fixtures/synthetic_data.py" = ["S311"]  # allow standard random for test data generation
 "tests/e2e/**/*" = ["S105", "S607"]  # allow test tokens and partial executable paths for CLI testing
 "src/finances/ynab/flow.py" = ["S607"]  # allow partial executable path for ynab CLI tool
+"src/finances/bank_accounts/apply.py" = ["S603", "S607"]  # allow subprocess calls to ynab CLI tool
 
 # MyPy configuration
 [tool.mypy]
@@ -174,6 +176,7 @@ module = [
     "pandas.*",
     "matplotlib.*",
     "scipy.*",
+    "ofxtools.*",
 ]
 ignore_missing_imports = true
 
