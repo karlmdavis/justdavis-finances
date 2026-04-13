@@ -90,8 +90,10 @@ def calculate_ynab_balances(
     Returns:
         Dictionary mapping balance point dates to calculated YNAB balances
     """
-    if not balance_points or not ynab_txs:
+    if not balance_points:
         return {}
+    if not ynab_txs:
+        return {bp.date: Money.from_cents(0) for bp in balance_points}
 
     sorted_ynab_txs = sorted(ynab_txs, key=lambda tx: tx.date)
     sorted_dates = sorted({bp.date for bp in balance_points})

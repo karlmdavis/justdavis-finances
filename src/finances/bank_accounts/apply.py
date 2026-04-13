@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+import sys
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +30,10 @@ def _parse_duplicate_ids(stdout: str) -> set[str]:
     try:
         ids: list[str] = json.loads(f"[{match.group(1)}]")
         return set(ids)
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as exc:
+        print(
+            f"  WARNING: Could not parse duplicate IDs from ynab output: {exc}", file=sys.stderr, flush=True
+        )
         return set()
 
 
