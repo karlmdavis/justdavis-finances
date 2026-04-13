@@ -450,7 +450,7 @@ def apply_reconciliation_operations(
                                 "amount_milliunits": op.transaction.amount.to_milliunits(),
                                 "payee_name": payee_name,
                                 "import_id": import_id,
-                                "included_in_batch": True,
+                                "included_in_batch": False,
                             }
                         )
                         counts["skipped"] += 1
@@ -622,7 +622,7 @@ def apply_reconciliation_operations(
                 if action == "y":
                     proc = subprocess.run(
                         ["ynab", "create", "transaction", "--file", "-"],
-                        input=json.dumps(payload),
+                        input=format_json(payload),
                         text=True,
                         capture_output=True,
                     )

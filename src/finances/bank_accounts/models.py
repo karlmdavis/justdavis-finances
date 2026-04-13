@@ -53,7 +53,7 @@ class AccountConfig:
 
     # Manually-verified balance checkpoints (e.g. from iPhone Wallet app).
     # These supplement OFX balance points for accounts where OFX balances are unreliable.
-    # Each entry: {"date": "YYYY-MM-DD", "balance_milliunits": int}
+    # Each entry: {"date": "YYYY-MM-DD", "amount_milliunits": int}
     # Sign convention matches YNAB: negative for credit card debt, positive for assets.
     manual_balance_points: tuple[BalancePoint, ...] = ()
 
