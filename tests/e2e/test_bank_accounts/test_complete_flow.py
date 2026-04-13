@@ -14,10 +14,10 @@ from finances.bank_accounts.format_handlers.chase_credit_csv import ChaseCreditC
 from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
 from finances.bank_accounts.matching import MatchingYnabTransaction
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, ImportPattern
-from finances.bank_accounts.nodes.parse import parse_account_data
-from finances.bank_accounts.nodes.reconcile import reconcile_account_data
-from finances.bank_accounts.nodes.retrieve import retrieve_account_data
 from finances.bank_accounts.operations import CreateOp, DeleteOp, FlagOp
+from finances.bank_accounts.parse import parse_account_data
+from finances.bank_accounts.reconcile import reconcile_account_data
+from finances.bank_accounts.retrieve import retrieve_account_data
 from finances.core import FinancialDate, Money
 
 
@@ -581,7 +581,7 @@ def test_reconcile_to_apply_round_trip(tmp_data_dir):
     import json
     from unittest.mock import patch
 
-    from finances.bank_accounts.nodes.apply import apply_reconciliation_operations
+    from finances.bank_accounts.apply import apply_reconciliation_operations
     from finances.core.json_utils import write_json
 
     # --- synthetic operations file (two accounts, all three operation types) ---
@@ -674,7 +674,7 @@ def test_reconcile_to_apply_round_trip(tmp_data_dir):
     #   5. "y" — process apple-card account
     #   6. "a" — acknowledge 2024-03-05 flag batch
     with (
-        patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+        patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
         patch("builtins.input", side_effect=["y", "y", "y", "y", "y", "a"]),
     ):
         mock_run.return_value.returncode = 0

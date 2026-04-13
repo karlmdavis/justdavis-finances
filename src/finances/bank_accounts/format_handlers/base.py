@@ -1,12 +1,15 @@
 """Base classes for bank export format handlers."""
 
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, cast
+
+from ofxtools.Parser import OFXTree
 
 from finances.bank_accounts.models import BalancePoint, BankTransaction
-from finances.core import FinancialDate
+from finances.core import FinancialDate, Money
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,132 @@ class ParseResult:
         )
 
 
+def _ofx_date(date_str: str) -> FinancialDate:
+    """Parse OFX YYYYMMDD format date (may have timestamp suffix)."""
+    date_part = date_str[:8]
+    return FinancialDate.from_string(f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}")
+
+
+def _parse_ofx_transactions(root: ET.Element) -> list[BankTransaction]:
+    """Extract transactions from an OFX element tree."""
+    transactions = []
+
+    for trn in root.findall(".//STMTTRN"):
+        posted_date_el = trn.find("DTPOSTED")
+        amount_el = trn.find("TRNAMT")
+        name_el = trn.find("NAME")
+
+        missing_fields = []
+        if posted_date_el is None or not posted_date_el.text:
+            missing_fields.append("DTPOSTED")
+        if amount_el is None or not amount_el.text:
+            missing_fields.append("TRNAMT")
+        if name_el is None or not name_el.text:
+            missing_fields.append("NAME")
+
+        if missing_fields:
+            raise ValueError(
+                f"Missing required transaction fields in OFX: "
+                f"{', '.join(missing_fields)}. Expected DTPOSTED, TRNAMT, and NAME tags."
+            )
+
+        # Type narrowing after runtime validation
+        posted_date_str = cast(str, posted_date_el.text)  # type: ignore[union-attr]
+        amount_str = cast(str, amount_el.text)  # type: ignore[union-attr]
+        name_str = cast(str, name_el.text)  # type: ignore[union-attr]
+
+        transactions.append(
+            BankTransaction(
+                posted_date=_ofx_date(posted_date_str),
+                description=name_str,
+                amount=Money.from_dollars(amount_str),
+            )
+        )
+
+    return transactions
+
+
+def _parse_ofx_balances(root: ET.Element, include_available: bool = False) -> list[BalancePoint]:
+    """
+    Extract balance points from an OFX element tree.
+
+    Args:
+        root: OFX element tree root
+        include_available: If True, also parse AVAILBAL (for credit cards).
+            Savings and checking accounts don't expose an available balance.
+    """
+    ledgerbal = root.find(".//LEDGERBAL")
+    if ledgerbal is None:
+        return []
+
+    balamt_el = ledgerbal.find("BALAMT")
+    dtasof_el = ledgerbal.find("DTASOF")
+
+    if balamt_el is None or not balamt_el.text or dtasof_el is None or not dtasof_el.text:
+        missing = []
+        if balamt_el is None or not balamt_el.text:
+            missing.append("BALAMT")
+        if dtasof_el is None or not dtasof_el.text:
+            missing.append("DTASOF")
+        raise ValueError(f"LEDGERBAL tag found but missing required sub-elements: {', '.join(missing)}")
+
+    ledger_money = Money.from_dollars(balamt_el.text)
+    balance_date = _ofx_date(dtasof_el.text)
+
+    available = None
+    if include_available:
+        availbal = root.find(".//AVAILBAL")
+        if availbal is not None:
+            avail_el = availbal.find("BALAMT")
+            if avail_el is not None and avail_el.text:
+                available = Money.from_dollars(avail_el.text)
+
+    return [BalancePoint(date=balance_date, amount=ledger_money, available=available)]
+
+
+def parse_ofx_file(file_path: Path, include_available: bool = False) -> ParseResult:
+    """
+    Parse any OFX file and return a ParseResult.
+
+    Args:
+        file_path: Path to the OFX file to parse.
+        include_available: Set True for credit card accounts (reads AVAILBAL tag).
+            Savings and checking accounts do not expose an available balance.
+
+    Returns:
+        ParseResult with transactions, balance points, and statement date range.
+
+    Raises:
+        ValueError: If the file is malformed or missing required fields.
+    """
+    parser = OFXTree()
+    with open(file_path, "rb") as f:
+        parser.parse(f)
+    root = parser.getroot()
+    if root is None:
+        raise ValueError(f"OFX parser returned no root element from {file_path}")
+
+    transactions = _parse_ofx_transactions(root)
+    balance_points = _parse_ofx_balances(root, include_available=include_available)
+
+    banktranlist = root.find(".//BANKTRANLIST")
+    dtstart_el = banktranlist.find("DTSTART") if banktranlist is not None else None
+    dtend_el = banktranlist.find("DTEND") if banktranlist is not None else None
+    statement_start_date = _ofx_date(dtstart_el.text) if dtstart_el is not None and dtstart_el.text else None
+    statement_date = (
+        _ofx_date(dtend_el.text)
+        if dtend_el is not None and dtend_el.text
+        else (balance_points[0].date if balance_points else None)
+    )
+
+    return ParseResult.create(
+        transactions=transactions,
+        balance_points=balance_points,
+        statement_date=statement_date,
+        statement_start_date=statement_start_date,
+    )
+
+
 class BankExportFormatHandler(ABC):
     """Base class for all bank export format parsers."""
 
@@ -64,8 +193,7 @@ class BankExportFormatHandler(ABC):
 
     def _parse_ofx_date(self, date_str: str) -> FinancialDate:
         """Parse OFX YYYYMMDD format date (may have timestamp suffix)."""
-        date_part = date_str[:8]
-        return FinancialDate.from_string(f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}")
+        return _ofx_date(date_str)
 
     @abstractmethod
     def parse(self, file_path: Path) -> ParseResult:

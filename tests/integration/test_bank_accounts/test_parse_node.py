@@ -8,7 +8,7 @@ from typing import ClassVar
 from finances.bank_accounts.format_handlers.base import BankExportFormatHandler, ParseResult
 from finances.bank_accounts.format_handlers.registry import FormatHandlerRegistry
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, BankTransaction, ImportPattern
-from finances.bank_accounts.nodes import parse_account_data
+from finances.bank_accounts.parse import parse_account_data
 from finances.core import FinancialDate, Money
 
 

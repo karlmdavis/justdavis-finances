@@ -1,4 +1,4 @@
-"""Unit tests for bank_accounts.nodes.apply."""
+"""Unit tests for bank_accounts.apply."""
 
 import json
 import re
@@ -6,11 +6,11 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from finances.bank_accounts.matching import make_import_id as _make_import_id
-from finances.bank_accounts.models import BankAccountsConfig
-from finances.bank_accounts.nodes.apply import (
+from finances.bank_accounts.apply import (
     apply_reconciliation_operations,
 )
+from finances.bank_accounts.matching import make_import_id as _make_import_id
+from finances.bank_accounts.models import BankAccountsConfig
 from finances.core.json_utils import write_json
 
 # ---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ def test_account_skipped_when_user_says_no():
         config = _make_config()
 
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", return_value="n"),
         ):
             counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
@@ -227,7 +227,7 @@ def test_create_batch_applied_via_file():
 
         # First input() call is for account prompt, second for batch prompt
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 0
@@ -285,7 +285,7 @@ def test_memo_absent_regardless_of_merchant():
         config = _make_config()
 
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 0
@@ -320,7 +320,7 @@ def test_create_batch_skipped():
         config = _make_config()
 
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "n"]),
         ):
             counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
@@ -359,7 +359,7 @@ def test_create_batch_split_then_applied():
 
         # Account prompt: y; batch prompt: s; item 1: y; item 2: n
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "s", "y", "n"]),
             patch("builtins.print") as mock_print,
         ):
@@ -413,7 +413,7 @@ def test_create_batch_failed_logs_failed():
         config = _make_config()
 
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 1
@@ -531,7 +531,7 @@ def test_single_item_batch_no_split_option():
             return "y" if len(captured_prompts) == 1 else "n"
 
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run"),
+            patch("finances.bank_accounts.apply.subprocess.run"),
             patch("builtins.input", side_effect=capturing_input),
         ):
             apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
@@ -564,7 +564,7 @@ def test_batches_interleaved_by_date():
         config = _make_config()
 
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "a", "n"]),
         ):
             mock_run.return_value.returncode = 0
@@ -624,7 +624,7 @@ def test_delete_batch_applied():
 
         # Account prompt: y; delete batch prompt: y
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "y"]),
         ):
             mock_run.return_value.returncode = 0
@@ -672,7 +672,7 @@ def test_delete_batch_skipped():
 
         # Account prompt: y; delete batch prompt: n
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "n"]),
         ):
             counts = apply_reconciliation_operations(ops_file, log_path, delete_log_path, config)
@@ -710,7 +710,7 @@ def test_delete_batch_split():
 
         # Account prompt: y; batch prompt: s; item 1: y; item 2: n
         with (
-            patch("finances.bank_accounts.nodes.apply.subprocess.run") as mock_run,
+            patch("finances.bank_accounts.apply.subprocess.run") as mock_run,
             patch("builtins.input", side_effect=["y", "s", "y", "n"]),
             patch("builtins.print"),
         ):

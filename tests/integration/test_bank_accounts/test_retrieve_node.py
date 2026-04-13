@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from finances.bank_accounts.models import AccountConfig, BankAccountsConfig, ImportPattern
-from finances.bank_accounts.nodes import retrieve_account_data
+from finances.bank_accounts.retrieve import retrieve_account_data
 
 
 class TestRetrieveNode:

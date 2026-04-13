@@ -256,41 +256,41 @@ def reconcile_account_data(
             for iv in raw_intervals
         ]
 
-        for ynab_tx in unmatched_ynab_txs:
-            if _classify_mismatch_reason(ynab_tx.date, coverage_intervals) != "within_coverage":
-                continue
-            if ynab_tx.is_transfer:
-                continue
-            if ynab_tx.payee_name == YNAB_STARTING_BALANCE_PAYEE:
-                continue
-            if ynab_tx.id is None:
-                raise ValueError(
-                    f"YNAB transaction with date={ynab_tx.date} amount={ynab_tx.amount} "
-                    f"is an orphan within coverage but has no id — "
-                    f"this indicates a programming error in the YNAB cache loader"
-                )
-            raw_tx = raw_ynab_by_id.get(ynab_tx.id)
-            if raw_tx is None:
-                raise ValueError(
-                    f"YNAB transaction id={ynab_tx.id} not found in raw cache — "
-                    f"the cache may be incomplete or out of sync"
-                )
-            operations.append(DeleteOp(transaction=raw_tx))
-
-        # 3c. Categorize each unmatched YNAB tx with a mismatch_reason
+        # 3b+3c. Categorize each unmatched YNAB tx and generate delete ops in one pass
         categorized: list[dict[str, Any]] = []
         for ynab_tx in unmatched_ynab_txs:
             reason = _classify_mismatch_reason(ynab_tx.date, coverage_intervals)
-            entry: dict[str, Any] = {
-                "date": str(ynab_tx.date),
-                "amount_milliunits": ynab_tx.amount.to_milliunits(),
-                "payee_name": ynab_tx.payee_name,
-                "memo": ynab_tx.memo,
-                "id": ynab_tx.id,
-                "is_transfer": ynab_tx.is_transfer,
-                "mismatch_reason": reason,
-            }
-            categorized.append(entry)
+
+            if (
+                reason == "within_coverage"
+                and not ynab_tx.is_transfer
+                and ynab_tx.payee_name != YNAB_STARTING_BALANCE_PAYEE
+            ):
+                if ynab_tx.id is None:
+                    raise ValueError(
+                        f"YNAB transaction with date={ynab_tx.date} amount={ynab_tx.amount} "
+                        f"is an orphan within coverage but has no id — "
+                        f"this indicates a programming error in the YNAB cache loader"
+                    )
+                raw_tx = raw_ynab_by_id.get(ynab_tx.id)
+                if raw_tx is None:
+                    raise ValueError(
+                        f"YNAB transaction id={ynab_tx.id} not found in raw cache — "
+                        f"the cache may be incomplete or out of sync"
+                    )
+                operations.append(DeleteOp(transaction=raw_tx))
+
+            categorized.append(
+                {
+                    "date": str(ynab_tx.date),
+                    "amount_milliunits": ynab_tx.amount.to_milliunits(),
+                    "payee_name": ynab_tx.payee_name,
+                    "memo": ynab_tx.memo,
+                    "id": ynab_tx.id,
+                    "is_transfer": ynab_tx.is_transfer,
+                    "mismatch_reason": reason,
+                }
+            )
 
         # 4. Build balance reconciliation
         # Calculate YNAB running balances from transactions

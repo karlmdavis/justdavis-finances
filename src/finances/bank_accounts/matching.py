@@ -105,6 +105,24 @@ _TRANSFER_DATE_WINDOW_DAYS = 5
 # Maps normalized YNAB payee → string that scores well against the bank's merchant field.
 # Covers two directions: YNAB shorter than bank (Direct Import abbreviates), and
 # YNAB longer than bank (Apple Card truncates merchant names).
+_YNAB_IMPORT_ID_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def parse_ynab_import_posted_date(import_id: str) -> "FinancialDate | None":
+    """
+    Extract the clearing date from a YNAB Direct Import import_id.
+
+    YNAB Direct Import format: YNAB:{amount}:{date}:{seq}
+    Returns the date component if present, else None.
+    """
+    if not import_id.startswith("YNAB:"):
+        return None
+    for part in import_id.split(":")[1:]:
+        if _YNAB_IMPORT_ID_DATE_RE.match(part):
+            return FinancialDate.from_string(part)
+    return None
+
+
 YNAB_PAYEE_EXPANSIONS: dict[str, str] = {
     "deposit": "daily cash deposit",  # Apple Savings: YNAB strips "Daily Cash" prefix
     "amazon kindle services": "kindle svcs",  # Chase Credit: Kindle subscription

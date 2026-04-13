@@ -1,6 +1,5 @@
 """Flow node implementations for bank accounts domain."""
 
-import re
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -10,9 +9,9 @@ from finances.bank_accounts.datastore import (
     BankReconciliationStore,
 )
 from finances.bank_accounts.models import BankAccountsConfig
-from finances.bank_accounts.nodes.parse import parse_account_data
-from finances.bank_accounts.nodes.reconcile import print_reconciliation_summary, reconcile_account_data
-from finances.bank_accounts.nodes.retrieve import retrieve_account_data
+from finances.bank_accounts.parse import parse_account_data
+from finances.bank_accounts.reconcile import print_reconciliation_summary, reconcile_account_data
+from finances.bank_accounts.retrieve import retrieve_account_data
 from finances.core import FinancialDate
 from finances.core.flow import (
     FlowContext,
@@ -382,7 +381,7 @@ class BankDataReconcileFlowNode(FlowNode):
         """Execute reconcile operation."""
         try:
             # Load YNAB transactions from cache
-            from finances.bank_accounts.matching import MatchingYnabTransaction
+            from finances.bank_accounts.matching import MatchingYnabTransaction, parse_ynab_import_posted_date
             from finances.core import FinancialDate, Money
 
             ynab_cache_dir = self.data_dir / "ynab" / "cache"
@@ -397,22 +396,11 @@ class BankDataReconcileFlowNode(FlowNode):
 
             transactions_data = read_json(transactions_file)
 
-            # Convert to bank_accounts.matching.MatchingYnabTransaction format.
-            # Use FullMatchingYnabTransaction only to parse import_posted_date from import_id;
-            # fall back to direct dict access for required fields (id may be absent in
-            # test/minimal data, but from_dict requires it).
             ynab_transactions = []
-            import_id_date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
             for tx in transactions_data:
                 if tx.get("deleted", False):
                     continue
                 import_id = tx.get("import_id")
-                import_posted_date = None
-                if import_id and import_id.startswith("YNAB:"):
-                    for part in import_id.split(":")[1:]:
-                        if import_id_date_re.match(part):
-                            import_posted_date = FinancialDate.from_string(part)
-                            break
                 ynab_transactions.append(
                     MatchingYnabTransaction(
                         date=FinancialDate.from_string(tx["date"]),
@@ -422,7 +410,7 @@ class BankDataReconcileFlowNode(FlowNode):
                         account_id=tx.get("account_id"),
                         is_transfer=tx.get("transfer_account_id") is not None,
                         id=tx.get("id"),
-                        import_posted_date=import_posted_date,
+                        import_posted_date=parse_ynab_import_posted_date(import_id) if import_id else None,
                         import_id=import_id,
                     )
                 )
@@ -614,7 +602,7 @@ class BankDataReconcileApplyFlowNode(FlowNode):
 
     def execute(self, context: FlowContext) -> FlowResult:
         """Execute interactive apply operation."""
-        from finances.bank_accounts.nodes.apply import apply_reconciliation_operations
+        from finances.bank_accounts.apply import apply_reconciliation_operations
 
         # Find latest reconciliation ops file
         reconciliation_dir = self.data_dir / "bank_accounts" / "reconciliation"
