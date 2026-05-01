@@ -230,28 +230,46 @@ class TestCashFlowAnalyzer:
             assert col in analyzer.monthly_df.columns
 
     def test_trend_statistics_calculation(self, analyzer, sample_ynab_data):
-        """Test trend statistics calculation."""
+        """Test trend statistics calculation across three windows."""
         analyzer.load_data(sample_ynab_data)
 
         assert analyzer.trend_stats is not None
+        assert set(analyzer.trend_stats.keys()) == {"overall", "thirteen_months", "six_months"}
 
-        # Check expected statistics
-        required_keys = [
+        # The overall window always covers the full dataset (>= 2 days)
+        overall = analyzer.trend_stats["overall"]
+        assert overall is not None
+        required_keys = {
             "slope",
             "intercept",
             "r_value",
             "p_value",
             "std_err",
-            "trend_line",
-            "daily_trend",
             "monthly_trend",
             "yearly_trend",
-        ]
-        for key in required_keys:
-            assert key in analyzer.trend_stats
+            "direction",
+            "confidence",
+            "trend_line",
+            "window_index",
+            "window_start",
+            "window_end",
+            "n_days",
+        }
+        assert required_keys.issubset(overall.keys())
+        assert len(overall["trend_line"]) == overall["n_days"]
+        assert len(overall["trend_line"]) == len(overall["window_index"])
+        assert overall["direction"] in {"positive", "negative"}
+        assert 0 <= overall["confidence"] <= 1
 
-        # Check that trend line has correct length
-        assert len(analyzer.trend_stats["trend_line"]) == len(analyzer.df)
+        # Shorter windows: either None (insufficient fixture data) or a dict with the same shape
+        for key in ("thirteen_months", "six_months"):
+            window = analyzer.trend_stats[key]
+            if window is None:
+                continue
+            assert required_keys.issubset(window.keys())
+            assert len(window["trend_line"]) == window["n_days"]
+            assert window["direction"] in {"positive", "negative"}
+            assert 0 <= window["confidence"] <= 1
 
     def test_dashboard_generation(self, analyzer, sample_ynab_data, temp_dir):
         """Test dashboard generation."""
@@ -291,14 +309,10 @@ class TestCashFlowAnalyzer:
 
         assert isinstance(stats, dict)
 
-        # Check required statistics
         required_keys = [
             "current_balance",
-            "monthly_trend",
-            "yearly_trend",
             "monthly_burn_rate",
-            "trend_direction",
-            "trend_confidence",
+            "trends",
             "volatility",
             "data_start_date",
             "analysis_date",
@@ -306,14 +320,29 @@ class TestCashFlowAnalyzer:
         for key in required_keys:
             assert key in stats
 
-        # Check data types
         assert isinstance(stats["current_balance"], int | float)
-        assert isinstance(stats["monthly_trend"], int | float)
-        assert isinstance(stats["yearly_trend"], int | float)
-        assert isinstance(stats["trend_direction"], str)
-        assert stats["trend_direction"] in ["positive", "negative"]
-        assert 0 <= stats["trend_confidence"] <= 1
         assert stats["data_start_date"] == analyzer.config.start_date
+
+        # Trends is a dict of three windows, each either None or a per-window summary dict
+        assert isinstance(stats["trends"], dict)
+        assert set(stats["trends"].keys()) == {"overall", "thirteen_months", "six_months"}
+
+        overall = stats["trends"]["overall"]
+        assert overall is not None
+        assert isinstance(overall["monthly_trend"], int | float)
+        assert isinstance(overall["yearly_trend"], int | float)
+        assert overall["direction"] in ["positive", "negative"]
+        assert 0 <= overall["confidence"] <= 1
+        assert overall["n_days"] >= 2
+
+        for key in ("thirteen_months", "six_months"):
+            window = stats["trends"][key]
+            if window is None:
+                continue
+            assert isinstance(window["monthly_trend"], int | float)
+            assert isinstance(window["yearly_trend"], int | float)
+            assert window["direction"] in ["positive", "negative"]
+            assert 0 <= window["confidence"] <= 1
 
     def test_empty_transactions_error(self, analyzer, temp_dir):
         """Test error handling with empty transactions."""
@@ -811,4 +840,4 @@ def test_full_cash_flow_workflow(temp_dir):
     assert dashboard_file.exists()
     assert summary["data_start_date"] == "2024-07-01"
     assert isinstance(summary["current_balance"], int | float)
-    assert summary["trend_direction"] in ["positive", "negative"]
+    assert summary["trends"]["overall"]["direction"] in ["positive", "negative"]

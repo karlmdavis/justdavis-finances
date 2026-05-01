@@ -141,13 +141,14 @@ class TestCashFlowWorkflow:
         summary = analyzer.get_summary_statistics()
 
         assert "current_balance" in summary
-        assert "monthly_trend" in summary
-        assert "trend_direction" in summary
-        assert summary["trend_direction"] in ["positive", "negative"]
+        assert "trends" in summary
+        overall_trend = summary["trends"]["overall"]
+        assert overall_trend is not None
+        assert overall_trend["direction"] in ["positive", "negative"]
 
         # Step 5: Validate trend analysis
-        assert "trend_confidence" in summary
-        assert 0 <= summary["trend_confidence"] <= 1
+        assert "monthly_trend" in overall_trend
+        assert 0 <= overall_trend["confidence"] <= 1
 
         # Step 6: Check moving averages are calculated
         assert "MA_7" in analyzer.df.columns
