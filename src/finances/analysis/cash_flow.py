@@ -217,17 +217,28 @@ class CashFlowAnalyzer:
         }
 
     def _calculate_trend_statistics(self) -> None:
-        """Calculate three windowed trend regressions: overall, last 13 months, last 6 months."""
+        """Calculate three windowed trend regressions: overall, last 13 months, last 6 months.
+
+        Sub-windows are skipped (None) when their cutoff predates the dataset, since
+        the resulting slice would equal the overall window and would be a duplicate.
+        """
         if self.df is None:
             raise RuntimeError("Data not loaded. Call load_data() first.")
 
-        end = self.df.index.max()
+        df = self.df
+        end = df.index.max()
+        earliest = df.index.min()
+
+        def windowed(months: int) -> dict | None:
+            cutoff = end - pd.DateOffset(months=months)
+            if cutoff <= earliest:
+                return None
+            return self._calculate_trend_for_window(df[df.index >= cutoff])
+
         self.trend_stats = {
-            "overall": self._calculate_trend_for_window(self.df),
-            "thirteen_months": self._calculate_trend_for_window(
-                self.df.loc[end - pd.DateOffset(months=13) :]
-            ),
-            "six_months": self._calculate_trend_for_window(self.df.loc[end - pd.DateOffset(months=6) :]),
+            "overall": self._calculate_trend_for_window(df),
+            "thirteen_months": windowed(13),
+            "six_months": windowed(6),
         }
 
     def generate_dashboard(self, output_dir: Path | None = None) -> Path:

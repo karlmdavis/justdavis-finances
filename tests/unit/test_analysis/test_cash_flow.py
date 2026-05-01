@@ -271,6 +271,16 @@ class TestCashFlowAnalyzer:
             assert window["direction"] in {"positive", "negative", "flat"}
             assert 0 <= window["confidence"] <= 1
 
+    def test_short_data_returns_none_for_long_windows(self, analyzer, sample_ynab_data):
+        """Windows whose cutoff predates the dataset return None (no duplicate of overall)."""
+        # The sample fixture covers only 30 days starting 2024-08-01, so 6mo and 13mo
+        # cutoffs both predate the earliest date.
+        analyzer.load_data(sample_ynab_data)
+
+        assert analyzer.trend_stats["overall"] is not None
+        assert analyzer.trend_stats["thirteen_months"] is None
+        assert analyzer.trend_stats["six_months"] is None
+
     def test_trend_for_flat_window(self, analyzer):
         """A constant-balance window reports direction='flat' and 0 confidence (no NaN, no warning)."""
         flat_df = pd.DataFrame(
