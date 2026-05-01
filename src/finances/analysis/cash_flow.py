@@ -483,6 +483,9 @@ class CashFlowAnalyzer:
         avg_daily_change = self.df["Daily_Change"].mean()
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()
 
+        min_date = pd.to_datetime(self.df["Total"].idxmin()).strftime("%Y-%m-%d")
+        max_date = pd.to_datetime(self.df["Total"].idxmax()).strftime("%Y-%m-%d")
+
         trend_section = self._format_trend_section()
 
         stats_text = f"""
@@ -497,8 +500,8 @@ CURRENT STATUS:
 HISTORICAL ANALYSIS:
 • Average Balance: ${avg_balance:,.0f}
 • Standard Deviation: ${std_balance:,.0f}
-• Minimum: ${min_balance:,.0f} ({pd.to_datetime(self.df['Total'].idxmin()).strftime('%Y-%m-%d')})  # type: ignore[union-attr]
-• Maximum: ${max_balance:,.0f} ({pd.to_datetime(self.df['Total'].idxmax()).strftime('%Y-%m-%d')})
+• Minimum: ${min_balance:,.0f} ({min_date})
+• Maximum: ${max_balance:,.0f} ({max_date})
 
 CASH FLOW PATTERNS:
 • Days with Positive Flow: {days_positive} ({days_positive/len(self.df)*100:.1f}%)
