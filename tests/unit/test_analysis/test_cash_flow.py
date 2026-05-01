@@ -282,6 +282,26 @@ class TestCashFlowAnalyzer:
         assert analyzer.trend_stats["thirteen_months"] is None
         assert analyzer.trend_stats["six_months"] is None
 
+    def test_eight_month_data_keeps_six_skips_thirteen(self, analyzer):
+        """When data spans ~8 months, 6mo is a real window and 13mo is dedup-skipped."""
+        # 240 days ≈ 8 months — between the 6mo and 13mo cutoffs.
+        df = pd.DataFrame(
+            {"Total": [100.0 * i for i in range(240)]},
+            index=pd.date_range("2024-08-01", periods=240, freq="D"),
+        )
+        df["MA_7"] = df["Total"].rolling(window=7, min_periods=1).mean()
+        df["MA_30"] = df["Total"].rolling(window=30, min_periods=1).mean()
+        df["MA_90"] = df["Total"].rolling(window=90, min_periods=1).mean()
+        df["Daily_Change"] = df["Total"].diff()
+
+        analyzer.df = df
+        analyzer._calculate_trend_statistics()
+
+        assert analyzer.trend_stats["overall"] is not None
+        assert analyzer.trend_stats["thirteen_months"] is None
+        assert analyzer.trend_stats["six_months"] is not None
+        assert analyzer.trend_stats["six_months"]["n_days"] < 240
+
     def test_trend_for_flat_window(self, analyzer):
         """A constant-balance window reports direction='flat' and 0 confidence (no NaN, no warning)."""
         flat_df = pd.DataFrame(
