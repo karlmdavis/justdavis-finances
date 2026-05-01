@@ -258,7 +258,7 @@ class TestCashFlowAnalyzer:
         assert required_keys.issubset(overall.keys())
         assert len(overall["trend_line"]) == overall["n_days"]
         assert len(overall["trend_line"]) == len(overall["window_index"])
-        assert overall["direction"] in {"positive", "negative"}
+        assert overall["direction"] in {"positive", "negative", "flat"}
         assert 0 <= overall["confidence"] <= 1
 
         # Shorter windows: either None (insufficient fixture data) or a dict with the same shape
@@ -268,8 +268,25 @@ class TestCashFlowAnalyzer:
                 continue
             assert required_keys.issubset(window.keys())
             assert len(window["trend_line"]) == window["n_days"]
-            assert window["direction"] in {"positive", "negative"}
+            assert window["direction"] in {"positive", "negative", "flat"}
             assert 0 <= window["confidence"] <= 1
+
+    def test_trend_for_flat_window(self, analyzer):
+        """A constant-balance window reports direction='flat' and 0 confidence (no NaN, no warning)."""
+        flat_df = pd.DataFrame(
+            {"Total": [50000.0] * 10},
+            index=pd.date_range("2024-08-01", periods=10, freq="D"),
+        )
+        result = analyzer._calculate_trend_for_window(flat_df)
+
+        assert result is not None
+        assert result["slope"] == 0.0
+        assert result["direction"] == "flat"
+        assert result["confidence"] == 0.0
+        assert result["monthly_trend"] == 0.0
+        assert result["yearly_trend"] == 0.0
+        # trend_line should be horizontal at the constant value
+        assert all(result["trend_line"] == 50000.0)
 
     def test_dashboard_generation(self, analyzer, sample_ynab_data, temp_dir):
         """Test dashboard generation."""
@@ -331,7 +348,7 @@ class TestCashFlowAnalyzer:
         assert overall is not None
         assert isinstance(overall["monthly_trend"], int | float)
         assert isinstance(overall["yearly_trend"], int | float)
-        assert overall["direction"] in ["positive", "negative"]
+        assert overall["direction"] in ["positive", "negative", "flat"]
         assert 0 <= overall["confidence"] <= 1
         assert overall["n_days"] >= 2
 
@@ -341,7 +358,7 @@ class TestCashFlowAnalyzer:
                 continue
             assert isinstance(window["monthly_trend"], int | float)
             assert isinstance(window["yearly_trend"], int | float)
-            assert window["direction"] in ["positive", "negative"]
+            assert window["direction"] in ["positive", "negative", "flat"]
             assert 0 <= window["confidence"] <= 1
 
     def test_empty_transactions_error(self, analyzer, temp_dir):
@@ -840,4 +857,4 @@ def test_full_cash_flow_workflow(temp_dir):
     assert dashboard_file.exists()
     assert summary["data_start_date"] == "2024-07-01"
     assert isinstance(summary["current_balance"], int | float)
-    assert summary["trends"]["overall"]["direction"] in ["positive", "negative"]
+    assert summary["trends"]["overall"]["direction"] in ["positive", "negative", "flat"]

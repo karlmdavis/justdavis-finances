@@ -144,7 +144,7 @@ class TestCashFlowWorkflow:
         assert "trends" in summary
         overall_trend = summary["trends"]["overall"]
         assert overall_trend is not None
-        assert overall_trend["direction"] in ["positive", "negative"]
+        assert overall_trend["direction"] in ["positive", "negative", "flat"]
 
         # Step 5: Validate trend analysis
         assert "monthly_trend" in overall_trend

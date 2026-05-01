@@ -186,7 +186,18 @@ class CashFlowAnalyzer:
 
         x = np.arange(len(df_window))
         y = df_window["Total"].values
-        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+        if np.all(y == y[0]):
+            # Constant series: slope is 0, r_value is undefined and scipy would warn.
+            slope, intercept, r_value, p_value, std_err = 0.0, float(y[0]), 0.0, 1.0, 0.0
+        else:
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+
+        if slope > 0:
+            direction = "positive"
+        elif slope < 0:
+            direction = "negative"
+        else:
+            direction = "flat"
 
         return {
             "slope": slope,
@@ -196,7 +207,7 @@ class CashFlowAnalyzer:
             "std_err": std_err,
             "monthly_trend": slope * 30,
             "yearly_trend": slope * 365,
-            "direction": "positive" if slope > 0 else "negative",
+            "direction": direction,
             "confidence": abs(r_value),
             "trend_line": slope * x + intercept,
             "window_index": df_window.index,
@@ -452,7 +463,12 @@ class CashFlowAnalyzer:
                 continue
             start_str = window["window_start"].strftime("%Y-%m-%d")
             end_str = window["window_end"].strftime("%Y-%m-%d")
-            arrow = "↗ Growing" if window["slope"] > 0 else "↘ Declining"
+            if window["direction"] == "positive":
+                arrow = "↗ Growing"
+            elif window["direction"] == "negative":
+                arrow = "↘ Declining"
+            else:
+                arrow = "→ Flat"
             confidence_pct = window["confidence"] * 100
             lines.append(f"{label} ({start_str} to {end_str}, {window['n_days']} days):")
             lines.append(
