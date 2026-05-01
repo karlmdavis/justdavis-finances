@@ -191,6 +191,9 @@ class CashFlowAnalyzer:
             slope, intercept, r_value, p_value, std_err = 0.0, float(y[0]), 0.0, 1.0, 0.0
         else:
             slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+            if np.isnan(r_value):
+                # Belt-and-suspenders: a degenerate non-constant case that still produced NaN.
+                r_value = 0.0
 
         if slope > 0:
             direction = "positive"
