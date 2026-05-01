@@ -3,6 +3,7 @@
 
 import json
 from datetime import date
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -297,6 +298,61 @@ class TestCashFlowAnalyzer:
         assert result["yearly_trend"] == 0.0
         # trend_line should be horizontal at the constant value
         assert all(result["trend_line"] == 50000.0)
+
+    def test_windowed_trends_distinguish_inflection(self, analyzer):
+        """Three windows reveal different slopes when the data has a regime change.
+
+        Verifies the feature's core promise: a long-run flat trend that masks a
+        recent steep upturn shows up clearly in the shorter windows.
+        """
+        # 720 days: 360 flat at 0, then 360 days rising linearly by 1/day.
+        flat = [0.0] * 360
+        rising = [float(i) for i in range(1, 361)]
+        df = pd.DataFrame(
+            {"Total": flat + rising},
+            index=pd.date_range("2024-01-01", periods=720, freq="D"),
+        )
+        df["MA_7"] = df["Total"].rolling(window=7, min_periods=1).mean()
+        df["MA_30"] = df["Total"].rolling(window=30, min_periods=1).mean()
+        df["MA_90"] = df["Total"].rolling(window=90, min_periods=1).mean()
+        df["Daily_Change"] = df["Total"].diff()
+
+        analyzer.df = df
+        analyzer._calculate_trend_statistics()
+
+        overall = analyzer.trend_stats["overall"]
+        thirteen = analyzer.trend_stats["thirteen_months"]
+        six = analyzer.trend_stats["six_months"]
+
+        assert overall is not None and thirteen is not None and six is not None
+        assert overall["direction"] == "positive"
+        assert thirteen["direction"] == "positive"
+        assert six["direction"] == "positive"
+
+        # Recent windows show steeper slopes than the long-run average.
+        assert six["monthly_trend"] > thirteen["monthly_trend"] > overall["monthly_trend"]
+
+        # The 6-month window sits entirely inside the linear-rising segment, so its
+        # confidence should be near 1.
+        assert six["confidence"] > 0.99
+
+    def test_statistics_panel_text_renders_without_leaked_python(self, analyzer, sample_ynab_data):
+        """Rendered statistics panel text must not leak Python source artifacts.
+
+        Regression test for the bug where '# type: ignore[union-attr]' embedded
+        inside a multi-line f-string rendered as visible text in the dashboard.
+        """
+        analyzer.load_data(sample_ynab_data)
+
+        mock_ax = MagicMock()
+        analyzer._create_statistics_panel(mock_ax)
+
+        mock_ax.text.assert_called_once()
+        stats_text = mock_ax.text.call_args.args[2]
+
+        assert "# type:" not in stats_text
+        assert "FINANCIAL HEALTH METRICS" in stats_text
+        assert "TREND ANALYSIS:" in stats_text
 
     def test_dashboard_generation(self, analyzer, sample_ynab_data, temp_dir):
         """Test dashboard generation."""
