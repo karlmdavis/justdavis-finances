@@ -249,7 +249,7 @@ class TestCashFlowAnalyzer:
             "monthly_trend",
             "yearly_trend",
             "direction",
-            "confidence",
+            "fit_quality",
             "trend_line",
             "window_index",
             "window_start",
@@ -260,7 +260,7 @@ class TestCashFlowAnalyzer:
         assert len(overall["trend_line"]) == overall["n_days"]
         assert len(overall["trend_line"]) == len(overall["window_index"])
         assert overall["direction"] in {"positive", "negative", "flat"}
-        assert 0 <= overall["confidence"] <= 1
+        assert 0 <= overall["fit_quality"] <= 1
 
         # Shorter windows: either None (insufficient fixture data) or a dict with the same shape
         for key in ("thirteen_months", "six_months"):
@@ -270,7 +270,7 @@ class TestCashFlowAnalyzer:
             assert required_keys.issubset(window.keys())
             assert len(window["trend_line"]) == window["n_days"]
             assert window["direction"] in {"positive", "negative", "flat"}
-            assert 0 <= window["confidence"] <= 1
+            assert 0 <= window["fit_quality"] <= 1
 
     def test_short_data_returns_none_for_long_windows(self, analyzer, sample_ynab_data):
         """Windows whose cutoff predates the dataset return None (no duplicate of overall)."""
@@ -303,7 +303,7 @@ class TestCashFlowAnalyzer:
         assert analyzer.trend_stats["six_months"]["n_days"] < 240
 
     def test_trend_for_flat_window(self, analyzer):
-        """A constant-balance window reports direction='flat' and 0 confidence (no NaN, no warning)."""
+        """A constant-balance window reports direction='flat' and 0 fit_quality (no NaN, no warning)."""
         flat_df = pd.DataFrame(
             {"Total": [50000.0] * 10},
             index=pd.date_range("2024-08-01", periods=10, freq="D"),
@@ -313,7 +313,7 @@ class TestCashFlowAnalyzer:
         assert result is not None
         assert result["slope"] == 0.0
         assert result["direction"] == "flat"
-        assert result["confidence"] == 0.0
+        assert result["fit_quality"] == 0.0
         assert result["monthly_trend"] == 0.0
         assert result["yearly_trend"] == 0.0
         # trend_line should be horizontal at the constant value
@@ -353,8 +353,8 @@ class TestCashFlowAnalyzer:
         assert six["monthly_trend"] > thirteen["monthly_trend"] > overall["monthly_trend"]
 
         # The 6-month window sits entirely inside the linear-rising segment, so its
-        # confidence should be near 1.
-        assert six["confidence"] > 0.99
+        # R² should be near 1.
+        assert six["fit_quality"] > 0.99
 
     def test_statistics_panel_text_renders_without_leaked_python(self, analyzer, sample_ynab_data):
         """Rendered statistics panel text must not leak Python source artifacts.
@@ -435,7 +435,7 @@ class TestCashFlowAnalyzer:
         assert isinstance(overall["monthly_trend"], int | float)
         assert isinstance(overall["yearly_trend"], int | float)
         assert overall["direction"] in ["positive", "negative", "flat"]
-        assert 0 <= overall["confidence"] <= 1
+        assert 0 <= overall["fit_quality"] <= 1
         assert overall["n_days"] >= 2
 
         for key in ("thirteen_months", "six_months"):
@@ -445,7 +445,7 @@ class TestCashFlowAnalyzer:
             assert isinstance(window["monthly_trend"], int | float)
             assert isinstance(window["yearly_trend"], int | float)
             assert window["direction"] in ["positive", "negative", "flat"]
-            assert 0 <= window["confidence"] <= 1
+            assert 0 <= window["fit_quality"] <= 1
 
     def test_empty_transactions_error(self, analyzer, temp_dir):
         """Test error handling with empty transactions."""

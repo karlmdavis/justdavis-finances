@@ -35,7 +35,7 @@ class WindowStats(TypedDict):
     monthly_trend: float
     yearly_trend: float
     direction: Literal["positive", "negative", "flat"]
-    confidence: float
+    fit_quality: float
     trend_line: np.ndarray
     window_index: pd.Index
     window_start: pd.Timestamp
@@ -240,7 +240,8 @@ class CashFlowAnalyzer:
             "monthly_trend": slope * 30.4375,
             "yearly_trend": slope * 365.25,
             "direction": direction,
-            "confidence": abs(r_value),
+            # R² (coefficient of determination): fraction of variance explained.
+            "fit_quality": r_value**2,
             "trend_line": slope * x + intercept,
             "window_index": df_window.index,
             "window_start": df_window.index[0],
@@ -511,11 +512,11 @@ class CashFlowAnalyzer:
                 arrow = "↘ Declining"
             else:
                 arrow = "→ Flat"
-            confidence_pct = window["confidence"] * 100
+            fit_quality_pct = window["fit_quality"] * 100
             lines.append(f"{label} ({start_str} to {end_str}, {window['n_days']} days):")
             lines.append(
                 f"  • Monthly: ${window['monthly_trend']:,.0f}/mo  {arrow}  "
-                f"(confidence: {confidence_pct:.1f}%)"
+                f"(fit quality: {fit_quality_pct:.1f}%)"
             )
             lines.append(f"  • Yearly:  ${window['yearly_trend']:,.0f}/yr")
         return "\n".join(lines)
@@ -602,7 +603,7 @@ VOLATILITY METRICS:
                 "monthly_trend": window["monthly_trend"],
                 "yearly_trend": window["yearly_trend"],
                 "direction": window["direction"],
-                "confidence": window["confidence"],
+                "fit_quality": window["fit_quality"],
                 "window_start": window["window_start"].strftime("%Y-%m-%d"),
                 "window_end": window["window_end"].strftime("%Y-%m-%d"),
                 "n_days": window["n_days"],

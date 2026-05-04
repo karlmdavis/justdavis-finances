@@ -148,7 +148,7 @@ class TestCashFlowWorkflow:
 
         # Step 5: Validate trend analysis
         assert "monthly_trend" in overall_trend
-        assert 0 <= overall_trend["confidence"] <= 1
+        assert 0 <= overall_trend["fit_quality"] <= 1
 
         # Step 6: Check moving averages are calculated
         assert "MA_7" in analyzer.df.columns
