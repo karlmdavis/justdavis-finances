@@ -208,8 +208,9 @@ class CashFlowAnalyzer:
             "r_value": r_value,
             "p_value": p_value,
             "std_err": std_err,
-            "monthly_trend": slope * 30,
-            "yearly_trend": slope * 365,
+            # Average Gregorian month/year (365.25 days/yr ÷ 12 = 30.4375 days/mo).
+            "monthly_trend": slope * 30.4375,
+            "yearly_trend": slope * 365.25,
             "direction": direction,
             "confidence": abs(r_value),
             "trend_line": slope * x + intercept,
