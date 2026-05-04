@@ -3,6 +3,7 @@
 
 import json
 from datetime import date
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -230,28 +231,169 @@ class TestCashFlowAnalyzer:
             assert col in analyzer.monthly_df.columns
 
     def test_trend_statistics_calculation(self, analyzer, sample_ynab_data):
-        """Test trend statistics calculation."""
+        """Test trend statistics calculation across three windows."""
         analyzer.load_data(sample_ynab_data)
 
         assert analyzer.trend_stats is not None
+        assert set(analyzer.trend_stats.keys()) == {"overall", "thirteen_months", "six_months"}
 
-        # Check expected statistics
-        required_keys = [
+        # The overall window always covers the full dataset (>= 2 days)
+        overall = analyzer.trend_stats["overall"]
+        assert overall is not None
+        required_keys = {
             "slope",
             "intercept",
             "r_value",
             "p_value",
             "std_err",
-            "trend_line",
-            "daily_trend",
             "monthly_trend",
             "yearly_trend",
-        ]
-        for key in required_keys:
-            assert key in analyzer.trend_stats
+            "direction",
+            "fit_quality",
+            "trend_line",
+            "window_index",
+            "window_start",
+            "window_end",
+            "n_days",
+        }
+        assert required_keys.issubset(overall.keys())
+        assert len(overall["trend_line"]) == overall["n_days"]
+        assert len(overall["trend_line"]) == len(overall["window_index"])
+        assert overall["direction"] in {"positive", "negative", "flat"}
+        assert 0 <= overall["fit_quality"] <= 1
 
-        # Check that trend line has correct length
-        assert len(analyzer.trend_stats["trend_line"]) == len(analyzer.df)
+        # Shorter windows: either None (insufficient fixture data) or a dict with the same shape
+        for key in ("thirteen_months", "six_months"):
+            window = analyzer.trend_stats[key]
+            if window is None:
+                continue
+            assert required_keys.issubset(window.keys())
+            assert len(window["trend_line"]) == window["n_days"]
+            assert window["direction"] in {"positive", "negative", "flat"}
+            assert 0 <= window["fit_quality"] <= 1
+
+    def test_short_data_returns_none_for_long_windows(self, analyzer, sample_ynab_data):
+        """Windows whose cutoff predates the dataset return None (no duplicate of overall)."""
+        # The sample fixture covers only 30 days starting 2024-08-01, so 6mo and 13mo
+        # cutoffs both predate the earliest date.
+        analyzer.load_data(sample_ynab_data)
+
+        assert analyzer.trend_stats["overall"] is not None
+        assert analyzer.trend_stats["thirteen_months"] is None
+        assert analyzer.trend_stats["six_months"] is None
+
+    def test_eight_month_data_keeps_six_skips_thirteen(self, analyzer):
+        """When data spans ~8 months, 6mo is a real window and 13mo is dedup-skipped."""
+        # 240 days ≈ 8 months — between the 6mo and 13mo cutoffs.
+        df = pd.DataFrame(
+            {"Total": [100.0 * i for i in range(240)]},
+            index=pd.date_range("2024-08-01", periods=240, freq="D"),
+        )
+        df["MA_7"] = df["Total"].rolling(window=7, min_periods=1).mean()
+        df["MA_30"] = df["Total"].rolling(window=30, min_periods=1).mean()
+        df["MA_90"] = df["Total"].rolling(window=90, min_periods=1).mean()
+        df["Daily_Change"] = df["Total"].diff()
+
+        analyzer.df = df
+        analyzer._calculate_trend_statistics()
+
+        assert analyzer.trend_stats["overall"] is not None
+        assert analyzer.trend_stats["thirteen_months"] is None
+        assert analyzer.trend_stats["six_months"] is not None
+        assert analyzer.trend_stats["six_months"]["n_days"] < 240
+
+    def test_dedup_skipped_window_renders_distinct_message(self, analyzer):
+        """A None sub-window from dedup-skip renders 'Data history shorter than N months',
+
+        not the 'Insufficient data' message reserved for a too-short overall dataset.
+        """
+        df = pd.DataFrame(
+            {"Total": [100.0 * i for i in range(240)]},
+            index=pd.date_range("2024-08-01", periods=240, freq="D"),
+        )
+        df["MA_7"] = df["Total"].rolling(window=7, min_periods=1).mean()
+        df["MA_30"] = df["Total"].rolling(window=30, min_periods=1).mean()
+        df["MA_90"] = df["Total"].rolling(window=90, min_periods=1).mean()
+        df["Daily_Change"] = df["Total"].diff()
+
+        analyzer.df = df
+        analyzer._calculate_trend_statistics()
+
+        section = analyzer._format_trend_section()
+        assert "Data history shorter than 13 months" in section
+        assert "Insufficient data" not in section
+
+    def test_trend_for_flat_window(self, analyzer):
+        """A constant-balance window reports direction='flat' and 0 fit_quality (no NaN, no warning)."""
+        flat_df = pd.DataFrame(
+            {"Total": [50000.0] * 10},
+            index=pd.date_range("2024-08-01", periods=10, freq="D"),
+        )
+        result = analyzer._calculate_trend_for_window(flat_df)
+
+        assert result is not None
+        assert result["slope"] == 0.0
+        assert result["direction"] == "flat"
+        assert result["fit_quality"] == 0.0
+        assert result["monthly_trend"] == 0.0
+        assert result["yearly_trend"] == 0.0
+        # trend_line should be horizontal at the constant value
+        assert all(result["trend_line"] == 50000.0)
+
+    def test_windowed_trends_distinguish_inflection(self, analyzer):
+        """Three windows reveal different slopes when the data has a regime change.
+
+        Verifies the feature's core promise: a long-run flat trend that masks a
+        recent steep upturn shows up clearly in the shorter windows.
+        """
+        # 720 days: 360 flat at 0, then 360 days rising linearly by 1/day.
+        flat = [0.0] * 360
+        rising = [float(i) for i in range(1, 361)]
+        df = pd.DataFrame(
+            {"Total": flat + rising},
+            index=pd.date_range("2024-01-01", periods=720, freq="D"),
+        )
+        df["MA_7"] = df["Total"].rolling(window=7, min_periods=1).mean()
+        df["MA_30"] = df["Total"].rolling(window=30, min_periods=1).mean()
+        df["MA_90"] = df["Total"].rolling(window=90, min_periods=1).mean()
+        df["Daily_Change"] = df["Total"].diff()
+
+        analyzer.df = df
+        analyzer._calculate_trend_statistics()
+
+        overall = analyzer.trend_stats["overall"]
+        thirteen = analyzer.trend_stats["thirteen_months"]
+        six = analyzer.trend_stats["six_months"]
+
+        assert overall is not None and thirteen is not None and six is not None
+        assert overall["direction"] == "positive"
+        assert thirteen["direction"] == "positive"
+        assert six["direction"] == "positive"
+
+        # Recent windows show steeper slopes than the long-run average.
+        assert six["monthly_trend"] > thirteen["monthly_trend"] > overall["monthly_trend"]
+
+        # The 6-month window sits entirely inside the linear-rising segment, so its
+        # R² should be near 1.
+        assert six["fit_quality"] > 0.99
+
+    def test_statistics_panel_text_renders_without_leaked_python(self, analyzer, sample_ynab_data):
+        """Rendered statistics panel text must not leak Python source artifacts.
+
+        Regression test for the bug where '# type: ignore[union-attr]' embedded
+        inside a multi-line f-string rendered as visible text in the dashboard.
+        """
+        analyzer.load_data(sample_ynab_data)
+
+        mock_ax = MagicMock()
+        analyzer._create_statistics_panel(mock_ax)
+
+        mock_ax.text.assert_called_once()
+        stats_text = mock_ax.text.call_args.args[2]
+
+        assert "# type:" not in stats_text
+        assert "FINANCIAL HEALTH METRICS" in stats_text
+        assert "TREND ANALYSIS:" in stats_text
 
     def test_dashboard_generation(self, analyzer, sample_ynab_data, temp_dir):
         """Test dashboard generation."""
@@ -291,14 +433,10 @@ class TestCashFlowAnalyzer:
 
         assert isinstance(stats, dict)
 
-        # Check required statistics
         required_keys = [
             "current_balance",
-            "monthly_trend",
-            "yearly_trend",
             "monthly_burn_rate",
-            "trend_direction",
-            "trend_confidence",
+            "trends",
             "volatility",
             "data_start_date",
             "analysis_date",
@@ -306,14 +444,29 @@ class TestCashFlowAnalyzer:
         for key in required_keys:
             assert key in stats
 
-        # Check data types
         assert isinstance(stats["current_balance"], int | float)
-        assert isinstance(stats["monthly_trend"], int | float)
-        assert isinstance(stats["yearly_trend"], int | float)
-        assert isinstance(stats["trend_direction"], str)
-        assert stats["trend_direction"] in ["positive", "negative"]
-        assert 0 <= stats["trend_confidence"] <= 1
         assert stats["data_start_date"] == analyzer.config.start_date
+
+        # Trends is a dict of three windows, each either None or a per-window summary dict
+        assert isinstance(stats["trends"], dict)
+        assert set(stats["trends"].keys()) == {"overall", "thirteen_months", "six_months"}
+
+        overall = stats["trends"]["overall"]
+        assert overall is not None
+        assert isinstance(overall["monthly_trend"], int | float)
+        assert isinstance(overall["yearly_trend"], int | float)
+        assert overall["direction"] in ["positive", "negative", "flat"]
+        assert 0 <= overall["fit_quality"] <= 1
+        assert overall["n_days"] >= 2
+
+        for key in ("thirteen_months", "six_months"):
+            window = stats["trends"][key]
+            if window is None:
+                continue
+            assert isinstance(window["monthly_trend"], int | float)
+            assert isinstance(window["yearly_trend"], int | float)
+            assert window["direction"] in ["positive", "negative", "flat"]
+            assert 0 <= window["fit_quality"] <= 1
 
     def test_empty_transactions_error(self, analyzer, temp_dir):
         """Test error handling with empty transactions."""
@@ -811,4 +964,4 @@ def test_full_cash_flow_workflow(temp_dir):
     assert dashboard_file.exists()
     assert summary["data_start_date"] == "2024-07-01"
     assert isinstance(summary["current_balance"], int | float)
-    assert summary["trend_direction"] in ["positive", "negative"]
+    assert summary["trends"]["overall"]["direction"] in ["positive", "negative", "flat"]

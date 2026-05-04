@@ -14,7 +14,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, TypedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,6 +22,33 @@ from scipy import stats
 
 from ..core.config import get_config
 from ..ynab.loader import load_accounts, load_transactions
+
+
+class WindowStats(TypedDict):
+    """Linear-regression trend statistics for one date-windowed view of the balance series."""
+
+    slope: float
+    intercept: float
+    r_value: float
+    p_value: float
+    std_err: float
+    monthly_trend: float
+    yearly_trend: float
+    direction: Literal["positive", "negative", "flat"]
+    fit_quality: float
+    trend_line: np.ndarray
+    window_index: pd.Index
+    window_start: pd.Timestamp
+    window_end: pd.Timestamp
+    n_days: int
+
+
+class TrendStats(TypedDict):
+    """Three windowed regressions; any slot may be None when its window can't be computed."""
+
+    overall: WindowStats | None
+    thirteen_months: WindowStats | None
+    six_months: WindowStats | None
 
 
 @dataclass
@@ -74,7 +101,7 @@ class CashFlowAnalyzer:
         self.config = config or CashFlowConfig.default()
         self.df: pd.DataFrame | None = None
         self.monthly_df: pd.DataFrame | None = None
-        self.trend_stats: dict | None = None
+        self.trend_stats: TrendStats | None = None
 
     def load_data(self, ynab_cache_dir: Path | None = None) -> None:
         """Load YNAB data from cache directory."""
@@ -179,31 +206,73 @@ class CashFlowAnalyzer:
         )
         self.monthly_df.columns = ["Mean_Balance", "Min_Balance", "Max_Balance", "End_Balance", "Net_Change"]
 
-    def _calculate_trend_statistics(self) -> None:
-        """Calculate trend line and statistical measures."""
-        if self.df is None:
-            raise RuntimeError("Data not loaded. Call load_data() first.")
+    def _calculate_trend_for_window(self, df_window: pd.DataFrame) -> WindowStats | None:
+        """Run a linear regression on a date-sliced view of the balance series."""
+        if len(df_window) < 2:
+            return None
 
-        x = np.arange(len(self.df))
-        y = self.df["Total"].values
-
-        # Check if we have enough data points for statistical analysis
-        if len(x) < 2:
-            # Not enough data for regression - use default values
-            slope = intercept = r_value = p_value = std_err = 0.0
+        x = np.arange(len(df_window))
+        y = df_window["Total"].values
+        if np.all(y == y[0]):
+            # Constant series: slope is 0, r_value is undefined and scipy would warn.
+            slope, intercept, r_value, p_value, std_err = 0.0, float(y[0]), 0.0, 1.0, 0.0
         else:
             slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+            if np.isnan(r_value):
+                # Belt-and-suspenders: a degenerate non-constant case that still produced NaN.
+                r_value = 0.0
 
-        self.trend_stats = {
+        direction: Literal["positive", "negative", "flat"]
+        if slope > 0:
+            direction = "positive"
+        elif slope < 0:
+            direction = "negative"
+        else:
+            direction = "flat"
+
+        result: WindowStats = {
             "slope": slope,
             "intercept": intercept,
             "r_value": r_value,
             "p_value": p_value,
             "std_err": std_err,
+            # Average Gregorian month/year (365.25 days/yr ÷ 12 = 30.4375 days/mo).
+            "monthly_trend": slope * 30.4375,
+            "yearly_trend": slope * 365.25,
+            "direction": direction,
+            # R² (coefficient of determination): fraction of variance explained.
+            "fit_quality": r_value**2,
             "trend_line": slope * x + intercept,
-            "daily_trend": slope,
-            "monthly_trend": slope * 30,
-            "yearly_trend": slope * 365,
+            "window_index": df_window.index,
+            "window_start": df_window.index[0],
+            "window_end": df_window.index[-1],
+            "n_days": len(df_window),
+        }
+        return result
+
+    def _calculate_trend_statistics(self) -> None:
+        """Calculate three windowed trend regressions: overall, last 13 months, last 6 months.
+
+        Sub-windows are skipped (None) when their cutoff predates the dataset, since
+        the resulting slice would equal the overall window and would be a duplicate.
+        """
+        if self.df is None:
+            raise RuntimeError("Data not loaded. Call load_data() first.")
+
+        df = self.df
+        end = df.index.max()
+        earliest = df.index.min()
+
+        def windowed(months: int) -> WindowStats | None:
+            cutoff = end - pd.DateOffset(months=months)
+            if cutoff <= earliest:
+                return None
+            return self._calculate_trend_for_window(df[df.index >= cutoff])
+
+        self.trend_stats = {
+            "overall": self._calculate_trend_for_window(df),
+            "thirteen_months": windowed(13),
+            "six_months": windowed(6),
         }
 
     def generate_dashboard(self, output_dir: Path | None = None) -> Path:
@@ -256,7 +325,7 @@ class CashFlowAnalyzer:
         return output_file
 
     def _create_main_trend_panel(self, ax: Any) -> None:
-        """Create main trend panel with moving averages."""
+        """Create main trend panel with moving averages and three windowed trend lines."""
         if self.df is None:
             raise RuntimeError("df must not be None")
         if self.trend_stats is None:
@@ -267,9 +336,24 @@ class CashFlowAnalyzer:
         ax.plot(self.df.index, self.df["MA_7"], color="#2E86AB", linewidth=1.5, label="7-Day MA")
         ax.plot(self.df.index, self.df["MA_30"], color="#A23B72", linewidth=2, label="30-Day MA")
         ax.plot(self.df.index, self.df["MA_90"], color="#F18F01", linewidth=2.5, label="90-Day MA")
-        ax.plot(
-            self.df.index, self.trend_stats["trend_line"], "r--", alpha=0.7, linewidth=1, label="Trend Line"
-        )
+
+        trend_lines: list[tuple[WindowStats | None, str, float, str]] = [
+            (self.trend_stats["overall"], "red", 0.6, "Overall trend"),
+            (self.trend_stats["thirteen_months"], "darkorange", 0.85, "13-mo trend"),
+            (self.trend_stats["six_months"], "purple", 0.95, "6-mo trend"),
+        ]
+        for window, color, alpha, label in trend_lines:
+            if window is None:
+                continue
+            ax.plot(
+                window["window_index"],
+                window["trend_line"],
+                color=color,
+                linestyle="--",
+                alpha=alpha,
+                linewidth=1.2,
+                label=label,
+            )
 
         ax.set_title("Cash Flow with Moving Averages", fontsize=12, fontweight="bold")
         ax.set_ylabel("Balance ($)", fontsize=10)
@@ -403,6 +487,51 @@ class CashFlowAnalyzer:
         ax.grid(True, alpha=0.3)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1000:.0f}k"))
 
+    def _format_trend_section(self) -> str:
+        """Format the TREND ANALYSIS block of the statistics panel for three windows."""
+        if self.trend_stats is None:
+            raise RuntimeError("trend_stats must not be None")
+
+        # The "absent" message differs by slot. Overall is None only if the
+        # whole dataset has < 2 rows; sub-windows are None when their cutoff
+        # predates the dataset (the slice would equal overall).
+        windows: list[tuple[WindowStats | None, str, str]] = [
+            (self.trend_stats["overall"], "Overall", "Insufficient data"),
+            (
+                self.trend_stats["thirteen_months"],
+                "Last 13 months",
+                "Data history shorter than 13 months",
+            ),
+            (
+                self.trend_stats["six_months"],
+                "Last 6 months",
+                "Data history shorter than 6 months",
+            ),
+        ]
+
+        lines = ["TREND ANALYSIS:"]
+        for window, label, absent_message in windows:
+            if window is None:
+                lines.append(f"{label}:")
+                lines.append(f"  • {absent_message}")
+                continue
+            start_str = window["window_start"].strftime("%Y-%m-%d")
+            end_str = window["window_end"].strftime("%Y-%m-%d")
+            if window["direction"] == "positive":
+                arrow = "↗ Growing"
+            elif window["direction"] == "negative":
+                arrow = "↘ Declining"
+            else:
+                arrow = "→ Flat"
+            fit_quality_pct = window["fit_quality"] * 100
+            lines.append(f"{label} ({start_str} to {end_str}, {window['n_days']} days):")
+            lines.append(
+                f"  • Monthly: ${window['monthly_trend']:,.0f}/mo  {arrow}  "
+                f"(fit quality: {fit_quality_pct:.1f}%)"
+            )
+            lines.append(f"  • Yearly:  ${window['yearly_trend']:,.0f}/yr")
+        return "\n".join(lines)
+
     def _create_statistics_panel(self, ax: Any) -> None:
         """Create statistical summary panel."""
         if self.df is None:
@@ -424,11 +553,10 @@ class CashFlowAnalyzer:
         avg_daily_change = self.df["Daily_Change"].mean()
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()
 
-        # Trend statistics
-        slope = self.trend_stats["slope"]
-        r_value = self.trend_stats["r_value"]
-        monthly_trend = self.trend_stats["monthly_trend"]
-        yearly_trend = self.trend_stats["yearly_trend"]
+        min_date = pd.to_datetime(self.df["Total"].idxmin()).strftime("%Y-%m-%d")
+        max_date = pd.to_datetime(self.df["Total"].idxmax()).strftime("%Y-%m-%d")
+
+        trend_section = self._format_trend_section()
 
         stats_text = f"""
 FINANCIAL HEALTH METRICS (Since {self.config.start_date})
@@ -442,8 +570,8 @@ CURRENT STATUS:
 HISTORICAL ANALYSIS:
 • Average Balance: ${avg_balance:,.0f}
 • Standard Deviation: ${std_balance:,.0f}
-• Minimum: ${min_balance:,.0f} ({pd.to_datetime(self.df['Total'].idxmin()).strftime('%Y-%m-%d')})  # type: ignore[union-attr]
-• Maximum: ${max_balance:,.0f} ({pd.to_datetime(self.df['Total'].idxmax()).strftime('%Y-%m-%d')})
+• Minimum: ${min_balance:,.0f} ({min_date})
+• Maximum: ${max_balance:,.0f} ({max_date})
 
 CASH FLOW PATTERNS:
 • Days with Positive Flow: {days_positive} ({days_positive/len(self.df)*100:.1f}%)
@@ -451,12 +579,7 @@ CASH FLOW PATTERNS:
 • Average Daily Change: ${avg_daily_change:,.0f}
 • Monthly Burn Rate: ${monthly_burn_rate:,.0f}
 
-TREND ANALYSIS:
-• Daily Trend: ${slope:,.2f}/day
-• Monthly Projection: ${monthly_trend:,.0f}/month
-• Yearly Projection: ${yearly_trend:,.0f}/year
-• Trend Direction: {'↗ Growing' if slope > 0 else '↘ Declining'}
-• Trend Confidence: {abs(r_value)*100:.1f}%
+{trend_section}
 
 VOLATILITY METRICS:
 • Coefficient of Variation: {(std_balance/avg_balance)*100:.1f}%
@@ -484,13 +607,27 @@ VOLATILITY METRICS:
         current_total = self.df["Total"].iloc[-1]
         monthly_burn_rate = self.monthly_df["Net_Change"].mean()
 
+        def _window_summary(window: WindowStats | None) -> dict | None:
+            if window is None:
+                return None
+            return {
+                "monthly_trend": window["monthly_trend"],
+                "yearly_trend": window["yearly_trend"],
+                "direction": window["direction"],
+                "fit_quality": window["fit_quality"],
+                "window_start": window["window_start"].strftime("%Y-%m-%d"),
+                "window_end": window["window_end"].strftime("%Y-%m-%d"),
+                "n_days": window["n_days"],
+            }
+
         return {
             "current_balance": current_total,
-            "monthly_trend": self.trend_stats["monthly_trend"],
-            "yearly_trend": self.trend_stats["yearly_trend"],
             "monthly_burn_rate": monthly_burn_rate,
-            "trend_direction": "positive" if self.trend_stats["slope"] > 0 else "negative",
-            "trend_confidence": abs(self.trend_stats["r_value"]),
+            "trends": {
+                "overall": _window_summary(self.trend_stats["overall"]),
+                "thirteen_months": _window_summary(self.trend_stats["thirteen_months"]),
+                "six_months": _window_summary(self.trend_stats["six_months"]),
+            },
             "volatility": self.df["Total"].std(),
             "data_start_date": self.config.start_date,
             "analysis_date": datetime.now().isoformat(),
