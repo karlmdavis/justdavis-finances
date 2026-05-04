@@ -492,17 +492,28 @@ class CashFlowAnalyzer:
         if self.trend_stats is None:
             raise RuntimeError("trend_stats must not be None")
 
-        windows: list[tuple[WindowStats | None, str]] = [
-            (self.trend_stats["overall"], "Overall"),
-            (self.trend_stats["thirteen_months"], "Last 13 months"),
-            (self.trend_stats["six_months"], "Last 6 months"),
+        # The "absent" message differs by slot. Overall is None only if the
+        # whole dataset has < 2 rows; sub-windows are None when their cutoff
+        # predates the dataset (the slice would equal overall).
+        windows: list[tuple[WindowStats | None, str, str]] = [
+            (self.trend_stats["overall"], "Overall", "Insufficient data"),
+            (
+                self.trend_stats["thirteen_months"],
+                "Last 13 months",
+                "Data history shorter than 13 months",
+            ),
+            (
+                self.trend_stats["six_months"],
+                "Last 6 months",
+                "Data history shorter than 6 months",
+            ),
         ]
 
         lines = ["TREND ANALYSIS:"]
-        for window, label in windows:
+        for window, label, absent_message in windows:
             if window is None:
                 lines.append(f"{label}:")
-                lines.append("  • Insufficient data")
+                lines.append(f"  • {absent_message}")
                 continue
             start_str = window["window_start"].strftime("%Y-%m-%d")
             end_str = window["window_end"].strftime("%Y-%m-%d")

@@ -302,6 +302,27 @@ class TestCashFlowAnalyzer:
         assert analyzer.trend_stats["six_months"] is not None
         assert analyzer.trend_stats["six_months"]["n_days"] < 240
 
+    def test_dedup_skipped_window_renders_distinct_message(self, analyzer):
+        """A None sub-window from dedup-skip renders 'Data history shorter than N months',
+
+        not the 'Insufficient data' message reserved for a too-short overall dataset.
+        """
+        df = pd.DataFrame(
+            {"Total": [100.0 * i for i in range(240)]},
+            index=pd.date_range("2024-08-01", periods=240, freq="D"),
+        )
+        df["MA_7"] = df["Total"].rolling(window=7, min_periods=1).mean()
+        df["MA_30"] = df["Total"].rolling(window=30, min_periods=1).mean()
+        df["MA_90"] = df["Total"].rolling(window=90, min_periods=1).mean()
+        df["Daily_Change"] = df["Total"].diff()
+
+        analyzer.df = df
+        analyzer._calculate_trend_statistics()
+
+        section = analyzer._format_trend_section()
+        assert "Data history shorter than 13 months" in section
+        assert "Insufficient data" not in section
+
     def test_trend_for_flat_window(self, analyzer):
         """A constant-balance window reports direction='flat' and 0 fit_quality (no NaN, no warning)."""
         flat_df = pd.DataFrame(
